@@ -1,0 +1,25 @@
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+WORKDIR /app
+
+# Copy workspace root files
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY turbo.json ./
+
+# Copy package.json files for all packages to leverage Docker caching
+COPY apps/web/package.json ./apps/web/
+COPY packages/typescript-config/package.json ./packages/typescript-config/
+COPY packages/eslint-config/package.json ./packages/eslint-config/
+
+# Copy shared packages
+COPY packages/ ./packages/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy web source
+COPY apps/web/ ./apps/web/
+
+EXPOSE 3000
+CMD ["pnpm", "--filter", "web", "dev"]
