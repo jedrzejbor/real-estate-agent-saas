@@ -1,8 +1,12 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuthModule, JwtAuthGuard, RolesGuard } from './auth';
+import { UsersModule } from './users';
 
 @Module({
   imports: [
@@ -25,8 +29,16 @@ import { AppService } from './app.service';
         logging: configService.get('NODE_ENV') !== 'production',
       }),
     }),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 30 }]),
+    AuthModule,
+    UsersModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

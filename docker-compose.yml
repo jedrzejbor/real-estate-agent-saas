@@ -34,6 +34,9 @@ services:
       PORT: 4000
       FRONTEND_URL: http://localhost:3000
       NODE_ENV: development
+      JWT_SECRET: dev-super-secret-key-change-in-production-2024
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
     depends_on:
       db:
         condition: service_healthy
@@ -56,6 +59,7 @@ services:
       - api
     volumes:
       - ./apps/web/src:/app/apps/web/src
+      - ./apps/web/public:/app/apps/web/public
     command: pnpm --filter web dev
 
 volumes:

@@ -1,7 +1,7 @@
 # EstateFlow — Specyfikacja Projektu
 
 > Dokument żywy — aktualizowany przy każdym kroku rozwoju aplikacji.
-> Ostatnia aktualizacja: 2026-04-05
+> Ostatnia aktualizacja: 2026-04-18 (Krok 2)
 
 ---
 
@@ -434,7 +434,7 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | Krok | Nazwa | Status | Opis |
 |------|-------|--------|------|
 | **1** | Założenia i planowanie | ✅ Gotowy | Ten dokument — wizja, model danych, architektura |
-| **2** | Auth module (backend) | ⬜ Zaplanowany | Rejestracja, login, JWT, Guard, User entity |
+| **2** | Auth module (backend) | ✅ Gotowy | Rejestracja, login, JWT, Guard, User entity |
 | **3** | Auth module (frontend) | ⬜ Zaplanowany | Strony login/register, context, protected routes |
 | **4** | Listings module (backend) | ⬜ Zaplanowany | CRUD API, entity, walidacja, upload zdjęć |
 | **5** | Listings module (frontend) | ⬜ Zaplanowany | Lista, detale, formularz, filtry |
@@ -460,25 +460,81 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **Design System** | Koncept B „Light Luxury Warm" — pełna dokumentacja |
 | **Formatter** | Prettier + ESLint skonfigurowane |
 
+| **Zmiana fontów** | Outfit + Inter skonfigurowane w layout.tsx | Krok 1 (LP) |
+| **Design System CSS** | Zmienne CSS w globals.css z design system | Krok 1 (LP) |
+| **Landing Page** | Hero, Features, Testimonials, Pricing, CTA, Footer | Krok 1 (LP) |
+| **Auth module (backend)** | User/Agent/Agency entities, JWT auth, Guards, RBAC | Krok 2 |
+
 #### Co wymaga zrobienia ⬜
 
 | Element | Priorytet | Krok |
 |---------|-----------|------|
-| Zmiana fontów na Outfit + Inter (layout.tsx używa Geist) | 🔴 | 2-3 |
-| Auth module (backend + frontend) | 🔴 | 2-3 |
-| Entity User, Agent w TypeORM | 🔴 | 2 |
-| Listings CRUD (backend) | 🔴 | 4 |
+| Auth module (frontend) | 🔴 | 3 |
 | Dashboard layout (sidebar + topbar) | 🔴 | 3 |
 | Route groups: (marketing), (auth), (dashboard) | 🔴 | 3 |
-| CSS variables z design system → globals.css | 🟡 | 3 |
+| Listings CRUD (backend) | 🔴 | 4 |
 | Klienci module | 🟡 | 6-7 |
 | Kalendarz module | 🟡 | 8 |
 | Dashboard statystyki | 🟡 | 9 |
-| Landing page | 🟢 | 10 |
 
 ---
 
-> **Następny krok**: Krok 2 — Implementacja modułu Auth (backend): User entity, rejestracja, login, JWT, Guards.
+## Krok 2: Auth module (backend)
+
+> Data: 2026-04-18
+
+### Utworzone pliki
+
+| Plik | Opis |
+|------|------|
+| `apps/api/src/common/enums/index.ts` | Enumy: UserRole, PropertyType, ListingStatus, TransactionType, ClientSource, ClientStatus, AppointmentType, AppointmentStatus |
+| `apps/api/src/users/entities/user.entity.ts` | User entity — UUID PK, email (unique), passwordHash (@Exclude), role, isActive, timestamps |
+| `apps/api/src/users/entities/agent.entity.ts` | Agent entity — profil agenta, OneToOne→User, ManyToOne→Agency |
+| `apps/api/src/users/entities/agency.entity.ts` | Agency entity — biuro nieruchomości, plan subskrypcji |
+| `apps/api/src/users/users.module.ts` | UsersModule z TypeOrmModule.forFeature |
+| `apps/api/src/users/users.service.ts` | findByEmail, findById, create (z agent profile), deactivate |
+| `apps/api/src/auth/dto/register.dto.ts` | RegisterDto — walidacja email, hasło (min 8, upper, lower, digit) |
+| `apps/api/src/auth/dto/login.dto.ts` | LoginDto — email + password |
+| `apps/api/src/auth/interfaces/jwt-payload.interface.ts` | JwtPayload { sub, email, role } |
+| `apps/api/src/auth/strategies/jwt.strategy.ts` | PassportStrategy — Bearer token, walidacja user active |
+| `apps/api/src/auth/guards/jwt-auth.guard.ts` | Global JWT guard z obsługą @Public() |
+| `apps/api/src/auth/guards/roles.guard.ts` | RBAC guard z @Roles() decorator |
+| `apps/api/src/auth/decorators/public.decorator.ts` | @Public() — oznacza route jako publiczny |
+| `apps/api/src/auth/decorators/roles.decorator.ts` | @Roles(...roles) — wymaga konkretnych ról |
+| `apps/api/src/auth/decorators/current-user.decorator.ts` | @CurrentUser() — wyciąga usera z request |
+| `apps/api/src/auth/auth.service.ts` | Logika: bcrypt hash (12 rounds), JWT access+refresh token |
+| `apps/api/src/auth/auth.controller.ts` | POST /auth/register, POST /auth/login, GET /auth/me |
+| `apps/api/src/auth/auth.module.ts` | Wire: JwtModule, PassportModule, UsersModule |
+
+### Zmodyfikowane pliki
+
+| Plik | Zmiana |
+|------|--------|
+| `apps/api/src/app.module.ts` | Import AuthModule, UsersModule, ThrottlerModule; APP_GUARD: JwtAuthGuard, RolesGuard, ThrottlerGuard |
+| `apps/api/src/app.controller.ts` | Dodano @Public() do health endpoint |
+| `apps/api/tsconfig.json` | strictPropertyInitialization: false (dla TypeORM entities) |
+| `docker-compose.yml` | Dodano JWT_SECRET, JWT_ACCESS_EXPIRES_IN, JWT_REFRESH_EXPIRES_IN do env API |
+
+### Endpointy API
+
+| Metoda | Ścieżka | Auth | Opis |
+|--------|---------|------|------|
+| GET | `/api` | ❌ Public | Health check |
+| POST | `/api/auth/register` | ❌ Public | Rejestracja użytkownika |
+| POST | `/api/auth/login` | ❌ Public | Logowanie, zwraca JWT |
+| GET | `/api/auth/me` | ✅ JWT | Profil zalogowanego użytkownika |
+
+### Przetestowane ✅
+
+- Rejestracja nowego użytkownika → zwraca user + accessToken + refreshToken
+- Login → zwraca user + nowe tokeny
+- GET /auth/me z Bearer token → zwraca profil
+- Health endpoint działa bez tokenu
+- Rate limiting (ThrottlerModule) aktywny
+
+---
+
+> **Następny krok**: Krok 3 — Implementacja modułu Auth (frontend): strony login/register, AuthContext, protected routes, dashboard layout.
 
 ---
 
