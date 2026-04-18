@@ -1,7 +1,7 @@
 # EstateFlow — Specyfikacja Projektu
 
 > Dokument żywy — aktualizowany przy każdym kroku rozwoju aplikacji.
-> Ostatnia aktualizacja: 2026-04-18 (Krok 2)
+> Ostatnia aktualizacja: 2026-04-18 (Krok 3)
 
 ---
 
@@ -435,7 +435,7 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 |------|-------|--------|------|
 | **1** | Założenia i planowanie | ✅ Gotowy | Ten dokument — wizja, model danych, architektura |
 | **2** | Auth module (backend) | ✅ Gotowy | Rejestracja, login, JWT, Guard, User entity |
-| **3** | Auth module (frontend) | ⬜ Zaplanowany | Strony login/register, context, protected routes |
+| **3** | Auth module (frontend) | ✅ Gotowy | Strony login/register, context, protected routes, dashboard layout |
 | **4** | Listings module (backend) | ⬜ Zaplanowany | CRUD API, entity, walidacja, upload zdjęć |
 | **5** | Listings module (frontend) | ⬜ Zaplanowany | Lista, detale, formularz, filtry |
 | **6** | Clients module (backend) | ⬜ Zaplanowany | CRUD API, notatki, preferencje |
@@ -464,15 +464,14 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **Design System CSS** | Zmienne CSS w globals.css z design system | Krok 1 (LP) |
 | **Landing Page** | Hero, Features, Testimonials, Pricing, CTA, Footer | Krok 1 (LP) |
 | **Auth module (backend)** | User/Agent/Agency entities, JWT auth, Guards, RBAC | Krok 2 |
+| **Auth module (frontend)** | Login/Register pages, AuthContext, dashboard layout, middleware | Krok 3 |
 
 #### Co wymaga zrobienia ⬜
 
 | Element | Priorytet | Krok |
 |---------|-----------|------|
-| Auth module (frontend) | 🔴 | 3 |
-| Dashboard layout (sidebar + topbar) | 🔴 | 3 |
-| Route groups: (marketing), (auth), (dashboard) | 🔴 | 3 |
 | Listings CRUD (backend) | 🔴 | 4 |
+| Listings CRUD (frontend) | 🔴 | 5 |
 | Klienci module | 🟡 | 6-7 |
 | Kalendarz module | 🟡 | 8 |
 | Dashboard statystyki | 🟡 | 9 |
@@ -534,7 +533,64 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 ---
 
-> **Następny krok**: Krok 3 — Implementacja modułu Auth (frontend): strony login/register, AuthContext, protected routes, dashboard layout.
+> **Następny krok**: Krok 4 — Implementacja modułu Listings (backend): CRUD API, entity, walidacja, upload zdjęć.
+
+---
+
+## Krok 3: Auth module (frontend)
+
+> Data: 2026-04-18
+
+### Architektura
+
+- **Route Groups**: `(marketing)`, `(auth)`, `(dashboard)` — separacja layoutów
+- **AuthProvider**: React Context z login/register/logout, token management w localStorage
+- **Zod Schemas**: Frontend walidacja identyczna z backend DTOs
+- **API Client**: Reusable `apiFetch()` wrapper z auto-attach JWT Bearer token
+
+### Utworzone pliki
+
+| Plik | Opis |
+|------|------|
+| `apps/web/src/lib/api-client.ts` | Fetch wrapper: auto JWT, JSON serialize, ApiError class |
+| `apps/web/src/lib/auth.ts` | Auth types, Zod schemas (login/register), token helpers |
+| `apps/web/src/hooks/use-auth-form.ts` | Lightweight form hook z Zod validation |
+| `apps/web/src/contexts/auth-context.tsx` | AuthProvider + useAuth hook: login, register, logout, fetchUser |
+| `apps/web/src/components/auth/auth-form-field.tsx` | Reusable labelled input z error display |
+| `apps/web/src/components/dashboard/sidebar.tsx` | Sidebar z nav items, logo, logout button |
+| `apps/web/src/components/dashboard/topbar.tsx` | Topbar z user avatar, initials, notifications placeholder |
+| `apps/web/src/app/(marketing)/layout.tsx` | Marketing layout: Navbar + Footer wrapper |
+| `apps/web/src/app/(auth)/layout.tsx` | Auth layout: centered card, logo, gradient bg |
+| `apps/web/src/app/(auth)/login/page.tsx` | Strona logowania z walidacją Zod |
+| `apps/web/src/app/(auth)/register/page.tsx` | Strona rejestracji: imię, nazwisko, email, hasło |
+| `apps/web/src/app/(dashboard)/layout.tsx` | Dashboard shell: sidebar + topbar + loading state |
+| `apps/web/src/app/(dashboard)/dashboard/page.tsx` | Dashboard home: greeting, stat cards, placeholders |
+| `apps/web/src/middleware.ts` | Next.js middleware: public/protected route handling |
+
+### Zmodyfikowane pliki
+
+| Plik | Zmiana |
+|------|--------|
+| `apps/web/src/app/layout.tsx` | Dodano `<AuthProvider>` wrapper |
+| `apps/web/src/app/(marketing)/page.tsx` | Przeniesiono z `/page.tsx`, usunięto Navbar/Footer (teraz w layout) |
+| `apps/web/package.json` | Dodano zod |
+
+### Strony
+
+| Ścieżka | Typ | Opis |
+|---------|-----|------|
+| `/` | Public | Landing page (marketing) |
+| `/login` | Public | Formularz logowania |
+| `/register` | Public | Formularz rejestracji |
+| `/dashboard` | Protected | Panel agenta z stat cards |
+
+### Przetestowane ✅
+
+- Build kompiluje się bez błędów
+- Route groups poprawnie rozdzielają layouty
+- Landing page działa z Navbar/Footer z marketing layout
+- Login/Register renderują się z walidacją Zod
+- Dashboard z sidebar + topbar + stat cards
 
 ---
 
