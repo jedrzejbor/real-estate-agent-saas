@@ -1,7 +1,7 @@
 # EstateFlow — Specyfikacja Projektu
 
 > Dokument żywy — aktualizowany przy każdym kroku rozwoju aplikacji.
-> Ostatnia aktualizacja: 2026-04-18 (Krok 4)
+> Ostatnia aktualizacja: 2026-04-18 (Krok 5)
 
 ---
 
@@ -437,7 +437,7 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **2** | Auth module (backend) | ✅ Gotowy | Rejestracja, login, JWT, Guard, User entity |
 | **3** | Auth module (frontend) | ✅ Gotowy | Strony login/register, context, protected routes, dashboard layout |
 | **4** | Listings module (backend) | ✅ Gotowy | CRUD API, entity, walidacja, filtrowanie, paginacja |
-| **5** | Listings module (frontend) | ⬜ Zaplanowany | Lista, detale, formularz, filtry |
+| **5** | Listings module (frontend) | ✅ Gotowy | Lista ofert, szczegóły, formularz dodawania/edycji, filtry, paginacja |
 | **6** | Clients module (backend) | ⬜ Zaplanowany | CRUD API, notatki, preferencje |
 | **7** | Clients module (frontend) | ⬜ Zaplanowany | Lista, profil klienta, CRM view |
 | **8** | Calendar module | ⬜ Zaplanowany | Spotkania CRUD, widok kalendarza |
@@ -466,12 +466,12 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **Auth module (backend)** | User/Agent/Agency entities, JWT auth, Guards, RBAC | Krok 2 |
 | **Auth module (frontend)** | Login/Register pages, AuthContext, dashboard layout, middleware | Krok 3 |
 | **Listings module (backend)** | Listing/ListingImage/Address entities, CRUD API, filtrowanie, paginacja | Krok 4 |
+| **Listings module (frontend)** | Lista ofert, szczegóły, formularz, filtry, paginacja, status management | Krok 5 |
 
 #### Co wymaga zrobienia ⬜
 
 | Element | Priorytet | Krok |
 |---------|-----------|------|
-| Listings CRUD (frontend) | 🔴 | 5 |
 | Klienci module | 🟡 | 6-7 |
 | Kalendarz module | 🟡 | 8 |
 | Dashboard statystyki | 🟡 | 9 |
@@ -533,7 +533,71 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 ---
 
-> **Następny krok**: Krok 5 — Implementacja modułu Listings (frontend): lista, detale, formularz, filtry.
+> **Następny krok**: Krok 6 — Implementacja modułu Clients (backend): CRUD API, notatki, preferencje.
+
+---
+
+## Krok 5: Listings module (frontend)
+
+> Data: 2026-04-18
+
+### Architektura
+
+- **Typy & API**: Pełne TypeScript types mirrorujące backend entities, Zod schema do walidacji formularzy, API client functions (fetchListings, fetchListing, createListing, updateListing, deleteListing)
+- **Hooks**: `useListings` (paginacja, filtry, abort controller), `useListingForm` (Zod validation, nested objects z FormData)
+- **Komponenty**: ListingCard, ListingFiltersBar, ListingPagination, ListingStatusBadge, ListingForm (create/edit mode)
+- **Formatowanie**: `formatPrice()` (Intl.NumberFormat PLN), `formatArea()` (m²), polskie etykiety dla enumów
+- **Status management**: Szczegóły oferty z przyciskami zmiany statusu (draft→active, active→reserved/sold/rented/withdrawn, itd.)
+
+### Utworzone pliki
+
+| Plik | Opis |
+|------|------|
+| `apps/web/src/lib/listings.ts` | Typy, enumy, Zod schemas, API functions, helpers (formatPrice, formatArea, cleanPayload) |
+| `apps/web/src/hooks/use-listings.ts` | Hook do pobierania listy ofert z paginacją, filtrami, abort controller |
+| `apps/web/src/hooks/use-listing-form.ts` | Hook formularza z Zod validation, obsługa nested objects (address.*) |
+| `apps/web/src/components/listings/listing-status-badge.tsx` | Badge ze statusem oferty (kolorowany wg statusu) |
+| `apps/web/src/components/listings/listing-card.tsx` | Karta oferty: typ, status, tytuł, lokalizacja, parametry, cena, data |
+| `apps/web/src/components/listings/listing-filters.tsx` | Pasek filtrów: search, propertyType, transactionType, status, reset |
+| `apps/web/src/components/listings/listing-pagination.tsx` | Paginacja z numerami stron i ellipsis |
+| `apps/web/src/components/listings/listing-form.tsx` | Formularz tworzenia/edycji: sekcje (info, cena/parametry, adres), walidacja |
+| `apps/web/src/components/listings/index.ts` | Barrel export |
+| `apps/web/src/app/(dashboard)/dashboard/listings/page.tsx` | Lista ofert: grid, filtry, paginacja, empty state |
+| `apps/web/src/app/(dashboard)/dashboard/listings/new/page.tsx` | Strona dodawania nowej oferty |
+| `apps/web/src/app/(dashboard)/dashboard/listings/[id]/page.tsx` | Szczegóły oferty: cena, parametry, opis, status management, lokalizacja, metadata |
+| `apps/web/src/app/(dashboard)/dashboard/listings/[id]/edit/page.tsx` | Edycja oferty z pre-filled formularzem |
+
+### Zmodyfikowane pliki
+
+| Plik | Zmiana |
+|------|--------|
+| `apps/web/src/app/(dashboard)/dashboard/[...slug]/page.tsx` | Usunięto `listings` z ROUTE_LABELS (ma własne strony) |
+
+### Strony
+
+| Ścieżka | Typ | Opis |
+|---------|-----|------|
+| `/dashboard/listings` | Protected | Lista ofert z filtrami i paginacją |
+| `/dashboard/listings/new` | Protected | Formularz dodawania nowej oferty |
+| `/dashboard/listings/:id` | Protected | Szczegóły oferty + zarządzanie statusem |
+| `/dashboard/listings/:id/edit` | Protected | Edycja istniejącej oferty |
+
+### Funkcjonalności
+
+- **Lista ofert**: Grid 3-kolumnowy, filtry (search, propertyType, transactionType, status), paginacja z numerami stron
+- **Karta oferty**: Typ + transakcja, status badge, tytuł, lokalizacja, parametry (powierzchnia, pokoje, łazienki), cena PLN, data utworzenia
+- **Szczegóły oferty**: Cena + cena/m², parametry, opis, zarządzanie statusem (context-aware actions), metadata (daty), lokalizacja
+- **Formularz**: 3 sekcje (info, cena/parametry, adres), Zod validation, tryb create/edit z defaultValues
+- **Status transitions**: draft→active, active→reserved/sold/rented/withdrawn, reserved→active/sold/rented, withdrawn→active/archived
+- **Empty states**: Osobne dla "brak ofert" i "brak wyników" (z filtrami)
+- **Loading states**: Spinner przy ładowaniu danych
+- **Error handling**: Globalne errory w formularzu, error states na listach
+
+### Przetestowane ✅
+
+- Build kompiluje się bez błędów
+- Routing: /dashboard/listings, /new, /[id], /[id]/edit — wszystkie zarejestrowane
+- Catch-all [...slug] nie koliduje z listings routes
 
 ---
 
