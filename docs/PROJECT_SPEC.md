@@ -1,7 +1,7 @@
 # EstateFlow — Specyfikacja Projektu
 
 > Dokument żywy — aktualizowany przy każdym kroku rozwoju aplikacji.
-> Ostatnia aktualizacja: 2026-04-18 (Krok 3)
+> Ostatnia aktualizacja: 2026-04-18 (Krok 4)
 
 ---
 
@@ -436,7 +436,7 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **1** | Założenia i planowanie | ✅ Gotowy | Ten dokument — wizja, model danych, architektura |
 | **2** | Auth module (backend) | ✅ Gotowy | Rejestracja, login, JWT, Guard, User entity |
 | **3** | Auth module (frontend) | ✅ Gotowy | Strony login/register, context, protected routes, dashboard layout |
-| **4** | Listings module (backend) | ⬜ Zaplanowany | CRUD API, entity, walidacja, upload zdjęć |
+| **4** | Listings module (backend) | ✅ Gotowy | CRUD API, entity, walidacja, filtrowanie, paginacja |
 | **5** | Listings module (frontend) | ⬜ Zaplanowany | Lista, detale, formularz, filtry |
 | **6** | Clients module (backend) | ⬜ Zaplanowany | CRUD API, notatki, preferencje |
 | **7** | Clients module (frontend) | ⬜ Zaplanowany | Lista, profil klienta, CRM view |
@@ -465,12 +465,12 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **Landing Page** | Hero, Features, Testimonials, Pricing, CTA, Footer | Krok 1 (LP) |
 | **Auth module (backend)** | User/Agent/Agency entities, JWT auth, Guards, RBAC | Krok 2 |
 | **Auth module (frontend)** | Login/Register pages, AuthContext, dashboard layout, middleware | Krok 3 |
+| **Listings module (backend)** | Listing/ListingImage/Address entities, CRUD API, filtrowanie, paginacja | Krok 4 |
 
 #### Co wymaga zrobienia ⬜
 
 | Element | Priorytet | Krok |
 |---------|-----------|------|
-| Listings CRUD (backend) | 🔴 | 4 |
 | Listings CRUD (frontend) | 🔴 | 5 |
 | Klienci module | 🟡 | 6-7 |
 | Kalendarz module | 🟡 | 8 |
@@ -533,7 +533,79 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 ---
 
-> **Następny krok**: Krok 4 — Implementacja modułu Listings (backend): CRUD API, entity, walidacja, upload zdjęć.
+> **Następny krok**: Krok 5 — Implementacja modułu Listings (frontend): lista, detale, formularz, filtry.
+
+---
+
+## Krok 4: Listings module (backend)
+
+> Data: 2026-04-18
+
+### Architektura
+
+- **Entities**: `Listing`, `ListingImage`, `Address` — pełny model danych nieruchomości
+- **Ownership**: Agent-scoped — każdy agent widzi i edytuje tylko swoje oferty
+- **Filtrowanie**: propertyType, status, transactionType, city, price range, area range, rooms, search (title/description)
+- **Paginacja**: page/limit z meta (total, totalPages)
+- **Sortowanie**: price, createdAt, areaM2 (ASC/DESC)
+- **Soft delete**: Aktywne oferty → archiwizowane, drafty → hard delete
+- **Auto publishedAt**: Ustawiany automatycznie przy pierwszej aktywacji
+
+### Utworzone pliki
+
+| Plik | Opis |
+|------|------|
+| `apps/api/src/listings/entities/listing.entity.ts` | Listing entity — UUID PK, title, description, propertyType, status, transactionType, price, currency, areaM2, rooms, bathrooms, floor, totalFloors, yearBuilt, isPremium, publishedAt, timestamps |
+| `apps/api/src/listings/entities/listing-image.entity.ts` | ListingImage entity — url, order, isPrimary, altText, ManyToOne→Listing |
+| `apps/api/src/listings/entities/address.entity.ts` | Address entity — street, city, postalCode, district, voivodeship, lat, lng, OneToOne→Listing |
+| `apps/api/src/listings/dto/create-listing.dto.ts` | CreateListingDto + CreateAddressDto z pełną walidacją class-validator |
+| `apps/api/src/listings/dto/update-listing.dto.ts` | UpdateListingDto + UpdateAddressDto — wszystkie pola opcjonalne |
+| `apps/api/src/listings/dto/listing-query.dto.ts` | ListingQueryDto — filtry, paginacja (page/limit), sortowanie (sortBy/sortOrder) |
+| `apps/api/src/listings/listings.service.ts` | CRUD: create, findAll (z QueryBuilder, filtry, paginacja), findOne, update, remove (soft/hard), resolveAgent, assertOwnership |
+| `apps/api/src/listings/listings.controller.ts` | REST: POST, GET (list), GET :id, PATCH :id, DELETE :id |
+| `apps/api/src/listings/listings.module.ts` | TypeOrmModule.forFeature([Listing, ListingImage, Address, Agent]) |
+
+### Zmodyfikowane pliki
+
+| Plik | Zmiana |
+|------|--------|
+| `apps/api/src/app.module.ts` | Import ListingsModule |
+
+### Endpointy API
+
+| Metoda | Ścieżka | Auth | Opis |
+|--------|---------|------|------|
+| POST | `/api/listings` | ✅ JWT | Utwórz nową ofertę (status: draft) |
+| GET | `/api/listings` | ✅ JWT | Lista ofert agenta (paginacja, filtry, sortowanie) |
+| GET | `/api/listings/:id` | ✅ JWT | Szczegóły oferty |
+| PATCH | `/api/listings/:id` | ✅ JWT | Aktualizacja oferty (+ auto publishedAt przy aktywacji) |
+| DELETE | `/api/listings/:id` | ✅ JWT | Archiwizuj (active) lub usuń (draft) |
+
+### Filtry (query params)
+
+| Parametr | Typ | Opis |
+|----------|-----|------|
+| `propertyType` | enum | apartment, house, land, commercial, office, garage |
+| `status` | enum | draft, active, reserved, sold, rented, withdrawn, archived |
+| `transactionType` | enum | sale, rent |
+| `city` | string | Wyszukiwanie po mieście (LIKE, case-insensitive) |
+| `priceMin` / `priceMax` | number | Zakres cenowy |
+| `areaMin` / `areaMax` | number | Zakres powierzchni |
+| `roomsMin` | number | Minimalna liczba pokoi |
+| `search` | string | Wyszukiwanie w tytule i opisie |
+| `page` | number | Numer strony (default: 1) |
+| `limit` | number | Wyników na stronę (default: 20, max: 100) |
+| `sortBy` | string | Kolumna sortowania: price, createdAt, areaM2 |
+| `sortOrder` | string | ASC lub DESC (default: DESC) |
+
+### Przetestowane ✅
+
+- POST /api/listings → tworzy ofertę z adresem (status: draft)
+- GET /api/listings → paginacja + filtrowanie po mieście
+- PATCH /api/listings/:id → zmiana statusu na active, auto publishedAt
+- DELETE /api/listings/:id → 204 (archiwizacja aktywnej oferty)
+- Ownership guard — agent widzi tylko swoje oferty
+- Walidacja DTO — class-validator na wszystkich polach
 
 ---
 

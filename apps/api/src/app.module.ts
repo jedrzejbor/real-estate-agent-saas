@@ -7,6 +7,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule, JwtAuthGuard, RolesGuard } from './auth';
 import { UsersModule } from './users';
+import { ListingsModule } from './listings';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { UsersModule } from './users';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 30 }]),
     AuthModule,
     UsersModule,
+    ListingsModule,
   ],
   controllers: [AppController],
   providers: [
