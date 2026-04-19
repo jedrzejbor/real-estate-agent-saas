@@ -1,7 +1,7 @@
 # EstateFlow — Specyfikacja Projektu
 
 > Dokument żywy — aktualizowany przy każdym kroku rozwoju aplikacji.
-> Ostatnia aktualizacja: 2026-04-18 (Krok 6)
+> Ostatnia aktualizacja: 2026-04-19 (Krok 7)
 
 ---
 
@@ -439,7 +439,7 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **4** | Listings module (backend) | ✅ Gotowy | CRUD API, entity, walidacja, filtrowanie, paginacja |
 | **5** | Listings module (frontend) | ✅ Gotowy | Lista ofert, szczegóły, formularz dodawania/edycji, filtry, paginacja |
 | **6** | Clients module (backend) | ✅ Gotowy | CRUD API, notatki, preferencje, filtrowanie, paginacja |
-| **7** | Clients module (frontend) | ⬜ Zaplanowany | Lista, profil klienta, CRM view |
+| **7** | Clients module (frontend) | ✅ Gotowy | Lista klientów, profil, CRM view, notatki, preferencje, formularze |
 | **8** | Calendar module | ⬜ Zaplanowany | Spotkania CRUD, widok kalendarza |
 | **9** | Dashboard | ⬜ Zaplanowany | Stat cards, wykresy, ostatnia aktywność |
 | **10** | Landing Page | ⬜ Zaplanowany | Strona marketingowa, pricing |
@@ -468,12 +468,13 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **Listings module (backend)** | Listing/ListingImage/Address entities, CRUD API, filtrowanie, paginacja | Krok 4 |
 | **Listings module (frontend)** | Lista ofert, szczegóły, formularz, filtry, paginacja, status management | Krok 5 |
 | **Clients module (backend)** | Client/ClientNote/ClientPreference entities, CRUD API, notatki, filtrowanie, paginacja | Krok 6 |
+| **Clients module (frontend)** | Lista klientów, profil, CRM status pipeline, notatki, preferencje, formularze | Krok 7 |
 
 #### Co wymaga zrobienia ⬜
 
 | Element | Priorytet | Krok |
 |---------|-----------|------|
-| Klienci module (frontend) | 🟡 | 7 |
+| Kalendarz module | 🟡 | 8 |
 | Kalendarz module | 🟡 | 8 |
 | Dashboard statystyki | 🟡 | 9 |
 
@@ -534,7 +535,67 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 ---
 
-> **Następny krok**: Krok 7 — Implementacja modułu Clients (frontend): lista klientów, profil, notatki, preferencje.
+> **Następny krok**: Krok 8 — Implementacja modułu Calendar: spotkania CRUD, widok kalendarza.
+
+---
+
+## Krok 7: Clients module (frontend)
+
+> Data: 2026-04-19
+
+### Architektura
+
+- **Typy & API**: Pełne TypeScript types mirrorujące backend entities, Zod schema do walidacji formularzy, API client functions (fetchClients, fetchClient, createClient, updateClient, deleteClient, fetchClientNotes, addClientNote, deleteClientNote)
+- **Hooks**: `useClients` (paginacja, filtry, abort controller), `useClientForm` (Zod validation, nested objects z FormData), `useClientNotes` (fetch/add/remove z optimistic updates)
+- **Komponenty**: ClientCard, ClientFiltersBar, ClientPagination, ClientStatusBadge, ClientForm (create/edit), ClientNotes (timeline), ClientPreferencesCard
+- **Formatowanie**: `formatBudget()` (Intl.NumberFormat PLN), `formatBudgetRange()`, `clientFullName()`, `clientInitials()`, `formatRelativeDate()`, polskie etykiety
+- **CRM Pipeline**: Status management z context-aware transitions (new→contacted→qualified→active→negotiating→closed_won/closed_lost)
+
+### Utworzone pliki
+
+| Plik | Opis |
+|------|------|
+| `apps/web/src/lib/clients.ts` | Typy, enumy (ClientSource, ClientStatus, PropertyType), Zod schemas, API functions, helpers (formatBudget, formatBudgetRange, clientFullName, clientInitials, formatRelativeDate, getClientStatusActions) |
+| `apps/web/src/hooks/use-clients.ts` | Hook do pobierania listy klientów z paginacją, filtrami, abort controller |
+| `apps/web/src/hooks/use-client-form.ts` | Hook formularza z Zod validation, obsługa nested objects (preference.*) |
+| `apps/web/src/hooks/use-client-notes.ts` | Hook do zarządzania notatkami: fetch, add (optimistic), remove |
+| `apps/web/src/components/clients/client-status-badge.tsx` | Badge ze statusem klienta CRM (kolorowany wg statusu) |
+| `apps/web/src/components/clients/client-card.tsx` | Karta klienta: avatar, imię, kontakt, źródło, status, budżet, data |
+| `apps/web/src/components/clients/client-filters.tsx` | Pasek filtrów: search, source, status, reset |
+| `apps/web/src/components/clients/client-pagination.tsx` | Paginacja z numerami stron i ellipsis |
+| `apps/web/src/components/clients/client-form.tsx` | Formularz tworzenia/edycji: 3 sekcje (dane osobowe, budżet, preferencje), walidacja |
+| `apps/web/src/components/clients/client-notes.tsx` | Timeline notatek: dodawanie, usuwanie, formatowanie dat |
+| `apps/web/src/components/clients/client-preferences.tsx` | Karta preferencji: typ, powierzchnia, cena, miasto, pokoje |
+| `apps/web/src/components/clients/index.ts` | Barrel export |
+| `apps/web/src/app/(dashboard)/dashboard/clients/page.tsx` | Lista klientów: grid, filtry, paginacja, empty state |
+| `apps/web/src/app/(dashboard)/dashboard/clients/new/page.tsx` | Strona dodawania nowego klienta |
+| `apps/web/src/app/(dashboard)/dashboard/clients/[id]/page.tsx` | Profil klienta: avatar, dane kontaktowe, budżet, preferencje, notatki, status management |
+| `apps/web/src/app/(dashboard)/dashboard/clients/[id]/edit/page.tsx` | Edycja klienta z pre-filled formularzem |
+
+### Zmodyfikowane pliki
+
+| Plik | Zmiana |
+|------|--------|
+| `apps/web/src/app/(dashboard)/dashboard/[...slug]/page.tsx` | Usunięto `clients` z ROUTE_LABELS (ma własne strony) |
+
+### Strony
+
+| Ścieżka | Typ | Opis |
+|---------|-----|------|
+| `/dashboard/clients` | Protected | Lista klientów z filtrami i paginacją |
+| `/dashboard/clients/new` | Protected | Formularz dodawania nowego klienta |
+| `/dashboard/clients/:id` | Protected | Profil klienta + notatki + preferencje + status management |
+| `/dashboard/clients/:id/edit` | Protected | Edycja istniejącego klienta |
+
+### Funkcjonalności
+
+- **Lista klientów**: Grid 3-kolumnowy, filtry (search, source, status), paginacja z numerami stron
+- **Karta klienta**: Avatar z inicjałami, imię i nazwisko, email/telefon, badge źródła, status CRM, budżet, data względna
+- **Profil klienta**: Avatar, dane kontaktowe (mailto/tel links), budżet, notatki ogólne, preferencje nieruchomości, timeline notatek, zarządzanie statusem CRM
+- **Formularz**: 3 sekcje (dane osobowe, budżet, preferencje nieruchomości), Zod validation, tryb create/edit z defaultValues
+- **Notatki**: Dodawanie z walidacją (max 5000 znaków), usuwanie z potwierdzeniem, formatowanie daty PL, hover reveal delete button
+- **Preferencje**: Karta z ikonami — typ, powierzchnia, maks. cena, miasto, pokoje
+- **CRM Pipeline**: new→contacted→qualified→active→negotiating→closed_won/closed_lost, reactive/inactive transitions
 
 ---
 
