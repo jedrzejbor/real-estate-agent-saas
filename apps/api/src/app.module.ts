@@ -10,6 +10,7 @@ import { UsersModule } from './users';
 import { ListingsModule } from './listings';
 import { ClientsModule } from './clients';
 import { AppointmentsModule } from './appointments';
+import { DashboardModule } from './dashboard';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AppointmentsModule } from './appointments';
     ListingsModule,
     ClientsModule,
     AppointmentsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

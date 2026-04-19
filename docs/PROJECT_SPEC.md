@@ -1,7 +1,7 @@
 # EstateFlow — Specyfikacja Projektu
 
 > Dokument żywy — aktualizowany przy każdym kroku rozwoju aplikacji.
-> Ostatnia aktualizacja: 2026-04-19 (Krok 7)
+> Ostatnia aktualizacja: 2026-04-19 (Krok 9)
 
 ---
 
@@ -440,7 +440,7 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **5** | Listings module (frontend) | ✅ Gotowy | Lista ofert, szczegóły, formularz dodawania/edycji, filtry, paginacja |
 | **6** | Clients module (backend) | ✅ Gotowy | CRUD API, notatki, preferencje, filtrowanie, paginacja |
 | **7** | Clients module (frontend) | ✅ Gotowy | Lista klientów, profil, CRM view, notatki, preferencje, formularze |
-| **8** | Calendar module | ⬜ Zaplanowany | Spotkania CRUD, widok kalendarza |
+| **8** | Calendar module | ✅ Gotowy | Spotkania CRUD, widok kalendarza |
 | **9** | Dashboard | ⬜ Zaplanowany | Stat cards, wykresy, ostatnia aktywność |
 | **10** | Landing Page | ⬜ Zaplanowany | Strona marketingowa, pricing |
 | **11** | Deploy & CI/CD | ⬜ Zaplanowany | Docker production, CI pipeline |
@@ -469,14 +469,15 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **Listings module (frontend)** | Lista ofert, szczegóły, formularz, filtry, paginacja, status management | Krok 5 |
 | **Clients module (backend)** | Client/ClientNote/ClientPreference entities, CRUD API, notatki, filtrowanie, paginacja | Krok 6 |
 | **Clients module (frontend)** | Lista klientów, profil, CRM status pipeline, notatki, preferencje, formularze | Krok 7 |
+| **Calendar module** | Spotkania CRUD, widok miesiąca i listy, szczegóły, edycja i usuwanie spotkań | Krok 8 |
+| **Dashboard** | Stat cards, revenue, pipeline klientów, status ofert, ostatnia aktywność, nadchodzące spotkania | Krok 9 |
 
 #### Co wymaga zrobienia ⬜
 
 | Element | Priorytet | Krok |
 |---------|-----------|------|
-| Kalendarz module | 🟡 | 8 |
-| Kalendarz module | 🟡 | 8 |
-| Dashboard statystyki | 🟡 | 9 |
+| Wyszukiwarka globalna | 🟡 | 10 |
+| Powiadomienia | 🟡 | 10 |
 
 ---
 
@@ -535,7 +536,7 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 ---
 
-> **Następny krok**: Krok 8 — Implementacja modułu Calendar: spotkania CRUD, widok kalendarza.
+> **Następny krok**: Krok 10 — Wyszukiwarka globalna i powiadomienia.
 
 ---
 
@@ -872,7 +873,7 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 ---
 
-## Krok 8 — Moduł Calendar: spotkania CRUD + widok kalendarza (2025-04-19)
+## Krok 8 — Moduł Calendar: spotkania CRUD + widok kalendarza (2026-04-19)
 
 ### Backend — `apps/api/src/appointments/`
 
@@ -907,6 +908,47 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 - Backend: `pnpm --filter api build` — kompiluje się bez błędów
 - Frontend: `pnpm --filter web build` — kompiluje się bez błędów
 - Wszystkie route'y poprawnie zarejestrowane: `/dashboard/calendar`, `/dashboard/calendar/new`, `/dashboard/calendar/[id]`, `/dashboard/calendar/[id]/edit`
+
+### Status kroku
+
+- **Krok 8: Gotowy ✅**
+
+---
+
+## Krok 9 — Dashboard: statystyki, wykresy i aktywność (2026-04-19)
+
+### Backend
+
+- `DashboardModule` (`apps/api/src/dashboard/`)
+- `DashboardService` — agregacja danych z Listing, Client, Appointment, Agent
+  - `getStats(userId)` → `DashboardStats`
+  - Statystyki ofert: count wg statusu (active, draft, reserved, sold, rented, archived)
+  - Statystyki klientów: count wg statusu + współczynnik konwersji
+  - Statystyki spotkań: total, thisWeek, today, upcoming
+  - Revenue: totalListedValue, avgPrice, soldValue, rentedValue
+  - Ostatnia aktywność: 10 najnowszych (merge listing+client+appointment)
+  - Nadchodzące spotkania: 5 najbliższych z klientem
+- `DashboardController` — `GET /api/dashboard/stats` (JWT protected)
+
+### Frontend
+
+- `lib/dashboard.ts` — typy, API fetch, helpery (formatPricePL, formatRelativeTime, formatAppointmentTime)
+- `hooks/use-dashboard.ts` — `useDashboard()` hook
+- `app/(dashboard)/dashboard/page.tsx` — pełna strona dashboard:
+  - **StatCard** × 4: aktywne oferty, klienci, spotkania, konwersja
+  - **RevenueCard** × 3: wartość aktywnych, średnia cena, wartość sprzedaży
+  - **RecentActivityCard**: 10 ostatnich aktywności z ikonami i czasem względnym
+  - **UpcomingAppointmentsCard**: 5 nadchodzących spotkań
+  - **ListingStatusBreakdown**: poziomy pasek + legenda
+  - **ClientPipelineBreakdown**: funnel bars + metryka konwersji
+
+### Status kroku
+
+- **Krok 9: Gotowy ✅**
+
+### Następny krok
+
+- **Krok 10 — Wyszukiwarka globalna i powiadomienia**
 
 ---
 
