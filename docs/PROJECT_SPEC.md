@@ -1,7 +1,7 @@
 # EstateFlow — Specyfikacja Projektu
 
 > Dokument żywy — aktualizowany przy każdym kroku rozwoju aplikacji.
-> Ostatnia aktualizacja: 2026-04-18 (Krok 5)
+> Ostatnia aktualizacja: 2026-04-18 (Krok 6)
 
 ---
 
@@ -438,7 +438,7 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **3** | Auth module (frontend) | ✅ Gotowy | Strony login/register, context, protected routes, dashboard layout |
 | **4** | Listings module (backend) | ✅ Gotowy | CRUD API, entity, walidacja, filtrowanie, paginacja |
 | **5** | Listings module (frontend) | ✅ Gotowy | Lista ofert, szczegóły, formularz dodawania/edycji, filtry, paginacja |
-| **6** | Clients module (backend) | ⬜ Zaplanowany | CRUD API, notatki, preferencje |
+| **6** | Clients module (backend) | ✅ Gotowy | CRUD API, notatki, preferencje, filtrowanie, paginacja |
 | **7** | Clients module (frontend) | ⬜ Zaplanowany | Lista, profil klienta, CRM view |
 | **8** | Calendar module | ⬜ Zaplanowany | Spotkania CRUD, widok kalendarza |
 | **9** | Dashboard | ⬜ Zaplanowany | Stat cards, wykresy, ostatnia aktywność |
@@ -467,12 +467,13 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **Auth module (frontend)** | Login/Register pages, AuthContext, dashboard layout, middleware | Krok 3 |
 | **Listings module (backend)** | Listing/ListingImage/Address entities, CRUD API, filtrowanie, paginacja | Krok 4 |
 | **Listings module (frontend)** | Lista ofert, szczegóły, formularz, filtry, paginacja, status management | Krok 5 |
+| **Clients module (backend)** | Client/ClientNote/ClientPreference entities, CRUD API, notatki, filtrowanie, paginacja | Krok 6 |
 
 #### Co wymaga zrobienia ⬜
 
 | Element | Priorytet | Krok |
 |---------|-----------|------|
-| Klienci module | 🟡 | 6-7 |
+| Klienci module (frontend) | 🟡 | 7 |
 | Kalendarz module | 🟡 | 8 |
 | Dashboard statystyki | 🟡 | 9 |
 
@@ -533,7 +534,87 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 ---
 
-> **Następny krok**: Krok 6 — Implementacja modułu Clients (backend): CRUD API, notatki, preferencje.
+> **Następny krok**: Krok 7 — Implementacja modułu Clients (frontend): lista klientów, profil, notatki, preferencje.
+
+---
+
+## Krok 6: Clients module (backend)
+
+> Data: 2026-04-18
+
+### Architektura
+
+- **Entities**: `Client`, `ClientNote`, `ClientPreference` — pełny model CRM
+- **Ownership**: Agent-scoped — każdy agent widzi i edytuje tylko swoich klientów
+- **Notatki**: Timeline kontaktów z klientem (CRUD per client)
+- **Preferencje**: Jeden zestaw preferencji per klient (propertyType, minArea, maxPrice, preferredCity, minRooms)
+- **Filtrowanie**: source, status, budget range, search (imię/nazwisko/email/telefon)
+- **Paginacja**: page/limit z meta (total, totalPages)
+- **Sortowanie**: createdAt, lastName, status (ASC/DESC)
+
+### Utworzone pliki
+
+| Plik | Opis |
+|------|------|
+| `apps/api/src/clients/entities/client.entity.ts` | Client entity — UUID PK, firstName, lastName, email, phone, source, status, budgetMin, budgetMax, notes, timestamps |
+| `apps/api/src/clients/entities/client-note.entity.ts` | ClientNote entity — content, createdAt, ManyToOne→Client, ManyToOne→Agent |
+| `apps/api/src/clients/entities/client-preference.entity.ts` | ClientPreference entity — propertyType, minArea, maxPrice, preferredCity, minRooms, OneToOne→Client |
+| `apps/api/src/clients/entities/index.ts` | Barrel export |
+| `apps/api/src/clients/dto/create-client.dto.ts` | CreateClientDto + CreateClientPreferenceDto z pełną walidacją |
+| `apps/api/src/clients/dto/update-client.dto.ts` | UpdateClientDto + UpdateClientPreferenceDto — wszystkie pola opcjonalne, + status |
+| `apps/api/src/clients/dto/client-query.dto.ts` | ClientQueryDto — filtry (source, status, budget, search), paginacja, sortowanie |
+| `apps/api/src/clients/dto/create-client-note.dto.ts` | CreateClientNoteDto — content (max 5000 znaków) |
+| `apps/api/src/clients/dto/index.ts` | Barrel export |
+| `apps/api/src/clients/clients.service.ts` | CRUD + Notes: create, findAll, findOne, update, remove, findNotes, addNote, removeNote, resolveAgent, assertOwnership, applyFilters |
+| `apps/api/src/clients/clients.controller.ts` | REST: POST, GET (list), GET :id, PATCH :id, DELETE :id, GET :id/notes, POST :id/notes, DELETE :clientId/notes/:noteId |
+| `apps/api/src/clients/clients.module.ts` | TypeOrmModule.forFeature([Client, ClientNote, ClientPreference, Agent]) |
+| `apps/api/src/clients/index.ts` | Barrel export |
+
+### Zmodyfikowane pliki
+
+| Plik | Zmiana |
+|------|--------|
+| `apps/api/src/app.module.ts` | Import ClientsModule |
+
+### Endpointy API
+
+| Metoda | Ścieżka | Auth | Opis |
+|--------|---------|------|------|
+| POST | `/api/clients` | ✅ JWT | Utwórz nowego klienta (z opcjonalnymi preferencjami) |
+| GET | `/api/clients` | ✅ JWT | Lista klientów agenta (paginacja, filtry, sortowanie) |
+| GET | `/api/clients/:id` | ✅ JWT | Szczegóły klienta z preferencjami i notatkami |
+| PATCH | `/api/clients/:id` | ✅ JWT | Aktualizacja klienta (+ preferencje, + status) |
+| DELETE | `/api/clients/:id` | ✅ JWT | Usuń klienta (hard delete, cascade notes/prefs) |
+| GET | `/api/clients/:id/notes` | ✅ JWT | Lista notatek klienta (sortowane DESC) |
+| POST | `/api/clients/:id/notes` | ✅ JWT | Dodaj notatkę do klienta |
+| DELETE | `/api/clients/:clientId/notes/:noteId` | ✅ JWT | Usuń notatkę |
+
+### Filtry (query params)
+
+| Parametr | Typ | Opis |
+|----------|-----|------|
+| `source` | enum | website, referral, portal, phone, walk_in, social, other |
+| `status` | enum | new, contacted, qualified, active, negotiating, closed_won, closed_lost, inactive |
+| `budgetMin` | number | Klient z budżetem max >= wartość |
+| `budgetMax` | number | Klient z budżetem min <= wartość |
+| `search` | string | Wyszukiwanie w imieniu, nazwisku, emailu, telefonie |
+| `page` | number | Numer strony (default: 1) |
+| `limit` | number | Wyników na stronę (default: 20, max: 100) |
+| `sortBy` | string | Kolumna sortowania: createdAt, lastName, status |
+| `sortOrder` | string | ASC lub DESC (default: DESC) |
+
+### Przetestowane ✅
+
+- POST /api/clients → tworzy klienta z preferencjami (source: website, status: new)
+- GET /api/clients → paginacja, meta.total: 1
+- POST /api/clients/:id/notes → dodaje notatkę do klienta
+- GET /api/clients/:id/notes → lista notatek (1 notatka)
+- PATCH /api/clients/:id → zmiana statusu na contacted, budgetMax na 700000
+- GET /api/clients?status=contacted → filtrowanie po statusie (total: 1)
+- DELETE /api/clients/:clientId/notes/:noteId → 204
+- DELETE /api/clients/:id → 204 (hard delete)
+- Ownership guard — agent widzi tylko swoich klientów
+- Walidacja DTO — class-validator na wszystkich polach
 
 ---
 

@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { AuthModule, JwtAuthGuard, RolesGuard } from './auth';
 import { UsersModule } from './users';
 import { ListingsModule } from './listings';
+import { ClientsModule } from './clients';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ListingsModule } from './listings';
     AuthModule,
     UsersModule,
     ListingsModule,
+    ClientsModule,
   ],
   controllers: [AppController],
   providers: [
