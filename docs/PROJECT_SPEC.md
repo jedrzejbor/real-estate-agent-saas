@@ -872,4 +872,42 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 ---
 
+## Krok 8 — Moduł Calendar: spotkania CRUD + widok kalendarza (2025-04-19)
+
+### Backend — `apps/api/src/appointments/`
+
+| Plik | Opis |
+|---|---|
+| `entities/appointment.entity.ts` | UUID PK, title, type (enum), status (enum), startTime/endTime (timestamptz), location, notes, createdAt. ManyToOne → Agent (CASCADE), Client (CASCADE, nullable), Listing (SET NULL, nullable) |
+| `dto/create-appointment.dto.ts` | title (required), type, startTime, endTime, location, notes, clientId, listingId |
+| `dto/update-appointment.dto.ts` | Wszystko opcjonalne + status |
+| `dto/appointment-query.dto.ts` | Filtry: type, status, clientId, listingId, from, to, search. Paginacja: page, limit (max 100). Sort: startTime/createdAt/title, ASC/DESC |
+| `appointments.service.ts` | PaginatedResult, CRUD z QueryBuilder, date range filtering (from/to), search po title/location, walidacja dat |
+| `appointments.controller.ts` | POST/GET/GET:id/PATCH:id/DELETE:id na `/api/appointments` |
+| `appointments.module.ts` | TypeOrmModule.forFeature([Appointment, Agent]) |
+
+**Wiring:** `AppointmentsModule` dodany do `app.module.ts` imports.
+
+### Frontend — `apps/web/src/`
+
+| Plik | Opis |
+|---|---|
+| `lib/appointments.ts` | Typy, enumy, labele PL, Zod schemas, API functions (CRUD), helpers: formatAppointmentDate, formatTime, formatTimeRange, getMonthRange, getWeekRange, groupByDate, getCalendarDays, TYPE_COLORS, STATUS_BADGE_VARIANT |
+| `hooks/use-appointments.ts` | useAppointments (z filtrami, paginacją, abort), useCalendarAppointments (wygodny hook na zakres miesiąca) |
+| `components/calendar/appointment-form.tsx` | Formularz tworzenia/edycji spotkania, datetime-local inputy, powiązania z klientem/ofertą |
+| `app/(dashboard)/dashboard/calendar/page.tsx` | Widok kalendarza: nawigacja miesiącami, przełącznik miesiąc/lista, siatka kalendarza z kolorowymi wpisami, widok listy pogrupowany po dniach |
+| `app/(dashboard)/dashboard/calendar/new/page.tsx` | Nowe spotkanie — formularz |
+| `app/(dashboard)/dashboard/calendar/[id]/page.tsx` | Szczegóły spotkania — termin, lokalizacja, klient, oferta, notatki, edycja/usuwanie |
+| `app/(dashboard)/dashboard/calendar/[id]/edit/page.tsx` | Edycja spotkania |
+
+**Zmiany:** Usunięto `calendar` z `ROUTE_LABELS` w catch-all `[...slug]/page.tsx`.
+
+### Przetestowane ✅
+
+- Backend: `pnpm --filter api build` — kompiluje się bez błędów
+- Frontend: `pnpm --filter web build` — kompiluje się bez błędów
+- Wszystkie route'y poprawnie zarejestrowane: `/dashboard/calendar`, `/dashboard/calendar/new`, `/dashboard/calendar/[id]`, `/dashboard/calendar/[id]/edit`
+
+---
+
 *Dokument zarządzany przez zespół EstateFlow. Każda zmiana powinna być oznaczona datą i numerem kroku.*

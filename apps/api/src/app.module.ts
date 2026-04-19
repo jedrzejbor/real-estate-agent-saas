@@ -9,6 +9,7 @@ import { AuthModule, JwtAuthGuard, RolesGuard } from './auth';
 import { UsersModule } from './users';
 import { ListingsModule } from './listings';
 import { ClientsModule } from './clients';
+import { AppointmentsModule } from './appointments';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ClientsModule } from './clients';
     UsersModule,
     ListingsModule,
     ClientsModule,
+    AppointmentsModule,
   ],
   controllers: [AppController],
   providers: [
