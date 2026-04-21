@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   ForbiddenException,
@@ -145,6 +146,60 @@ export class ClientsService {
       ActivityEntityType.CLIENT,
       id,
     );
+  }
+
+  async rollbackStatus(id: string, userId: string): Promise<Client> {
+    const client = await this.findOneOrFail(id);
+    await this.assertOwnership(client, userId);
+
+    const latestStatusChange = await this.activityService.findLatestStatusChange(
+      userId,
+      ActivityEntityType.CLIENT,
+      id,
+    );
+
+    if (!latestStatusChange) {
+      throw new BadRequestException('Brak zmiany statusu do cofnięcia');
+    }
+
+    const statusChange = latestStatusChange.changes.find(
+      (change) => change.field === 'status',
+    );
+
+    if (
+      !statusChange ||
+      typeof statusChange.oldValue !== 'string' ||
+      typeof statusChange.newValue !== 'string'
+    ) {
+      throw new BadRequestException('Nieprawidłowy wpis historii statusu');
+    }
+
+    if (client.status !== statusChange.newValue) {
+      throw new BadRequestException(
+        'Nie można cofnąć statusu, ponieważ bieżący status nie odpowiada ostatniej zmianie statusu',
+      );
+    }
+
+    const previousState = this.createClientSnapshot(client);
+    client.status = statusChange.oldValue as Client['status'];
+    await this.clientRepo.save(client);
+
+    const updatedClient = await this.findOneOrFail(id);
+    const changes = this.activityService.buildChanges(
+      previousState,
+      this.createClientSnapshot(updatedClient),
+    );
+
+    await this.activityService.log({
+      userId,
+      entityType: ActivityEntityType.CLIENT,
+      entityId: updatedClient.id,
+      action: ActivityAction.STATUS_ROLLED_BACK,
+      description: 'Cofnięto status klienta',
+      changes,
+    });
+
+    return updatedClient;
   }
 
   // ── Update ──

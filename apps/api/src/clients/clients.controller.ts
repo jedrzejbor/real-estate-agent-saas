@@ -72,6 +72,15 @@ export class ClientsController {
     return this.clientsService.update(id, userId, dto);
   }
 
+  /** POST /api/clients/:id/status/rollback — rollback latest status change. */
+  @Post(':id/status/rollback')
+  async rollbackStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.clientsService.rollbackStatus(id, userId);
+  }
+
   /** DELETE /api/clients/:id — delete a client. */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)

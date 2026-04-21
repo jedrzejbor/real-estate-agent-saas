@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   ForbiddenException,
@@ -147,6 +148,60 @@ export class ListingsService {
       ActivityEntityType.LISTING,
       id,
     );
+  }
+
+  async rollbackStatus(id: string, userId: string): Promise<Listing> {
+    const listing = await this.findOneOrFail(id);
+    await this.assertOwnership(listing, userId);
+
+    const latestStatusChange = await this.activityService.findLatestStatusChange(
+      userId,
+      ActivityEntityType.LISTING,
+      id,
+    );
+
+    if (!latestStatusChange) {
+      throw new BadRequestException('Brak zmiany statusu do cofnięcia');
+    }
+
+    const statusChange = latestStatusChange.changes.find(
+      (change) => change.field === 'status',
+    );
+
+    if (
+      !statusChange ||
+      typeof statusChange.oldValue !== 'string' ||
+      typeof statusChange.newValue !== 'string'
+    ) {
+      throw new BadRequestException('Nieprawidłowy wpis historii statusu');
+    }
+
+    if (listing.status !== statusChange.newValue) {
+      throw new BadRequestException(
+        'Nie można cofnąć statusu, ponieważ bieżący status nie odpowiada ostatniej zmianie statusu',
+      );
+    }
+
+    const previousState = this.createListingSnapshot(listing);
+    listing.status = statusChange.oldValue as ListingStatus;
+    await this.listingRepo.save(listing);
+
+    const updatedListing = await this.findOneOrFail(id);
+    const changes = this.activityService.buildChanges(
+      previousState,
+      this.createListingSnapshot(updatedListing),
+    );
+
+    await this.activityService.log({
+      userId,
+      entityType: ActivityEntityType.LISTING,
+      entityId: updatedListing.id,
+      action: ActivityAction.STATUS_ROLLED_BACK,
+      description: 'Cofnięto status oferty',
+      changes,
+    });
+
+    return updatedListing;
   }
 
   // ── Update ──

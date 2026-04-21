@@ -1,7 +1,7 @@
 # EstateFlow — Specyfikacja Projektu
 
 > Dokument żywy — aktualizowany przy każdym kroku rozwoju aplikacji.
-> Ostatnia aktualizacja: 2026-04-21 (Krok 10)
+> Ostatnia aktualizacja: 2026-04-21 (Krok 11)
 
 ---
 
@@ -443,7 +443,7 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **8** | Calendar module | ✅ Gotowy | Spotkania CRUD, widok kalendarza |
 | **9** | Dashboard | ✅ Gotowy | Stat cards, wykresy, ostatnia aktywność |
 | **10** | Audit log i historia zmian | ✅ Gotowy | Historia zmian dla ofert i klientów + sekcje historii na detail page |
-| **11** | Cofanie statusów | ⬜ Zaplanowany | Przywrócenie poprzedniego statusu na podstawie zapisanej historii |
+| **11** | Cofanie statusów | ✅ Gotowy | Rollback statusu oferty i klienta do poprzedniego stanu na podstawie ostatniego wpisu `status_changed` |
 | **12** | Wyszukiwarka globalna i powiadomienia | ⬜ Zaplanowany | Szybkie wyszukiwanie rekordów + komunikaty systemowe |
 | **13** | Deploy & CI/CD | ⬜ Zaplanowany | Docker production, CI pipeline |
 
@@ -474,12 +474,12 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **Calendar module** | Spotkania CRUD, widok miesiąca i listy, szczegóły, edycja i usuwanie spotkań | Krok 8 |
 | **Dashboard** | Stat cards, revenue, pipeline klientów, status ofert, ostatnia aktywność, nadchodzące spotkania | Krok 9 |
 | **Audit log** | Historia zmian dla ofert i klientów, audit trail na backendzie, sekcje historii na detail page | Krok 10 |
+| **Rollback statusów** | Cofnięcie ostatniej zmiany statusu oferty i klienta na podstawie historii zmian | Krok 11 |
 
 #### Co wymaga zrobienia ⬜
 
 | Element | Priorytet | Krok |
 |---------|-----------|------|
-| Cofanie statusu do poprzedniego stanu | 🔴 | 11 |
 | Wyszukiwarka globalna | 🟡 | 12 |
 | Powiadomienia | 🟡 | 12 |
 | Deploy & CI/CD | 🟡 | 13 |
@@ -541,7 +541,7 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 ---
 
-> **Następny krok**: Krok 11 — Cofanie statusów do poprzedniego stanu na podstawie historii zmian.
+> **Następny krok**: Krok 12 — Wyszukiwarka globalna i powiadomienia.
 
 ---
 
@@ -1017,6 +1017,63 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 - **Krok 11 — Cofanie statusów do poprzedniego stanu**
 - Zakres: rollback wyłącznie ostatniego statusu dla oferty/klienta na podstawie najnowszego wpisu `status_changed` w historii
+
+---
+
+## Krok 11 — Rollback statusu oferty i klienta (2026-04-21)
+
+### Backend
+
+- Rozszerzone enumy aktywności w `apps/api/src/common/enums/index.ts`
+  - dodano `status_rolled_back` do `ActivityAction`
+- `ActivityService`
+  - dodano `findLatestStatusChange(userId, entityType, entityId)`
+  - rollback opiera się wyłącznie na najnowszym wpisie `status_changed`
+- `ListingsService`
+  - dodano `rollbackStatus(id, userId)`
+  - walidacja, że bieżący status jest równy `newValue` z ostatniej zmiany statusu
+  - przywrócenie `oldValue` jako poprzedniego statusu
+  - logowanie rollbacku jako `status_rolled_back`
+- `ClientsService`
+  - dodano `rollbackStatus(id, userId)`
+  - identyczna walidacja i zapis historii jak dla ofert
+- Nowe endpointy:
+  - `POST /api/listings/:id/status/rollback`
+  - `POST /api/clients/:id/status/rollback`
+
+### Frontend
+
+- `apps/web/src/lib/listings.ts`
+  - `rollbackListingStatus(id)`
+- `apps/web/src/lib/clients.ts`
+  - `rollbackClientStatus(id)`
+- `apps/web/src/lib/activity.ts`
+  - dodano `status_rolled_back` do typów i etykiet akcji
+  - dodano helper `getRollbackStatusChange()` do wyznaczania dostępnego rollbacku z historii
+- Detail pages:
+  - `app/(dashboard)/dashboard/listings/[id]/page.tsx`
+    - przycisk cofnięcia statusu widoczny tylko wtedy, gdy rollback jest możliwy
+    - confirm modal przed rollbackiem
+    - odświeżanie historii po cofnięciu
+    - toast sukcesu/błędu
+  - `app/(dashboard)/dashboard/clients/[id]/page.tsx`
+    - analogiczny rollback statusu klienta
+
+### Zasady rollbacku
+
+- rollback działa tylko dla **ostatniej** zmiany statusu zapisanej jako `status_changed`
+- rollback jest dozwolony tylko wtedy, gdy obecny status encji zgadza się z `newValue` z tej ostatniej zmiany
+- po cofnięciu tworzony jest nowy wpis historii `status_rolled_back`
+- rozwiązanie nie robi „toggle bez końca” na ślepo — rollback jest kontrolowany przez historię i walidację bieżącego stanu
+
+### Status kroku
+
+- **Krok 11: Gotowy ✅**
+
+### Następny krok
+
+- **Krok 12 — Wyszukiwarka globalna i powiadomienia**
+- Zakres: szybkie wyszukiwanie rekordów (oferty, klienci, spotkania) + system komunikatów i powiadomień w UI
 
 ---
 

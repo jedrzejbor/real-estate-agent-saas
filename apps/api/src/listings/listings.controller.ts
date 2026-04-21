@@ -65,6 +65,15 @@ export class ListingsController {
     return this.listingsService.update(id, userId, dto);
   }
 
+  /** POST /api/listings/:id/status/rollback — rollback latest status change. */
+  @Post(':id/status/rollback')
+  async rollbackStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.listingsService.rollbackStatus(id, userId);
+  }
+
   /** DELETE /api/listings/:id — archive/delete a listing. */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)

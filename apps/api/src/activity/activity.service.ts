@@ -90,6 +90,47 @@ export class ActivityService {
     }));
   }
 
+  async findLatestStatusChange(
+    userId: string,
+    entityType: ActivityEntityType,
+    entityId: string,
+  ): Promise<ActivityHistoryItem | null> {
+    const agent = await this.resolveAgent(userId);
+
+    const log = await this.activityRepo.findOne({
+      where: {
+        agentId: agent.id,
+        entityType,
+        entityId,
+        action: ActivityAction.STATUS_CHANGED,
+      },
+      relations: ['agent', 'agent.user'],
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+
+    if (!log) {
+      return null;
+    }
+
+    return {
+      id: log.id,
+      entityType: log.entityType,
+      entityId: log.entityId,
+      action: log.action,
+      description: log.description ?? null,
+      changes: log.changes ?? [],
+      createdAt: log.createdAt,
+      actor: {
+        id: log.agent.id,
+        firstName: log.agent.firstName ?? null,
+        lastName: log.agent.lastName ?? null,
+        email: log.agent.user?.email ?? null,
+      },
+    };
+  }
+
   buildChanges(
     previousState: Record<string, unknown>,
     nextState: Record<string, unknown>,

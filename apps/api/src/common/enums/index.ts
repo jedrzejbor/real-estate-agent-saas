@@ -79,6 +79,7 @@ export enum ActivityAction {
   CREATED = 'created',
   UPDATED = 'updated',
   STATUS_CHANGED = 'status_changed',
+  STATUS_ROLLED_BACK = 'status_rolled_back',
   DELETED = 'deleted',
   ARCHIVED = 'archived',
   NOTE_ADDED = 'note_added',
