@@ -11,6 +11,8 @@ import { ListingsModule } from './listings';
 import { ClientsModule } from './clients';
 import { AppointmentsModule } from './appointments';
 import { DashboardModule } from './dashboard';
+import { SearchModule } from './search';
+import { NotificationsModule } from './notifications';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { DashboardModule } from './dashboard';
     ClientsModule,
     AppointmentsModule,
     DashboardModule,
+    SearchModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

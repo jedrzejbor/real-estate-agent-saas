@@ -1,7 +1,7 @@
 # EstateFlow — Specyfikacja Projektu
 
 > Dokument żywy — aktualizowany przy każdym kroku rozwoju aplikacji.
-> Ostatnia aktualizacja: 2026-04-21 (Krok 11)
+> Ostatnia aktualizacja: 2026-04-21 (Krok 12)
 
 ---
 
@@ -444,7 +444,7 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **9** | Dashboard | ✅ Gotowy | Stat cards, wykresy, ostatnia aktywność |
 | **10** | Audit log i historia zmian | ✅ Gotowy | Historia zmian dla ofert i klientów + sekcje historii na detail page |
 | **11** | Cofanie statusów | ✅ Gotowy | Rollback statusu oferty i klienta do poprzedniego stanu na podstawie ostatniego wpisu `status_changed` |
-| **12** | Wyszukiwarka globalna i powiadomienia | ⬜ Zaplanowany | Szybkie wyszukiwanie rekordów + komunikaty systemowe |
+| **12** | Wyszukiwarka globalna i powiadomienia | ✅ Gotowy | Szybkie wyszukiwanie rekordów + komunikaty systemowe |
 | **13** | Deploy & CI/CD | ⬜ Zaplanowany | Docker production, CI pipeline |
 
 ### 1.11 Aktualny stan projektu
@@ -475,13 +475,12 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **Dashboard** | Stat cards, revenue, pipeline klientów, status ofert, ostatnia aktywność, nadchodzące spotkania | Krok 9 |
 | **Audit log** | Historia zmian dla ofert i klientów, audit trail na backendzie, sekcje historii na detail page | Krok 10 |
 | **Rollback statusów** | Cofnięcie ostatniej zmiany statusu oferty i klienta na podstawie historii zmian | Krok 11 |
+| **Wyszukiwarka globalna i powiadomienia** | Global search dla ofert/klientów/spotkań, centrum powiadomień w topbarze, komunikaty operacyjne o spotkaniach, leadach i szkicach ofert | Krok 12 |
 
 #### Co wymaga zrobienia ⬜
 
 | Element | Priorytet | Krok |
 |---------|-----------|------|
-| Wyszukiwarka globalna | 🟡 | 12 |
-| Powiadomienia | 🟡 | 12 |
 | Deploy & CI/CD | 🟡 | 13 |
 
 ---
@@ -541,7 +540,7 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 ---
 
-> **Następny krok**: Krok 12 — Wyszukiwarka globalna i powiadomienia.
+> **Następny krok**: Krok 13 — Deploy & CI/CD.
 
 ---
 
@@ -1074,6 +1073,86 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 - **Krok 12 — Wyszukiwarka globalna i powiadomienia**
 - Zakres: szybkie wyszukiwanie rekordów (oferty, klienci, spotkania) + system komunikatów i powiadomień w UI
+
+---
+
+## Krok 12 — Wyszukiwarka globalna i powiadomienia (2026-04-21)
+
+### Backend
+
+- `apps/api/src/search/`
+  - `dto/search-query.dto.ts` — query DTO z `q` i `limitPerType`
+  - `search.service.ts` — wyszukiwanie full-scope po ofertach, klientach i spotkaniach w obrębie zalogowanego agenta
+  - `search.controller.ts` — `GET /api/search`
+  - `search.module.ts` — moduł wyszukiwania globalnego
+- `apps/api/src/notifications/`
+  - `dto/notifications-query.dto.ts` — query DTO z limitem wyników
+  - `dto/mark-notifications-read.dto.ts` — payload do trwałego oznaczania powiadomień jako przeczytane
+  - `entities/notification-read.entity.ts` — zapis odczytanych powiadomień per agent
+  - `notifications.service.ts` — generowanie komunikatów systemowych na podstawie danych operacyjnych + mapowanie statusu odczytu
+  - `notifications.controller.ts` — `GET /api/notifications`, `POST /api/notifications/read`
+  - `notifications.module.ts` — moduł powiadomień UI
+- `apps/api/src/app.module.ts`
+  - dodano `SearchModule` i `NotificationsModule`
+
+### Zakres backendu
+
+- **Global search**
+  - przeszukuje oferty po: tytule, opisie, mieście i ulicy
+  - przeszukuje klientów po: imieniu, nazwisku, emailu i telefonie
+  - przeszukuje spotkania po: tytule, lokalizacji, kliencie i powiązanej ofercie
+  - zwraca wyniki pogrupowane na: `listing`, `client`, `appointment`
+  - respektuje ownership agenta — użytkownik widzi wyłącznie swoje rekordy
+- **Powiadomienia systemowe**
+  - nadchodzące spotkania w najbliższych 24 godzinach
+  - przeterminowane spotkania nadal ze statusem `scheduled`
+  - nowe leady (`client.status = new`) z ostatnich 3 dni
+  - szkice ofert starsze niż 7 dni
+  - trwały zapis odczytu per agent dla pojedynczych komunikatów
+
+### Frontend
+
+- `apps/web/src/lib/search.ts`
+  - typy odpowiedzi global search, fetcher i helpery sekcji/statusów
+- `apps/web/src/hooks/use-global-search.ts`
+  - debounce zapytań, anulowanie poprzednich requestów, prosty cache wyników i reset dla krótkich fraz
+- `apps/web/src/hooks/use-debounced-value.ts`
+  - generyczny hook cooldown dla wyszukiwania po bezczynności użytkownika
+- `apps/web/src/components/dashboard/global-search.tsx`
+  - wyszukiwarka globalna w topbarze
+  - skrót klawiaturowy `⌘K` / `Ctrl+K`
+  - dropdown z grupowaniem wyników i szybkim przejściem do rekordu
+- `apps/web/src/lib/notifications.ts`
+  - typy, fetcher i akcja oznaczania powiadomień jako przeczytane
+- `apps/web/src/hooks/use-notifications.ts`
+  - pobieranie, okresowe odświeżanie feedu powiadomień i trwałe mark-as-read
+- `apps/web/src/components/dashboard/notifications-dropdown.tsx`
+  - dropdown powiadomień w topbarze z badge licznika, oznaczaniem pojedynczym i zbiorczym jako przeczytane
+- `apps/web/src/components/dashboard/topbar.tsx`
+  - integracja global search i centrum powiadomień
+- `apps/web/src/components/ui/input.tsx`
+  - ref forwarding dla focus management i skrótów klawiaturowych wyszukiwarki
+
+### UX i zasady działania
+
+- wyszukiwarka aktywuje się po wpisaniu minimum 2 znaków
+- request wyszukiwania wysyła się dopiero po około 1.2 s przerwy w pisaniu
+- wyniki są grupowane na oferty, klientów i spotkania
+- każdy wynik zawiera kontekst biznesowy: tytuł, podtytuł, status i czas względny
+- powiadomienia są widoczne w topbarze pod ikoną dzwonka
+- badge przy dzwonku pokazuje liczbę bieżących komunikatów wymagających uwagi
+- dropdown umożliwia szybkie przejście do spotkania, klienta lub listy szkiców ofert
+- użytkownik może oznaczyć pojedyncze lub wszystkie widoczne powiadomienia jako przeczytane, a stan zapisuje się trwale
+- kliknięcie w powiadomienie prowadzące do rekordu automatycznie oznacza je jako przeczytane
+
+### Status kroku
+
+- **Krok 12: Gotowy ✅**
+
+### Następny krok
+
+- **Krok 13 — Deploy & CI/CD**
+- Zakres: środowisko production Docker, pipeline CI, podstawowa strategia wdrożeń i weryfikacja jakości
 
 ---
 
