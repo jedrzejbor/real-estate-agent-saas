@@ -37,6 +37,15 @@ export class ListingsController {
     return this.listingsService.findAll(userId, query);
   }
 
+  /** GET /api/listings/:id/history — get audit log for a listing. */
+  @Get(':id/history')
+  async findHistory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.listingsService.findHistory(id, userId);
+  }
+
   /** GET /api/listings/:id — get single listing. */
   @Get(':id')
   async findOne(

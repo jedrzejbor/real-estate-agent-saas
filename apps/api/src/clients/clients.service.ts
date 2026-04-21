@@ -6,10 +6,12 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
+import { ActivityService } from '../activity';
 import { Client } from './entities/client.entity';
 import { ClientNote } from './entities/client-note.entity';
 import { ClientPreference } from './entities/client-preference.entity';
 import { Agent } from '../users/entities/agent.entity';
+import { ActivityAction, ActivityEntityType } from '../common/enums';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ClientQueryDto } from './dto/client-query.dto';
@@ -39,6 +41,7 @@ export class ClientsService {
     private readonly preferenceRepo: Repository<ClientPreference>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    private readonly activityService: ActivityService,
   ) {}
 
   // ── Create ──
@@ -68,7 +71,17 @@ export class ClientsService {
       `Client created: "${savedClient.firstName} ${savedClient.lastName}" (${savedClient.id}) by agent ${agent.id}`,
     );
 
-    return this.findOneOrFail(savedClient.id);
+    const createdClient = await this.findOneOrFail(savedClient.id);
+
+    await this.activityService.log({
+      userId,
+      entityType: ActivityEntityType.CLIENT,
+      entityId: createdClient.id,
+      action: ActivityAction.CREATED,
+      description: 'Utworzono klienta',
+    });
+
+    return createdClient;
   }
 
   // ── Read (list with filters & pagination) ──
@@ -123,6 +136,17 @@ export class ClientsService {
     return client;
   }
 
+  async findHistory(id: string, userId: string) {
+    const client = await this.findOneOrFail(id);
+    await this.assertOwnership(client, userId);
+
+    return this.activityService.findEntityHistory(
+      userId,
+      ActivityEntityType.CLIENT,
+      id,
+    );
+  }
+
   // ── Update ──
 
   async update(
@@ -132,6 +156,7 @@ export class ClientsService {
   ): Promise<Client> {
     const client = await this.findOneOrFail(id);
     await this.assertOwnership(client, userId);
+    const previousState = this.createClientSnapshot(client);
 
     const { preference: preferenceDto, ...clientData } = dto;
 
@@ -155,7 +180,29 @@ export class ClientsService {
 
     this.logger.log(`Client updated: ${id}`);
 
-    return this.findOneOrFail(id);
+    const updatedClient = await this.findOneOrFail(id);
+    const nextState = this.createClientSnapshot(updatedClient);
+    const changes = this.activityService.buildChanges(previousState, nextState);
+
+    if (changes.length > 0) {
+      const isStatusOnlyChange =
+        changes.length === 1 && changes[0].field === 'status';
+
+      await this.activityService.log({
+        userId,
+        entityType: ActivityEntityType.CLIENT,
+        entityId: updatedClient.id,
+        action: isStatusOnlyChange
+          ? ActivityAction.STATUS_CHANGED
+          : ActivityAction.UPDATED,
+        description: isStatusOnlyChange
+          ? 'Zmieniono status klienta'
+          : 'Zaktualizowano klienta',
+        changes,
+      });
+    }
+
+    return updatedClient;
   }
 
   // ── Delete ──
@@ -163,6 +210,14 @@ export class ClientsService {
   async remove(id: string, userId: string): Promise<void> {
     const client = await this.findOneOrFail(id);
     await this.assertOwnership(client, userId);
+
+    await this.activityService.log({
+      userId,
+      entityType: ActivityEntityType.CLIENT,
+      entityId: client.id,
+      action: ActivityAction.DELETED,
+      description: 'Usunięto klienta',
+    });
 
     await this.clientRepo.remove(client);
     this.logger.log(`Client deleted: ${id}`);
@@ -200,6 +255,14 @@ export class ClientsService {
 
     this.logger.log(`Note added to client ${clientId} by agent ${agent.id}`);
 
+    await this.activityService.log({
+      userId,
+      entityType: ActivityEntityType.CLIENT,
+      entityId: clientId,
+      action: ActivityAction.NOTE_ADDED,
+      description: 'Dodano notatkę klienta',
+    });
+
     return saved;
   }
 
@@ -220,6 +283,14 @@ export class ClientsService {
 
     await this.noteRepo.remove(note);
     this.logger.log(`Note ${noteId} removed from client ${clientId}`);
+
+    await this.activityService.log({
+      userId,
+      entityType: ActivityEntityType.CLIENT,
+      entityId: clientId,
+      action: ActivityAction.NOTE_REMOVED,
+      description: 'Usunięto notatkę klienta',
+    });
   }
 
   // ── Private helpers ──
@@ -287,5 +358,24 @@ export class ClientsService {
         { search: `%${filters.search}%` },
       );
     }
+  }
+
+  private createClientSnapshot(client: Client): Record<string, unknown> {
+    return {
+      firstName: client.firstName,
+      lastName: client.lastName,
+      email: client.email ?? null,
+      phone: client.phone ?? null,
+      source: client.source,
+      status: client.status,
+      budgetMin: client.budgetMin ?? null,
+      budgetMax: client.budgetMax ?? null,
+      notes: client.notes ?? null,
+      'preference.propertyType': client.preference?.propertyType ?? null,
+      'preference.minArea': client.preference?.minArea ?? null,
+      'preference.maxPrice': client.preference?.maxPrice ?? null,
+      'preference.preferredCity': client.preference?.preferredCity ?? null,
+      'preference.minRooms': client.preference?.minRooms ?? null,
+    };
   }
 }

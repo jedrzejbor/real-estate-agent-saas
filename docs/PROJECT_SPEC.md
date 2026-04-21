@@ -1,7 +1,7 @@
 # EstateFlow — Specyfikacja Projektu
 
 > Dokument żywy — aktualizowany przy każdym kroku rozwoju aplikacji.
-> Ostatnia aktualizacja: 2026-04-19 (Krok 9)
+> Ostatnia aktualizacja: 2026-04-21 (Krok 10)
 
 ---
 
@@ -441,9 +441,11 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **6** | Clients module (backend) | ✅ Gotowy | CRUD API, notatki, preferencje, filtrowanie, paginacja |
 | **7** | Clients module (frontend) | ✅ Gotowy | Lista klientów, profil, CRM view, notatki, preferencje, formularze |
 | **8** | Calendar module | ✅ Gotowy | Spotkania CRUD, widok kalendarza |
-| **9** | Dashboard | ⬜ Zaplanowany | Stat cards, wykresy, ostatnia aktywność |
-| **10** | Landing Page | ⬜ Zaplanowany | Strona marketingowa, pricing |
-| **11** | Deploy & CI/CD | ⬜ Zaplanowany | Docker production, CI pipeline |
+| **9** | Dashboard | ✅ Gotowy | Stat cards, wykresy, ostatnia aktywność |
+| **10** | Audit log i historia zmian | ✅ Gotowy | Historia zmian dla ofert i klientów + sekcje historii na detail page |
+| **11** | Cofanie statusów | ⬜ Zaplanowany | Przywrócenie poprzedniego statusu na podstawie zapisanej historii |
+| **12** | Wyszukiwarka globalna i powiadomienia | ⬜ Zaplanowany | Szybkie wyszukiwanie rekordów + komunikaty systemowe |
+| **13** | Deploy & CI/CD | ⬜ Zaplanowany | Docker production, CI pipeline |
 
 ### 1.11 Aktualny stan projektu
 
@@ -471,13 +473,16 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 | **Clients module (frontend)** | Lista klientów, profil, CRM status pipeline, notatki, preferencje, formularze | Krok 7 |
 | **Calendar module** | Spotkania CRUD, widok miesiąca i listy, szczegóły, edycja i usuwanie spotkań | Krok 8 |
 | **Dashboard** | Stat cards, revenue, pipeline klientów, status ofert, ostatnia aktywność, nadchodzące spotkania | Krok 9 |
+| **Audit log** | Historia zmian dla ofert i klientów, audit trail na backendzie, sekcje historii na detail page | Krok 10 |
 
 #### Co wymaga zrobienia ⬜
 
 | Element | Priorytet | Krok |
 |---------|-----------|------|
-| Wyszukiwarka globalna | 🟡 | 10 |
-| Powiadomienia | 🟡 | 10 |
+| Cofanie statusu do poprzedniego stanu | 🔴 | 11 |
+| Wyszukiwarka globalna | 🟡 | 12 |
+| Powiadomienia | 🟡 | 12 |
+| Deploy & CI/CD | 🟡 | 13 |
 
 ---
 
@@ -536,7 +541,7 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 ---
 
-> **Następny krok**: Krok 10 — Wyszukiwarka globalna i powiadomienia.
+> **Następny krok**: Krok 11 — Cofanie statusów do poprzedniego stanu na podstawie historii zmian.
 
 ---
 
@@ -948,7 +953,70 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 ### Następny krok
 
-- **Krok 10 — Wyszukiwarka globalna i powiadomienia**
+- **Krok 10 — Audit log i historia zmian**
+
+---
+
+## Krok 10 — Audit log dla ofert i klientów + historia zmian (2026-04-21)
+
+### Backend
+
+- `apps/api/src/activity/`
+  - `entities/activity-log.entity.ts` — tabela `activity_logs` z `entityType`, `entityId`, `action`, `description`, `changes (JSONB)`, `agentId`, `createdAt`
+  - `activity.service.ts` — zapisywanie logów, pobieranie historii encji, budowanie diffów zmian
+  - `activity.module.ts` — wspólny moduł eksportujący `ActivityService`
+- Rozszerzone enumy w `apps/api/src/common/enums/index.ts`
+  - `ActivityEntityType`: `listing`, `client`
+  - `ActivityAction`: `created`, `updated`, `status_changed`, `deleted`, `archived`, `note_added`, `note_removed`
+- `ListingsService`
+  - loguje utworzenie oferty
+  - loguje aktualizacje z diffem pól
+  - loguje zmianę statusu jako osobny typ akcji
+  - loguje archiwizację / usunięcie oferty
+  - udostępnia `findHistory(id, userId)`
+- `ClientsService`
+  - loguje utworzenie klienta
+  - loguje aktualizacje z diffem pól
+  - loguje zmianę statusu jako osobny typ akcji
+  - loguje usunięcie klienta
+  - loguje dodanie i usunięcie notatki klienta
+  - udostępnia `findHistory(id, userId)`
+- Nowe endpointy:
+  - `GET /api/listings/:id/history`
+  - `GET /api/clients/:id/history`
+
+### Frontend
+
+- `apps/web/src/lib/activity.ts`
+  - typy historii zmian
+  - fetchery `fetchListingHistory()` i `fetchClientHistory()`
+  - mapy etykiet akcji i pól
+  - helpery do formatowania aktora i wartości zmian
+- `apps/web/src/hooks/use-activity-history.ts`
+  - wspólny hook do pobierania historii encji
+- `apps/web/src/components/activity/activity-history-card.tsx`
+  - generyczna karta historii zmian z loading/error/refresh
+  - renderowanie listy zmian z wartościami „przed → po”
+- Detail pages:
+  - `app/(dashboard)/dashboard/listings/[id]/page.tsx` — sekcja historii dla oferty
+  - `app/(dashboard)/dashboard/clients/[id]/page.tsx` — sekcja historii dla klienta
+  - `components/clients/client-notes.tsx` — odświeżanie historii po dodaniu/usunięciu notatki
+
+### Zakres audytu w Krok 10
+
+- Oferta: create, update, status change, archive, delete
+- Klient: create, update, status change, delete
+- Notatki klienta: add, remove
+- Każdy wpis zawiera: kto wykonał zmianę, kiedy, jaki typ akcji zaszedł i jakie pola się zmieniły
+
+### Status kroku
+
+- **Krok 10: Gotowy ✅**
+
+### Następny krok
+
+- **Krok 11 — Cofanie statusów do poprzedniego stanu**
+- Zakres: rollback wyłącznie ostatniego statusu dla oferty/klienta na podstawie najnowszego wpisu `status_changed` w historii
 
 ---
 

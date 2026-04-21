@@ -69,3 +69,18 @@ export enum AppointmentStatus {
   CANCELLED = 'cancelled',
   NO_SHOW = 'no_show',
 }
+
+export enum ActivityEntityType {
+  LISTING = 'listing',
+  CLIENT = 'client',
+}
+
+export enum ActivityAction {
+  CREATED = 'created',
+  UPDATED = 'updated',
+  STATUS_CHANGED = 'status_changed',
+  DELETED = 'deleted',
+  ARCHIVED = 'archived',
+  NOTE_ADDED = 'note_added',
+  NOTE_REMOVED = 'note_removed',
+}

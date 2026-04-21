@@ -44,6 +44,15 @@ export class ClientsController {
     return this.clientsService.findAll(userId, query);
   }
 
+  /** GET /api/clients/:id/history — get audit log for a client. */
+  @Get(':id/history')
+  async findHistory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.clientsService.findHistory(id, userId);
+  }
+
   /** GET /api/clients/:id — get single client with notes & preference. */
   @Get(':id')
   async findOne(

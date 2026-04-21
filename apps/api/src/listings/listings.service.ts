@@ -6,10 +6,15 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
+import { ActivityService } from '../activity';
 import { Listing } from './entities/listing.entity';
 import { Address } from './entities/address.entity';
 import { Agent } from '../users/entities/agent.entity';
-import { ListingStatus } from '../common/enums';
+import {
+  ActivityAction,
+  ActivityEntityType,
+  ListingStatus,
+} from '../common/enums';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ListingQueryDto } from './dto/listing-query.dto';
@@ -36,6 +41,7 @@ export class ListingsService {
     private readonly addressRepo: Repository<Address>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    private readonly activityService: ActivityService,
   ) {}
 
   // ── Create ──
@@ -66,7 +72,17 @@ export class ListingsService {
       `Listing created: "${savedListing.title}" (${savedListing.id}) by agent ${agent.id}`,
     );
 
-    return this.findOneOrFail(savedListing.id);
+    const createdListing = await this.findOneOrFail(savedListing.id);
+
+    await this.activityService.log({
+      userId,
+      entityType: ActivityEntityType.LISTING,
+      entityId: createdListing.id,
+      action: ActivityAction.CREATED,
+      description: 'Utworzono ofertę',
+    });
+
+    return createdListing;
   }
 
   // ── Read (list with filters & pagination) ──
@@ -122,6 +138,17 @@ export class ListingsService {
     return listing;
   }
 
+  async findHistory(id: string, userId: string) {
+    const listing = await this.findOneOrFail(id);
+    await this.assertOwnership(listing, userId);
+
+    return this.activityService.findEntityHistory(
+      userId,
+      ActivityEntityType.LISTING,
+      id,
+    );
+  }
+
   // ── Update ──
 
   async update(
@@ -131,6 +158,7 @@ export class ListingsService {
   ): Promise<Listing> {
     const listing = await this.findOneOrFail(id);
     await this.assertOwnership(listing, userId);
+    const previousState = this.createListingSnapshot(listing);
 
     const { address: addressDto, ...listingData } = dto;
 
@@ -152,7 +180,29 @@ export class ListingsService {
 
     this.logger.log(`Listing updated: ${id}`);
 
-    return this.findOneOrFail(id);
+    const updatedListing = await this.findOneOrFail(id);
+    const nextState = this.createListingSnapshot(updatedListing);
+    const changes = this.activityService.buildChanges(previousState, nextState);
+
+    if (changes.length > 0) {
+      const isStatusOnlyChange =
+        changes.length === 1 && changes[0].field === 'status';
+
+      await this.activityService.log({
+        userId,
+        entityType: ActivityEntityType.LISTING,
+        entityId: updatedListing.id,
+        action: isStatusOnlyChange
+          ? ActivityAction.STATUS_CHANGED
+          : ActivityAction.UPDATED,
+        description: isStatusOnlyChange
+          ? 'Zmieniono status oferty'
+          : 'Zaktualizowano ofertę',
+        changes,
+      });
+    }
+
+    return updatedListing;
   }
 
   // ── Delete (soft → archived, or hard delete for drafts) ──
@@ -160,13 +210,38 @@ export class ListingsService {
   async remove(id: string, userId: string): Promise<void> {
     const listing = await this.findOneOrFail(id);
     await this.assertOwnership(listing, userId);
+    const previousState = this.createListingSnapshot(listing);
 
     if (listing.status === ListingStatus.DRAFT) {
+      await this.activityService.log({
+        userId,
+        entityType: ActivityEntityType.LISTING,
+        entityId: listing.id,
+        action: ActivityAction.DELETED,
+        description: 'Usunięto ofertę',
+      });
+
       await this.listingRepo.remove(listing);
       this.logger.log(`Draft listing hard-deleted: ${id}`);
     } else {
       listing.status = ListingStatus.ARCHIVED;
       await this.listingRepo.save(listing);
+
+      const archivedListing = await this.findOneOrFail(id);
+      const changes = this.activityService.buildChanges(
+        previousState,
+        this.createListingSnapshot(archivedListing),
+      );
+
+      await this.activityService.log({
+        userId,
+        entityType: ActivityEntityType.LISTING,
+        entityId: listing.id,
+        action: ActivityAction.ARCHIVED,
+        description: 'Zarchiwizowano ofertę',
+        changes,
+      });
+
       this.logger.log(`Listing archived: ${id}`);
     }
   }
@@ -260,5 +335,32 @@ export class ListingsService {
         { search: `%${filters.search}%` },
       );
     }
+  }
+
+  private createListingSnapshot(listing: Listing): Record<string, unknown> {
+    return {
+      title: listing.title,
+      description: listing.description ?? null,
+      propertyType: listing.propertyType,
+      status: listing.status,
+      transactionType: listing.transactionType,
+      price: listing.price,
+      currency: listing.currency,
+      areaM2: listing.areaM2 ?? null,
+      rooms: listing.rooms ?? null,
+      bathrooms: listing.bathrooms ?? null,
+      floor: listing.floor ?? null,
+      totalFloors: listing.totalFloors ?? null,
+      yearBuilt: listing.yearBuilt ?? null,
+      isPremium: listing.isPremium,
+      publishedAt: listing.publishedAt?.toISOString() ?? null,
+      'address.street': listing.address?.street ?? null,
+      'address.city': listing.address?.city ?? null,
+      'address.postalCode': listing.address?.postalCode ?? null,
+      'address.district': listing.address?.district ?? null,
+      'address.voivodeship': listing.address?.voivodeship ?? null,
+      'address.lat': listing.address?.lat ?? null,
+      'address.lng': listing.address?.lng ?? null,
+    };
   }
 }
