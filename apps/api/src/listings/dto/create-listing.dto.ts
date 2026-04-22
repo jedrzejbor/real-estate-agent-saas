@@ -2,6 +2,7 @@ import {
   IsString,
   IsNotEmpty,
   IsOptional,
+  ValidateIf,
   IsEnum,
   IsNumber,
   IsBoolean,
@@ -79,6 +80,14 @@ export class CreateListingDto {
   @IsNumber()
   @IsPositive()
   areaM2?: number;
+
+  @ValidateIf((o) =>
+    o.propertyType === PropertyType.HOUSE || o.propertyType === PropertyType.LAND,
+  )
+  @IsNotEmpty({ message: 'Powierzchnia działki jest wymagana' })
+  @IsNumber()
+  @IsPositive()
+  plotAreaM2?: number;
 
   @IsOptional()
   @IsNumber()

@@ -50,6 +50,9 @@ export class Listing {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   areaM2: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  plotAreaM2: number;
+
   @Column({ type: 'smallint', nullable: true })
   rooms: number;
 

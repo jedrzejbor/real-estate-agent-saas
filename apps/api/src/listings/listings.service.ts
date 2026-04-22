@@ -402,6 +402,7 @@ export class ListingsService {
       price: listing.price,
       currency: listing.currency,
       areaM2: listing.areaM2 ?? null,
+      plotAreaM2: listing.plotAreaM2 ?? null,
       rooms: listing.rooms ?? null,
       bathrooms: listing.bathrooms ?? null,
       floor: listing.floor ?? null,

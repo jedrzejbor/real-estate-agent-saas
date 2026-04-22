@@ -91,6 +91,11 @@ export class UpdateListingDto {
 
   @IsOptional()
   @IsNumber()
+  @IsPositive()
+  plotAreaM2?: number;
+
+  @IsOptional()
+  @IsNumber()
   @Min(1)
   @Max(99)
   rooms?: number;
