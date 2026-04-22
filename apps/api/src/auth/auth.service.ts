@@ -99,6 +99,12 @@ export class AuthService {
     };
   }
 
+  /** Refresh tokens — issues a new access + refresh token pair. */
+  async refresh(userId: string, email: string, role: string) {
+    this.logger.log(`Token refreshed for user: ${email}`);
+    return this.generateTokens(userId, email, role);
+  }
+
   /** Get current user profile. */
   async getProfile(userId: string) {
     const user = await this.usersService.findById(userId);
