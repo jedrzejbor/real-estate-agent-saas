@@ -18,6 +18,55 @@ Dokument jest żywy i powinien być aktualizowany przy każdej zmianie:
 
 ## 0. Status wdrożenia
 
+### Aktualizacja: 24.04.2026 — Iteracja 3
+
+Stan realizacji:
+- wdrożono pierwszy dedykowany raport pionowy: `Oferty`
+- dodano backendowy endpoint `GET /api/reports/listings`
+- dodano frontendową sekcję `Raport Oferty` na stronie `/dashboard/reports`
+- zachowano wspólne filtry raportowe i serwerowe wymuszanie zakresu danych
+
+Zakres dostarczony w Iteracji 3:
+- backend:
+  - `summary` dla raportu ofert
+  - breakdown po `ListingStatus`
+  - breakdown po `PropertyType`
+  - breakdown po `TransactionType`
+- frontend:
+  - sekcja `Raport Oferty`
+  - karty podsumowujące dla kluczowych metryk ofert
+  - breakdowny z udziałem procentowym i dodatkowymi detalami dla typów nieruchomości / transakcji
+
+Aktualnie raport `Oferty` obejmuje:
+- liczba ofert łącznie
+- liczba nowych ofert w okresie
+- liczba aktywacji na podstawie `publishedAt`
+- liczba zamknięć (`sold` + `rented`) w okresie
+- liczba wycofań / archiwizacji (`withdrawn` + `archived`) w okresie
+- liczba aktywnych ofert na koniec okresu
+- średni czas życia oferty dla rekordów zakończonych w okresie
+
+Ważne założenia jakościowe i bezpieczeństwa:
+- zakres danych jest nadal wymuszany po stronie backendu na podstawie roli użytkownika
+- raport nie ufa samemu `agentId` z query stringa
+- filtry przechodzą przez DTO i globalną walidację
+- agregacje używają parametryzowanych zapytań QueryBuilder
+- obecne metryki statusowe opierają się na bieżącym stanie rekordu oraz polach `createdAt`, `updatedAt`, `publishedAt`
+
+Świadome ograniczenia Iteracji 3:
+- brak historycznych snapshotów statusów ofert
+- brak dokładnego raportowania momentów przejścia między wszystkimi statusami
+- metryki zamknięć i wycofań są przybliżeniem MVP, dopóki nie zostanie rozbudowana historia zmian
+
+Walidacja Iteracji 3:
+- `apps/api`: TypeScript compile OK
+- `apps/web`: production build OK
+
+Następny krok:
+- wdrożyć dedykowany raport `Klienci`
+- dodać breakdown po `ClientSource` i `ClientStatus`
+- następnie przejść do raportu `Spotkania`
+
 ### Aktualizacja: 24.04.2026 — Iteracja 2
 
 Stan realizacji:

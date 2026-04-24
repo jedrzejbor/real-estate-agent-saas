@@ -21,4 +21,17 @@ export class ReportsController {
   ) {
     return this.reportsService.getOverview(user, filters);
   }
+
+  /**
+   * GET /api/reports/listings
+   * Dedicated listings report with summary and breakdowns.
+   */
+  @Get('listings')
+  async getListings(
+    @CurrentUser()
+    user: { id: string; email: string; role: UserRole },
+    @Query() filters: ReportFiltersDto,
+  ) {
+    return this.reportsService.getListingsReport(user, filters);
+  }
 }

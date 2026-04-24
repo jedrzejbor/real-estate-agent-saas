@@ -75,6 +75,45 @@ export interface ReportsOverviewBucket {
   completedAppointments: number;
 }
 
+export interface ListingsBreakdownItem {
+  key: string;
+  count: number;
+  percentage: number;
+  activeCount?: number;
+  closedCount?: number;
+  totalValue?: number;
+}
+
+export interface ListingsReportSummary {
+  totalListings: number;
+  newListings: number;
+  activatedListings: number;
+  closedListings: number;
+  withdrawnListings: number;
+  activeListingsEnd: number;
+  averageLifecycleDays: number | null;
+}
+
+export interface ListingsReportResponse {
+  generatedAt: string;
+  filtersApplied: {
+    dateFrom: string;
+    dateTo: string;
+    groupBy: ReportsGroupBy;
+    propertyType?: string;
+    transactionType?: string;
+    requestedAgentId?: string;
+    effectiveAgentIds: string[];
+  };
+  summary: ListingsReportSummary;
+  breakdowns: {
+    byStatus: ListingsBreakdownItem[];
+    byPropertyType: ListingsBreakdownItem[];
+    byTransactionType: ListingsBreakdownItem[];
+  };
+  notes: string[];
+}
+
 export interface ReportsOverviewResponse {
   generatedAt: string;
   filtersApplied: {
@@ -202,6 +241,46 @@ export class ReportsService {
         'Widok Przegląd zawiera już bazowe KPI, porównanie do poprzedniego okresu i bucketowane trendy.',
         'Zakres danych nadal jest wymuszany po stronie backendu na podstawie roli i dozwolonego scope agenta / zespołu.',
         'Kolejne iteracje dołożą osobne endpointy raportowe dla ofert, klientów, lejka i spotkań.',
+      ],
+    };
+  }
+
+  async getListingsReport(
+    user: ReportsUserContext,
+    filters: ReportFiltersDto,
+  ): Promise<ListingsReportResponse> {
+    const normalizedFilters = this.normalizeFilters(filters);
+    const scope = await this.resolveScope(user, normalizedFilters.requestedAgentId);
+
+    const [summary, byStatus, byPropertyType, byTransactionType] =
+      await Promise.all([
+        this.buildListingsSummary(normalizedFilters, scope),
+        this.buildListingsStatusBreakdown(normalizedFilters, scope),
+        this.buildListingsPropertyTypeBreakdown(normalizedFilters, scope),
+        this.buildListingsTransactionTypeBreakdown(normalizedFilters, scope),
+      ]);
+
+    return {
+      generatedAt: new Date().toISOString(),
+      filtersApplied: {
+        dateFrom: normalizedFilters.dateFrom.toISOString(),
+        dateTo: normalizedFilters.dateTo.toISOString(),
+        groupBy: normalizedFilters.groupBy,
+        propertyType: normalizedFilters.propertyType,
+        transactionType: normalizedFilters.transactionType,
+        requestedAgentId: normalizedFilters.requestedAgentId,
+        effectiveAgentIds: scope.effectiveAgentIds,
+      },
+      summary,
+      breakdowns: {
+        byStatus,
+        byPropertyType,
+        byTransactionType,
+      },
+      notes: [
+        'Raport Oferty bazuje na aktualnym stanie rekordów i danych dostępnych w modelu Listing.',
+        'Do dokładnego raportowania przejść statusów w czasie potrzebna będzie pełniejsza historia zdarzeń lub snapshoty statusów.',
+        'Na tym etapie aktywacje liczone są na podstawie pola `publishedAt`, a zamknięcia / wycofania na podstawie bieżącego statusu i `updatedAt`.',
       ],
     };
   }
@@ -391,6 +470,214 @@ export class ReportsService {
       completedAppointments,
       portfolioValue: Number(portfolioValueRaw?.portfolioValue ?? 0),
     };
+  }
+
+  private async buildListingsSummary(
+    filters: NormalizedFilters,
+    scope: ResolvedScope,
+  ): Promise<ListingsReportSummary> {
+    const listingBase = this.createListingBaseQuery(filters, scope);
+
+    const [
+      totalListings,
+      newListings,
+      activatedListings,
+      closedListings,
+      withdrawnListings,
+      activeListingsEnd,
+      lifecycleRaw,
+    ] = await Promise.all([
+      listingBase
+        .clone()
+        .andWhere('listing.createdAt <= :dateTo', { dateTo: filters.dateTo })
+        .getCount(),
+      listingBase
+        .clone()
+        .andWhere('listing.createdAt BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .getCount(),
+      listingBase
+        .clone()
+        .andWhere('listing.publishedAt BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .getCount(),
+      listingBase
+        .clone()
+        .andWhere('listing.updatedAt BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .andWhere('listing.status IN (:...statuses)', {
+          statuses: [ListingStatus.SOLD, ListingStatus.RENTED],
+        })
+        .getCount(),
+      listingBase
+        .clone()
+        .andWhere('listing.updatedAt BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .andWhere('listing.status IN (:...statuses)', {
+          statuses: [ListingStatus.WITHDRAWN, ListingStatus.ARCHIVED],
+        })
+        .getCount(),
+      listingBase
+        .clone()
+        .andWhere('listing.createdAt <= :dateTo', { dateTo: filters.dateTo })
+        .andWhere('listing.status = :status', { status: ListingStatus.ACTIVE })
+        .getCount(),
+      listingBase
+        .clone()
+        .select(
+          "AVG(EXTRACT(EPOCH FROM (listing.updatedAt - listing.createdAt)) / 86400)::numeric",
+          'avgDays',
+        )
+        .andWhere('listing.updatedAt BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .andWhere('listing.status IN (:...statuses)', {
+          statuses: [
+            ListingStatus.SOLD,
+            ListingStatus.RENTED,
+            ListingStatus.WITHDRAWN,
+            ListingStatus.ARCHIVED,
+          ],
+        })
+        .getRawOne<{ avgDays: string | null }>(),
+    ]);
+
+    return {
+      totalListings,
+      newListings,
+      activatedListings,
+      closedListings,
+      withdrawnListings,
+      activeListingsEnd,
+      averageLifecycleDays:
+        lifecycleRaw?.avgDays !== null && lifecycleRaw?.avgDays !== undefined
+          ? Math.round(Number(lifecycleRaw.avgDays))
+          : null,
+    };
+  }
+
+  private async buildListingsStatusBreakdown(
+    filters: NormalizedFilters,
+    scope: ResolvedScope,
+  ): Promise<ListingsBreakdownItem[]> {
+    const listingBase = this.createListingBaseQuery(filters, scope);
+
+    const rows = await listingBase
+      .clone()
+      .select('listing.status', 'key')
+      .addSelect('COUNT(*)::int', 'count')
+      .andWhere('listing.createdAt <= :dateTo', { dateTo: filters.dateTo })
+      .groupBy('listing.status')
+      .getRawMany<{ key: string; count: string }>();
+
+    const total = rows.reduce((sum, row) => sum + Number(row.count), 0);
+
+    return rows
+      .map((row) => ({
+        key: row.key,
+        count: Number(row.count),
+        percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  private async buildListingsPropertyTypeBreakdown(
+    filters: NormalizedFilters,
+    scope: ResolvedScope,
+  ): Promise<ListingsBreakdownItem[]> {
+    const listingBase = this.createListingBaseQuery(filters, scope);
+
+    const rows = await listingBase
+      .clone()
+      .select('listing.propertyType', 'key')
+      .addSelect('COUNT(*)::int', 'count')
+      .addSelect(
+        `COUNT(*) FILTER (WHERE listing.status = :activeStatus)::int`,
+        'activeCount',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE listing.status IN (:...closedStatuses))::int`,
+        'closedCount',
+      )
+      .addSelect('COALESCE(SUM(listing.price), 0)::numeric', 'totalValue')
+      .setParameter('activeStatus', ListingStatus.ACTIVE)
+      .setParameter('closedStatuses', [ListingStatus.SOLD, ListingStatus.RENTED])
+      .andWhere('listing.createdAt <= :dateTo', { dateTo: filters.dateTo })
+      .groupBy('listing.propertyType')
+      .getRawMany<{
+        key: string;
+        count: string;
+        activeCount: string;
+        closedCount: string;
+        totalValue: string;
+      }>();
+
+    const total = rows.reduce((sum, row) => sum + Number(row.count), 0);
+
+    return rows
+      .map((row) => ({
+        key: row.key,
+        count: Number(row.count),
+        percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+        activeCount: Number(row.activeCount),
+        closedCount: Number(row.closedCount),
+        totalValue: Number(row.totalValue),
+      }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  private async buildListingsTransactionTypeBreakdown(
+    filters: NormalizedFilters,
+    scope: ResolvedScope,
+  ): Promise<ListingsBreakdownItem[]> {
+    const listingBase = this.createListingBaseQuery(filters, scope);
+
+    const rows = await listingBase
+      .clone()
+      .select('listing.transactionType', 'key')
+      .addSelect('COUNT(*)::int', 'count')
+      .addSelect(
+        `COUNT(*) FILTER (WHERE listing.status = :activeStatus)::int`,
+        'activeCount',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE listing.status IN (:...closedStatuses))::int`,
+        'closedCount',
+      )
+      .addSelect('COALESCE(SUM(listing.price), 0)::numeric', 'totalValue')
+      .setParameter('activeStatus', ListingStatus.ACTIVE)
+      .setParameter('closedStatuses', [ListingStatus.SOLD, ListingStatus.RENTED])
+      .andWhere('listing.createdAt <= :dateTo', { dateTo: filters.dateTo })
+      .groupBy('listing.transactionType')
+      .getRawMany<{
+        key: string;
+        count: string;
+        activeCount: string;
+        closedCount: string;
+        totalValue: string;
+      }>();
+
+    const total = rows.reduce((sum, row) => sum + Number(row.count), 0);
+
+    return rows
+      .map((row) => ({
+        key: row.key,
+        count: Number(row.count),
+        percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+        activeCount: Number(row.activeCount),
+        closedCount: Number(row.closedCount),
+        totalValue: Number(row.totalValue),
+      }))
+      .sort((a, b) => b.count - a.count);
   }
 
   private async buildOverviewTimeline(
