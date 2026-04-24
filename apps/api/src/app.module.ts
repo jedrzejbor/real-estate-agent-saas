@@ -11,6 +11,7 @@ import { ListingsModule } from './listings';
 import { ClientsModule } from './clients';
 import { AppointmentsModule } from './appointments';
 import { DashboardModule } from './dashboard';
+import { ReportsModule } from './reports';
 import { SearchModule } from './search';
 import { NotificationsModule } from './notifications';
 
@@ -42,6 +43,7 @@ import { NotificationsModule } from './notifications';
     ClientsModule,
     AppointmentsModule,
     DashboardModule,
+    ReportsModule,
     SearchModule,
     NotificationsModule,
   ],

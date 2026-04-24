@@ -16,13 +16,107 @@ Dokument jest żywy i powinien być aktualizowany przy każdej zmianie:
 
 ---
 
+## 0. Status wdrożenia
+
+### Aktualizacja: 24.04.2026 — Iteracja 2
+
+Stan realizacji:
+- rozbudowano `GET /api/reports/overview` o porównanie do poprzedniego okresu
+- dodano bucketowane trendy dla widoku `Przegląd`
+- frontend renderuje już rzeczywisty widok overview zamiast wyłącznie foundation placeholderów
+- utrzymano wspólny kontrakt filtrów i serwerowe wymuszanie scope danych
+
+Zakres dostarczony w Iteracji 2:
+- backend:
+  - `comparison.previousPeriod`
+  - `comparison.deltas` dla KPI overview
+  - `timeline` z bucketami `day / week / month`
+  - helpery do bezpiecznego bucketowania i poprzedniego okresu
+- frontend:
+  - delty KPI w overview
+  - karty trendów dla:
+    - nowych ofert
+    - nowych klientów
+    - spotkań
+  - sekcja porównania bieżącego zakresu do poprzedniego okresu
+
+Decyzje implementacyjne w Iteracji 2:
+- nie dodawano zewnętrznej biblioteki wykresowej na tym etapie
+- trendy są renderowane przez lekkie, własne komponenty UI zgodne ze stylem aplikacji
+- bucketowanie pozostaje kontrolowane po stronie backendu, co upraszcza spójność odpowiedzi API
+- porównanie do poprzedniego okresu bazuje na zakresie o identycznej długości jak aktualny filtr
+
+Walidacja Iteracji 2:
+- `apps/api`: TypeScript compile OK
+- `apps/web`: production build OK
+
+Ograniczenia nadal świadomie pozostawione:
+- brak osobnych endpointów `listings`, `clients`, `appointments`, `funnel`, `revenue`
+- brak zaawansowanych tabel breakdown i insightów decyzyjnych per sekcja
+- brak raportów opartych o pełną historię zmian statusów
+
+Następny krok:
+- wdrożyć dedykowany raport `listings`
+- dodać breakdown po statusach, typie nieruchomości i typie transakcji
+- przygotować analogiczny pionowy slice dla `clients`
+
+### Aktualizacja: 24.04.2026 — Iteracja 1
+
+Stan realizacji:
+- faza 0 została ustalona i sformalizowana
+- wdrożono foundation modułu `Reports`
+- dodano dedykowany route frontendowy `/dashboard/reports`
+- dodano pierwszy endpoint backendowy `GET /api/reports/overview`
+- wdrożono wspólny kontrakt filtrów raportowych dla MVP:
+  - `dateFrom`
+  - `dateTo`
+  - `groupBy`
+  - `agentId`
+  - `propertyType`
+  - `transactionType`
+
+Zrealizowane decyzje architektoniczne:
+- raporty są rozwijane w osobnym `ReportsModule`, a nie w `DashboardModule`
+- zakres danych jest wymuszany po stronie backendu na podstawie zalogowanego użytkownika
+- walidacja filtrów raportowych odbywa się przez DTO + globalny `ValidationPipe`
+- backend ogranicza zakres dat dla raportów MVP, aby zmniejszyć ryzyko kosztownych zapytań i błędów operacyjnych
+- frontend korzysta z dedykowanego klienta API i hooka do raportów
+
+Aktualnie gotowe technicznie:
+- backend:
+  - `apps/api/src/reports/reports.module.ts`
+  - `apps/api/src/reports/reports.controller.ts`
+  - `apps/api/src/reports/reports.service.ts`
+  - `apps/api/src/reports/dto/report-filters.dto.ts`
+- frontend:
+  - `apps/web/src/app/(dashboard)/dashboard/reports/page.tsx`
+  - `apps/web/src/lib/reports.ts`
+  - `apps/web/src/hooks/use-reports.ts`
+  - `apps/web/src/components/reports/*`
+
+Zakres Iteracji 1:
+- foundation only
+- bez wykresów produkcyjnych
+- bez dedykowanych endpointów `listings`, `clients`, `funnel`, `appointments`, `revenue`
+- bez raportów zespołowych wykraczających poza bezpieczny scope agencyjny
+
+Następny krok:
+- wdrożony w Iteracji 2
+- kolejne kroki są opisane wyżej w najnowszym statusie wdrożenia
+
+---
+
 ## 1. Stan obecny
 
-Aktualnie aplikacja posiada podstawowy dashboard, ale nie ma jeszcze osobnego modułu raportów.
+Aktualnie aplikacja posiada podstawowy dashboard oraz działający foundation modułu raportów z rozbudowanym widokiem `overview`.
 
 Co już istnieje:
 - `GET /api/dashboard/stats`
+- `GET /api/reports/overview`
 - widok dashboardu z podstawowymi KPI
+- dedykowana strona `/dashboard/reports`
+- porównanie bieżącego zakresu do poprzedniego okresu w `overview`
+- bucketowane trendy `day / week / month` w `overview`
 - agregacje dla:
   - ofert
   - klientów
@@ -37,14 +131,20 @@ Co już istnieje:
 Powiązane pliki:
 - `apps/api/src/dashboard/dashboard.service.ts`
 - `apps/api/src/dashboard/dashboard.controller.ts`
+- `apps/api/src/reports/reports.service.ts`
+- `apps/api/src/reports/reports.controller.ts`
+- `apps/api/src/reports/dto/report-filters.dto.ts`
 - `apps/web/src/lib/dashboard.ts`
 - `apps/web/src/hooks/use-dashboard.ts`
+- `apps/web/src/lib/reports.ts`
+- `apps/web/src/hooks/use-reports.ts`
 - `apps/web/src/app/(dashboard)/dashboard/page.tsx`
 - `apps/web/src/app/(dashboard)/dashboard/[...slug]/page.tsx`
+- `apps/web/src/app/(dashboard)/dashboard/reports/page.tsx`
 
 Wniosek:
 - obecny dashboard daje szybki przegląd sytuacji
-- moduł `Raporty` powinien być osobnym obszarem do analizy trendów, porównań okresów, lejków i produktywności
+- moduł `Raporty` jest już wydzielony jako osobny obszar i powinien być dalej rozwijany o trendy, porównania okresów, lejki i produktywność
 - nie należy mieszać pełnych raportów z dashboardem głównym
 
 ---
