@@ -18,6 +18,55 @@ Dokument jest żywy i powinien być aktualizowany przy każdej zmianie:
 
 ## 0. Status wdrożenia
 
+### Aktualizacja: 24.04.2026 — Iteracja 4
+
+Stan realizacji:
+- wdrożono drugi dedykowany raport pionowy: `Klienci`
+- dodano backendowy endpoint `GET /api/reports/clients`
+- dodano frontendową sekcję `Raport Klienci` na stronie `/dashboard/reports`
+- utrzymano wspólne filtry raportowe i ten sam model serwerowego wymuszania scope danych
+
+Zakres dostarczony w Iteracji 4:
+- backend:
+  - `summary` dla raportu klientów
+  - breakdown po `ClientStatus`
+  - breakdown po `ClientSource`
+- frontend:
+  - sekcja `Raport Klienci`
+  - karty podsumowujące dla kluczowych metryk klientów
+  - breakdown statusów i źródeł leadów
+
+Aktualnie raport `Klienci` obejmuje:
+- liczba klientów łącznie
+- liczba nowych klientów w okresie
+- liczba klientów w aktywnym pipeline
+- liczba klientów w negocjacjach
+- liczba spraw zakończonych sukcesem w okresie
+- liczba spraw utraconych w okresie
+- współczynnik konwersji `won / (won + lost)`
+
+Ważne założenia jakościowe i bezpieczeństwa:
+- zakres danych jest nadal wymuszany po stronie backendu na podstawie roli użytkownika
+- raport nie ufa samemu `agentId` z query stringa
+- filtry przechodzą przez DTO i globalną walidację
+- agregacje używają parametryzowanych zapytań QueryBuilder
+- filtr `propertyType` dla klientów działa na podstawie `ClientPreference.propertyType`
+- filtr `transactionType` nie jest jeszcze stosowany w raporcie klientów, ponieważ obecny model klienta nie przechowuje preferencji typu transakcji
+
+Świadome ograniczenia Iteracji 4:
+- brak pełnej historii przejść klienta pomiędzy statusami
+- metryki wygranych / straconych spraw w okresie opierają się na bieżącym statusie i `updatedAt`
+- brak jeszcze funnel conversion per etap jako osobny raport
+
+Walidacja Iteracji 4:
+- `apps/api`: TypeScript compile OK
+- `apps/web`: production build OK
+
+Następny krok:
+- wdrożyć dedykowany raport `Spotkania`
+- dodać breakdown po `AppointmentType` i `AppointmentStatus`
+- następnie przejść do raportu `Lejek`
+
 ### Aktualizacja: 24.04.2026 — Iteracja 3
 
 Stan realizacji:

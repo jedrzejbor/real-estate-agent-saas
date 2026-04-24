@@ -12,6 +12,7 @@ import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
 import {
   AppointmentStatus,
+  ClientSource,
   ClientStatus,
   ListingStatus,
   UserRole,
@@ -110,6 +111,43 @@ export interface ListingsReportResponse {
     byStatus: ListingsBreakdownItem[];
     byPropertyType: ListingsBreakdownItem[];
     byTransactionType: ListingsBreakdownItem[];
+  };
+  notes: string[];
+}
+
+export interface ClientsBreakdownItem {
+  key: string;
+  count: number;
+  percentage: number;
+  wonCount?: number;
+  lostCount?: number;
+}
+
+export interface ClientsReportSummary {
+  totalClients: number;
+  newClients: number;
+  activePipeline: number;
+  negotiatingClients: number;
+  wonClients: number;
+  lostClients: number;
+  conversionRate: number;
+}
+
+export interface ClientsReportResponse {
+  generatedAt: string;
+  filtersApplied: {
+    dateFrom: string;
+    dateTo: string;
+    groupBy: ReportsGroupBy;
+    propertyType?: string;
+    transactionType?: string;
+    requestedAgentId?: string;
+    effectiveAgentIds: string[];
+  };
+  summary: ClientsReportSummary;
+  breakdowns: {
+    byStatus: ClientsBreakdownItem[];
+    bySource: ClientsBreakdownItem[];
   };
   notes: string[];
 }
@@ -281,6 +319,43 @@ export class ReportsService {
         'Raport Oferty bazuje na aktualnym stanie rekordów i danych dostępnych w modelu Listing.',
         'Do dokładnego raportowania przejść statusów w czasie potrzebna będzie pełniejsza historia zdarzeń lub snapshoty statusów.',
         'Na tym etapie aktywacje liczone są na podstawie pola `publishedAt`, a zamknięcia / wycofania na podstawie bieżącego statusu i `updatedAt`.',
+      ],
+    };
+  }
+
+  async getClientsReport(
+    user: ReportsUserContext,
+    filters: ReportFiltersDto,
+  ): Promise<ClientsReportResponse> {
+    const normalizedFilters = this.normalizeFilters(filters);
+    const scope = await this.resolveScope(user, normalizedFilters.requestedAgentId);
+
+    const [summary, byStatus, bySource] = await Promise.all([
+      this.buildClientsSummary(normalizedFilters, scope),
+      this.buildClientsStatusBreakdown(normalizedFilters, scope),
+      this.buildClientsSourceBreakdown(normalizedFilters, scope),
+    ]);
+
+    return {
+      generatedAt: new Date().toISOString(),
+      filtersApplied: {
+        dateFrom: normalizedFilters.dateFrom.toISOString(),
+        dateTo: normalizedFilters.dateTo.toISOString(),
+        groupBy: normalizedFilters.groupBy,
+        propertyType: normalizedFilters.propertyType,
+        transactionType: normalizedFilters.transactionType,
+        requestedAgentId: normalizedFilters.requestedAgentId,
+        effectiveAgentIds: scope.effectiveAgentIds,
+      },
+      summary,
+      breakdowns: {
+        byStatus,
+        bySource,
+      },
+      notes: [
+        'Raport Klienci bazuje na aktualnym stanie rekordów klienta i źródle leada zapisanym w modelu Client.',
+        'Filtr typu nieruchomości działa na podstawie `ClientPreference.propertyType`, jeśli taka preferencja jest uzupełniona.',
+        'Filtr typu transakcji nie wpływa jeszcze na raport klientów, ponieważ obecny model klienta nie przechowuje preferencji transakcji.',
       ],
     };
   }
@@ -565,6 +640,148 @@ export class ReportsService {
     };
   }
 
+  private async buildClientsSummary(
+    filters: NormalizedFilters,
+    scope: ResolvedScope,
+  ): Promise<ClientsReportSummary> {
+    const clientBase = this.createClientReportBaseQuery(filters, scope);
+
+    const [
+      totalClients,
+      newClients,
+      activePipeline,
+      negotiatingClients,
+      wonClients,
+      lostClients,
+    ] = await Promise.all([
+      clientBase
+        .clone()
+        .andWhere('client.createdAt <= :dateTo', { dateTo: filters.dateTo })
+        .getCount(),
+      clientBase
+        .clone()
+        .andWhere('client.createdAt BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .getCount(),
+      clientBase
+        .clone()
+        .andWhere('client.createdAt <= :dateTo', { dateTo: filters.dateTo })
+        .andWhere('client.status IN (:...statuses)', {
+          statuses: [
+            ClientStatus.NEW,
+            ClientStatus.CONTACTED,
+            ClientStatus.QUALIFIED,
+            ClientStatus.ACTIVE,
+            ClientStatus.NEGOTIATING,
+          ],
+        })
+        .getCount(),
+      clientBase
+        .clone()
+        .andWhere('client.createdAt <= :dateTo', { dateTo: filters.dateTo })
+        .andWhere('client.status = :status', { status: ClientStatus.NEGOTIATING })
+        .getCount(),
+      clientBase
+        .clone()
+        .andWhere('client.updatedAt BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .andWhere('client.status = :status', { status: ClientStatus.CLOSED_WON })
+        .getCount(),
+      clientBase
+        .clone()
+        .andWhere('client.updatedAt BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .andWhere('client.status = :status', { status: ClientStatus.CLOSED_LOST })
+        .getCount(),
+    ]);
+
+    const closedTotal = wonClients + lostClients;
+
+    return {
+      totalClients,
+      newClients,
+      activePipeline,
+      negotiatingClients,
+      wonClients,
+      lostClients,
+      conversionRate:
+        closedTotal > 0 ? Math.round((wonClients / closedTotal) * 100) : 0,
+    };
+  }
+
+  private async buildClientsStatusBreakdown(
+    filters: NormalizedFilters,
+    scope: ResolvedScope,
+  ): Promise<ClientsBreakdownItem[]> {
+    const clientBase = this.createClientReportBaseQuery(filters, scope);
+
+    const rows = await clientBase
+      .clone()
+      .select('client.status', 'key')
+      .addSelect('COUNT(*)::int', 'count')
+      .andWhere('client.createdAt <= :dateTo', { dateTo: filters.dateTo })
+      .groupBy('client.status')
+      .getRawMany<{ key: string; count: string }>();
+
+    const total = rows.reduce((sum, row) => sum + Number(row.count), 0);
+
+    return rows
+      .map((row) => ({
+        key: row.key,
+        count: Number(row.count),
+        percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  private async buildClientsSourceBreakdown(
+    filters: NormalizedFilters,
+    scope: ResolvedScope,
+  ): Promise<ClientsBreakdownItem[]> {
+    const clientBase = this.createClientReportBaseQuery(filters, scope);
+
+    const rows = await clientBase
+      .clone()
+      .select('client.source', 'key')
+      .addSelect('COUNT(*)::int', 'count')
+      .addSelect(
+        `COUNT(*) FILTER (WHERE client.status = :wonStatus)::int`,
+        'wonCount',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE client.status = :lostStatus)::int`,
+        'lostCount',
+      )
+      .setParameter('wonStatus', ClientStatus.CLOSED_WON)
+      .setParameter('lostStatus', ClientStatus.CLOSED_LOST)
+      .andWhere('client.createdAt <= :dateTo', { dateTo: filters.dateTo })
+      .groupBy('client.source')
+      .getRawMany<{
+        key: string;
+        count: string;
+        wonCount: string;
+        lostCount: string;
+      }>();
+
+    const total = rows.reduce((sum, row) => sum + Number(row.count), 0);
+
+    return rows
+      .map((row) => ({
+        key: row.key,
+        count: Number(row.count),
+        percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+        wonCount: Number(row.wonCount),
+        lostCount: Number(row.lostCount),
+      }))
+      .sort((a, b) => b.count - a.count);
+  }
+
   private async buildListingsStatusBreakdown(
     filters: NormalizedFilters,
     scope: ResolvedScope,
@@ -841,6 +1058,26 @@ export class ReportsService {
       .where('client.agentId IN (:...agentIds)', {
         agentIds: scope.effectiveAgentIds,
       });
+  }
+
+  private createClientReportBaseQuery(
+    filters: Pick<NormalizedFilters, 'propertyType'>,
+    scope: ResolvedScope,
+  ): SelectQueryBuilder<Client> {
+    const query = this.clientRepo
+      .createQueryBuilder('client')
+      .leftJoin('client.preference', 'preference')
+      .where('client.agentId IN (:...agentIds)', {
+        agentIds: scope.effectiveAgentIds,
+      });
+
+    if (filters.propertyType) {
+      query.andWhere('preference.propertyType = :propertyType', {
+        propertyType: filters.propertyType,
+      });
+    }
+
+    return query;
   }
 
   private createAppointmentBaseQuery(
