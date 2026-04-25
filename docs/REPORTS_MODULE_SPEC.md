@@ -67,6 +67,124 @@ Następny krok:
 - policzyć klientów na etapach i przejścia pomiędzy etapami w modelu MVP
 - następnie przejść do raportu `Wartość i sprzedaż`
 
+### Roadmapa — kolejne kroki po Iteracji 5
+
+Poniżej znajduje się aktualna kolejność dalszego wdrożenia modułu `Raporty` po dostarczeniu:
+- `overview`
+- `oferty`
+- `klienci`
+- `spotkania`
+
+#### Priorytet 1 — Raport `Lejek`
+
+Cel:
+- pokazać liczbę klientów na etapach pipeline i zidentyfikować miejsca utraty konwersji
+
+Zakres MVP:
+- endpoint `GET /api/reports/funnel`
+- liczba klientów na etapach:
+  - `new`
+  - `contacted`
+  - `qualified`
+  - `active`
+  - `negotiating`
+  - `closed_won`
+  - `closed_lost`
+- procent udziału każdego etapu w całym pipeline
+- podstawowy wskaźnik końcowej konwersji do `closed_won`
+- sekcja frontendowa `Raport Lejek`
+
+Założenia bezpieczeństwa i jakości:
+- ten sam model scope enforcement co w pozostałych raportach
+- żadnych danych zespołowych poza zakresem roli i agency scope
+- brak sztucznego "symulowania" przejść między etapami, jeśli model danych ich nie przechowuje
+
+Świadome ograniczenie MVP:
+- bez pełnej historii zmian statusów raport lejka pokaże przede wszystkim snapshot etapów i bazową konwersję końcową, a nie pełne przejścia etap → etap
+
+#### Priorytet 2 — Raport `Wartość i sprzedaż`
+
+Cel:
+- pokazać wartość aktywnego portfela i wartość spraw zamkniętych
+
+Zakres MVP:
+- endpoint `GET /api/reports/revenue`
+- wartość aktywnych ofert
+- wartość zamkniętych ofert (`sold` + `rented`)
+- średnia cena aktywnej oferty
+- breakdown po `TransactionType`
+- sekcja frontendowa `Wartość i sprzedaż`
+
+Założenia bezpieczeństwa i jakości:
+- agregacje wyłącznie na podstawie istniejącego pola `price`
+- jasne oznaczenie w UI, że to wartość ofert / spraw, a nie rzeczywisty przychód biura
+
+Świadome ograniczenie MVP:
+- bez prowizji i rozliczeń nie należy nazywać tego raportem realnego przychodu
+
+#### Priorytet 3 — Rozbudowa `overview`
+
+Cel:
+- zwiększyć wartość sekcji przeglądu bez tworzenia duplikatów względem raportów szczegółowych
+
+Zakres:
+- tekstowe insighty w UI
+- mocniejsze porównanie okres do okresu
+- szybkie skróty do raportów szczegółowych
+- ewentualnie jeden wspólny bloczek "ryzyka / wąskie gardła"
+
+Zasada:
+- `overview` ma pozostać warstwą syntetyczną, a nie zastępować raporty pionowe
+
+#### Priorytet 4 — Raport `Efektywność oferty`
+
+Cel:
+- porównać skuteczność segmentów nieruchomości i typów transakcji
+
+Zakres w późniejszym etapie:
+- skuteczność per `PropertyType`
+- średni czas do zamknięcia
+- udział zamknięć w aktywnym portfelu
+
+Warunek jakościowy:
+- najlepiej wdrażać po ustabilizowaniu danych statusowych i po doprecyzowaniu sposobu liczenia czasu życia oferty
+
+#### Priorytet 5 — Dane i model zdarzeń
+
+To jest najważniejszy tor techniczny równoległy do rozwoju raportów.
+
+Warto zaplanować:
+- historię zmian statusów ofert
+- historię zmian statusów klientów
+- dokładniejsze znaczniki czasu dla kluczowych przejść procesu
+- ewentualne snapshoty / preagregacje przy większej skali danych
+
+Powód:
+- bez tych danych część raportów pozostanie poprawnym, ale uproszczonym MVP
+- to szczególnie ważne dla:
+  - lejka sprzedażowego
+  - czasu procesu
+  - dokładnych konwersji między etapami
+
+#### Rekomendowana kolejność wdrożenia od teraz
+
+1. `Lejek`
+2. `Wartość i sprzedaż`
+3. insighty i doszlifowanie `overview`
+4. `Efektywność oferty`
+5. raporty bardziej zależne od historii zdarzeń i modeli rozszerzonych
+
+#### Kryterium jakości dla kolejnych iteracji
+
+Każda następna iteracja raportowa powinna zawierać komplet:
+- endpoint backendowy
+- walidowany kontrakt DTO
+- serwerowe wymuszanie scope danych
+- sekcję frontendową
+- loading / error / empty state
+- aktualizację tego dokumentu
+- końcową walidację przez `tsc` i `build`
+
 ### Aktualizacja: 24.04.2026 — Iteracja 4
 
 Stan realizacji:
