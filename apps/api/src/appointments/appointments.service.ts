@@ -9,6 +9,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Appointment } from './entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
+import { UsersService } from '../users';
+import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { AppointmentQueryDto } from './dto/appointment-query.dto';
@@ -33,6 +35,7 @@ export class AppointmentsService {
     private readonly appointmentRepo: Repository<Appointment>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    private readonly usersService: UsersService,
   ) {}
 
   // ── Create ──
@@ -41,9 +44,12 @@ export class AppointmentsService {
     userId: string,
     dto: CreateAppointmentDto,
   ): Promise<Appointment> {
-    const agent = await this.resolveAgent(userId);
-
     this.validateDateRange(dto.startTime, dto.endTime);
+
+    const { agent } = await this.assertAppointmentCreateWithinPlanLimit(
+      userId,
+      dto.startTime,
+    );
 
     const appointment = this.appointmentRepo.create({
       ...dto,
@@ -164,6 +170,46 @@ export class AppointmentsService {
       throw new NotFoundException('Profil agenta nie znaleziony');
     }
     return agent;
+  }
+
+  private async assertAppointmentCreateWithinPlanLimit(
+    userId: string,
+    startTime: string,
+  ): Promise<{ agent: Agent }> {
+    const access = await this.usersService.getAgencyAccessContext(userId);
+    const limit = access.entitlements.limits.monthlyAppointments;
+
+    if (limit !== null) {
+      const startDate = new Date(startTime);
+      const periodStart = new Date(
+        Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1),
+      );
+      const periodEnd = new Date(
+        Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 1),
+      );
+
+      const currentUsage = await this.appointmentRepo
+        .createQueryBuilder('appointment')
+        .where('appointment.agentId IN (:...agentIds)', {
+          agentIds: access.agencyAgentIds,
+        })
+        .andWhere('appointment.startTime >= :periodStart', { periodStart })
+        .andWhere('appointment.startTime < :periodEnd', { periodEnd })
+        .getCount();
+
+      if (currentUsage >= limit) {
+        throw new PlanLimitReachedException({
+          resource: 'appointments',
+          limit,
+          currentUsage,
+          planCode: access.entitlements.plan.code,
+          message:
+            'Osiągnięto miesięczny limit spotkań w Twoim planie. Przejdź na wyższy plan, aby zaplanować kolejne spotkanie.',
+        });
+      }
+    }
+
+    return { agent: access.agent };
   }
 
   private async findOneOrFail(id: string): Promise<Appointment> {

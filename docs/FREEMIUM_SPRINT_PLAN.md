@@ -313,7 +313,7 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
     - kolejnym krokiem jest wykorzystanie `entitlements.limits` do twardej egzekucji limitów w `F1.2`,
     - UI jeszcze nie pokazuje badge planu ani usage card — to wchodzi w `F1.3` / `F1.4`.
 
-- [ ] `F1.2` Wymusić limity freemium w API
+- [x] `F1.2` Wymusić limity freemium w API
   - Zakres: oferty, klienci, spotkania, uploady, leady, raporty.
   - Miejsca egzekucji limitów w obecnym kodzie:
     - `ListingsService.create()` dla limitu aktywnych ofert,
@@ -333,9 +333,16 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
   - Ważna decyzja architektoniczna:
     - jeśli dane są dziś powiązane tylko z `agentId`, to limit liczymy po agentach należących do `Agency`,
     - nie przenosimy od razu wszystkich encji na `agencyId`, jeśli to nie jest potrzebne do MVP.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-26
   - Wykonano:
+    - dodano wspólny kontekst dostępu użytkownika do `Agency` oraz listy agentów workspace,
+    - dodano przewidywalny wyjątek `PLAN_LIMIT_REACHED` z detalami limitu i usage,
+    - limity są egzekwowane w `ListingsService.create()`, `ClientsService.create()` i `AppointmentsService.create()`,
+    - limit ofert liczony jest dla ofert niearchiwalnych w całym `Agency`,
+    - limit spotkań liczony jest miesięcznie na podstawie miesiąca `startTime` tworzonego spotkania.
   - Uwagi / follow-up:
+    - uploady obrazów i feature gating raportów pozostają w kolejnych zadaniach `F1.5` i dalszych,
+    - UI powinno obsłużyć `code = PLAN_LIMIT_REACHED` w komunikatach create flow.
 
 - [ ] `F1.3` Dodać komunikację limitów w UI
   - Zakres: bannery, badge planu, warningi przed limitem, stan po przekroczeniu limitu.

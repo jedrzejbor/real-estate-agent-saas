@@ -6,16 +6,18 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { In, Not, Repository, SelectQueryBuilder } from 'typeorm';
 import { ActivityService } from '../activity';
 import { Listing } from './entities/listing.entity';
 import { Address } from './entities/address.entity';
 import { Agent } from '../users/entities/agent.entity';
+import { UsersService } from '../users';
 import {
   ActivityAction,
   ActivityEntityType,
   ListingStatus,
 } from '../common/enums';
+import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ListingQueryDto } from './dto/listing-query.dto';
@@ -42,6 +44,7 @@ export class ListingsService {
     private readonly addressRepo: Repository<Address>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    private readonly usersService: UsersService,
     private readonly activityService: ActivityService,
   ) {}
 
@@ -51,7 +54,7 @@ export class ListingsService {
     userId: string,
     dto: CreateListingDto,
   ): Promise<Listing> {
-    const agent = await this.resolveAgent(userId);
+    const { agent } = await this.assertListingCreateWithinPlanLimit(userId);
 
     const { address: addressDto, ...listingData } = dto;
 
@@ -310,6 +313,35 @@ export class ListingsService {
       throw new NotFoundException('Profil agenta nie znaleziony');
     }
     return agent;
+  }
+
+  private async assertListingCreateWithinPlanLimit(
+    userId: string,
+  ): Promise<{ agent: Agent }> {
+    const access = await this.usersService.getAgencyAccessContext(userId);
+    const limit = access.entitlements.limits.activeListings;
+
+    if (limit !== null) {
+      const currentUsage = await this.listingRepo.count({
+        where: {
+          agentId: In(access.agencyAgentIds),
+          status: Not(ListingStatus.ARCHIVED),
+        },
+      });
+
+      if (currentUsage >= limit) {
+        throw new PlanLimitReachedException({
+          resource: 'listings',
+          limit,
+          currentUsage,
+          planCode: access.entitlements.plan.code,
+          message:
+            'Osiągnięto limit aktywnych ofert w Twoim planie. Przejdź na wyższy plan, aby dodać kolejną ofertę.',
+        });
+      }
+    }
+
+    return { agent: access.agent };
   }
 
   /** Find listing by id with relations, or throw. */

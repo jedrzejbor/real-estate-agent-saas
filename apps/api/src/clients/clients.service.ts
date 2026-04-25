@@ -6,13 +6,15 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { ActivityService } from '../activity';
 import { Client } from './entities/client.entity';
 import { ClientNote } from './entities/client-note.entity';
 import { ClientPreference } from './entities/client-preference.entity';
 import { Agent } from '../users/entities/agent.entity';
+import { UsersService } from '../users';
 import { ActivityAction, ActivityEntityType } from '../common/enums';
+import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ClientQueryDto } from './dto/client-query.dto';
@@ -42,13 +44,14 @@ export class ClientsService {
     private readonly preferenceRepo: Repository<ClientPreference>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    private readonly usersService: UsersService,
     private readonly activityService: ActivityService,
   ) {}
 
   // ── Create ──
 
   async create(userId: string, dto: CreateClientDto): Promise<Client> {
-    const agent = await this.resolveAgent(userId);
+    const { agent } = await this.assertClientCreateWithinPlanLimit(userId);
 
     const { preference: preferenceDto, ...clientData } = dto;
 
@@ -357,6 +360,34 @@ export class ClientsService {
       throw new NotFoundException('Profil agenta nie znaleziony');
     }
     return agent;
+  }
+
+  private async assertClientCreateWithinPlanLimit(
+    userId: string,
+  ): Promise<{ agent: Agent }> {
+    const access = await this.usersService.getAgencyAccessContext(userId);
+    const limit = access.entitlements.limits.clients;
+
+    if (limit !== null) {
+      const currentUsage = await this.clientRepo.count({
+        where: {
+          agentId: In(access.agencyAgentIds),
+        },
+      });
+
+      if (currentUsage >= limit) {
+        throw new PlanLimitReachedException({
+          resource: 'clients',
+          limit,
+          currentUsage,
+          planCode: access.entitlements.plan.code,
+          message:
+            'Osiągnięto limit klientów w Twoim planie. Przejdź na wyższy plan, aby dodać kolejnego klienta.',
+        });
+      }
+    }
+
+    return { agent: access.agent };
   }
 
   /** Find client by id with relations, or throw. */

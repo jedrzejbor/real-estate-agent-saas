@@ -9,6 +9,18 @@ import { User } from './entities/user.entity';
 import { Agent } from './entities/agent.entity';
 import { Agency } from './entities/agency.entity';
 import { AgencyPlan, SubscriptionStatus, UserRole } from '../common/enums';
+import {
+  AgencyEntitlements,
+  AgencyPlanService,
+} from './agency-plan.service';
+
+export interface UserAgencyAccessContext {
+  user: User;
+  agent: Agent;
+  agency: Agency;
+  agencyAgentIds: string[];
+  entitlements: AgencyEntitlements;
+}
 
 @Injectable()
 export class UsersService {
@@ -19,6 +31,7 @@ export class UsersService {
     private readonly agentRepo: Repository<Agent>,
     @InjectRepository(Agency)
     private readonly agencyRepo: Repository<Agency>,
+    private readonly agencyPlanService: AgencyPlanService,
   ) {}
 
   /** Find user by email (includes passwordHash for auth). */
@@ -143,6 +156,31 @@ export class UsersService {
     });
 
     return this.findById(id) as Promise<User>;
+  }
+
+  async getAgencyAccessContext(userId: string): Promise<UserAgencyAccessContext> {
+    const user = await this.ensureAgencyForUser(userId);
+
+    if (!user.agent) {
+      throw new NotFoundException('Profil agenta nie znaleziony');
+    }
+
+    if (!user.agent.agency) {
+      throw new NotFoundException('Workspace nie znaleziony');
+    }
+
+    const agencyAgents = await this.agentRepo.find({
+      where: { agencyId: user.agent.agency.id },
+      select: ['id'],
+    });
+
+    return {
+      user,
+      agent: user.agent,
+      agency: user.agent.agency,
+      agencyAgentIds: agencyAgents.map((agent) => agent.id),
+      entitlements: this.agencyPlanService.getEntitlements(user.agent.agency),
+    };
   }
 
   /** Deactivate user account. */
