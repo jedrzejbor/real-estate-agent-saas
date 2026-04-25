@@ -7,7 +7,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { Agent } from './entities/agent.entity';
-import { UserRole } from '../common/enums';
+import { Agency } from './entities/agency.entity';
+import { AgencyPlan, SubscriptionStatus, UserRole } from '../common/enums';
 
 @Injectable()
 export class UsersService {
@@ -16,6 +17,8 @@ export class UsersService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    @InjectRepository(Agency)
+    private readonly agencyRepo: Repository<Agency>,
   ) {}
 
   /** Find user by email (includes passwordHash for auth). */
@@ -27,7 +30,7 @@ export class UsersService {
   async findById(id: string): Promise<User | null> {
     return this.userRepo.findOne({
       where: { id },
-      relations: ['agent'],
+      relations: ['agent', 'agent.agency'],
     });
   }
 
@@ -44,23 +47,93 @@ export class UsersService {
       throw new ConflictException('Użytkownik z tym adresem email już istnieje');
     }
 
-    const user = this.userRepo.create({
-      email: params.email,
-      passwordHash: params.passwordHash,
-      role: params.role ?? UserRole.AGENT,
+    const userId = await this.userRepo.manager.transaction(async (manager) => {
+      const userRepo = manager.getRepository(User);
+      const agentRepo = manager.getRepository(Agent);
+      const agencyRepo = manager.getRepository(Agency);
+
+      const user = userRepo.create({
+        email: params.email,
+        passwordHash: params.passwordHash,
+        role: params.role ?? UserRole.AGENT,
+      });
+
+      const savedUser = await userRepo.save(user);
+
+      const agency = agencyRepo.create({
+        name: this.buildAgencyName(
+          params.email,
+          params.firstName,
+          params.lastName,
+        ),
+        ownerId: savedUser.id,
+        plan: AgencyPlan.FREE,
+        subscription: SubscriptionStatus.ACTIVE,
+      });
+
+      const savedAgency = await agencyRepo.save(agency);
+
+      const agent = agentRepo.create({
+        userId: savedUser.id,
+        firstName: params.firstName,
+        lastName: params.lastName,
+        agencyId: savedAgency.id,
+      });
+      await agentRepo.save(agent);
+
+      return savedUser.id;
     });
 
-    const savedUser = await this.userRepo.save(user);
+    return this.findById(userId) as Promise<User>;
+  }
 
-    // Create associated agent profile
-    const agent = this.agentRepo.create({
-      userId: savedUser.id,
-      firstName: params.firstName,
-      lastName: params.lastName,
+  async ensureAgencyForUser(id: string): Promise<User> {
+    const user = await this.findById(id);
+
+    if (!user) {
+      throw new NotFoundException('Użytkownik nie znaleziony');
+    }
+
+    if (user.agent?.agencyId) {
+      return user;
+    }
+
+    await this.userRepo.manager.transaction(async (manager) => {
+      const userRepo = manager.getRepository(User);
+      const agentRepo = manager.getRepository(Agent);
+      const agencyRepo = manager.getRepository(Agency);
+
+      const transactionalUser = await userRepo.findOne({
+        where: { id },
+        relations: ['agent'],
+      });
+
+      if (!transactionalUser?.agent) {
+        throw new NotFoundException('Profil agenta nie znaleziony');
+      }
+
+      if (transactionalUser.agent.agencyId) {
+        return;
+      }
+
+      const agency = agencyRepo.create({
+        name: this.buildAgencyName(
+          transactionalUser.email,
+          transactionalUser.agent.firstName,
+          transactionalUser.agent.lastName,
+        ),
+        ownerId: transactionalUser.id,
+        plan: AgencyPlan.FREE,
+        subscription: SubscriptionStatus.ACTIVE,
+      });
+
+      const savedAgency = await agencyRepo.save(agency);
+
+      transactionalUser.agent.agencyId = savedAgency.id;
+      await agentRepo.save(transactionalUser.agent);
     });
-    await this.agentRepo.save(agent);
 
-    return this.findById(savedUser.id) as Promise<User>;
+    return this.findById(id) as Promise<User>;
   }
 
   /** Deactivate user account. */
@@ -71,5 +144,24 @@ export class UsersService {
     }
     user.isActive = false;
     await this.userRepo.save(user);
+  }
+
+  private buildAgencyName(
+    email: string,
+    firstName?: string,
+    lastName?: string,
+  ): string {
+    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+
+    if (fullName) {
+      return `${fullName} Real Estate`;
+    }
+
+    const emailPrefix = email.split('@')[0]?.trim();
+    if (emailPrefix) {
+      return `${emailPrefix} Real Estate`;
+    }
+
+    return 'EstateFlow Workspace';
   }
 }

@@ -6,6 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { AgencyPlan, SubscriptionStatus } from '../../common/enums';
 import { Agent } from './agent.entity';
 
 @Entity('agencies')
@@ -22,10 +23,18 @@ export class Agency {
   @Column({ type: 'varchar', length: 500, nullable: true })
   logoUrl: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 50,
+    default: SubscriptionStatus.ACTIVE,
+  })
   subscription: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 50,
+    default: AgencyPlan.FREE,
+  })
   plan: string;
 
   @Column({ type: 'uuid', nullable: true })

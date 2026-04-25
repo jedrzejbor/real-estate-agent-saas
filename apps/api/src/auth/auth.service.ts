@@ -7,8 +7,10 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
+import { AgencyPlanService } from '../users/agency-plan.service';
 import { RegisterDto, LoginDto } from './dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { User } from '../users/entities/user.entity';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -18,6 +20,7 @@ export class AuthService {
 
   constructor(
     private readonly usersService: UsersService,
+    private readonly agencyPlanService: AgencyPlanService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -26,29 +29,21 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
 
-    const user = await this.usersService.create({
+    const createdUser = await this.usersService.create({
       email: dto.email.toLowerCase().trim(),
       passwordHash,
       firstName: dto.firstName,
       lastName: dto.lastName,
     });
 
+    const user = await this.usersService.ensureAgencyForUser(createdUser.id);
+
     this.logger.log(`User registered: ${user.email}`);
 
     const tokens = await this.generateTokens(user.id, user.email, user.role);
 
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        agent: user.agent
-          ? {
-              firstName: user.agent.firstName,
-              lastName: user.agent.lastName,
-            }
-          : null,
-      },
+      user: this.serializeUser(user),
       ...tokens,
     };
   }
@@ -79,22 +74,12 @@ export class AuthService {
     this.logger.log(`User logged in: ${user.email}`);
 
     // Re-fetch with agent relation
-    const fullUser = await this.usersService.findById(user.id);
+    const fullUser = await this.usersService.ensureAgencyForUser(user.id);
 
     const tokens = await this.generateTokens(user.id, user.email, user.role);
 
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        agent: fullUser?.agent
-          ? {
-              firstName: fullUser.agent.firstName,
-              lastName: fullUser.agent.lastName,
-            }
-          : null,
-      },
+      user: this.serializeUser(fullUser),
       ...tokens,
     };
   }
@@ -107,29 +92,16 @@ export class AuthService {
 
   /** Get current user profile. */
   async getProfile(userId: string) {
-    const user = await this.usersService.findById(userId);
+    const user = await this.usersService.ensureAgencyForUser(userId);
 
     if (!user) {
       throw new UnauthorizedException('Użytkownik nie znaleziony');
     }
 
     return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
+      ...this.serializeUser(user),
       isActive: user.isActive,
       createdAt: user.createdAt,
-      agent: user.agent
-        ? {
-            id: user.agent.id,
-            firstName: user.agent.firstName,
-            lastName: user.agent.lastName,
-            phone: user.agent.phone,
-            licenseNo: user.agent.licenseNo,
-            bio: user.agent.bio,
-            avatarUrl: user.agent.avatarUrl,
-          }
-        : null,
     };
   }
 
@@ -152,5 +124,34 @@ export class AuthService {
     ]);
 
     return { accessToken, refreshToken };
+  }
+
+  private serializeUser(user: User) {
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      agent: user.agent
+        ? {
+            id: user.agent.id,
+            firstName: user.agent.firstName,
+            lastName: user.agent.lastName,
+            phone: user.agent.phone,
+            licenseNo: user.agent.licenseNo,
+            bio: user.agent.bio,
+            avatarUrl: user.agent.avatarUrl,
+          }
+        : null,
+      agency: user.agent?.agency
+        ? {
+            id: user.agent.agency.id,
+            name: user.agent.agency.name,
+            plan: user.agent.agency.plan,
+            subscription: user.agent.agency.subscription,
+            ownerId: user.agent.agency.ownerId,
+          }
+        : null,
+      entitlements: this.agencyPlanService.getEntitlements(user.agent?.agency),
+    };
   }
 }

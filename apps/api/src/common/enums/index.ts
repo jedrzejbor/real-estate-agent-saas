@@ -10,6 +10,20 @@ export enum UserRole {
   VIEWER = 'viewer',
 }
 
+export enum AgencyPlan {
+  FREE = 'free',
+  STARTER = 'starter',
+  PROFESSIONAL = 'professional',
+  ENTERPRISE = 'enterprise',
+}
+
+export enum SubscriptionStatus {
+  ACTIVE = 'active',
+  TRIAL = 'trial',
+  PAST_DUE = 'past_due',
+  CANCELED = 'canceled',
+}
+
 export enum PropertyType {
   APARTMENT = 'apartment',
   HOUSE = 'house',

@@ -264,39 +264,150 @@ Wdrożyć podstawowe mechanizmy planu darmowego w obecnym produkcie CRM.
 **Rezultat sprintu:**
 Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe komunikaty.
 
+**Założenia techniczne na bazie obecnej architektury:**
+- właścicielem planu i limitów powinno być `Agency`, bo ta encja już zawiera pola `subscription` i `plan`,
+- użytkownik rejestrujący się w MVP powinien automatycznie otrzymywać własne `Agency` w planie `free`,
+- `Agent` powinien być przypisany do tego `Agency` już podczas rejestracji,
+- `auth/me` oraz odpowiedź login/register powinny zwracać informacje o planie, limicie i usage summary,
+- egzekwowanie limitów powinno być po stronie API w miejscach tworzenia rekordów, a nie tylko w UI,
+- UI powinno operować na prostym modelu: `plan`, `limits`, `usage`, `features`.
+
+**Minimalny model danych do wdrożenia w Sprincie 1:**
+- `Agency.plan` — np. `free`, `starter`, `professional`, `enterprise`,
+- `Agency.subscription` — np. `active`, `trial`, `past_due`, `canceled` lub prostszy stan MVP,
+- dodatkowe pole techniczne rekomendowane do dodania: `planLimitsSnapshot` lub wyliczane entitlementy z serwisu,
+- dodatkowe pole techniczne rekomendowane do dodania: `trialEndsAt` tylko jeśli chcemy zostawić drogę pod trial płatnych planów.
+
+**Minimalny kontrakt danych dla web:**
+- `plan: { code, label, status }`,
+- `usage: { activeListings, clients, monthlyAppointments }`,
+- `limits: { activeListings, clients, monthlyAppointments, users, imagesPerListing }`,
+- `features: { reportsOverview, reportsListingsBasic, reportsClientsBasic, customBranding, multiUser }`.
+
 #### Zadania
-- [ ] `F1.1` Dodać model planu / subskrypcji / entitlements
+- [x] `F1.1` Dodać model planu / subskrypcji / entitlements
   - Zakres: plan `free`, limity, flagi funkcji, miejsce na późniejsze plany płatne.
-  - Data zakończenia:
+  - Proponowana implementacja MVP:
+    - wykorzystać `Agency` jako źródło prawdy dla planu i subskrypcji,
+    - podczas rejestracji tworzyć automatycznie `Agency` dla nowego użytkownika,
+    - przypinać nowego `Agent` do świeżo utworzonego `Agency`,
+    - dodać serwis `billing` lub `entitlements`, który mapuje `plan` → `limits` i `features`,
+    - nie trzymać logiki limitów rozproszonej po frontendzie.
+  - Techniczne elementy do wdrożenia:
+    - enum / stałe planów i statusów subskrypcji,
+    - centralny resolver entitlements po stronie API,
+    - rozszerzenie odpowiedzi `auth/register`, `auth/login`, `auth/me`,
+    - gotowość na przyszły upgrade bez zmiany kontraktu API.
+  - Preferowana kolejność:
+    - najpierw model planów,
+    - potem tworzenie `Agency` przy rejestracji,
+    - potem zwracanie planu do web.
+  - Data zakończenia: 2026-04-26
   - Wykonano:
+    - dodano enumy planu i statusu subskrypcji oraz centralny resolver entitlementów,
+    - rejestracja tworzy teraz automatycznie `Agency` w planie `free` i przypina do niej `Agent`,
+    - dodano lazy backfill `Agency` dla starszych użytkowników bez przypisanego workspace,
+    - `auth/register`, `auth/login` i `auth/me` zwracają teraz `agency` oraz `entitlements`,
+    - webowy model `AuthUser` został rozszerzony o dane planu i feature access.
   - Uwagi / follow-up:
+    - kolejnym krokiem jest wykorzystanie `entitlements.limits` do twardej egzekucji limitów w `F1.2`,
+    - UI jeszcze nie pokazuje badge planu ani usage card — to wchodzi w `F1.3` / `F1.4`.
 
 - [ ] `F1.2` Wymusić limity freemium w API
   - Zakres: oferty, klienci, spotkania, uploady, leady, raporty.
+  - Miejsca egzekucji limitów w obecnym kodzie:
+    - `ListingsService.create()` dla limitu aktywnych ofert,
+    - `ClientsService.create()` dla limitu klientów,
+    - `AppointmentsService.create()` dla limitu miesięcznych spotkań,
+    - upload obrazów oferty w module listing images, jeśli upload jest osobnym flow,
+    - endpointy raportowe dla feature gating premium.
+  - Zasada implementacyjna:
+    - limity sprawdzamy przed zapisem rekordu,
+    - przy przekroczeniu rzucamy dedykowany błąd biznesowy z czytelnym kodem,
+    - UI ma dostać przewidywalny response typu `PLAN_LIMIT_REACHED`.
+  - Minimalne liczniki usage wymagane po stronie API:
+    - liczba aktywnych ofert dla `agencyId`,
+    - liczba klientów dla `agencyId` lub początkowo dla pojedynczego agenta, jeśli workspace scope jeszcze nie jest pełny,
+    - liczba spotkań w bieżącym miesiącu,
+    - liczba użytkowników w `Agency`.
+  - Ważna decyzja architektoniczna:
+    - jeśli dane są dziś powiązane tylko z `agentId`, to limit liczymy po agentach należących do `Agency`,
+    - nie przenosimy od razu wszystkich encji na `agencyId`, jeśli to nie jest potrzebne do MVP.
   - Data zakończenia:
   - Wykonano:
   - Uwagi / follow-up:
 
 - [ ] `F1.3` Dodać komunikację limitów w UI
   - Zakres: bannery, badge planu, warningi przed limitem, stan po przekroczeniu limitu.
+  - Minimalny zakres UI na MVP:
+    - badge planu `Free` w dashboard shell,
+    - usage card na dashboardzie,
+    - warning przy `80%` limitu dla ofert, klientów i spotkań,
+    - komunikat hard limit w modalach / formularzach create,
+    - CTA do przyszłego pricing / upgrade flow.
+  - Dane wejściowe z API:
+    - `plan`, `usage`, `limits`, `features` zwrócone z `auth/me` lub osobnego endpointu `billing/me`.
+  - Miejsca wdrożenia na web:
+    - `AuthContext` jako źródło planu dla całej aplikacji,
+    - dashboard topbar lub sidebar dla badge planu,
+    - strony tworzenia ofert, klientów i spotkań dla komunikatów granicznych.
+  - Zasada UX:
+    - najpierw pokazujemy ile zostało do limitu,
+    - dopiero potem pokazujemy blokadę,
+    - nie chowamy istniejących danych po przekroczeniu limitu.
   - Data zakończenia:
   - Wykonano:
   - Uwagi / follow-up:
 
 - [ ] `F1.4` Przygotować ustawienia planu i ekran zarządzania limitem
   - Zakres: widok planu, wykorzystania limitów i CTA upgrade.
+  - Proponowany MVP scope:
+    - nowy widok typu `Plan i limity` w dashboardzie,
+    - sekcja `Twój plan`,
+    - sekcja `Wykorzystanie`,
+    - sekcja `Odblokuj więcej` z placeholderem dla płatnych planów.
+  - Minimalne komponenty:
+    - progress bars dla usage,
+    - lista funkcji dostępnych w `Free`,
+    - lista funkcji premium z CTA.
+  - Cel tego zadania:
+    - dać użytkownikowi jedno centralne miejsce, gdzie rozumie swój plan,
+    - odciążyć przypadkowe paywalle rozsiane po produkcie.
   - Data zakończenia:
   - Wykonano:
   - Uwagi / follow-up:
 
 - [ ] `F1.5` Ograniczyć darmowe raporty do podstawowego scope
   - Zakres: overview + podstawowe listing/client reports, ukrycie premium entry points.
+  - Aktualny stan kodu:
+    - istnieją już `overview`, `listings`, `clients`, `appointments`,
+    - freemium MVP powinno zostawić `overview`, podstawowy `listings` i podstawowy `clients`,
+    - `appointments` można oznaczyć jako premium lub ukryć za feature flagą, jeśli chcemy mocniejszy trigger upgrade.
+  - Zasada implementacji:
+    - backend sprawdza feature access do endpointu,
+    - frontend ukrywa lub disabled-state'uje zablokowane sekcje,
+    - nie polegamy wyłącznie na ukrywaniu w UI.
+  - Decyzja do domknięcia przed wdrożeniem:
+    - czy raport spotkań zostaje darmowy w pierwszym release, czy staje się elementem premium.
   - Data zakończenia:
   - Wykonano:
   - Uwagi / follow-up:
 
 - [ ] `F1.6` Przygotować techniczne feature flags dla release'u
   - Zakres: możliwość stopniowego włączania publicznych funkcji.
+  - Rekomendowany minimalny zestaw flag:
+    - `publicListingsEnabled`,
+    - `publicLeadFormsEnabled`,
+    - `publicClaimFlowEnabled`,
+    - `freemiumUpsellEnabled`,
+    - `premiumReportsEnabled`.
+  - Gdzie trzymać flagi na MVP:
+    - startowo jako konfiguracja backendowa lub prosty config file,
+    - nie trzeba od razu budować pełnego systemu remote config.
+  - Po co to robimy:
+    - bezpieczny rollout funkcji publicznych,
+    - łatwy rollback bez cofania migracji,
+    - możliwość odpalania feature'ów tylko dla wybranych środowisk.
   - Data zakończenia:
   - Wykonano:
   - Uwagi / follow-up:
@@ -304,7 +415,24 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
 #### Definition of Done
 - plan `free` działa end-to-end,
 - limity są egzekwowane po stronie backendu i czytelne po stronie UI,
-- produkt jest gotowy na onboarding pierwszego darmowego użytkownika.
+- produkt jest gotowy na onboarding pierwszego darmowego użytkownika,
+- nowy użytkownik po rejestracji trafia do własnego `Agency` w planie `free`,
+- web zna bieżący plan, usage i feature access bez dodatkowego ręcznego mapowania,
+- istnieje bezpieczna baza pod późniejsze płatne plany i upgrade flow.
+
+#### Proponowana kolejność realizacji Sprintu 1
+1. `F1.1` Model planu, tworzenie `Agency`, kontrakt `auth/me`
+2. `F1.2` Egzekwowanie limitów w API
+3. `F1.5` Feature gating raportów
+4. `F1.6` Feature flags dla funkcji publicznych i premium
+5. `F1.3` Komunikacja limitów w dashboardzie i create flows
+6. `F1.4` Widok `Plan i limity`
+
+#### Ryzyka techniczne Sprintu 1
+- obecne dane domenowe są powiązane głównie z `agentId`, więc usage per `Agency` trzeba liczyć przez relację agentów,
+- obecny flow rejestracji tworzy `User` i `Agent`, ale nie tworzy `Agency`,
+- kontrakt auth na web będzie wymagał rozszerzenia typów `AuthUser` i `AuthResponse`,
+- jeśli plan premium ma wejść później, nie warto jeszcze wdrażać pełnego billing engine — tylko czysty entitlement layer.
 
 #### Log sprintu
 - Status sprintu:
