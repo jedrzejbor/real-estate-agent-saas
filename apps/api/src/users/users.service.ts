@@ -108,19 +108,28 @@ export class UsersService {
         relations: ['agent'],
       });
 
-      if (!transactionalUser?.agent) {
-        throw new NotFoundException('Profil agenta nie znaleziony');
+      if (!transactionalUser) {
+        throw new NotFoundException('Użytkownik nie znaleziony');
       }
 
-      if (transactionalUser.agent.agencyId) {
+      let agent = transactionalUser.agent;
+
+      if (!agent) {
+        agent = agentRepo.create({
+          userId: transactionalUser.id,
+        });
+        agent = await agentRepo.save(agent);
+      }
+
+      if (agent.agencyId) {
         return;
       }
 
       const agency = agencyRepo.create({
         name: this.buildAgencyName(
           transactionalUser.email,
-          transactionalUser.agent.firstName,
-          transactionalUser.agent.lastName,
+          agent.firstName,
+          agent.lastName,
         ),
         ownerId: transactionalUser.id,
         plan: AgencyPlan.FREE,
@@ -129,8 +138,8 @@ export class UsersService {
 
       const savedAgency = await agencyRepo.save(agency);
 
-      transactionalUser.agent.agencyId = savedAgency.id;
-      await agentRepo.save(transactionalUser.agent);
+      agent.agencyId = savedAgency.id;
+      await agentRepo.save(agent);
     });
 
     return this.findById(id) as Promise<User>;
