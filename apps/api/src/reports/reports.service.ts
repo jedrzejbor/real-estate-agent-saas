@@ -11,6 +11,7 @@ import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
 import {
+  AppointmentType,
   AppointmentStatus,
   ClientSource,
   ClientStatus,
@@ -148,6 +149,44 @@ export interface ClientsReportResponse {
   breakdowns: {
     byStatus: ClientsBreakdownItem[];
     bySource: ClientsBreakdownItem[];
+  };
+  notes: string[];
+}
+
+export interface AppointmentsBreakdownItem {
+  key: string;
+  count: number;
+  percentage: number;
+  linkedToClient?: number;
+  linkedToListing?: number;
+}
+
+export interface AppointmentsReportSummary {
+  totalAppointments: number;
+  completedAppointments: number;
+  scheduledAppointments: number;
+  cancelledAppointments: number;
+  noShowAppointments: number;
+  linkedToClient: number;
+  linkedToListing: number;
+  completionRate: number;
+}
+
+export interface AppointmentsReportResponse {
+  generatedAt: string;
+  filtersApplied: {
+    dateFrom: string;
+    dateTo: string;
+    groupBy: ReportsGroupBy;
+    propertyType?: string;
+    transactionType?: string;
+    requestedAgentId?: string;
+    effectiveAgentIds: string[];
+  };
+  summary: AppointmentsReportSummary;
+  breakdowns: {
+    byStatus: AppointmentsBreakdownItem[];
+    byType: AppointmentsBreakdownItem[];
   };
   notes: string[];
 }
@@ -356,6 +395,43 @@ export class ReportsService {
         'Raport Klienci bazuje na aktualnym stanie rekordów klienta i źródle leada zapisanym w modelu Client.',
         'Filtr typu nieruchomości działa na podstawie `ClientPreference.propertyType`, jeśli taka preferencja jest uzupełniona.',
         'Filtr typu transakcji nie wpływa jeszcze na raport klientów, ponieważ obecny model klienta nie przechowuje preferencji transakcji.',
+      ],
+    };
+  }
+
+  async getAppointmentsReport(
+    user: ReportsUserContext,
+    filters: ReportFiltersDto,
+  ): Promise<AppointmentsReportResponse> {
+    const normalizedFilters = this.normalizeFilters(filters);
+    const scope = await this.resolveScope(user, normalizedFilters.requestedAgentId);
+
+    const [summary, byStatus, byType] = await Promise.all([
+      this.buildAppointmentsSummary(normalizedFilters, scope),
+      this.buildAppointmentsStatusBreakdown(normalizedFilters, scope),
+      this.buildAppointmentsTypeBreakdown(normalizedFilters, scope),
+    ]);
+
+    return {
+      generatedAt: new Date().toISOString(),
+      filtersApplied: {
+        dateFrom: normalizedFilters.dateFrom.toISOString(),
+        dateTo: normalizedFilters.dateTo.toISOString(),
+        groupBy: normalizedFilters.groupBy,
+        propertyType: normalizedFilters.propertyType,
+        transactionType: normalizedFilters.transactionType,
+        requestedAgentId: normalizedFilters.requestedAgentId,
+        effectiveAgentIds: scope.effectiveAgentIds,
+      },
+      summary,
+      breakdowns: {
+        byStatus,
+        byType,
+      },
+      notes: [
+        'Raport Spotkania bazuje na danych z modelu Appointment oraz opcjonalnych powiązaniach do klienta i oferty.',
+        'Filtry `propertyType` i `transactionType` są stosowane tylko do spotkań powiązanych z ofertą, aby wynik był semantycznie poprawny.',
+        'Completion rate liczony jest jako udział spotkań zakończonych w całkowitej liczbie spotkań w wybranym okresie.',
       ],
     };
   }
@@ -740,6 +816,187 @@ export class ReportsService {
       .sort((a, b) => b.count - a.count);
   }
 
+  private async buildAppointmentsSummary(
+    filters: NormalizedFilters,
+    scope: ResolvedScope,
+  ): Promise<AppointmentsReportSummary> {
+    const appointmentBase = this.createAppointmentReportBaseQuery(filters, scope);
+
+    const [
+      totalAppointments,
+      completedAppointments,
+      scheduledAppointments,
+      cancelledAppointments,
+      noShowAppointments,
+      linkedToClient,
+      linkedToListing,
+    ] = await Promise.all([
+      appointmentBase
+        .clone()
+        .andWhere('appointment.startTime BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .getCount(),
+      appointmentBase
+        .clone()
+        .andWhere('appointment.startTime BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .andWhere('appointment.status = :status', {
+          status: AppointmentStatus.COMPLETED,
+        })
+        .getCount(),
+      appointmentBase
+        .clone()
+        .andWhere('appointment.startTime BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .andWhere('appointment.status = :status', {
+          status: AppointmentStatus.SCHEDULED,
+        })
+        .getCount(),
+      appointmentBase
+        .clone()
+        .andWhere('appointment.startTime BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .andWhere('appointment.status = :status', {
+          status: AppointmentStatus.CANCELLED,
+        })
+        .getCount(),
+      appointmentBase
+        .clone()
+        .andWhere('appointment.startTime BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .andWhere('appointment.status = :status', {
+          status: AppointmentStatus.NO_SHOW,
+        })
+        .getCount(),
+      appointmentBase
+        .clone()
+        .andWhere('appointment.startTime BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .andWhere('appointment.clientId IS NOT NULL')
+        .getCount(),
+      appointmentBase
+        .clone()
+        .andWhere('appointment.startTime BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        })
+        .andWhere('appointment.listingId IS NOT NULL')
+        .getCount(),
+    ]);
+
+    return {
+      totalAppointments,
+      completedAppointments,
+      scheduledAppointments,
+      cancelledAppointments,
+      noShowAppointments,
+      linkedToClient,
+      linkedToListing,
+      completionRate:
+        totalAppointments > 0
+          ? Math.round((completedAppointments / totalAppointments) * 100)
+          : 0,
+    };
+  }
+
+  private async buildAppointmentsStatusBreakdown(
+    filters: NormalizedFilters,
+    scope: ResolvedScope,
+  ): Promise<AppointmentsBreakdownItem[]> {
+    const appointmentBase = this.createAppointmentReportBaseQuery(filters, scope);
+
+    const rows = await appointmentBase
+      .clone()
+      .select('appointment.status', 'key')
+      .addSelect('COUNT(*)::int', 'count')
+      .addSelect(
+        `COUNT(*) FILTER (WHERE appointment.clientId IS NOT NULL)::int`,
+        'linkedToClient',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE appointment.listingId IS NOT NULL)::int`,
+        'linkedToListing',
+      )
+      .andWhere('appointment.startTime BETWEEN :dateFrom AND :dateTo', {
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+      })
+      .groupBy('appointment.status')
+      .getRawMany<{
+        key: string;
+        count: string;
+        linkedToClient: string;
+        linkedToListing: string;
+      }>();
+
+    const total = rows.reduce((sum, row) => sum + Number(row.count), 0);
+
+    return rows
+      .map((row) => ({
+        key: row.key,
+        count: Number(row.count),
+        percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+        linkedToClient: Number(row.linkedToClient),
+        linkedToListing: Number(row.linkedToListing),
+      }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  private async buildAppointmentsTypeBreakdown(
+    filters: NormalizedFilters,
+    scope: ResolvedScope,
+  ): Promise<AppointmentsBreakdownItem[]> {
+    const appointmentBase = this.createAppointmentReportBaseQuery(filters, scope);
+
+    const rows = await appointmentBase
+      .clone()
+      .select('appointment.type', 'key')
+      .addSelect('COUNT(*)::int', 'count')
+      .addSelect(
+        `COUNT(*) FILTER (WHERE appointment.clientId IS NOT NULL)::int`,
+        'linkedToClient',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE appointment.listingId IS NOT NULL)::int`,
+        'linkedToListing',
+      )
+      .andWhere('appointment.startTime BETWEEN :dateFrom AND :dateTo', {
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+      })
+      .groupBy('appointment.type')
+      .getRawMany<{
+        key: string;
+        count: string;
+        linkedToClient: string;
+        linkedToListing: string;
+      }>();
+
+    const total = rows.reduce((sum, row) => sum + Number(row.count), 0);
+
+    return rows
+      .map((row) => ({
+        key: row.key,
+        count: Number(row.count),
+        percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+        linkedToClient: Number(row.linkedToClient),
+        linkedToListing: Number(row.linkedToListing),
+      }))
+      .sort((a, b) => b.count - a.count);
+  }
+
   private async buildClientsSourceBreakdown(
     filters: NormalizedFilters,
     scope: ResolvedScope,
@@ -1107,6 +1364,32 @@ export class ReportsService {
           transactionType: filters.transactionType,
         },
       );
+    }
+
+    return query;
+  }
+
+  private createAppointmentReportBaseQuery(
+    filters: Pick<NormalizedFilters, 'propertyType' | 'transactionType'>,
+    scope: ResolvedScope,
+  ): SelectQueryBuilder<Appointment> {
+    const query = this.appointmentRepo
+      .createQueryBuilder('appointment')
+      .leftJoin('appointment.listing', 'listing')
+      .where('appointment.agentId IN (:...agentIds)', {
+        agentIds: scope.effectiveAgentIds,
+      });
+
+    if (filters.propertyType) {
+      query.andWhere('listing.propertyType = :propertyType', {
+        propertyType: filters.propertyType,
+      });
+    }
+
+    if (filters.transactionType) {
+      query.andWhere('listing.transactionType = :transactionType', {
+        transactionType: filters.transactionType,
+      });
     }
 
     return query;

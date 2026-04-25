@@ -47,4 +47,17 @@ export class ReportsController {
   ) {
     return this.reportsService.getClientsReport(user, filters);
   }
+
+  /**
+   * GET /api/reports/appointments
+   * Dedicated appointments report with summary and breakdowns.
+   */
+  @Get('appointments')
+  async getAppointments(
+    @CurrentUser()
+    user: { id: string; email: string; role: UserRole },
+    @Query() filters: ReportFiltersDto,
+  ) {
+    return this.reportsService.getAppointmentsReport(user, filters);
+  }
 }

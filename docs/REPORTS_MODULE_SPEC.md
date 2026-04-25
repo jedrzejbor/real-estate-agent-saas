@@ -18,6 +18,55 @@ Dokument jest żywy i powinien być aktualizowany przy każdej zmianie:
 
 ## 0. Status wdrożenia
 
+### Aktualizacja: 25.04.2026 — Iteracja 5
+
+Stan realizacji:
+- wdrożono trzeci dedykowany raport pionowy: `Spotkania`
+- dodano backendowy endpoint `GET /api/reports/appointments`
+- dodano frontendową sekcję `Raport Spotkania` na stronie `/dashboard/reports`
+- utrzymano wspólne filtry raportowe i ten sam model serwerowego wymuszania scope danych
+
+Zakres dostarczony w Iteracji 5:
+- backend:
+  - `summary` dla raportu spotkań
+  - breakdown po `AppointmentStatus`
+  - breakdown po `AppointmentType`
+- frontend:
+  - sekcja `Raport Spotkania`
+  - karty podsumowujące dla kluczowych metryk spotkań
+  - breakdown statusów i typów spotkań
+
+Aktualnie raport `Spotkania` obejmuje:
+- liczba spotkań łącznie w okresie
+- liczba spotkań zakończonych
+- liczba spotkań zaplanowanych
+- liczba spotkań anulowanych
+- liczba `no_show`
+- liczba spotkań powiązanych z klientem
+- liczba spotkań powiązanych z ofertą
+- współczynnik zakończonych spotkań `completed / total`
+
+Ważne założenia jakościowe i bezpieczeństwa:
+- zakres danych jest nadal wymuszany po stronie backendu na podstawie roli użytkownika
+- raport nie ufa samemu `agentId` z query stringa
+- filtry przechodzą przez DTO i globalną walidację
+- agregacje używają parametryzowanych zapytań QueryBuilder
+- filtry `propertyType` i `transactionType` są stosowane w raporcie spotkań tylko do rekordów powiązanych z ofertą, aby wynik pozostał semantycznie poprawny
+
+Świadome ograniczenia Iteracji 5:
+- brak jeszcze analizy relacji spotkania → zamknięta sprawa jako osobnej metryki konwersji
+- brak jeszcze raportu trendów spotkań rozbitego o skuteczność per typ spotkania
+- część spotkań może nie mieć relacji do oferty, więc filtrowanie po typie nieruchomości / transakcji świadomie zawęża wynik tylko do spotkań z powiązaną ofertą
+
+Walidacja Iteracji 5:
+- `apps/api`: TypeScript compile OK
+- `apps/web`: production build OK
+
+Następny krok:
+- wdrożyć dedykowany raport `Lejek`
+- policzyć klientów na etapach i przejścia pomiędzy etapami w modelu MVP
+- następnie przejść do raportu `Wartość i sprzedaż`
+
 ### Aktualizacja: 24.04.2026 — Iteracja 4
 
 Stan realizacji:
