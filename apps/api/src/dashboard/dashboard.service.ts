@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import { Listing } from '../listings/entities/listing.entity';
 import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
+import { UsersService } from '../users';
 import {
   ListingStatus,
   ClientStatus,
@@ -88,6 +89,7 @@ export class DashboardService {
     private readonly appointmentRepo: Repository<Appointment>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    private readonly usersService: UsersService,
   ) {}
 
   async getStats(userId: string): Promise<DashboardStats> {
@@ -353,10 +355,6 @@ export class DashboardService {
   // ── Helpers ──
 
   private async resolveAgent(userId: string): Promise<Agent> {
-    const agent = await this.agentRepo.findOne({ where: { userId } });
-    if (!agent) {
-      throw new NotFoundException('Profil agenta nie znaleziony');
-    }
-    return agent;
+    return this.usersService.resolveAgentForUser(userId);
   }
 }

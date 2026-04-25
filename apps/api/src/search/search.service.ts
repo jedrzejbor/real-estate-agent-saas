@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Client } from '../clients/entities/client.entity';
 import { Listing } from '../listings/entities/listing.entity';
 import { Agent } from '../users/entities/agent.entity';
+import { UsersService } from '../users';
 import { SearchQueryDto } from './dto/search-query.dto';
 
 export type SearchEntityType = 'listing' | 'client' | 'appointment';
@@ -36,6 +37,7 @@ export class SearchService {
     private readonly clientRepo: Repository<Client>,
     @InjectRepository(Appointment)
     private readonly appointmentRepo: Repository<Appointment>,
+    private readonly usersService: UsersService,
   ) {}
 
   async search(userId: string, query: SearchQueryDto): Promise<SearchResponse> {
@@ -75,11 +77,7 @@ export class SearchService {
   }
 
   private async resolveAgent(userId: string): Promise<Agent> {
-    const agent = await this.agentRepo.findOne({ where: { userId } });
-    if (!agent) {
-      throw new NotFoundException('Profil agenta nie znaleziony');
-    }
-    return agent;
+    return this.usersService.resolveAgentForUser(userId);
   }
 
   private async searchListings(

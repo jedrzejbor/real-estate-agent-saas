@@ -165,11 +165,7 @@ export class AppointmentsService {
   // ── Private helpers ──
 
   private async resolveAgent(userId: string): Promise<Agent> {
-    const agent = await this.agentRepo.findOne({ where: { userId } });
-    if (!agent) {
-      throw new NotFoundException('Profil agenta nie znaleziony');
-    }
-    return agent;
+    return this.usersService.resolveAgentForUser(userId);
   }
 
   private async assertAppointmentCreateWithinPlanLimit(

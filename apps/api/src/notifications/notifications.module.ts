@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { Agent } from '../users/entities/agent.entity';
+import { UsersModule } from '../users';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Listing } from '../listings/entities/listing.entity';
 import { Client } from '../clients/entities/client.entity';
@@ -17,6 +18,7 @@ import { NotificationRead } from './entities';
       Client,
       NotificationRead,
     ]),
+    UsersModule,
   ],
   controllers: [NotificationsController],
   providers: [NotificationsService],

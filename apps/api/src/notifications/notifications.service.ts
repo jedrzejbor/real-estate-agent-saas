@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { Appointment } from '../appointments/entities/appointment.entity';
@@ -6,6 +6,7 @@ import { AppointmentStatus, ListingStatus, ClientStatus } from '../common/enums'
 import { Client } from '../clients/entities/client.entity';
 import { Listing } from '../listings/entities/listing.entity';
 import { Agent } from '../users/entities/agent.entity';
+import { UsersService } from '../users';
 import { NotificationsQueryDto } from './dto/notifications-query.dto';
 import { NotificationRead } from './entities';
 
@@ -47,6 +48,7 @@ export class NotificationsService {
     private readonly clientRepo: Repository<Client>,
     @InjectRepository(NotificationRead)
     private readonly notificationReadRepo: Repository<NotificationRead>,
+    private readonly usersService: UsersService,
   ) {}
 
   async findAll(
@@ -227,11 +229,7 @@ export class NotificationsService {
   }
 
   private async resolveAgent(userId: string): Promise<Agent> {
-    const agent = await this.agentRepo.findOne({ where: { userId } });
-    if (!agent) {
-      throw new NotFoundException('Profil agenta nie znaleziony');
-    }
-    return agent;
+    return this.usersService.resolveAgentForUser(userId);
   }
 
   private async getReadIds(

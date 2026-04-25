@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ActivityLog, type ActivityLogChange } from './entities/activity-log.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { ActivityAction, ActivityEntityType } from '../common/enums';
+import { UsersService } from '../users';
 
 interface LogActivityInput {
   userId: string;
@@ -37,6 +38,7 @@ export class ActivityService {
     private readonly activityRepo: Repository<ActivityLog>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    private readonly usersService: UsersService,
   ) {}
 
   async log(input: LogActivityInput): Promise<void> {
@@ -165,15 +167,6 @@ export class ActivityService {
   }
 
   private async resolveAgent(userId: string): Promise<Agent> {
-    const agent = await this.agentRepo.findOne({
-      where: { userId },
-      relations: ['user'],
-    });
-
-    if (!agent) {
-      throw new NotFoundException('Profil agenta nie znaleziony');
-    }
-
-    return agent;
+    return this.usersService.resolveAgentForUser(userId);
   }
 }

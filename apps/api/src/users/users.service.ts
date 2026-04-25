@@ -4,11 +4,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { Agent } from './entities/agent.entity';
 import { Agency } from './entities/agency.entity';
-import { AgencyPlan, SubscriptionStatus, UserRole } from '../common/enums';
+import { Listing } from '../listings/entities/listing.entity';
+import { Client } from '../clients/entities/client.entity';
+import { Appointment } from '../appointments/entities/appointment.entity';
+import {
+  AgencyPlan,
+  ListingStatus,
+  SubscriptionStatus,
+  UserRole,
+} from '../common/enums';
 import {
   AgencyEntitlements,
   AgencyPlanService,
@@ -22,6 +30,13 @@ export interface UserAgencyAccessContext {
   entitlements: AgencyEntitlements;
 }
 
+export interface AgencyUsageSummary {
+  activeListings: number;
+  clients: number;
+  monthlyAppointments: number;
+  users: number;
+}
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -31,6 +46,12 @@ export class UsersService {
     private readonly agentRepo: Repository<Agent>,
     @InjectRepository(Agency)
     private readonly agencyRepo: Repository<Agency>,
+    @InjectRepository(Listing)
+    private readonly listingRepo: Repository<Listing>,
+    @InjectRepository(Client)
+    private readonly clientRepo: Repository<Client>,
+    @InjectRepository(Appointment)
+    private readonly appointmentRepo: Repository<Appointment>,
     private readonly agencyPlanService: AgencyPlanService,
   ) {}
 
@@ -180,6 +201,59 @@ export class UsersService {
       agency: user.agent.agency,
       agencyAgentIds: agencyAgents.map((agent) => agent.id),
       entitlements: this.agencyPlanService.getEntitlements(user.agent.agency),
+    };
+  }
+
+  async resolveAgentForUser(userId: string): Promise<Agent> {
+    const access = await this.getAgencyAccessContext(userId);
+    return access.agent;
+  }
+
+  async getAgencyUsageSummary(userId: string): Promise<AgencyUsageSummary> {
+    const access = await this.getAgencyAccessContext(userId);
+    return this.getAgencyUsageSummaryByAgentIds(access.agencyAgentIds);
+  }
+
+  async getAgencyUsageSummaryByAgentIds(
+    agencyAgentIds: string[],
+  ): Promise<AgencyUsageSummary> {
+    const now = new Date();
+    const monthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+    const monthEnd = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+    );
+
+    const [activeListings, clients, monthlyAppointments, users] =
+      await Promise.all([
+        this.listingRepo.count({
+          where: {
+            agentId: In(agencyAgentIds),
+            status: Not(ListingStatus.ARCHIVED),
+          },
+        }),
+        this.clientRepo.count({
+          where: {
+            agentId: In(agencyAgentIds),
+          },
+        }),
+        this.appointmentRepo
+          .createQueryBuilder('appointment')
+          .where('appointment.agentId IN (:...agentIds)', {
+            agentIds: agencyAgentIds,
+          })
+          .andWhere('appointment.startTime >= :monthStart', { monthStart })
+          .andWhere('appointment.startTime < :monthEnd', { monthEnd })
+          .getCount(),
+        Promise.resolve(agencyAgentIds.length),
+      ]);
+
+    return {
+      activeListings,
+      clients,
+      monthlyAppointments,
+      users,
     };
   }
 

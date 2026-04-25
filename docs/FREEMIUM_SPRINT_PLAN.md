@@ -344,7 +344,7 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
     - uploady obrazów i feature gating raportów pozostają w kolejnych zadaniach `F1.5` i dalszych,
     - UI powinno obsłużyć `code = PLAN_LIMIT_REACHED` w komunikatach create flow.
 
-- [ ] `F1.3` Dodać komunikację limitów w UI
+- [x] `F1.3` Dodać komunikację limitów w UI
   - Zakres: bannery, badge planu, warningi przed limitem, stan po przekroczeniu limitu.
   - Minimalny zakres UI na MVP:
     - badge planu `Free` w dashboard shell,
@@ -362,9 +362,16 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
     - najpierw pokazujemy ile zostało do limitu,
     - dopiero potem pokazujemy blokadę,
     - nie chowamy istniejących danych po przekroczeniu limitu.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-26
   - Wykonano:
+    - `auth/me` zwraca teraz także `usage` dla ofert, klientów, spotkań miesięcznych i liczby użytkowników,
+    - w topbarze pojawił się badge z aktualnym planem użytkownika,
+    - dashboard pokazuje kartę wykorzystania limitów z warningami przy `80%+`,
+    - formularze tworzenia ofert, klientów i spotkań pokazują lokalne warningi wykorzystania,
+    - `PLAN_LIMIT_REACHED` jest parsowany po stronie web i wyświetlany jako czytelny błąd globalny w create flow.
   - Uwagi / follow-up:
+    - docelowo warto dodać osobny ekran `Plan i limity` w `F1.4`,
+    - usage odświeża się przez `auth/me`; można później dodać dedykowany refresh po udanym create/delete.
 
 - [ ] `F1.4` Przygotować ustawienia planu i ekran zarządzania limitem
   - Zakres: widok planu, wykorzystania limitów i CTA upgrade.

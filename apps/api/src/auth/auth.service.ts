@@ -43,7 +43,7 @@ export class AuthService {
     const tokens = await this.generateTokens(user.id, user.email, user.role);
 
     return {
-      user: this.serializeUser(user),
+      user: await this.serializeUser(user),
       ...tokens,
     };
   }
@@ -79,7 +79,7 @@ export class AuthService {
     const tokens = await this.generateTokens(user.id, user.email, user.role);
 
     return {
-      user: this.serializeUser(fullUser),
+      user: await this.serializeUser(fullUser),
       ...tokens,
     };
   }
@@ -99,7 +99,7 @@ export class AuthService {
     }
 
     return {
-      ...this.serializeUser(user),
+      ...(await this.serializeUser(user)),
       isActive: user.isActive,
       createdAt: user.createdAt,
     };
@@ -126,7 +126,9 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  private serializeUser(user: User) {
+  private async serializeUser(user: User) {
+    const usage = await this.usersService.getAgencyUsageSummary(user.id);
+
     return {
       id: user.id,
       email: user.email,
@@ -152,6 +154,7 @@ export class AuthService {
           }
         : null,
       entitlements: this.agencyPlanService.getEntitlements(user.agent?.agency),
+      usage,
     };
   }
 }
