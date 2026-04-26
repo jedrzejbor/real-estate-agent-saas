@@ -112,6 +112,8 @@ export class UsersService {
         firstName: params.firstName,
         lastName: params.lastName,
         agencyId: savedAgency.id,
+        user: savedUser,
+        agency: savedAgency,
       });
       await agentRepo.save(agent);
 
@@ -128,7 +130,7 @@ export class UsersService {
       throw new NotFoundException('Użytkownik nie znaleziony');
     }
 
-    if (user.agent?.agencyId) {
+    if (user.agent?.agencyId && user.agent.agency) {
       return user;
     }
 
@@ -137,26 +139,34 @@ export class UsersService {
       const agentRepo = manager.getRepository(Agent);
       const agencyRepo = manager.getRepository(Agency);
 
-      const transactionalUser = await userRepo.findOne({
-        where: { id },
-        relations: ['agent'],
-      });
+      const transactionalUser = await userRepo.findOne({ where: { id } });
 
       if (!transactionalUser) {
         throw new NotFoundException('Użytkownik nie znaleziony');
       }
 
-      let agent = transactionalUser.agent;
+      let agent = await agentRepo.findOne({
+        where: { userId: transactionalUser.id },
+      });
 
       if (!agent) {
         agent = agentRepo.create({
           userId: transactionalUser.id,
+          user: transactionalUser,
         });
         agent = await agentRepo.save(agent);
       }
 
       if (agent.agencyId) {
-        return;
+        const existingAgency = await agencyRepo.findOne({
+          where: { id: agent.agencyId },
+        });
+
+        if (existingAgency) {
+          agent.agency = existingAgency;
+          await agentRepo.save(agent);
+          return;
+        }
       }
 
       const agency = agencyRepo.create({
@@ -173,6 +183,7 @@ export class UsersService {
       const savedAgency = await agencyRepo.save(agency);
 
       agent.agencyId = savedAgency.id;
+      agent.agency = savedAgency;
       await agentRepo.save(agent);
     });
 
@@ -182,25 +193,31 @@ export class UsersService {
   async getAgencyAccessContext(userId: string): Promise<UserAgencyAccessContext> {
     const user = await this.ensureAgencyForUser(userId);
 
-    if (!user.agent) {
+    const agent = await this.agentRepo.findOne({ where: { userId } });
+
+    if (!agent) {
       throw new NotFoundException('Profil agenta nie znaleziony');
     }
 
-    if (!user.agent.agency) {
+    const agency = agent.agencyId
+      ? await this.agencyRepo.findOne({ where: { id: agent.agencyId } })
+      : null;
+
+    if (!agency) {
       throw new NotFoundException('Workspace nie znaleziony');
     }
 
     const agencyAgents = await this.agentRepo.find({
-      where: { agencyId: user.agent.agency.id },
+      where: { agencyId: agency.id },
       select: ['id'],
     });
 
     return {
       user,
-      agent: user.agent,
-      agency: user.agent.agency,
+      agent,
+      agency,
       agencyAgentIds: agencyAgents.map((agent) => agent.id),
-      entitlements: this.agencyPlanService.getEntitlements(user.agent.agency),
+      entitlements: this.agencyPlanService.getEntitlements(agency),
     };
   }
 

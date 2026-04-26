@@ -127,33 +127,36 @@ export class AuthService {
   }
 
   private async serializeUser(user: User) {
-    const usage = await this.usersService.getAgencyUsageSummary(user.id);
+    const access = await this.usersService.getAgencyAccessContext(user.id);
+    const usage = await this.usersService.getAgencyUsageSummaryByAgentIds(
+      access.agencyAgentIds,
+    );
 
     return {
       id: user.id,
       email: user.email,
       role: user.role,
-      agent: user.agent
+      agent: access.agent
         ? {
-            id: user.agent.id,
-            firstName: user.agent.firstName,
-            lastName: user.agent.lastName,
-            phone: user.agent.phone,
-            licenseNo: user.agent.licenseNo,
-            bio: user.agent.bio,
-            avatarUrl: user.agent.avatarUrl,
+            id: access.agent.id,
+            firstName: access.agent.firstName,
+            lastName: access.agent.lastName,
+            phone: access.agent.phone,
+            licenseNo: access.agent.licenseNo,
+            bio: access.agent.bio,
+            avatarUrl: access.agent.avatarUrl,
           }
         : null,
-      agency: user.agent?.agency
+      agency: access.agency
         ? {
-            id: user.agent.agency.id,
-            name: user.agent.agency.name,
-            plan: user.agent.agency.plan,
-            subscription: user.agent.agency.subscription,
-            ownerId: user.agent.agency.ownerId,
+            id: access.agency.id,
+            name: access.agency.name,
+            plan: access.agency.plan,
+            subscription: access.agency.subscription,
+            ownerId: access.agency.ownerId,
           }
         : null,
-      entitlements: this.agencyPlanService.getEntitlements(user.agent?.agency),
+      entitlements: access.entitlements,
       usage,
     };
   }
