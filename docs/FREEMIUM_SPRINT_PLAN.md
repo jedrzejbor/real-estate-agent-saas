@@ -373,7 +373,7 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
     - docelowo warto dodać osobny ekran `Plan i limity` w `F1.4`,
     - usage odświeża się przez `auth/me`; można później dodać dedykowany refresh po udanym create/delete.
 
-- [ ] `F1.4` Przygotować ustawienia planu i ekran zarządzania limitem
+- [x] `F1.4` Przygotować ustawienia planu i ekran zarządzania limitem
   - Zakres: widok planu, wykorzystania limitów i CTA upgrade.
   - Proponowany MVP scope:
     - nowy widok typu `Plan i limity` w dashboardzie,
@@ -387,9 +387,16 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
   - Cel tego zadania:
     - dać użytkownikowi jedno centralne miejsce, gdzie rozumie swój plan,
     - odciążyć przypadkowe paywalle rozsiane po produkcie.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-26
   - Wykonano:
+    - dodano dedykowaną stronę `Plan i limity` pod `dashboard/settings`, zamiast dotychczasowego placeholdera z catch-all route,
+    - wydzielono współdzielone helpery i komponent usage, aby dashboard overview i ekran planu korzystały z jednego źródła prawdy,
+    - ekran pokazuje sekcje `Twój plan`, `Wykorzystanie` i `Odblokuj więcej`, zgodnie z MVP scope tego zadania,
+    - podpięto nawigację z istniejących CTA: link z karty usage na dashboardzie, badge planu w topbarze i aktywny stan w sidebarze,
+    - całość zweryfikowano buildem `apps/web` po wdrożeniu.
   - Uwagi / follow-up:
+    - CTA upgrade jest na razie placeholderem UI i powinno zostać podłączone do realnego pricing / lead capture flow w kolejnych sprintach,
+    - jeśli dojdą kolejne plany lub billing, warto rozszerzyć ekran o historię subskrypcji i pełniejsze porównanie planów.
 
 - [ ] `F1.5` Ograniczyć darmowe raporty do podstawowego scope
   - Zakres: overview + podstawowe listing/client reports, ukrycie premium entry points.
