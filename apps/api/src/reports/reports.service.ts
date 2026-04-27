@@ -10,6 +10,9 @@ import { Listing } from '../listings/entities/listing.entity';
 import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
+import { UsersService } from '../users';
+import { AgencyEntitlements } from '../users/agency-plan.service';
+import { FeatureAccessDeniedException } from '../common/exceptions/feature-access-denied.exception';
 import {
   AppointmentType,
   AppointmentStatus,
@@ -244,6 +247,7 @@ export class ReportsService {
     private readonly appointmentRepo: Repository<Appointment>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    private readonly usersService: UsersService,
   ) {}
 
   async getOverview(
@@ -403,6 +407,12 @@ export class ReportsService {
     user: ReportsUserContext,
     filters: ReportFiltersDto,
   ): Promise<AppointmentsReportResponse> {
+    await this.assertFeatureAccess(
+      user,
+      'reportsAppointmentsBasic',
+      'Raport spotkań jest dostępny w planie płatnym.',
+    );
+
     const normalizedFilters = this.normalizeFilters(filters);
     const scope = await this.resolveScope(user, normalizedFilters.requestedAgentId);
 
@@ -446,6 +456,24 @@ export class ReportsService {
       dateFrom: previousDateFrom,
       dateTo: previousDateTo,
     };
+  }
+
+  private async assertFeatureAccess(
+    user: ReportsUserContext,
+    feature: keyof AgencyEntitlements['features'],
+    message: string,
+  ): Promise<void> {
+    const access = await this.usersService.getAgencyAccessContext(user.id);
+
+    if (access.entitlements.features[feature]) {
+      return;
+    }
+
+    throw new FeatureAccessDeniedException({
+      feature,
+      planCode: access.entitlements.plan.code,
+      message,
+    });
   }
 
   private normalizeFilters(filters: ReportFiltersDto): NormalizedFilters {

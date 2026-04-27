@@ -398,7 +398,7 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
     - CTA upgrade jest na razie placeholderem UI i powinno zostać podłączone do realnego pricing / lead capture flow w kolejnych sprintach,
     - jeśli dojdą kolejne plany lub billing, warto rozszerzyć ekran o historię subskrypcji i pełniejsze porównanie planów.
 
-- [ ] `F1.5` Ograniczyć darmowe raporty do podstawowego scope
+- [x] `F1.5` Ograniczyć darmowe raporty do podstawowego scope
   - Zakres: overview + podstawowe listing/client reports, ukrycie premium entry points.
   - Aktualny stan kodu:
     - istnieją już `overview`, `listings`, `clients`, `appointments`,
@@ -409,10 +409,16 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
     - frontend ukrywa lub disabled-state'uje zablokowane sekcje,
     - nie polegamy wyłącznie na ukrywaniu w UI.
   - Decyzja do domknięcia przed wdrożeniem:
-    - czy raport spotkań zostaje darmowy w pierwszym release, czy staje się elementem premium.
-  - Data zakończenia:
+    - raport spotkań staje się elementem premium w pierwszym release freemium.
+  - Data zakończenia: 2026-04-27
   - Wykonano:
+    - backendowy endpoint `reports/appointments` sprawdza teraz entitlement `reportsAppointmentsBasic` i zwraca przewidywalny `403` z kodem `FEATURE_NOT_AVAILABLE`,
+    - web przestał fetchować raport spotkań dla planu Free, więc UI nie opiera się na obsłudze błędu jako głównym mechanizmie feature gatingu,
+    - na stronie raportów pozostawiono `overview`, raport `Oferty` i raport `Klienci`, a miejsce raportu spotkań zamieniono na czytelny premium placeholder z CTA do `Plan i limity`,
+    - copy i entry pointy w module raportów zostały dopasowane do darmowego scope release'u.
   - Uwagi / follow-up:
+    - jeśli w kolejnych sprintach pojawią się dalsze raporty premium, warto ujednolicić premium placeholders i dodać wspólne eventy analytics dla wejść w paywall,
+    - po wprowadzeniu feature flags można dodatkowo spiąć widoczność premium entry pointów z osobną flagą rolloutową.
 
 - [ ] `F1.6` Przygotować techniczne feature flags dla release'u
   - Zakres: możliwość stopniowego włączania publicznych funkcji.
