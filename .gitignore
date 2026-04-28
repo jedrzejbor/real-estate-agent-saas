@@ -9,6 +9,9 @@ out
 # Turbo
 .turbo
 
+# Local Git migration backups
+.git-backups
+
 # Environment variables
 .env
 .env.local
