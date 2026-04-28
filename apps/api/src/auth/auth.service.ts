@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { AgencyPlanService } from '../users/agency-plan.service';
+import { ReleaseFlagsService } from '../release-flags';
 import { RegisterDto, LoginDto } from './dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { User } from '../users/entities/user.entity';
@@ -21,6 +22,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly agencyPlanService: AgencyPlanService,
+    private readonly releaseFlagsService: ReleaseFlagsService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -157,6 +159,7 @@ export class AuthService {
           }
         : null,
       entitlements: access.entitlements,
+      releaseFlags: this.releaseFlagsService.getFlags(),
       usage,
     };
   }

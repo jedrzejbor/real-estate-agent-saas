@@ -87,6 +87,11 @@ DB_NAME=real_estate_saas
 PORT=4000
 FRONTEND_URL=http://localhost:3000
 NODE_ENV=development
+RELEASE_FLAG_PUBLIC_LISTINGS_ENABLED=false
+RELEASE_FLAG_PUBLIC_LEAD_FORMS_ENABLED=false
+RELEASE_FLAG_PUBLIC_CLAIM_FLOW_ENABLED=false
+RELEASE_FLAG_FREEMIUM_UPSELL_ENABLED=true
+RELEASE_FLAG_PREMIUM_REPORTS_ENABLED=true
 EOF
 ```
 
@@ -107,6 +112,20 @@ pnpm dev
 To odpali równocześnie:
 - **web** → Next.js dev server na **http://localhost:3000**
 - **api** → NestJS dev server na **http://localhost:4000**
+
+### 5a. Release flags na środowisku lokalnym
+
+Techniczne feature flags są sterowane po stronie API przez zmienne środowiskowe:
+
+| Zmienna | Domyślna wartość | Rola |
+|--------|------------------|------|
+| `RELEASE_FLAG_PUBLIC_LISTINGS_ENABLED` | `false` | rollout publicznych stron ofert |
+| `RELEASE_FLAG_PUBLIC_LEAD_FORMS_ENABLED` | `false` | rollout formularzy leadowych |
+| `RELEASE_FLAG_PUBLIC_CLAIM_FLOW_ENABLED` | `false` | rollout claim flow dla publicznych ofert |
+| `RELEASE_FLAG_FREEMIUM_UPSELL_ENABLED` | `true` | pokazywanie CTA upsell / premium entry pointów |
+| `RELEASE_FLAG_PREMIUM_REPORTS_ENABLED` | `true` | udostępnianie premium raportów / ich placeholderów |
+
+Zmiana flag wymaga restartu procesu API.
 
 > Alternatywnie, możesz uruchomić je osobno w dwóch terminalach:
 > ```bash

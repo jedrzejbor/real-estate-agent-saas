@@ -420,7 +420,7 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
     - jeśli w kolejnych sprintach pojawią się dalsze raporty premium, warto ujednolicić premium placeholders i dodać wspólne eventy analytics dla wejść w paywall,
     - po wprowadzeniu feature flags można dodatkowo spiąć widoczność premium entry pointów z osobną flagą rolloutową.
 
-- [ ] `F1.6` Przygotować techniczne feature flags dla release'u
+- [x] `F1.6` Przygotować techniczne feature flags dla release'u
   - Zakres: możliwość stopniowego włączania publicznych funkcji.
   - Rekomendowany minimalny zestaw flag:
     - `publicListingsEnabled`,
@@ -435,9 +435,15 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
     - bezpieczny rollout funkcji publicznych,
     - łatwy rollback bez cofania migracji,
     - możliwość odpalania feature'ów tylko dla wybranych środowisk.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-27
   - Wykonano:
+    - dodano centralny resolver `release flags` po stronie API oparty o zmienne środowiskowe i bezpieczne wartości domyślne,
+    - flagi są zwracane w payloadzie `auth/register`, `auth/login` i `auth/me`, więc web dostaje jeden spójny kontrakt konfiguracyjny dla dashboardu,
+    - istniejące premium entry pointy na web zostały spięte z flagami `freemiumUpsellEnabled` i `premiumReportsEnabled`,
+    - przygotowano env-y i dokumentację lokalnego uruchomienia pod stopniowy rollout funkcji publicznych.
   - Uwagi / follow-up:
+    - kolejne sprinty z publicznymi ofertami i lead forms powinny korzystać z tego samego resolvera także po stronie backendowych endpointów publicznych,
+    - jeśli pojawi się potrzeba zarządzania flagami bez restartu API, można później dołożyć prosty storage DB lub remote config nad obecnym kontraktem env.
 
 #### Definition of Done
 - plan `free` działa end-to-end,
