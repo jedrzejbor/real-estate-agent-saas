@@ -497,11 +497,17 @@ Użytkownik po rejestracji przechodzi prosty onboarding i wykonuje pierwsze kluc
     - F2.2 powinno dodać persisted onboarding state, dismiss/restore oraz bardziej precyzyjne warunki ukończenia kroków publikacji i udostępniania,
     - w kolejnych iteracjach warto spiąć checklistę z analytics, żeby mierzyć przejścia między krokami i czas do pierwszej wartości.
 
-- [ ] `F2.2` Dodać onboarding state i progres użytkownika
+- [x] `F2.2` Dodać onboarding state i progres użytkownika
   - Zakres: stan kroków, ukończenie, wyświetlanie CTA i nudges.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-28
   - Wykonano:
+    - dodano trwały onboarding state po stronie web z bezpiecznym storage per użytkownik/workspace, dzięki czemu checklista pamięta ukrycie oraz historię ukończonych kroków,
+    - progres checklisty został przeliczony na realny onboarding startowy `3/3`, zamiast mieszać go z roadmapowymi krokami `Wkrótce`,
+    - checklista potrafi się ukryć i wrócić na żądanie użytkownika, a po nowo ukończonym kroku automatycznie resetuje ukrycie i pokazuje świeży nudge,
+    - dodano lekkie nudges UX: rekomendowany następny krok, ostatnio ukończony etap i toast po wykryciu nowego progresu.
   - Uwagi / follow-up:
+    - obecna persystencja onboarding state działa lokalnie w przeglądarce; jeśli będzie potrzebna synchronizacja między urządzeniami, warto przenieść ten stan do API / profilu użytkownika,
+    - Sprint `F2.6` powinien wykorzystać tę warstwę do emitowania eventów `onboarding_step_completed`, `onboarding_checklist_dismissed` i `onboarding_checklist_restored`.
 
 - [ ] `F2.3` Uprościć pierwszy create flow dla oferty
   - Zakres: szybki formularz / wizard do pierwszej oferty.

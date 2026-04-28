@@ -29,6 +29,33 @@ export interface DashboardOnboardingChecklist {
   completionPercentage: number;
 }
 
+export interface StoredDashboardOnboardingState {
+  version: number;
+  dismissedAt: string | null;
+  completedStepIds: DashboardOnboardingStepId[];
+  lastCompletedStepId: DashboardOnboardingStepId | null;
+  updatedAt: string | null;
+}
+
+export const DASHBOARD_ONBOARDING_STORAGE_VERSION = 1;
+
+export const DASHBOARD_ONBOARDING_CORE_STEP_IDS: DashboardOnboardingStepId[] = [
+  'listing',
+  'client',
+  'appointment',
+];
+
+const DASHBOARD_ONBOARDING_STEP_LABELS: Record<
+  DashboardOnboardingStepId,
+  string
+> = {
+  listing: 'Dodaj ofertę',
+  client: 'Dodaj klienta',
+  appointment: 'Dodaj spotkanie',
+  publish: 'Opublikuj ofertę',
+  share: 'Udostępnij link',
+};
+
 export function getDashboardOnboardingChecklist(
   stats: DashboardStats,
 ): DashboardOnboardingChecklist {
@@ -101,4 +128,77 @@ export function getDashboardOnboardingChecklist(
     totalCount: steps.length,
     completionPercentage: Math.round((completedCount / steps.length) * 100),
   };
+}
+
+export function createStoredDashboardOnboardingState(
+  overrides: Partial<StoredDashboardOnboardingState> = {},
+): StoredDashboardOnboardingState {
+  return {
+    version: DASHBOARD_ONBOARDING_STORAGE_VERSION,
+    dismissedAt: null,
+    completedStepIds: [],
+    lastCompletedStepId: null,
+    updatedAt: null,
+    ...overrides,
+  };
+}
+
+export function getDashboardOnboardingStepLabel(
+  stepId: DashboardOnboardingStepId,
+): string {
+  return DASHBOARD_ONBOARDING_STEP_LABELS[stepId];
+}
+
+export function getDashboardOnboardingCoreSteps(
+  checklist: DashboardOnboardingChecklist,
+): DashboardOnboardingStep[] {
+  return checklist.steps.filter((step) =>
+    DASHBOARD_ONBOARDING_CORE_STEP_IDS.includes(step.id),
+  );
+}
+
+export function getCompletedDashboardOnboardingStepIds(
+  checklist: DashboardOnboardingChecklist,
+): DashboardOnboardingStepId[] {
+  return checklist.steps
+    .filter((step) => step.state === 'completed')
+    .map((step) => step.id);
+}
+
+export function sanitizeStoredDashboardOnboardingState(
+  value: unknown,
+): StoredDashboardOnboardingState {
+  if (!value || typeof value !== 'object') {
+    return createStoredDashboardOnboardingState();
+  }
+
+  const state = value as Partial<StoredDashboardOnboardingState>;
+
+  return createStoredDashboardOnboardingState({
+    dismissedAt:
+      typeof state.dismissedAt === 'string' ? state.dismissedAt : null,
+    completedStepIds: sanitizeDashboardOnboardingStepIds(state.completedStepIds),
+    lastCompletedStepId: isDashboardOnboardingStepId(state.lastCompletedStepId)
+      ? state.lastCompletedStepId
+      : null,
+    updatedAt: typeof state.updatedAt === 'string' ? state.updatedAt : null,
+  });
+}
+
+function sanitizeDashboardOnboardingStepIds(
+  value: unknown,
+): DashboardOnboardingStepId[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(value.filter(isDashboardOnboardingStepId)),
+  );
+}
+
+function isDashboardOnboardingStepId(
+  value: unknown,
+): value is DashboardOnboardingStepId {
+  return typeof value === 'string' && value in DASHBOARD_ONBOARDING_STEP_LABELS;
 }
