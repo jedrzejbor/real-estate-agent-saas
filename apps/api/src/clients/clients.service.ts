@@ -19,6 +19,7 @@ import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ClientQueryDto } from './dto/client-query.dto';
 import { CreateClientNoteDto } from './dto/create-client-note.dto';
+import { ImportClientsDto } from './dto/import-clients.dto';
 
 /** Paginated result wrapper. */
 export interface PaginatedResult<T> {
@@ -29,6 +30,11 @@ export interface PaginatedResult<T> {
     limit: number;
     totalPages: number;
   };
+}
+
+export interface ImportClientsResult {
+  imported: number;
+  clients: Client[];
 }
 
 @Injectable()
@@ -86,6 +92,69 @@ export class ClientsService {
     });
 
     return createdClient;
+  }
+
+  async importClients(
+    userId: string,
+    dto: ImportClientsDto,
+  ): Promise<ImportClientsResult> {
+    const { agent } = await this.assertClientBatchCreateWithinPlanLimit(
+      userId,
+      dto.rows.length,
+    );
+
+    const importedClients = await this.clientRepo.manager.transaction(
+      async (manager) => {
+        const clients: Client[] = [];
+
+        for (const row of dto.rows) {
+          const { preference: preferenceDto, ...clientData } = row;
+          const client = manager.create(Client, {
+            ...clientData,
+            agentId: agent.id,
+          });
+          const savedClient = await manager.save(Client, client);
+
+          if (preferenceDto) {
+            const preference = manager.create(ClientPreference, {
+              ...preferenceDto,
+              client: savedClient,
+            });
+            await manager.save(ClientPreference, preference);
+          }
+
+          clients.push(savedClient);
+        }
+
+        return clients;
+      },
+    );
+
+    for (const client of importedClients) {
+      await this.activityService.log({
+        userId,
+        entityType: ActivityEntityType.CLIENT,
+        entityId: client.id,
+        action: ActivityAction.CREATED,
+        description: 'Zaimportowano klienta z CSV',
+      });
+    }
+
+    this.logger.log(
+      `Imported ${importedClients.length} clients from CSV for agent ${agent.id}`,
+    );
+
+    const clients = await this.clientRepo.find({
+      where: {
+        id: In(importedClients.map((client) => client.id)),
+      },
+      relations: ['preference', 'clientNotes'],
+    });
+
+    return {
+      imported: clients.length,
+      clients,
+    };
   }
 
   // ── Read (list with filters & pagination) ──
@@ -155,11 +224,12 @@ export class ClientsService {
     const client = await this.findOneOrFail(id);
     await this.assertOwnership(client, userId);
 
-    const latestStatusChange = await this.activityService.findLatestStatusChange(
-      userId,
-      ActivityEntityType.CLIENT,
-      id,
-    );
+    const latestStatusChange =
+      await this.activityService.findLatestStatusChange(
+        userId,
+        ActivityEntityType.CLIENT,
+        id,
+      );
 
     if (!latestStatusChange) {
       throw new BadRequestException('Brak zmiany statusu do cofnięcia');
@@ -386,6 +456,41 @@ export class ClientsService {
     return { agent: access.agent };
   }
 
+  private async assertClientBatchCreateWithinPlanLimit(
+    userId: string,
+    requestedCount: number,
+  ): Promise<{ agent: Agent }> {
+    if (requestedCount < 1) {
+      throw new BadRequestException(
+        'Import musi zawierać co najmniej jeden wiersz',
+      );
+    }
+
+    const access = await this.usersService.getAgencyAccessContext(userId);
+    const limit = access.entitlements.limits.clients;
+
+    if (limit !== null) {
+      const currentUsage = await this.clientRepo.count({
+        where: {
+          agentId: In(access.agencyAgentIds),
+        },
+      });
+
+      if (currentUsage + requestedCount > limit) {
+        throw new PlanLimitReachedException({
+          resource: 'clients',
+          limit,
+          currentUsage,
+          planCode: access.entitlements.plan.code,
+          message:
+            'Import przekroczyłby limit klientów w Twoim planie. Zmniejsz liczbę wierszy albo przejdź na wyższy plan.',
+        });
+      }
+    }
+
+    return { agent: access.agent };
+  }
+
   /** Find client by id with relations, or throw. */
   private async findOneOrFail(id: string): Promise<Client> {
     const client = await this.clientRepo.findOne({
@@ -399,10 +504,7 @@ export class ClientsService {
   }
 
   /** Verify the client belongs to the current user's agent profile. */
-  private async assertOwnership(
-    client: Client,
-    userId: string,
-  ): Promise<void> {
+  private async assertOwnership(client: Client, userId: string): Promise<void> {
     const agent = await this.resolveAgent(userId);
     if (client.agentId !== agent.id) {
       throw new ForbiddenException('Brak dostępu do tego klienta');

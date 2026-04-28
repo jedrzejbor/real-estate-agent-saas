@@ -17,6 +17,7 @@ import {
   UpdateClientDto,
   ClientQueryDto,
   CreateClientNoteDto,
+  ImportClientsDto,
 } from './dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
@@ -33,6 +34,15 @@ export class ClientsController {
     @Body() dto: CreateClientDto,
   ) {
     return this.clientsService.create(userId, dto);
+  }
+
+  /** POST /api/clients/import — import clients from parsed CSV rows. */
+  @Post('import')
+  async importClients(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ImportClientsDto,
+  ) {
+    return this.clientsService.importClients(userId, dto);
   }
 
   /** GET /api/clients — list all clients (paginated, filtered). */

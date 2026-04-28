@@ -144,6 +144,11 @@ export interface PaginatedClients {
   meta: PaginationMeta;
 }
 
+export interface ImportClientsResult {
+  imported: number;
+  clients: Client[];
+}
+
 export interface ClientFilters {
   source?: ClientSource;
   status?: ClientStatus;
@@ -186,7 +191,15 @@ export const createClientSchema = z.object({
     .or(z.literal('')),
   phone: z.string().max(20).optional().or(z.literal('')),
   source: z
-    .enum(['website', 'referral', 'portal', 'phone', 'walk_in', 'social', 'other'])
+    .enum([
+      'website',
+      'referral',
+      'portal',
+      'phone',
+      'walk_in',
+      'social',
+      'other',
+    ])
     .optional()
     .or(z.literal('')),
   budgetMin: z.coerce.number().min(0).optional().or(z.literal('')),
@@ -236,6 +249,16 @@ export async function createClient(
   return apiFetch<Client>('/clients', { method: 'POST', body: cleaned });
 }
 
+export async function importClients(
+  rows: CreateClientFormData[],
+): Promise<ImportClientsResult> {
+  const cleanedRows = rows.map((row) => cleanPayload(row));
+  return apiFetch<ImportClientsResult>('/clients/import', {
+    method: 'POST',
+    body: { rows: cleanedRows },
+  });
+}
+
 export async function updateClient(
   id: string,
   data: Partial<CreateClientFormData> & { status?: ClientStatus },
@@ -254,7 +277,9 @@ export async function rollbackClientStatus(id: string): Promise<Client> {
   });
 }
 
-export async function fetchClientNotes(clientId: string): Promise<ClientNote[]> {
+export async function fetchClientNotes(
+  clientId: string,
+): Promise<ClientNote[]> {
   return apiFetch<ClientNote[]>(`/clients/${clientId}/notes`);
 }
 
@@ -325,12 +350,16 @@ export function formatBudgetRange(
 }
 
 /** Full name helper. */
-export function clientFullName(client: Pick<Client, 'firstName' | 'lastName'>): string {
+export function clientFullName(
+  client: Pick<Client, 'firstName' | 'lastName'>,
+): string {
   return `${client.firstName} ${client.lastName}`;
 }
 
 /** Get initials for avatar. */
-export function clientInitials(client: Pick<Client, 'firstName' | 'lastName'>): string {
+export function clientInitials(
+  client: Pick<Client, 'firstName' | 'lastName'>,
+): string {
   return `${client.firstName.charAt(0)}${client.lastName.charAt(0)}`.toUpperCase();
 }
 
@@ -387,13 +416,9 @@ export function getClientStatusActions(current: ClientStatus): StatusAction[] {
         { status: CS.ACTIVE, label: 'Wróć do aktywnych' },
       ];
     case CS.CLOSED_LOST:
-      return [
-        { status: CS.NEW, label: 'Reaktywuj jako nowy lead' },
-      ];
+      return [{ status: CS.NEW, label: 'Reaktywuj jako nowy lead' }];
     case CS.INACTIVE:
-      return [
-        { status: CS.NEW, label: 'Reaktywuj jako nowy lead' },
-      ];
+      return [{ status: CS.NEW, label: 'Reaktywuj jako nowy lead' }];
     case CS.CLOSED_WON:
     default:
       return [];

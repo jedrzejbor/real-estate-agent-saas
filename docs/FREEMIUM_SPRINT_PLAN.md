@@ -521,11 +521,17 @@ Użytkownik po rejestracji przechodzi prosty onboarding i wykonuje pierwsze kluc
     - F2.5 powinno teraz oprzeć empty states o ten uproszczony flow i prowadzić użytkownika do `/dashboard/listings/new`,
     - po Sprintach 3-4 warto dopiąć po zapisie pierwszej oferty kolejny nudge do publikacji strony publicznej.
 
-- [ ] `F2.4` Dodać prosty import CSV dla klientów
+- [x] `F2.4` Dodać prosty import CSV dla klientów
   - Zakres: minimalny import, walidacja kolumn, raport błędów.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-29
   - Wykonano:
+    - dodano endpoint `POST /api/clients/import`, który przyjmuje sparsowane wiersze CSV, waliduje limit batcha i egzekwuje limit klientów planu przed zapisem,
+    - import zapisuje klientów transakcyjnie, obsługuje podstawowe preferencje klienta i dopisuje aktywność CRM dla zaimportowanych rekordów,
+    - dodano panel importu CSV na stronie klientów z lokalnym parserem CSV, mapowaniem polskich i angielskich nagłówków, walidacją wierszy oraz raportem błędów,
+    - po udanym imporcie lista klientów odświeża się, a użytkownik dostaje toast z wynikiem importu.
   - Uwagi / follow-up:
+    - parser obsługuje podstawowe CSV z separatorami `,` i `;`; bardziej złożone importy można później przenieść do backendowego parsera plików,
+    - warto rozważyć deduplikację po emailu / telefonie przed publicznym releasem, jeśli import ma być często używany na istniejących bazach kontaktów.
 
 - [ ] `F2.5` Dodać onboardingowe empty states w dashboardzie i modułach
   - Zakres: brak ofert, brak klientów, brak spotkań, brak raportów.

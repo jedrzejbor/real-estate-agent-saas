@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Plus, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ClientCard } from '@/components/clients/client-card';
+import { ClientCsvImport } from '@/components/clients/client-csv-import';
 import { ClientFiltersBar } from '@/components/clients/client-filters';
 import { ClientPagination } from '@/components/clients/client-pagination';
 import { useClients } from '@/hooks/use-clients';
@@ -18,12 +19,13 @@ export default function ClientsPage() {
     updateFilter,
     setFilters,
     setPage,
+    refresh,
   } = useClients();
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-heading text-2xl font-bold text-foreground">
             Klienci
@@ -33,12 +35,14 @@ export default function ClientsPage() {
           </p>
         </div>
         <Link href="/dashboard/clients/new">
-          <Button size="lg" className="gap-2 rounded-xl">
+          <Button size="lg" className="w-full gap-2 rounded-xl sm:w-auto">
             <Plus className="h-4 w-4" />
             Dodaj klienta
           </Button>
         </Link>
       </div>
+
+      <ClientCsvImport onImported={refresh} />
 
       {/* Filters */}
       <ClientFiltersBar
@@ -65,9 +69,7 @@ export default function ClientsPage() {
         </div>
       ) : clients.length === 0 ? (
         <EmptyState
-          hasFilters={
-            !!filters.search || !!filters.source || !!filters.status
-          }
+          hasFilters={!!filters.search || !!filters.source || !!filters.status}
         />
       ) : (
         <>

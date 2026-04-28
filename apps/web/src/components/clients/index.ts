@@ -5,3 +5,4 @@ export { ClientPagination } from './client-pagination';
 export { ClientForm } from './client-form';
 export { ClientNotes } from './client-notes';
 export { ClientPreferencesCard } from './client-preferences';
+export { ClientCsvImport } from './client-csv-import';
