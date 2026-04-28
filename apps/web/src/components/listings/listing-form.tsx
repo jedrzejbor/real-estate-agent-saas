@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronDown, ChevronUp, Clock3, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { InlineSelect } from '@/components/ui/inline-select';
@@ -26,16 +27,23 @@ import { cn } from '@/lib/utils';
 interface ListingFormProps {
   /** Pass existing listing for edit mode, omit for create mode. */
   listing?: Listing;
+  /** Uses a shorter first-listing flow for onboarding activation. */
+  variant?: 'standard' | 'guided';
 }
 
 /** Form for creating or editing a listing. */
-export function ListingForm({ listing }: ListingFormProps) {
+export function ListingForm({
+  listing,
+  variant = 'standard',
+}: ListingFormProps) {
   const router = useRouter();
   const { user } = useAuth();
   const isEdit = !!listing;
+  const isGuidedCreate = !isEdit && variant === 'guided';
   const [propertyType, setPropertyType] = useState<PropertyType | ''>(
     listing?.propertyType ?? '',
   );
+  const [showDetails, setShowDetails] = useState(!isGuidedCreate);
 
   const listingsUsage = user?.usage.activeListings ?? 0;
   const listingsLimit = user?.entitlements.limits.activeListings ?? null;
@@ -60,11 +68,15 @@ export function ListingForm({ listing }: ListingFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8" noValidate>
+      {isGuidedCreate ? <GuidedCreateIntro /> : null}
+
       {!isEdit && (showUsageWarning || showUsageExceeded) ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <div className="flex items-center gap-2">
             <Badge variant={showUsageExceeded ? 'destructive' : 'warning'}>
-              {showUsageExceeded ? 'Limit osiągnięty' : 'Zbliżasz się do limitu'}
+              {showUsageExceeded
+                ? 'Limit osiągnięty'
+                : 'Zbliżasz się do limitu'}
             </Badge>
             <span>
               Oferty: {listingsUsage}/{listingsLimit}
@@ -80,8 +92,14 @@ export function ListingForm({ listing }: ListingFormProps) {
         </div>
       )}
 
-      {/* === Section: Basic Info === */}
-      <FormSection title="Informacje podstawowe">
+      <FormSection
+        title={isGuidedCreate ? 'Najważniejsze dane' : 'Informacje podstawowe'}
+        description={
+          isGuidedCreate
+            ? 'Te pola wystarczą, żeby zapisać pierwszą ofertę i przejść dalej.'
+            : undefined
+        }
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             label="Tytuł oferty"
@@ -136,31 +154,6 @@ export function ListingForm({ listing }: ListingFormProps) {
           </FormField>
 
           <FormField
-            label="Opis"
-            name="description"
-            error={getFieldError('description')}
-            className="sm:col-span-2"
-          >
-            <textarea
-              name="description"
-              defaultValue={listing?.description ?? ''}
-              rows={5}
-              placeholder="Opisz nieruchomość..."
-              className={cn(
-                'w-full min-w-0 rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm transition-colors outline-none',
-                'placeholder:text-muted-foreground',
-                'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
-                'resize-y',
-              )}
-            />
-          </FormField>
-        </div>
-      </FormSection>
-
-      {/* === Section: Price & Details === */}
-      <FormSection title="Cena i parametry">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <FormField
             label="Cena (PLN)"
             name="price"
             required
@@ -178,149 +171,6 @@ export function ListingForm({ listing }: ListingFormProps) {
             />
           </FormField>
 
-          {shouldShowListingField(propertyType, 'areaM2') && (
-            <FormField
-              label={
-                propertyType === PropertyType.HOUSE
-                  ? 'Powierzchnia domu (m²)'
-                  : 'Powierzchnia (m²)'
-              }
-              name="areaM2"
-              error={getFieldError('areaM2')}
-            >
-              <Input
-                name="areaM2"
-                type="number"
-                step="0.01"
-                min="0"
-                defaultValue={listing?.areaM2 ? Number(listing.areaM2) : undefined}
-                placeholder="np. 65"
-                className="h-10 rounded-xl"
-              />
-            </FormField>
-          )}
-
-          {shouldShowListingField(propertyType, 'plotAreaM2') && (
-            <FormField
-              label="Powierzchnia działki (m²)"
-              name="plotAreaM2"
-              required={
-                propertyType === PropertyType.HOUSE ||
-                propertyType === PropertyType.LAND
-              }
-              error={getFieldError('plotAreaM2')}
-            >
-              <Input
-                name="plotAreaM2"
-                type="number"
-                step="0.01"
-                min="0"
-                defaultValue={
-                  listing?.plotAreaM2 ? Number(listing.plotAreaM2) : undefined
-                }
-                placeholder="np. 850"
-                className="h-10 rounded-xl"
-              />
-            </FormField>
-          )}
-
-          {shouldShowListingField(propertyType, 'rooms') && (
-            <FormField
-              label="Pokoje"
-              name="rooms"
-              error={getFieldError('rooms')}
-            >
-              <Input
-                name="rooms"
-                type="number"
-                min="1"
-                max="99"
-                defaultValue={listing?.rooms ?? undefined}
-                placeholder="np. 3"
-                className="h-10 rounded-xl"
-              />
-            </FormField>
-          )}
-
-          {shouldShowListingField(propertyType, 'bathrooms') && (
-            <FormField
-              label="Łazienki"
-              name="bathrooms"
-              error={getFieldError('bathrooms')}
-            >
-              <Input
-                name="bathrooms"
-                type="number"
-                min="0"
-                max="20"
-                defaultValue={listing?.bathrooms ?? undefined}
-                placeholder="np. 1"
-                className="h-10 rounded-xl"
-              />
-            </FormField>
-          )}
-
-          {shouldShowListingField(propertyType, 'floor') && (
-            <FormField
-              label="Piętro"
-              name="floor"
-              error={getFieldError('floor')}
-            >
-              <Input
-                name="floor"
-                type="number"
-                defaultValue={listing?.floor ?? undefined}
-                placeholder="np. 3"
-                className="h-10 rounded-xl"
-              />
-            </FormField>
-          )}
-
-          {shouldShowListingField(propertyType, 'totalFloors') && (
-            <FormField
-              label="Liczba pięter"
-              name="totalFloors"
-              error={getFieldError('totalFloors')}
-            >
-              <Input
-                name="totalFloors"
-                type="number"
-                defaultValue={listing?.totalFloors ?? undefined}
-                placeholder="np. 10"
-                className="h-10 rounded-xl"
-              />
-            </FormField>
-          )}
-
-          {shouldShowListingField(propertyType, 'yearBuilt') && (
-            <FormField
-              label="Rok budowy"
-              name="yearBuilt"
-              error={getFieldError('yearBuilt')}
-            >
-              <Input
-                name="yearBuilt"
-                type="number"
-                min="1800"
-                defaultValue={listing?.yearBuilt ?? undefined}
-                placeholder="np. 2020"
-                className="h-10 rounded-xl"
-              />
-            </FormField>
-          )}
-
-          {!propertyType && (
-            <p className="text-sm text-muted-foreground sm:col-span-2 lg:col-span-3">
-              Wybierz typ nieruchomości, aby zobaczyć dopasowane pola
-              parametryczne.
-            </p>
-          )}
-        </div>
-      </FormSection>
-
-      {/* === Section: Address === */}
-      <FormSection title="Adres">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <FormField
             label="Miasto"
             name="address.city"
@@ -336,59 +186,287 @@ export function ListingForm({ listing }: ListingFormProps) {
             />
           </FormField>
 
-          <FormField
-            label="Ulica"
-            name="address.street"
-            error={getFieldError('address.street')}
-          >
-            <Input
-              name="address.street"
-              defaultValue={listing?.address?.street ?? ''}
-              placeholder="np. ul. Marszałkowska 10"
-              className="h-10 rounded-xl"
-            />
-          </FormField>
+          {isGuidedCreate &&
+            shouldShowListingField(propertyType, 'plotAreaM2') && (
+              <FormField
+                label="Powierzchnia działki (m²)"
+                name="plotAreaM2"
+                required={
+                  propertyType === PropertyType.HOUSE ||
+                  propertyType === PropertyType.LAND
+                }
+                error={getFieldError('plotAreaM2')}
+              >
+                <Input
+                  name="plotAreaM2"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="np. 850"
+                  className="h-10 rounded-xl"
+                />
+              </FormField>
+            )}
 
-          <FormField
-            label="Kod pocztowy"
-            name="address.postalCode"
-            error={getFieldError('address.postalCode')}
-          >
-            <Input
-              name="address.postalCode"
-              defaultValue={listing?.address?.postalCode ?? ''}
-              placeholder="np. 00-001"
-              className="h-10 rounded-xl"
-            />
-          </FormField>
-
-          <FormField
-            label="Dzielnica"
-            name="address.district"
-            error={getFieldError('address.district')}
-          >
-            <Input
-              name="address.district"
-              defaultValue={listing?.address?.district ?? ''}
-              placeholder="np. Śródmieście"
-              className="h-10 rounded-xl"
-            />
-          </FormField>
-
-          <FormField
-            label="Województwo"
-            name="address.voivodeship"
-            error={getFieldError('address.voivodeship')}
-          >
-            <Input
-              name="address.voivodeship"
-              defaultValue={listing?.address?.voivodeship ?? ''}
-              placeholder="np. mazowieckie"
-              className="h-10 rounded-xl"
-            />
-          </FormField>
+          {showDetails ? (
+            <FormField
+              label="Opis"
+              name="description"
+              error={getFieldError('description')}
+              className="sm:col-span-2"
+            >
+              <textarea
+                name="description"
+                defaultValue={listing?.description ?? ''}
+                rows={isGuidedCreate ? 4 : 5}
+                placeholder="Opisz nieruchomość..."
+                className={cn(
+                  'w-full min-w-0 rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm transition-colors outline-none',
+                  'placeholder:text-muted-foreground',
+                  'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
+                  'resize-y',
+                )}
+              />
+            </FormField>
+          ) : null}
         </div>
       </FormSection>
+
+      {isGuidedCreate ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-dashed border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              Masz więcej danych pod ręką?
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Dodaj parametry, ulicę i szczegóły lokalizacji teraz albo
+              uzupełnij je później w edycji oferty.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowDetails((value) => !value)}
+            className="gap-2 rounded-xl sm:self-start"
+          >
+            {showDetails ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+            {showDetails ? 'Ukryj szczegóły' : 'Dodaj szczegóły'}
+          </Button>
+        </div>
+      ) : null}
+
+      {showDetails ? (
+        <>
+          {/* === Section: Price & Details === */}
+          <FormSection title="Parametry nieruchomości">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {shouldShowListingField(propertyType, 'areaM2') && (
+                <FormField
+                  label={
+                    propertyType === PropertyType.HOUSE
+                      ? 'Powierzchnia domu (m²)'
+                      : 'Powierzchnia (m²)'
+                  }
+                  name="areaM2"
+                  error={getFieldError('areaM2')}
+                >
+                  <Input
+                    name="areaM2"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    defaultValue={
+                      listing?.areaM2 ? Number(listing.areaM2) : undefined
+                    }
+                    placeholder="np. 65"
+                    className="h-10 rounded-xl"
+                  />
+                </FormField>
+              )}
+
+              {!isGuidedCreate &&
+                shouldShowListingField(propertyType, 'plotAreaM2') && (
+                  <FormField
+                    label="Powierzchnia działki (m²)"
+                    name="plotAreaM2"
+                    required={
+                      propertyType === PropertyType.HOUSE ||
+                      propertyType === PropertyType.LAND
+                    }
+                    error={getFieldError('plotAreaM2')}
+                  >
+                    <Input
+                      name="plotAreaM2"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      defaultValue={
+                        listing?.plotAreaM2
+                          ? Number(listing.plotAreaM2)
+                          : undefined
+                      }
+                      placeholder="np. 850"
+                      className="h-10 rounded-xl"
+                    />
+                  </FormField>
+                )}
+
+              {shouldShowListingField(propertyType, 'rooms') && (
+                <FormField
+                  label="Pokoje"
+                  name="rooms"
+                  error={getFieldError('rooms')}
+                >
+                  <Input
+                    name="rooms"
+                    type="number"
+                    min="1"
+                    max="99"
+                    defaultValue={listing?.rooms ?? undefined}
+                    placeholder="np. 3"
+                    className="h-10 rounded-xl"
+                  />
+                </FormField>
+              )}
+
+              {shouldShowListingField(propertyType, 'bathrooms') && (
+                <FormField
+                  label="Łazienki"
+                  name="bathrooms"
+                  error={getFieldError('bathrooms')}
+                >
+                  <Input
+                    name="bathrooms"
+                    type="number"
+                    min="0"
+                    max="20"
+                    defaultValue={listing?.bathrooms ?? undefined}
+                    placeholder="np. 1"
+                    className="h-10 rounded-xl"
+                  />
+                </FormField>
+              )}
+
+              {shouldShowListingField(propertyType, 'floor') && (
+                <FormField
+                  label="Piętro"
+                  name="floor"
+                  error={getFieldError('floor')}
+                >
+                  <Input
+                    name="floor"
+                    type="number"
+                    defaultValue={listing?.floor ?? undefined}
+                    placeholder="np. 3"
+                    className="h-10 rounded-xl"
+                  />
+                </FormField>
+              )}
+
+              {shouldShowListingField(propertyType, 'totalFloors') && (
+                <FormField
+                  label="Liczba pięter"
+                  name="totalFloors"
+                  error={getFieldError('totalFloors')}
+                >
+                  <Input
+                    name="totalFloors"
+                    type="number"
+                    defaultValue={listing?.totalFloors ?? undefined}
+                    placeholder="np. 10"
+                    className="h-10 rounded-xl"
+                  />
+                </FormField>
+              )}
+
+              {shouldShowListingField(propertyType, 'yearBuilt') && (
+                <FormField
+                  label="Rok budowy"
+                  name="yearBuilt"
+                  error={getFieldError('yearBuilt')}
+                >
+                  <Input
+                    name="yearBuilt"
+                    type="number"
+                    min="1800"
+                    defaultValue={listing?.yearBuilt ?? undefined}
+                    placeholder="np. 2020"
+                    className="h-10 rounded-xl"
+                  />
+                </FormField>
+              )}
+
+              {!propertyType && (
+                <p className="text-sm text-muted-foreground sm:col-span-2 lg:col-span-3">
+                  Wybierz typ nieruchomości, aby zobaczyć dopasowane pola
+                  parametryczne.
+                </p>
+              )}
+            </div>
+          </FormSection>
+
+          {/* === Section: Address === */}
+          <FormSection title="Adres i lokalizacja">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <FormField
+                label="Ulica"
+                name="address.street"
+                error={getFieldError('address.street')}
+              >
+                <Input
+                  name="address.street"
+                  defaultValue={listing?.address?.street ?? ''}
+                  placeholder="np. ul. Marszałkowska 10"
+                  className="h-10 rounded-xl"
+                />
+              </FormField>
+
+              <FormField
+                label="Kod pocztowy"
+                name="address.postalCode"
+                error={getFieldError('address.postalCode')}
+              >
+                <Input
+                  name="address.postalCode"
+                  defaultValue={listing?.address?.postalCode ?? ''}
+                  placeholder="np. 00-001"
+                  className="h-10 rounded-xl"
+                />
+              </FormField>
+
+              <FormField
+                label="Dzielnica"
+                name="address.district"
+                error={getFieldError('address.district')}
+              >
+                <Input
+                  name="address.district"
+                  defaultValue={listing?.address?.district ?? ''}
+                  placeholder="np. Śródmieście"
+                  className="h-10 rounded-xl"
+                />
+              </FormField>
+
+              <FormField
+                label="Województwo"
+                name="address.voivodeship"
+                error={getFieldError('address.voivodeship')}
+              >
+                <Input
+                  name="address.voivodeship"
+                  defaultValue={listing?.address?.voivodeship ?? ''}
+                  placeholder="np. mazowieckie"
+                  className="h-10 rounded-xl"
+                />
+              </FormField>
+            </div>
+          </FormSection>
+        </>
+      ) : null}
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-3 border-t border-border pt-6">
@@ -411,7 +489,9 @@ export function ListingForm({ listing }: ListingFormProps) {
             ? 'Zapisywanie...'
             : isEdit
               ? 'Zapisz zmiany'
-              : 'Dodaj ofertę'}
+              : isGuidedCreate
+                ? 'Zapisz ofertę'
+                : 'Dodaj ofertę'}
         </Button>
       </div>
     </form>
@@ -420,18 +500,52 @@ export function ListingForm({ listing }: ListingFormProps) {
 
 // ── Helper components ──
 
+function GuidedCreateIntro() {
+  return (
+    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-base font-semibold text-foreground">
+              Szybki start z ofertą
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Zacznij od minimum danych. Po zapisaniu oferty możesz wrócić do
+              szczegółów, zdjęć i publikacji.
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-muted-foreground ring-1 ring-border">
+          <Clock3 className="h-3.5 w-3.5" />
+          Około 2 min
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FormSection({
   title,
+  description,
   children,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
     <fieldset className="space-y-4">
-      <legend className="font-heading text-base font-semibold text-foreground">
-        {title}
-      </legend>
+      <div>
+        <legend className="font-heading text-base font-semibold text-foreground">
+          {title}
+        </legend>
+        {description ? (
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
       {children}
     </fieldset>
   );
@@ -454,7 +568,10 @@ function FormField({
 }) {
   return (
     <div className={cn('space-y-1.5', className)}>
-      <label htmlFor={name} className="block text-sm font-medium text-foreground">
+      <label
+        htmlFor={name}
+        className="block text-sm font-medium text-foreground"
+      >
         {label}
         {required && <span className="ml-0.5 text-destructive">*</span>}
       </label>

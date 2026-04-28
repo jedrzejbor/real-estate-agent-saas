@@ -509,11 +509,17 @@ Użytkownik po rejestracji przechodzi prosty onboarding i wykonuje pierwsze kluc
     - obecna persystencja onboarding state działa lokalnie w przeglądarce; jeśli będzie potrzebna synchronizacja między urządzeniami, warto przenieść ten stan do API / profilu użytkownika,
     - Sprint `F2.6` powinien wykorzystać tę warstwę do emitowania eventów `onboarding_step_completed`, `onboarding_checklist_dismissed` i `onboarding_checklist_restored`.
 
-- [ ] `F2.3` Uprościć pierwszy create flow dla oferty
+- [x] `F2.3` Uprościć pierwszy create flow dla oferty
   - Zakres: szybki formularz / wizard do pierwszej oferty.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-28
   - Wykonano:
+    - dodano onboardingowy wariant formularza tworzenia oferty, który na start pokazuje tylko kluczowe pola potrzebne do zapisania pierwszej oferty,
+    - formularz pozwala opcjonalnie rozwinąć dodatkowe parametry i adres, więc użytkownik może szybciej przejść przez pierwszą aktywację bez utraty możliwości uzupełnienia szczegółów,
+    - zachowano pełny standardowy formularz dla edycji ofert i istniejących miejsc użycia komponentu,
+    - strona dodawania oferty korzysta teraz z uproszczonego flow i komunikuje możliwość późniejszego uzupełnienia danych.
   - Uwagi / follow-up:
+    - F2.5 powinno teraz oprzeć empty states o ten uproszczony flow i prowadzić użytkownika do `/dashboard/listings/new`,
+    - po Sprintach 3-4 warto dopiąć po zapisie pierwszej oferty kolejny nudge do publikacji strony publicznej.
 
 - [ ] `F2.4` Dodać prosty import CSV dla klientów
   - Zakres: minimalny import, walidacja kolumn, raport błędów.
