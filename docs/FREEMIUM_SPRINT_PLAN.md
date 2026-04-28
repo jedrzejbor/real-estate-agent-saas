@@ -485,11 +485,17 @@ Doprowadzić nowego użytkownika do pierwszej wartości w 10-15 minut.
 Użytkownik po rejestracji przechodzi prosty onboarding i wykonuje pierwsze kluczowe akcje.
 
 #### Zadania
-- [ ] `F2.1` Zaprojektować onboarding checklist
+- [x] `F2.1` Zaprojektować onboarding checklist
   - Zakres: dodaj ofertę, dodaj klienta, dodaj spotkanie, opublikuj ofertę, udostępnij link.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-28
   - Wykonano:
+    - dodano dashboardowy komponent checklisty startowej osadzony bezpośrednio na stronie głównej panelu,
+    - kroki checklisty są wyliczane z istniejących statystyk dashboardu, więc pierwsze trzy etapy reagują już na realne dane użytkownika,
+    - checklista zawiera od razu docelowe kroki publikacji i udostępnienia oferty, ale oznacza je jako `Wkrótce`, aby spójnie przygotować grunt pod Sprinty 3–4,
+    - logika kroków została wydzielona do osobnego helpera, tak aby F2.2 mogło później dołożyć trwały onboarding state bez przebudowy UI.
   - Uwagi / follow-up:
+    - F2.2 powinno dodać persisted onboarding state, dismiss/restore oraz bardziej precyzyjne warunki ukończenia kroków publikacji i udostępniania,
+    - w kolejnych iteracjach warto spiąć checklistę z analytics, żeby mierzyć przejścia między krokami i czas do pierwszej wartości.
 
 - [ ] `F2.2` Dodać onboarding state i progres użytkownika
   - Zakres: stan kroków, ukończenie, wyświetlanie CTA i nudges.

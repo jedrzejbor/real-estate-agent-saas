@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip } from '@/components/ui/tooltip';
+import { OnboardingChecklist } from '@/components/dashboard/onboarding-checklist';
 import { PlanUsageCard } from '@/components/dashboard/plan-usage-card';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/hooks/use-dashboard';
@@ -138,6 +139,8 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : null}
+
+          <OnboardingChecklist stats={stats} />
 
           {/* Stat cards */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
