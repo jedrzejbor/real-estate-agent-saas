@@ -1,7 +1,14 @@
 import { refreshTokens } from '@/lib/auth';
 
-const API_BASE_URL =
+const SERVER_API_BASE_URL =
+  process.env.API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'http://127.0.0.1:4000/api';
+const BROWSER_API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+
+const API_BASE_URL =
+  typeof window === 'undefined' ? SERVER_API_BASE_URL : BROWSER_API_BASE_URL;
 
 /** Standard API error shape. */
 export class ApiError extends Error {

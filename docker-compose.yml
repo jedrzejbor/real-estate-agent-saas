@@ -53,6 +53,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      API_URL: http://api:4000/api
       NEXT_PUBLIC_API_URL: http://localhost:4000/api
       NODE_ENV: development
     depends_on:

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ActivityHistoryCard } from '@/components/activity/activity-history-card';
+import { ListingPublicationPanel } from '@/components/listings/listing-publication-panel';
 import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
 import { useActivityHistory } from '@/hooks/use-activity-history';
@@ -352,6 +353,12 @@ export default function ListingDetailPage() {
 
         {/* Right column - sidebar */}
         <div className="space-y-6">
+          <ListingPublicationPanel
+            listing={listing}
+            onListingChange={setListing}
+            density="compact"
+          />
+
           {/* Status management */}
           <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
             <h2 className="font-heading text-base font-semibold text-foreground">

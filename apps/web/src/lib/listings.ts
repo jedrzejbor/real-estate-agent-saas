@@ -158,6 +158,7 @@ export interface PublicListingAgent {
 export interface PublicListing {
   id: string;
   slug: string;
+  publicationStatus: typeof ListingPublicationStatus.PUBLISHED;
   title: string;
   description?: string | null;
   propertyType: PropertyType;
@@ -401,6 +402,16 @@ export async function updateListing(
   });
 }
 
+export async function updatePublicListingSettings(
+  id: string,
+  data: PublicListingSettingsFormData,
+): Promise<Listing> {
+  return apiFetch<Listing>(`/listings/${id}`, {
+    method: 'PATCH',
+    body: cleanPublicListingSettingsPayload(data),
+  });
+}
+
 export async function publishListing(id: string): Promise<Listing> {
   const listing = await apiFetch<Listing>(`/listings/${id}/publish`, {
     method: 'POST',
@@ -462,6 +473,14 @@ function cleanPayload(data: Record<string, unknown>): Record<string, unknown> {
     }
   }
   return result;
+}
+
+function cleanPublicListingSettingsPayload(
+  data: PublicListingSettingsFormData,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined),
+  );
 }
 
 /** Format price in PLN. */

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { ListingForm } from '@/components/listings/listing-form';
+import { ListingPublicationPanel } from '@/components/listings/listing-publication-panel';
 import { fetchListing, type Listing } from '@/lib/listings';
 
 export default function EditListingPage() {
@@ -15,7 +16,6 @@ export default function EditListingPage() {
 
   useEffect(() => {
     if (!params.id) return;
-    setIsLoading(true);
     fetchListing(params.id)
       .then(setListing)
       .catch((err) =>
@@ -70,6 +70,8 @@ export default function EditListingPage() {
       <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
         <ListingForm listing={listing} />
       </div>
+
+      <ListingPublicationPanel listing={listing} onListingChange={setListing} />
     </div>
   );
 }

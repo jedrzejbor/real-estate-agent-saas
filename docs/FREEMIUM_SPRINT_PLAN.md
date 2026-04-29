@@ -613,17 +613,32 @@ Oferty mogą być publikowane pod publicznym linkiem i stanowią realny asset ac
     - F3.4 powinno dodać UI do publikacji, cofania publikacji, podglądu i kopiowania linku,
     - migracja produkcyjna powinna utworzyć nowe kolumny i indeks unikalny na `publicSlug`.
 
-- [ ] `F3.3` Zbudować publiczną stronę oferty
+- [x] `F3.3` Zbudować publiczną stronę oferty
   - Zakres: hero, galeria, podstawowe informacje, CTA kontaktowe, branding EstateFlow.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-29
   - Wykonano:
+    - dodano publiczną trasę `/oferty/[slug]`, która pobiera dane z `GET /api/listings/public/:slug` i działa bez logowania,
+    - zbudowano pełny widok publicznej oferty: hero ze zdjęciem, lokalizacja, cena, podstawowe parametry, opis, szczegóły i galeria,
+    - dodano SEO metadata i Open Graph na podstawie publicznych pól oferty,
+    - dodano CTA kontaktowe do telefonu / maila oraz informację, że formularz leadowy pojawi się w Sprincie 4,
+    - dodano branding EstateFlow na publicznej stronie, jeśli backend zwraca `estateflowBrandingEnabled`.
   - Uwagi / follow-up:
+    - F3.4 powinno dodać w panelu agenta link do tej strony, publish toggle, podgląd i kopiowanie URL,
+    - F4.2 zastąpi tymczasowe CTA pełnym formularzem leadowym,
+    - F3.6 powinno dodać pomiar publicznych odsłon i share/copy link.
 
-- [ ] `F3.4` Dodać ustawienia publikacji w panelu agenta
+- [x] `F3.4` Dodać ustawienia publikacji w panelu agenta
   - Zakres: publish toggle, podgląd, kopiowanie linku, QR placeholder.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-29
   - Wykonano:
+    - dodano panel publikacji w szczegółach i edycji oferty w panelu agenta,
+    - panel obsługuje publish/unpublish, status publikacji, podgląd publicznej strony i kopiowanie publicznego URL,
+    - dodano formularz ustawień publicznych: publiczny tytuł/opis, SEO title/description, share image oraz przełączniki widoczności ceny i dokładnego adresu,
+    - dodano placeholder QR dla przyszłego generowania kodów do materiałów offline,
+    - dodano osobny frontendowy helper zapisu ustawień publicznych, który pozwala świadomie wyczyścić pola tekstowe.
   - Uwagi / follow-up:
+    - F3.6 powinno dopiąć event copy/share oraz public page view,
+    - przyszłe plany płatne mogą dodać manualne sterowanie brandingiem EstateFlow w tym panelu.
 
 - [ ] `F3.5` Dodać SEO basics dla publicznych ofert
   - Zakres: meta tags, open graph, indeksowalność, sitemap strategy.
