@@ -14,6 +14,8 @@ export const ANALYTICS_EVENT_NAMES = [
   'onboarding_empty_state_shown',
   'onboarding_empty_state_cta_clicked',
   'listing_created',
+  'listing_published',
+  'listing_unpublished',
   'client_created',
   'clients_imported',
   'appointment_created',

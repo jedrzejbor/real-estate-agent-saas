@@ -9,6 +9,8 @@ export const AnalyticsEventName = {
   ONBOARDING_EMPTY_STATE_SHOWN: 'onboarding_empty_state_shown',
   ONBOARDING_EMPTY_STATE_CTA_CLICKED: 'onboarding_empty_state_cta_clicked',
   LISTING_CREATED: 'listing_created',
+  LISTING_PUBLISHED: 'listing_published',
+  LISTING_UNPUBLISHED: 'listing_unpublished',
   CLIENT_CREATED: 'client_created',
   CLIENTS_IMPORTED: 'clients_imported',
   APPOINTMENT_CREATED: 'appointment_created',

@@ -358,6 +358,12 @@ export async function fetchListing(id: string): Promise<Listing> {
   return apiFetch<Listing>(`/listings/${id}`);
 }
 
+export async function fetchPublicListing(slug: string): Promise<PublicListing> {
+  return apiFetch<PublicListing>(`/listings/public/${slug}`, {
+    skipAuth: true,
+  });
+}
+
 export async function createListing(
   data: CreateListingFormData,
 ): Promise<Listing> {
@@ -393,6 +399,40 @@ export async function updateListing(
     method: 'PATCH',
     body: cleaned,
   });
+}
+
+export async function publishListing(id: string): Promise<Listing> {
+  const listing = await apiFetch<Listing>(`/listings/${id}/publish`, {
+    method: 'POST',
+  });
+
+  trackAnalyticsEvent({
+    name: AnalyticsEventName.LISTING_PUBLISHED,
+    properties: {
+      listingId: listing.id,
+      publicSlug: listing.publicSlug ?? null,
+      publicationStatus: listing.publicationStatus,
+    },
+  });
+
+  return listing;
+}
+
+export async function unpublishListing(id: string): Promise<Listing> {
+  const listing = await apiFetch<Listing>(`/listings/${id}/unpublish`, {
+    method: 'POST',
+  });
+
+  trackAnalyticsEvent({
+    name: AnalyticsEventName.LISTING_UNPUBLISHED,
+    properties: {
+      listingId: listing.id,
+      publicSlug: listing.publicSlug ?? null,
+      publicationStatus: listing.publicationStatus,
+    },
+  });
+
+  return listing;
 }
 
 export async function deleteListing(id: string): Promise<void> {

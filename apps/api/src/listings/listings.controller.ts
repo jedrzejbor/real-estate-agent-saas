@@ -14,6 +14,7 @@ import {
 import { ListingsService } from './listings.service';
 import { CreateListingDto, UpdateListingDto, ListingQueryDto } from './dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('listings')
 export class ListingsController {
@@ -35,6 +36,13 @@ export class ListingsController {
     @Query() query: ListingQueryDto,
   ) {
     return this.listingsService.findAll(userId, query);
+  }
+
+  /** GET /api/listings/public/:slug — get public listing by slug. */
+  @Public()
+  @Get('public/:slug')
+  async findPublicBySlug(@Param('slug') slug: string) {
+    return this.listingsService.findPublicBySlug(slug);
   }
 
   /** GET /api/listings/:id/history — get audit log for a listing. */
@@ -63,6 +71,24 @@ export class ListingsController {
     @Body() dto: UpdateListingDto,
   ) {
     return this.listingsService.update(id, userId, dto);
+  }
+
+  /** POST /api/listings/:id/publish — publish public listing page. */
+  @Post(':id/publish')
+  async publish(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.listingsService.publish(id, userId);
+  }
+
+  /** POST /api/listings/:id/unpublish — unpublish public listing page. */
+  @Post(':id/unpublish')
+  async unpublish(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.listingsService.unpublish(id, userId);
   }
 
   /** POST /api/listings/:id/status/rollback — rollback latest status change. */

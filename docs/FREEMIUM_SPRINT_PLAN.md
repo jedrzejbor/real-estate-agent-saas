@@ -597,11 +597,21 @@ Oferty mogą być publikowane pod publicznym linkiem i stanowią realny asset ac
     - F3.4 powinno wykorzystać pola publiczne w ustawieniach publikacji w panelu agenta,
     - usuwanie brandingu EstateFlow pozostaje funkcją płatną i powinno być egzekwowane w logice entitlementów przy F3.2/F3.4.
 
-- [ ] `F3.2` Dodać backend publikacji i unpublish oferty
+- [x] `F3.2` Dodać backend publikacji i unpublish oferty
   - Zakres: endpointy, walidacje, uprawnienia, zasady dla planu free.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-29
   - Wykonano:
+    - dodano endpointy `POST /api/listings/:id/publish` i `POST /api/listings/:id/unpublish`,
+    - dodano publiczny endpoint `GET /api/listings/public/:slug`, który zwraca tylko opublikowane oferty i respektuje ustawienia widoczności ceny oraz dokładnego adresu,
+    - publish generuje unikalny `publicSlug`, uzupełnia domyślne publiczne tytuły/opisy oraz SEO metadata i ustawia `publicationStatus = published`,
+    - unpublish ustawia `publicationStatus = unpublished` oraz `unpublishedAt`, bez kasowania sluga i historii publikacji,
+    - dodano walidacje publikacji: brak publikacji zarchiwizowanej oferty, wymagane podstawowe dane, uprawnienia właściciela i entitlement `publicListings`,
+    - w planach bez `customBranding` backend wymusza pozostawienie brandingu EstateFlow,
+    - dodano activity log dla publish/unpublish oraz frontendowe helpery `publishListing`, `unpublishListing` i `fetchPublicListing`.
   - Uwagi / follow-up:
+    - F3.3 powinno zbudować publiczną stronę na kontrakcie `GET /api/listings/public/:slug`,
+    - F3.4 powinno dodać UI do publikacji, cofania publikacji, podglądu i kopiowania linku,
+    - migracja produkcyjna powinna utworzyć nowe kolumny i indeks unikalny na `publicSlug`.
 
 - [ ] `F3.3` Zbudować publiczną stronę oferty
   - Zakres: hero, galeria, podstawowe informacje, CTA kontaktowe, branding EstateFlow.

@@ -15,12 +15,15 @@ import { UsersService } from '../users';
 import {
   ActivityAction,
   ActivityEntityType,
+  ListingPublicationStatus,
   ListingStatus,
 } from '../common/enums';
+import { FeatureAccessDeniedException } from '../common/exceptions/feature-access-denied.exception';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ListingQueryDto } from './dto/listing-query.dto';
+import { PublicListingView } from './public-listing.model';
 
 /** Paginated result wrapper. */
 export interface PaginatedResult<T> {
@@ -221,11 +224,6 @@ export class ListingsService {
     // Merge listing fields
     Object.assign(listing, listingData);
 
-    // Handle status transitions
-    if (dto.status === ListingStatus.ACTIVE && !listing.publishedAt) {
-      listing.publishedAt = new Date();
-    }
-
     await this.listingRepo.save(listing);
 
     // Update address if provided
@@ -259,6 +257,110 @@ export class ListingsService {
     }
 
     return updatedListing;
+  }
+
+  async publish(id: string, userId: string): Promise<Listing> {
+    const listing = await this.findOneOrFail(id);
+    await this.assertOwnership(listing, userId);
+    const access = await this.usersService.getAgencyAccessContext(userId);
+
+    if (!access.entitlements.features.publicListings) {
+      throw new FeatureAccessDeniedException({
+        feature: 'publicListings',
+        planCode: access.entitlements.plan.code,
+        message: 'Publiczne strony ofert nie są dostępne w Twoim planie.',
+      });
+    }
+
+    this.assertListingCanBePublished(listing);
+
+    const previousState = this.createListingSnapshot(listing);
+
+    listing.publicSlug =
+      listing.publicSlug ?? (await this.generateUniquePublicSlug(listing));
+    listing.publicTitle = listing.publicTitle?.trim() || listing.title;
+    listing.publicDescription =
+      listing.publicDescription?.trim() || listing.description;
+    listing.seoTitle =
+      listing.seoTitle?.trim() || this.buildDefaultSeoTitle(listing);
+    listing.seoDescription =
+      listing.seoDescription?.trim() ||
+      this.buildDefaultSeoDescription(listing);
+    listing.estateflowBrandingEnabled = access.entitlements.features
+      .customBranding
+      ? listing.estateflowBrandingEnabled
+      : true;
+    listing.publicationStatus = ListingPublicationStatus.PUBLISHED;
+    listing.publishedAt = listing.publishedAt ?? new Date();
+    listing.unpublishedAt = null;
+
+    await this.listingRepo.save(listing);
+
+    const publishedListing = await this.findOneOrFail(id);
+    const changes = this.activityService.buildChanges(
+      previousState,
+      this.createListingSnapshot(publishedListing),
+    );
+
+    await this.activityService.log({
+      userId,
+      entityType: ActivityEntityType.LISTING,
+      entityId: publishedListing.id,
+      action: ActivityAction.PUBLISHED,
+      description: 'Opublikowano publiczną stronę oferty',
+      changes,
+    });
+
+    return publishedListing;
+  }
+
+  async unpublish(id: string, userId: string): Promise<Listing> {
+    const listing = await this.findOneOrFail(id);
+    await this.assertOwnership(listing, userId);
+
+    if (listing.publicationStatus !== ListingPublicationStatus.PUBLISHED) {
+      throw new BadRequestException('Oferta nie jest obecnie opublikowana');
+    }
+
+    const previousState = this.createListingSnapshot(listing);
+
+    listing.publicationStatus = ListingPublicationStatus.UNPUBLISHED;
+    listing.unpublishedAt = new Date();
+
+    await this.listingRepo.save(listing);
+
+    const unpublishedListing = await this.findOneOrFail(id);
+    const changes = this.activityService.buildChanges(
+      previousState,
+      this.createListingSnapshot(unpublishedListing),
+    );
+
+    await this.activityService.log({
+      userId,
+      entityType: ActivityEntityType.LISTING,
+      entityId: unpublishedListing.id,
+      action: ActivityAction.UNPUBLISHED,
+      description: 'Wyłączono publiczną stronę oferty',
+      changes,
+    });
+
+    return unpublishedListing;
+  }
+
+  async findPublicBySlug(slug: string): Promise<PublicListingView> {
+    const listing = await this.listingRepo.findOne({
+      where: {
+        publicSlug: slug,
+        publicationStatus: ListingPublicationStatus.PUBLISHED,
+      },
+      relations: ['address', 'images', 'agent'],
+    });
+
+    if (!listing || !listing.publicSlug || !listing.publishedAt) {
+      throw new NotFoundException('Publiczna oferta nie znaleziona');
+    }
+
+    return this.toPublicListingView(listing);
   }
 
   // ── Delete (soft → archived, or hard delete for drafts) ──
@@ -336,6 +438,151 @@ export class ListingsService {
     }
 
     return { agent: access.agent };
+  }
+
+  private assertListingCanBePublished(listing: Listing): void {
+    if (listing.status === ListingStatus.ARCHIVED) {
+      throw new BadRequestException(
+        'Nie można opublikować zarchiwizowanej oferty',
+      );
+    }
+
+    if (!listing.title?.trim()) {
+      throw new BadRequestException('Tytuł oferty jest wymagany do publikacji');
+    }
+
+    if (!listing.address?.city?.trim()) {
+      throw new BadRequestException('Miasto jest wymagane do publikacji');
+    }
+
+    if (!listing.price || Number(listing.price) <= 0) {
+      throw new BadRequestException('Cena jest wymagana do publikacji');
+    }
+  }
+
+  private async generateUniquePublicSlug(listing: Listing): Promise<string> {
+    const city = listing.address?.city ?? '';
+    const baseSlug = this.slugify(
+      [listing.title, city].filter(Boolean).join(' '),
+    );
+    const fallbackSlug = `oferta-${listing.id.slice(0, 8)}`;
+    const slugBase = (baseSlug || fallbackSlug).slice(0, 140);
+
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const suffix = attempt === 0 ? '' : `-${attempt + 1}`;
+      const candidate = `${slugBase}${suffix}`.slice(0, 160);
+      const existing = await this.listingRepo.findOne({
+        where: { publicSlug: candidate },
+        select: ['id'],
+      });
+
+      if (!existing || existing.id === listing.id) {
+        return candidate;
+      }
+    }
+
+    return `${slugBase}-${listing.id.slice(0, 8)}`.slice(0, 160);
+  }
+
+  private slugify(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/ł/g, 'l')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .replace(/-{2,}/g, '-');
+  }
+
+  private buildDefaultSeoTitle(listing: Listing): string {
+    const city = listing.address?.city ? `, ${listing.address.city}` : '';
+    return `${listing.publicTitle || listing.title}${city}`.slice(0, 70);
+  }
+
+  private buildDefaultSeoDescription(listing: Listing): string | null {
+    const source = listing.publicDescription || listing.description;
+
+    if (source?.trim()) {
+      return source.trim().replace(/\s+/g, ' ').slice(0, 180);
+    }
+
+    const city = listing.address?.city ? ` w ${listing.address.city}` : '';
+    return `Sprawdź szczegóły oferty nieruchomości${city} w EstateFlow.`.slice(
+      0,
+      180,
+    );
+  }
+
+  private toPublicListingView(listing: Listing): PublicListingView {
+    if (!listing.publicSlug || !listing.publishedAt) {
+      throw new NotFoundException('Publiczna oferta nie znaleziona');
+    }
+
+    const address = listing.address
+      ? {
+          city: listing.address.city,
+          district: listing.address.district ?? null,
+          voivodeship: listing.address.voivodeship ?? null,
+          street: listing.showExactAddressOnPublicPage
+            ? (listing.address.street ?? null)
+            : null,
+          postalCode: listing.showExactAddressOnPublicPage
+            ? (listing.address.postalCode ?? null)
+            : null,
+          lat: listing.showExactAddressOnPublicPage
+            ? (listing.address.lat ?? null)
+            : null,
+          lng: listing.showExactAddressOnPublicPage
+            ? (listing.address.lng ?? null)
+            : null,
+        }
+      : null;
+
+    return {
+      id: listing.id,
+      slug: listing.publicSlug,
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      title: listing.publicTitle || listing.title,
+      description: listing.publicDescription ?? listing.description ?? null,
+      propertyType: listing.propertyType,
+      transactionType: listing.transactionType,
+      price: listing.showPriceOnPublicPage ? listing.price : null,
+      currency: listing.currency,
+      areaM2: listing.areaM2 ?? null,
+      plotAreaM2: listing.plotAreaM2 ?? null,
+      rooms: listing.rooms ?? null,
+      bathrooms: listing.bathrooms ?? null,
+      floor: listing.floor ?? null,
+      totalFloors: listing.totalFloors ?? null,
+      yearBuilt: listing.yearBuilt ?? null,
+      address,
+      images: (listing.images ?? [])
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .map((image) => ({
+          id: image.id,
+          url: image.url,
+          order: image.order,
+          isPrimary: image.isPrimary,
+          altText: image.altText ?? null,
+        })),
+      agent: listing.agent
+        ? {
+            firstName: listing.agent.firstName ?? null,
+            lastName: listing.agent.lastName ?? null,
+            phone: listing.agent.phone ?? null,
+            avatarUrl: listing.agent.avatarUrl ?? null,
+          }
+        : null,
+      seoTitle: listing.seoTitle ?? this.buildDefaultSeoTitle(listing),
+      seoDescription:
+        listing.seoDescription ?? this.buildDefaultSeoDescription(listing),
+      shareImageUrl: listing.shareImageUrl ?? null,
+      estateflowBrandingEnabled: listing.estateflowBrandingEnabled,
+      publishedAt: listing.publishedAt,
+      updatedAt: listing.updatedAt,
+    };
   }
 
   /** Find listing by id with relations, or throw. */
