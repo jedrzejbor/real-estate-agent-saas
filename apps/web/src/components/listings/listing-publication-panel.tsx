@@ -67,6 +67,7 @@ export function ListingPublicationPanel({
 
   const isPublished =
     listing.publicationStatus === ListingPublicationStatus.PUBLISHED;
+  const isCompact = density === 'compact';
   const publicPath = listing.publicSlug ? `/oferty/${listing.publicSlug}` : '';
   const publicUrl = origin && publicPath ? `${origin}${publicPath}` : '';
 
@@ -167,7 +168,12 @@ export function ListingPublicationPanel({
         density === 'compact' ? 'p-5' : 'p-6',
       )}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div
+        className={cn(
+          'flex flex-col gap-4',
+          isCompact ? '' : 'sm:flex-row sm:items-start sm:justify-between',
+        )}
+      >
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="font-heading text-base font-semibold text-foreground">
@@ -187,7 +193,7 @@ export function ListingPublicationPanel({
           variant={isPublished ? 'outline' : 'default'}
           onClick={handlePublicationToggle}
           disabled={isPublishing || isSaving}
-          className="gap-2 rounded-xl sm:self-start"
+          className={cn('gap-2 rounded-xl', isCompact ? 'w-full' : 'sm:self-start')}
         >
           {isPublished ? (
             <EyeOff className="h-4 w-4" />
@@ -202,13 +208,18 @@ export function ListingPublicationPanel({
         </Button>
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_190px]">
+      <div
+        className={cn(
+          'mt-5 grid gap-4',
+          isCompact ? '' : 'xl:grid-cols-[minmax(0,1fr)_190px]',
+        )}
+      >
         <div className="space-y-3">
           <label className="text-sm font-medium text-foreground" htmlFor="public-url">
             Publiczny link
           </label>
-          <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
-            <div className="relative min-w-0 flex-1">
+          <div className="space-y-2">
+            <div className="relative min-w-0">
               <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="public-url"
@@ -217,13 +228,13 @@ export function ListingPublicationPanel({
                 className="h-10 rounded-xl pl-9 text-sm"
               />
             </div>
-            <div className="flex gap-2">
+            <div className={cn('grid gap-2', isCompact ? '' : 'sm:grid-cols-2')}>
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleCopyUrl}
                 disabled={!publicUrl}
-                className="flex-1 gap-2 rounded-xl sm:flex-none"
+                className="w-full gap-2 rounded-xl"
               >
                 {isCopied ? (
                   <Check className="h-4 w-4" />
@@ -236,7 +247,7 @@ export function ListingPublicationPanel({
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1 gap-2 rounded-xl sm:flex-none"
+                  className="w-full gap-2 rounded-xl"
                   render={
                     <Link href={publicPath} target="_blank" rel="noreferrer" />
                   }
@@ -249,7 +260,7 @@ export function ListingPublicationPanel({
                   type="button"
                   variant="outline"
                   disabled
-                  className="flex-1 gap-2 rounded-xl sm:flex-none"
+                  className="w-full gap-2 rounded-xl"
                 >
                   <Eye className="h-4 w-4" />
                   Podgląd
@@ -275,7 +286,7 @@ export function ListingPublicationPanel({
         onSubmit={handleSettingsSubmit}
         className="mt-6 space-y-5"
       >
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className={cn('grid gap-4', isCompact ? '' : 'md:grid-cols-2')}>
           <PublicationField
             label="Publiczny tytuł"
             name="publicTitle"
@@ -340,7 +351,7 @@ export function ListingPublicationPanel({
             label="Publiczny opis"
             name="publicDescription"
             error={fieldErrors.publicDescription}
-            className="md:col-span-2"
+            className={cn(isCompact ? '' : 'md:col-span-2')}
           >
             <textarea
               id="publicDescription"
@@ -357,7 +368,7 @@ export function ListingPublicationPanel({
           </PublicationField>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className={cn('grid gap-3', isCompact ? '' : 'md:grid-cols-2')}>
           <CheckboxOption
             name="showPriceOnPublicPage"
             defaultChecked={listing.showPriceOnPublicPage}
