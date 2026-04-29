@@ -27,6 +27,15 @@ export const ListingStatus = {
 
 export type ListingStatus = (typeof ListingStatus)[keyof typeof ListingStatus];
 
+export const ListingPublicationStatus = {
+  DRAFT: 'draft',
+  PUBLISHED: 'published',
+  UNPUBLISHED: 'unpublished',
+} as const;
+
+export type ListingPublicationStatus =
+  (typeof ListingPublicationStatus)[keyof typeof ListingPublicationStatus];
+
 export const TransactionType = {
   SALE: 'sale',
   RENT: 'rent',
@@ -54,6 +63,15 @@ export const LISTING_STATUS_LABELS: Record<ListingStatus, string> = {
   rented: 'Wynajęta',
   withdrawn: 'Wycofana',
   archived: 'Zarchiwizowana',
+};
+
+export const LISTING_PUBLICATION_STATUS_LABELS: Record<
+  ListingPublicationStatus,
+  string
+> = {
+  draft: 'Nieopublikowana',
+  published: 'Opublikowana',
+  unpublished: 'Wyłączona',
 };
 
 export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
@@ -112,11 +130,55 @@ export interface Listing {
   totalFloors?: number;
   yearBuilt?: number;
   isPremium: boolean;
+  publicSlug?: string | null;
+  publicationStatus: ListingPublicationStatus;
+  publicTitle?: string | null;
+  publicDescription?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  shareImageUrl?: string | null;
+  showPriceOnPublicPage: boolean;
+  showExactAddressOnPublicPage: boolean;
+  estateflowBrandingEnabled: boolean;
   publishedAt?: string;
+  unpublishedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   address?: Address;
   images?: ListingImage[];
+}
+
+export interface PublicListingAgent {
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  avatarUrl?: string | null;
+}
+
+export interface PublicListing {
+  id: string;
+  slug: string;
+  title: string;
+  description?: string | null;
+  propertyType: PropertyType;
+  transactionType: TransactionType;
+  price?: number | string | null;
+  currency: string;
+  areaM2?: number | string | null;
+  plotAreaM2?: number | string | null;
+  rooms?: number | null;
+  bathrooms?: number | null;
+  floor?: number | null;
+  totalFloors?: number | null;
+  yearBuilt?: number | null;
+  address?: Address;
+  images: ListingImage[];
+  agent?: PublicListingAgent | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  shareImageUrl?: string | null;
+  estateflowBrandingEnabled: boolean;
+  publishedAt: string;
 }
 
 export interface PaginationMeta {
@@ -259,6 +321,20 @@ export const createListingSchema = z
 
 export type CreateListingFormData = z.infer<typeof createListingSchema>;
 
+export const publicListingSettingsSchema = z.object({
+  publicTitle: z.string().max(255).optional().or(z.literal('')),
+  publicDescription: z.string().optional().or(z.literal('')),
+  seoTitle: z.string().max(70).optional().or(z.literal('')),
+  seoDescription: z.string().max(180).optional().or(z.literal('')),
+  shareImageUrl: z.string().max(500).optional().or(z.literal('')),
+  showPriceOnPublicPage: z.boolean().optional(),
+  showExactAddressOnPublicPage: z.boolean().optional(),
+});
+
+export type PublicListingSettingsFormData = z.infer<
+  typeof publicListingSettingsSchema
+>;
+
 // ── API Functions ──
 
 function buildQueryString(filters: ListingFilters): string {
@@ -307,7 +383,10 @@ export async function createListing(
 
 export async function updateListing(
   id: string,
-  data: Partial<CreateListingFormData> & { status?: ListingStatus },
+  data: Partial<CreateListingFormData> &
+    Partial<PublicListingSettingsFormData> & {
+      status?: ListingStatus;
+    },
 ): Promise<Listing> {
   const cleaned = cleanPayload(data);
   return apiFetch<Listing>(`/listings/${id}`, {

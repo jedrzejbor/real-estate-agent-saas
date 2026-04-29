@@ -43,6 +43,12 @@ export enum ListingStatus {
   ARCHIVED = 'archived',
 }
 
+export enum ListingPublicationStatus {
+  DRAFT = 'draft',
+  PUBLISHED = 'published',
+  UNPUBLISHED = 'unpublished',
+}
+
 export enum TransactionType {
   SALE = 'sale',
   RENT = 'rent',

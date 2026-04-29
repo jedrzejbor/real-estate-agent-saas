@@ -126,6 +126,38 @@ export class UpdateListingDto {
   isPremium?: boolean;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  publicTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  publicDescription?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(70)
+  seoTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(180)
+  seoDescription?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  shareImageUrl?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  showPriceOnPublicPage?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showExactAddressOnPublicPage?: boolean;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => UpdateAddressDto)
   address?: UpdateAddressDto;

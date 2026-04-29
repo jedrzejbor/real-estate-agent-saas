@@ -583,11 +583,19 @@ Dać użytkownikowi możliwość publikacji publicznej strony oferty z poziomu o
 Oferty mogą być publikowane pod publicznym linkiem i stanowią realny asset acquisition / SEO / sharing.
 
 #### Zadania
-- [ ] `F3.1` Zdefiniować publiczny model danych oferty
+- [x] `F3.1` Zdefiniować publiczny model danych oferty
   - Zakres: slug, status publikacji, pola publiczne, SEO metadata, branding.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-29
   - Wykonano:
+    - rozdzielono CRM-owy `ListingStatus` od publicznego `ListingPublicationStatus`, aby publikacja strony nie nadpisywała znaczenia statusu operacyjnego oferty,
+    - dodano do modelu oferty pola publiczne: `publicSlug`, `publicationStatus`, publiczny tytuł/opis, SEO title/description, share image, ustawienia pokazywania ceny i dokładnego adresu oraz branding EstateFlow,
+    - dodano `unpublishedAt`, żeby przyszły flow publish/unpublish mógł zachować pełną historię publikacji,
+    - zdefiniowano backendowy typ `PublicListingView` jako kontrakt przyszłego publicznego endpointu,
+    - rozszerzono frontendowe typy `Listing`, `PublicListing` i schemat ustawień publicznych/SEO.
   - Uwagi / follow-up:
+    - F3.2 powinno dodać generowanie unikalnego sluga, publish/unpublish endpointy i walidacje wymaganych pól publicznych,
+    - F3.4 powinno wykorzystać pola publiczne w ustawieniach publikacji w panelu agenta,
+    - usuwanie brandingu EstateFlow pozostaje funkcją płatną i powinno być egzekwowane w logice entitlementów przy F3.2/F3.4.
 
 - [ ] `F3.2` Dodać backend publikacji i unpublish oferty
   - Zakres: endpointy, walidacje, uprawnienia, zasady dla planu free.

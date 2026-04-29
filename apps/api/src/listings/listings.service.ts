@@ -50,10 +50,7 @@ export class ListingsService {
 
   // ── Create ──
 
-  async create(
-    userId: string,
-    dto: CreateListingDto,
-  ): Promise<Listing> {
+  async create(userId: string, dto: CreateListingDto): Promise<Listing> {
     const { agent } = await this.assertListingCreateWithinPlanLimit(userId);
 
     const { address: addressDto, ...listingData } = dto;
@@ -157,11 +154,12 @@ export class ListingsService {
     const listing = await this.findOneOrFail(id);
     await this.assertOwnership(listing, userId);
 
-    const latestStatusChange = await this.activityService.findLatestStatusChange(
-      userId,
-      ActivityEntityType.LISTING,
-      id,
-    );
+    const latestStatusChange =
+      await this.activityService.findLatestStatusChange(
+        userId,
+        ActivityEntityType.LISTING,
+        id,
+      );
 
     if (!latestStatusChange) {
       throw new BadRequestException('Brak zmiany statusu do cofnięcia');
@@ -437,7 +435,18 @@ export class ListingsService {
       totalFloors: listing.totalFloors ?? null,
       yearBuilt: listing.yearBuilt ?? null,
       isPremium: listing.isPremium,
+      publicSlug: listing.publicSlug ?? null,
+      publicationStatus: listing.publicationStatus,
+      publicTitle: listing.publicTitle ?? null,
+      publicDescription: listing.publicDescription ?? null,
+      seoTitle: listing.seoTitle ?? null,
+      seoDescription: listing.seoDescription ?? null,
+      shareImageUrl: listing.shareImageUrl ?? null,
+      showPriceOnPublicPage: listing.showPriceOnPublicPage,
+      showExactAddressOnPublicPage: listing.showExactAddressOnPublicPage,
+      estateflowBrandingEnabled: listing.estateflowBrandingEnabled,
       publishedAt: listing.publishedAt?.toISOString() ?? null,
+      unpublishedAt: listing.unpublishedAt?.toISOString() ?? null,
       'address.street': listing.address?.street ?? null,
       'address.city': listing.address?.city ?? null,
       'address.postalCode': listing.address?.postalCode ?? null,

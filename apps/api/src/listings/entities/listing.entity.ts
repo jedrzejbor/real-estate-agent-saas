@@ -13,6 +13,7 @@ import {
 import {
   PropertyType,
   ListingStatus,
+  ListingPublicationStatus,
   TransactionType,
 } from '../../common/enums';
 import { Agent } from '../../users/entities/agent.entity';
@@ -71,8 +72,47 @@ export class Listing {
   @Column({ type: 'boolean', default: false })
   isPremium: boolean;
 
+  @Index({ unique: true })
+  @Column({ type: 'varchar', length: 160, nullable: true })
+  publicSlug?: string | null;
+
+  @Index()
+  @Column({
+    type: 'enum',
+    enum: ListingPublicationStatus,
+    default: ListingPublicationStatus.DRAFT,
+  })
+  publicationStatus: ListingPublicationStatus;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  publicTitle?: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  publicDescription?: string | null;
+
+  @Column({ type: 'varchar', length: 70, nullable: true })
+  seoTitle?: string | null;
+
+  @Column({ type: 'varchar', length: 180, nullable: true })
+  seoDescription?: string | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  shareImageUrl?: string | null;
+
+  @Column({ type: 'boolean', default: true })
+  showPriceOnPublicPage: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  showExactAddressOnPublicPage: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  estateflowBrandingEnabled: boolean;
+
   @Column({ type: 'timestamptz', nullable: true })
   publishedAt: Date;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  unpublishedAt?: Date | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
