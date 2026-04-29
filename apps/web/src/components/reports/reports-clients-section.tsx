@@ -49,6 +49,7 @@ export function ReportsClientsSection({ data }: ReportsClientsSectionProps) {
           actionHref="/dashboard/clients/new"
           actionLabel="Dodaj klienta"
           compact
+          analyticsId="reports_clients_empty"
         />
       ) : null}
 

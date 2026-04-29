@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { apiFetch } from './api-client';
+import { AnalyticsEventName, trackAnalyticsEvent } from './analytics';
 
 // ── Enums (mirroring backend) ──
 
@@ -196,10 +197,23 @@ export async function createAppointment(
   data: CreateAppointmentFormData,
 ): Promise<Appointment> {
   const cleaned = cleanPayload(data);
-  return apiFetch<Appointment>('/appointments', {
+  const appointment = await apiFetch<Appointment>('/appointments', {
     method: 'POST',
     body: cleaned,
   });
+
+  trackAnalyticsEvent({
+    name: AnalyticsEventName.APPOINTMENT_CREATED,
+    properties: {
+      appointmentId: appointment.id,
+      type: appointment.type,
+      status: appointment.status,
+      hasClient: Boolean(appointment.clientId),
+      hasListing: Boolean(appointment.listingId),
+    },
+  });
+
+  return appointment;
 }
 
 export async function updateAppointment(
@@ -339,7 +353,13 @@ export function getCalendarDays(year: number, month: number): Date[] {
 
   // Pad end to complete 6 rows
   while (days.length < 42) {
-    days.push(new Date(year, month + 1, days.length - lastDay.getDate() - (startDow - 1) + 1));
+    days.push(
+      new Date(
+        year,
+        month + 1,
+        days.length - lastDay.getDate() - (startDow - 1) + 1,
+      ),
+    );
   }
 
   return days;

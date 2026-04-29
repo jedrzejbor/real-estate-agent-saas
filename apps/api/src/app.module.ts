@@ -14,6 +14,7 @@ import { DashboardModule } from './dashboard';
 import { ReportsModule } from './reports';
 import { SearchModule } from './search';
 import { NotificationsModule } from './notifications';
+import { AnalyticsModule } from './analytics';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { NotificationsModule } from './notifications';
     ReportsModule,
     SearchModule,
     NotificationsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [

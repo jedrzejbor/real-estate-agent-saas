@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { apiFetch } from './api-client';
+import { AnalyticsEventName, trackAnalyticsEvent } from './analytics';
 
 // ── Enums (mirroring backend) ──
 
@@ -246,17 +247,42 @@ export async function createClient(
   data: CreateClientFormData,
 ): Promise<Client> {
   const cleaned = cleanPayload(data);
-  return apiFetch<Client>('/clients', { method: 'POST', body: cleaned });
+  const client = await apiFetch<Client>('/clients', {
+    method: 'POST',
+    body: cleaned,
+  });
+
+  trackAnalyticsEvent({
+    name: AnalyticsEventName.CLIENT_CREATED,
+    properties: {
+      clientId: client.id,
+      source: client.source,
+      status: client.status,
+      hasPreference: Boolean(client.preference),
+    },
+  });
+
+  return client;
 }
 
 export async function importClients(
   rows: CreateClientFormData[],
 ): Promise<ImportClientsResult> {
   const cleanedRows = rows.map((row) => cleanPayload(row));
-  return apiFetch<ImportClientsResult>('/clients/import', {
+  const result = await apiFetch<ImportClientsResult>('/clients/import', {
     method: 'POST',
     body: { rows: cleanedRows },
   });
+
+  trackAnalyticsEvent({
+    name: AnalyticsEventName.CLIENTS_IMPORTED,
+    properties: {
+      requestedRows: rows.length,
+      importedRows: result.imported,
+    },
+  });
+
+  return result;
 }
 
 export async function updateClient(

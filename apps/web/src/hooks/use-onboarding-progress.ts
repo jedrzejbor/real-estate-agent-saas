@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useToast } from '@/contexts/toast-context';
+import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import type { AuthUser } from '@/lib/auth';
 import type { DashboardStats } from '@/lib/dashboard';
 import {
@@ -43,7 +44,10 @@ export function useOnboardingProgress({
   user,
 }: UseOnboardingProgressOptions): OnboardingProgressState {
   const { success: showSuccessToast } = useToast();
-  const checklist = useMemo(() => getDashboardOnboardingChecklist(stats), [stats]);
+  const checklist = useMemo(
+    () => getDashboardOnboardingChecklist(stats),
+    [stats],
+  );
   const coreSteps = useMemo(
     () => getDashboardOnboardingCoreSteps(checklist),
     [checklist],
@@ -53,11 +57,25 @@ export function useOnboardingProgress({
     [checklist],
   );
   const completedStepIdsKey = completedStepIds.join(':');
-  const storageKey = useMemo(() => getDashboardOnboardingStorageKey(user), [user]);
-  const [storedState, setStoredState] = useState<StoredDashboardOnboardingState>(
-    () => createStoredDashboardOnboardingState(),
+  const storageKey = useMemo(
+    () => getDashboardOnboardingStorageKey(user),
+    [user],
   );
+  const [storedState, setStoredState] =
+    useState<StoredDashboardOnboardingState>(() =>
+      createStoredDashboardOnboardingState(),
+    );
   const [isHydrated, setIsHydrated] = useState(false);
+  const completedCoreSteps = coreSteps.filter(
+    (step) => step.state === 'completed',
+  ).length;
+  const totalCoreSteps = coreSteps.length;
+  const coreCompletionPercentage =
+    totalCoreSteps > 0
+      ? Math.round((completedCoreSteps / totalCoreSteps) * 100)
+      : 0;
+  const isCoreOnboardingComplete =
+    totalCoreSteps > 0 && completedCoreSteps === totalCoreSteps;
 
   const persistState = useCallback(
     (nextState: StoredDashboardOnboardingState) => {
@@ -104,7 +122,9 @@ export function useOnboardingProgress({
     }
 
     try {
-      const parsed = sanitizeStoredDashboardOnboardingState(JSON.parse(rawState));
+      const parsed = sanitizeStoredDashboardOnboardingState(
+        JSON.parse(rawState),
+      );
       const mergedCompletedStepIds = Array.from(
         new Set([...parsed.completedStepIds, ...completedStepIds]),
       );
@@ -113,7 +133,8 @@ export function useOnboardingProgress({
         completedStepIds: mergedCompletedStepIds,
         lastCompletedStepId:
           parsed.lastCompletedStepId ?? mergedCompletedStepIds.at(-1) ?? null,
-        updatedAt: parsed.updatedAt ?? (mergedCompletedStepIds.length > 0 ? now : null),
+        updatedAt:
+          parsed.updatedAt ?? (mergedCompletedStepIds.length > 0 ? now : null),
       });
 
       if (JSON.stringify(nextState) !== rawState) {
@@ -164,6 +185,16 @@ export function useOnboardingProgress({
 
     const latestCompletedStepId = newlyCompletedStepIds.at(-1);
     if (latestCompletedStepId) {
+      trackAnalyticsEvent({
+        name: AnalyticsEventName.ONBOARDING_STEP_COMPLETED,
+        properties: {
+          stepId: latestCompletedStepId,
+          completedCoreSteps,
+          totalCoreSteps,
+          coreCompletionPercentage,
+        },
+      });
+
       showSuccessToast({
         title: 'Checklista zaktualizowana',
         description: `Ukończono krok „${getDashboardOnboardingStepLabel(latestCompletedStepId)}”.`,
@@ -177,6 +208,9 @@ export function useOnboardingProgress({
     persistState,
     showSuccessToast,
     storedState,
+    completedCoreSteps,
+    coreCompletionPercentage,
+    totalCoreSteps,
   ]);
 
   const dismissChecklist = useCallback(() => {
@@ -187,7 +221,21 @@ export function useOnboardingProgress({
         updatedAt: new Date().toISOString(),
       }),
     );
-  }, [persistState, storedState]);
+    trackAnalyticsEvent({
+      name: AnalyticsEventName.ONBOARDING_CHECKLIST_DISMISSED,
+      properties: {
+        completedCoreSteps,
+        totalCoreSteps,
+        coreCompletionPercentage,
+      },
+    });
+  }, [
+    completedCoreSteps,
+    coreCompletionPercentage,
+    persistState,
+    storedState,
+    totalCoreSteps,
+  ]);
 
   const restoreChecklist = useCallback(() => {
     persistState(
@@ -197,7 +245,21 @@ export function useOnboardingProgress({
         updatedAt: new Date().toISOString(),
       }),
     );
-  }, [persistState, storedState]);
+    trackAnalyticsEvent({
+      name: AnalyticsEventName.ONBOARDING_CHECKLIST_RESTORED,
+      properties: {
+        completedCoreSteps,
+        totalCoreSteps,
+        coreCompletionPercentage,
+      },
+    });
+  }, [
+    completedCoreSteps,
+    coreCompletionPercentage,
+    persistState,
+    storedState,
+    totalCoreSteps,
+  ]);
 
   const activeStep = useMemo(
     () => checklist.steps.find((step) => step.state === 'ready') ?? null,
@@ -206,22 +268,13 @@ export function useOnboardingProgress({
   const lastCompletedStep = useMemo(
     () =>
       storedState.lastCompletedStepId
-        ? checklist.steps.find((step) => step.id === storedState.lastCompletedStepId) ??
-          null
+        ? (checklist.steps.find(
+            (step) => step.id === storedState.lastCompletedStepId,
+          ) ?? null)
         : null,
     [checklist, storedState.lastCompletedStepId],
   );
 
-  const completedCoreSteps = coreSteps.filter(
-    (step) => step.state === 'completed',
-  ).length;
-  const totalCoreSteps = coreSteps.length;
-  const coreCompletionPercentage =
-    totalCoreSteps > 0
-      ? Math.round((completedCoreSteps / totalCoreSteps) * 100)
-      : 0;
-  const isCoreOnboardingComplete =
-    totalCoreSteps > 0 && completedCoreSteps === totalCoreSteps;
   const isChecklistDismissed = Boolean(storedState.dismissedAt);
 
   return {
@@ -241,7 +294,9 @@ export function useOnboardingProgress({
   };
 }
 
-function getDashboardOnboardingStorageKey(user: AuthUser | null): string | null {
+function getDashboardOnboardingStorageKey(
+  user: AuthUser | null,
+): string | null {
   const scopeId = user?.agency?.id ?? user?.id;
 
   if (!scopeId) {

@@ -13,6 +13,7 @@ import {
 import { usePathname, useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api-client';
 import { useToast } from '@/contexts/toast-context';
+import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import {
   type AuthUser,
   type AuthResponse,
@@ -48,7 +49,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { error: showErrorToast } = useToast();
   const isHandlingUnauthorizedRef = useRef(false);
   const hasShownUnauthorizedToastRef = useRef(false);
-  const proactiveRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const proactiveRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   // ── Proactive token refresh ──
   // Schedules a silent refresh 60s before the access token expires.
@@ -169,6 +172,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       storeTokens(res);
       setUser(res.user);
+      trackAnalyticsEvent({
+        name: AnalyticsEventName.SIGNUP_COMPLETED,
+        properties: {
+          planCode: res.user.entitlements.plan.code,
+          agencyId: res.user.agency?.id ?? null,
+        },
+      });
       router.push('/dashboard');
     },
     [router],

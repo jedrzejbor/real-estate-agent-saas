@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect } from 'react';
 import type { ElementType, ReactNode } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 
 interface OnboardingEmptyStateProps {
@@ -17,6 +19,7 @@ interface OnboardingEmptyStateProps {
   children?: ReactNode;
   compact?: boolean;
   surface?: boolean;
+  analyticsId?: string;
   className?: string;
 }
 
@@ -31,8 +34,33 @@ export function OnboardingEmptyState({
   children,
   compact = false,
   surface = true,
+  analyticsId,
   className,
 }: OnboardingEmptyStateProps) {
+  useEffect(() => {
+    if (!analyticsId) return;
+
+    trackAnalyticsEvent({
+      name: AnalyticsEventName.ONBOARDING_EMPTY_STATE_SHOWN,
+      properties: {
+        emptyStateId: analyticsId,
+        title,
+      },
+    });
+  }, [analyticsId, title]);
+
+  function trackCtaClick(kind: 'primary' | 'secondary') {
+    if (!analyticsId) return;
+
+    trackAnalyticsEvent({
+      name: AnalyticsEventName.ONBOARDING_EMPTY_STATE_CTA_CLICKED,
+      properties: {
+        emptyStateId: analyticsId,
+        ctaKind: kind,
+      },
+    });
+  }
+
   return (
     <div
       className={cn(
@@ -58,14 +86,17 @@ export function OnboardingEmptyState({
 
       {actionHref && actionLabel ? (
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Link href={actionHref}>
+          <Link href={actionHref} onClick={() => trackCtaClick('primary')}>
             <Button className="w-full gap-2 rounded-xl sm:w-auto">
               {actionLabel}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
           {secondaryHref && secondaryLabel ? (
-            <Link href={secondaryHref}>
+            <Link
+              href={secondaryHref}
+              onClick={() => trackCtaClick('secondary')}
+            >
               <Button variant="outline" className="w-full rounded-xl sm:w-auto">
                 {secondaryLabel}
               </Button>

@@ -185,6 +185,7 @@ export default function CalendarPage() {
           secondaryHref="/dashboard/clients"
           secondaryLabel="Najpierw dodaj klienta"
           compact
+          analyticsId="calendar_month_empty"
         />
       ) : null}
 
@@ -388,6 +389,7 @@ function EmptyState() {
       actionLabel="Zaplanuj spotkanie"
       secondaryHref="/dashboard/clients"
       secondaryLabel="Dodaj klienta"
+      analyticsId="calendar_list_empty"
     />
   );
 }

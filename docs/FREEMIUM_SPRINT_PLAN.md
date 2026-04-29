@@ -546,11 +546,19 @@ Użytkownik po rejestracji przechodzi prosty onboarding i wykonuje pierwsze kluc
     - po wdrożeniu publicznych stron ofert warto rozszerzyć empty state ofert o CTA do publikacji i udostępnienia linku,
     - F2.6 powinno mierzyć ekspozycję tych empty states oraz kliknięcia w ich główne CTA.
 
-- [ ] `F2.6` Zmierzyć aktywację w kluczowych punktach
+- [x] `F2.6` Zmierzyć aktywację w kluczowych punktach
   - Zakres: eventy analytics dla onboardingu i pierwszej wartości.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-29
   - Wykonano:
+    - dodano moduł analytics w API z endpointem `POST /api/analytics/events` oraz tabelą `analytics_events`,
+    - zdefiniowano stabilny kontrakt eventów aktywacyjnych po stronie web i API,
+    - podpięto event `signup_completed` po rejestracji użytkownika,
+    - podpięto eventy pierwszej wartości: `listing_created`, `client_created`, `clients_imported` i `appointment_created`,
+    - podpięto eventy onboardingu: `onboarding_step_completed`, `onboarding_checklist_dismissed` i `onboarding_checklist_restored`,
+    - podpięto pomiar ekspozycji oraz kliknięć CTA dla onboardingowych empty states przez eventy `onboarding_empty_state_shown` i `onboarding_empty_state_cta_clicked`.
   - Uwagi / follow-up:
+    - Sprint 7 powinien zbudować dashboard metryk na podstawie tabeli `analytics_events`,
+    - po wdrożeniu publicznych ofert należy dopiąć eventy `listing_published`, `public_listing_viewed`, `public_lead_submitted` i share/copy link.
 
 #### Definition of Done
 - nowy użytkownik ma jasną ścieżkę startową,

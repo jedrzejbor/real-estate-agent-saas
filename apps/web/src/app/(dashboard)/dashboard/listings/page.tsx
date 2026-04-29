@@ -95,6 +95,7 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
         title="Brak wyników"
         description="Nie znaleźliśmy ofert dla wybranych filtrów. Wyczyść kryteria albo zmień zapytanie, żeby wrócić do pełnej listy."
         compact
+        analyticsId="listings_filtered_empty"
       />
     );
   }
@@ -108,6 +109,7 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
       actionLabel="Dodaj ofertę"
       secondaryHref="/dashboard"
       secondaryLabel="Wróć do checklisty"
+      analyticsId="listings_empty"
     />
   );
 }

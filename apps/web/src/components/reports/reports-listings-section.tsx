@@ -51,6 +51,7 @@ export function ReportsListingsSection({ data }: ReportsListingsSectionProps) {
           actionHref="/dashboard/listings/new"
           actionLabel="Dodaj ofertę"
           compact
+          analyticsId="reports_listings_empty"
         />
       ) : null}
 

@@ -97,6 +97,7 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
         title="Brak wyników"
         description="Nie znaleźliśmy klientów dla wybranych filtrów. Wyczyść kryteria albo zmień wyszukiwanie, żeby wrócić do pełnej listy."
         compact
+        analyticsId="clients_filtered_empty"
       />
     );
   }
@@ -108,6 +109,7 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
       description="Dodaj klienta ręcznie albo zaimportuj CSV. Dzięki temu checklisty, pipeline i raport Klienci od razu pokażą pierwszą wartość."
       actionHref="/dashboard/clients/new"
       actionLabel="Dodaj klienta"
+      analyticsId="clients_empty"
     >
       <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
         Import CSV znajdziesz nad filtrami na tej stronie. Przyda się, gdy masz

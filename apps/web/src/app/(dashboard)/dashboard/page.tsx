@@ -381,6 +381,7 @@ function RecentActivityCard({ activities }: { activities: RecentActivity[] }) {
           secondaryLabel="Dodaj klienta"
           compact
           surface={false}
+          analyticsId="dashboard_activity_empty"
           className="mt-4"
         />
       ) : (
@@ -449,6 +450,7 @@ function UpcomingAppointmentsCard({
           actionLabel="Zaplanuj spotkanie"
           compact
           surface={false}
+          analyticsId="dashboard_upcoming_appointments_empty"
           className="mt-4"
         />
       ) : (
@@ -531,6 +533,7 @@ function ListingStatusBreakdown({
           actionLabel="Dodaj ofertę"
           compact
           surface={false}
+          analyticsId="dashboard_listing_status_empty"
           className="mt-4"
         />
       ) : (
@@ -614,6 +617,7 @@ function ClientPipelineBreakdown({
           actionLabel="Dodaj klienta"
           compact
           surface={false}
+          analyticsId="dashboard_client_pipeline_empty"
           className="mt-4"
         />
       ) : (

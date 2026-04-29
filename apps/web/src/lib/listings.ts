@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { apiFetch } from './api-client';
+import { AnalyticsEventName, trackAnalyticsEvent } from './analytics';
 
 // ── Enums (mirroring backend) ──
 
@@ -163,10 +164,24 @@ export type ListingDynamicField =
 export const LISTING_FIELD_VISIBILITY: Partial<
   Record<PropertyType, ListingDynamicField[]>
 > = {
-  apartment: ['areaM2', 'rooms', 'bathrooms', 'floor', 'totalFloors', 'yearBuilt'],
+  apartment: [
+    'areaM2',
+    'rooms',
+    'bathrooms',
+    'floor',
+    'totalFloors',
+    'yearBuilt',
+  ],
   house: ['areaM2', 'plotAreaM2', 'rooms', 'bathrooms', 'yearBuilt'],
   land: ['plotAreaM2'],
-  commercial: ['areaM2', 'rooms', 'bathrooms', 'floor', 'totalFloors', 'yearBuilt'],
+  commercial: [
+    'areaM2',
+    'rooms',
+    'bathrooms',
+    'floor',
+    'totalFloors',
+    'yearBuilt',
+  ],
   office: ['areaM2', 'rooms', 'bathrooms', 'floor', 'totalFloors', 'yearBuilt'],
   garage: ['areaM2'],
 };
@@ -184,11 +199,7 @@ export function shouldShowListingField(
 export const addressSchema = z.object({
   street: z.string().max(255).optional().or(z.literal('')),
   city: z.string().min(1, 'Miasto jest wymagane').max(255),
-  postalCode: z
-    .string()
-    .max(10)
-    .optional()
-    .or(z.literal('')),
+  postalCode: z.string().max(10).optional().or(z.literal('')),
   district: z.string().max(255).optional().or(z.literal('')),
   voivodeship: z.string().max(255).optional().or(z.literal('')),
 });
@@ -213,13 +224,7 @@ export const createListingSchema = z
     currency: z.string().max(3).optional(),
     areaM2: z.coerce.number().positive().optional().or(z.literal('')),
     plotAreaM2: z.coerce.number().positive().optional().or(z.literal('')),
-    rooms: z.coerce
-      .number()
-      .int()
-      .min(1)
-      .max(99)
-      .optional()
-      .or(z.literal('')),
+    rooms: z.coerce.number().int().min(1).max(99).optional().or(z.literal('')),
     bathrooms: z.coerce
       .number()
       .int()
@@ -282,7 +287,22 @@ export async function createListing(
 ): Promise<Listing> {
   // Clean empty strings to undefined
   const cleaned = cleanPayload(data);
-  return apiFetch<Listing>('/listings', { method: 'POST', body: cleaned });
+  const listing = await apiFetch<Listing>('/listings', {
+    method: 'POST',
+    body: cleaned,
+  });
+
+  trackAnalyticsEvent({
+    name: AnalyticsEventName.LISTING_CREATED,
+    properties: {
+      listingId: listing.id,
+      propertyType: listing.propertyType,
+      transactionType: listing.transactionType,
+      status: listing.status,
+    },
+  });
+
+  return listing;
 }
 
 export async function updateListing(
@@ -326,10 +346,7 @@ function cleanPayload(data: Record<string, unknown>): Record<string, unknown> {
 }
 
 /** Format price in PLN. */
-export function formatPrice(
-  price: number | string,
-  currency = 'PLN',
-): string {
+export function formatPrice(price: number | string, currency = 'PLN'): string {
   const num = typeof price === 'string' ? parseFloat(price) : price;
   return new Intl.NumberFormat('pl-PL', {
     style: 'currency',
