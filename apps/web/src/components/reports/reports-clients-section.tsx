@@ -8,6 +8,7 @@ import {
   Users,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ReportSectionCard } from '@/components/reports/report-section-card';
 import {
@@ -26,9 +27,7 @@ interface ReportsClientsSectionProps {
   data: ClientsReportResponse;
 }
 
-export function ReportsClientsSection({
-  data,
-}: ReportsClientsSectionProps) {
+export function ReportsClientsSection({ data }: ReportsClientsSectionProps) {
   const { summary, breakdowns, notes } = data;
 
   return (
@@ -41,6 +40,17 @@ export function ReportsClientsSection({
           Drugi dedykowany pionowy slice raportowy
         </span>
       </div>
+
+      {summary.totalClients === 0 ? (
+        <OnboardingEmptyState
+          icon={Users}
+          title="Raport Klienci potrzebuje pierwszych kontaktów"
+          description="Dodaj klienta albo zaimportuj CSV, żeby zobaczyć źródła leadów, statusy pipeline’u i pierwszą konwersję."
+          actionHref="/dashboard/clients/new"
+          actionLabel="Dodaj klienta"
+          compact
+        />
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <SummaryCard
@@ -85,13 +95,17 @@ export function ReportsClientsSection({
         <BreakdownCard
           title="Statusy klientów"
           items={breakdowns.byStatus}
-          getLabel={(item) => CLIENT_STATUS_LABELS[item.key as ClientStatus] ?? item.key}
+          getLabel={(item) =>
+            CLIENT_STATUS_LABELS[item.key as ClientStatus] ?? item.key
+          }
           accent="emerald"
         />
         <BreakdownCard
           title="Źródła leadów"
           items={breakdowns.bySource}
-          getLabel={(item) => CLIENT_SOURCE_LABELS[item.key as ClientSource] ?? item.key}
+          getLabel={(item) =>
+            CLIENT_SOURCE_LABELS[item.key as ClientSource] ?? item.key
+          }
           accent="gold"
           showSourceDetails
         />
@@ -170,13 +184,20 @@ function BreakdownCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Brak danych dla wybranego zakresu.</p>
+          <p className="text-sm text-muted-foreground">
+            Brak danych dla wybranego zakresu.
+          </p>
         ) : (
           items.map((item) => (
-            <div key={item.key} className="space-y-2 rounded-xl border border-border/70 bg-muted/10 p-3">
+            <div
+              key={item.key}
+              className="space-y-2 rounded-xl border border-border/70 bg-muted/10 p-3"
+            >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="font-medium text-foreground">{getLabel(item)}</div>
+                  <div className="font-medium text-foreground">
+                    {getLabel(item)}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {item.count} klientów • {item.percentage}% udziału
                   </div>
@@ -188,7 +209,9 @@ function BreakdownCard({
               <div className="h-2 overflow-hidden rounded-full bg-muted">
                 <div
                   className={cn('h-full rounded-full', accentClass)}
-                  style={{ width: `${Math.max(item.percentage, item.count > 0 ? 6 : 0)}%` }}
+                  style={{
+                    width: `${Math.max(item.percentage, item.count > 0 ? 6 : 0)}%`,
+                  }}
                 />
               </div>
               {showSourceDetails && (

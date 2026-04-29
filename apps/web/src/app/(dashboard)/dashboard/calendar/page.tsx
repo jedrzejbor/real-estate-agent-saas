@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -12,6 +12,7 @@ import {
   LayoutGrid,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { useCalendarAppointments } from '@/hooks/use-appointments';
 import {
   type Appointment,
@@ -30,8 +31,18 @@ import {
 import { Badge } from '@/components/ui/badge';
 
 const MONTHS_PL = [
-  'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
-  'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień',
+  'Styczeń',
+  'Luty',
+  'Marzec',
+  'Kwiecień',
+  'Maj',
+  'Czerwiec',
+  'Lipiec',
+  'Sierpień',
+  'Wrzesień',
+  'Październik',
+  'Listopad',
+  'Grudzień',
 ];
 
 const WEEKDAYS_PL = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'];
@@ -68,33 +79,16 @@ export default function CalendarPage() {
     [searchParams, today],
   );
 
-  const [year, setYear] = useState(queryDate.year);
-  const [month, setMonth] = useState(queryDate.month);
+  const year = queryDate.year;
+  const month = queryDate.month;
   const [view, setView] = useState<ViewMode>('month');
 
-  useEffect(() => {
-    setYear((current) => (current === queryDate.year ? current : queryDate.year));
-    setMonth((current) =>
-      current === queryDate.month ? current : queryDate.month,
-    );
-  }, [queryDate.month, queryDate.year]);
-
-  useEffect(() => {
-    const nextYear = String(year);
-    const nextMonth = String(month + 1);
-
-    if (
-      searchParams.get('year') === nextYear &&
-      searchParams.get('month') === nextMonth
-    ) {
-      return;
-    }
-
+  function setCalendarDate(nextYear: number, nextMonth: number) {
     const params = new URLSearchParams(searchParams.toString());
-    params.set('year', nextYear);
-    params.set('month', nextMonth);
+    params.set('year', String(nextYear));
+    params.set('month', String(nextMonth + 1));
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [month, pathname, router, searchParams, year]);
+  }
 
   const { appointments, isLoading, error, refresh } = useCalendarAppointments(
     year,
@@ -105,25 +99,22 @@ export default function CalendarPage() {
 
   const goToPrevMonth = () => {
     if (month === 0) {
-      setMonth(11);
-      setYear(year - 1);
+      setCalendarDate(year - 1, 11);
     } else {
-      setMonth(month - 1);
+      setCalendarDate(year, month - 1);
     }
   };
 
   const goToNextMonth = () => {
     if (month === 11) {
-      setMonth(0);
-      setYear(year + 1);
+      setCalendarDate(year + 1, 0);
     } else {
-      setMonth(month + 1);
+      setCalendarDate(year, month + 1);
     }
   };
 
   const goToToday = () => {
-    setYear(today.getFullYear());
-    setMonth(today.getMonth());
+    setCalendarDate(today.getFullYear(), today.getMonth());
   };
 
   return (
@@ -184,6 +175,19 @@ export default function CalendarPage() {
         </div>
       </div>
 
+      {!isLoading && !error && appointments.length === 0 && view === 'month' ? (
+        <OnboardingEmptyState
+          icon={CalendarDays}
+          title="Zaplanuj pierwsze spotkanie"
+          description="Spotkanie spina klienta, ofertę i konkretny termin. Dodaj pierwszą prezentację albo konsultację, żeby kalendarz zaczął wspierać codzienną pracę."
+          actionHref="/dashboard/calendar/new"
+          actionLabel="Zaplanuj spotkanie"
+          secondaryHref="/dashboard/clients"
+          secondaryLabel="Najpierw dodaj klienta"
+          compact
+        />
+      ) : null}
+
       {/* Content */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
@@ -202,11 +206,7 @@ export default function CalendarPage() {
           </Button>
         </div>
       ) : view === 'month' ? (
-        <MonthView
-          year={year}
-          month={month}
-          grouped={grouped}
-        />
+        <MonthView year={year} month={month} grouped={grouped} />
       ) : (
         <ListView appointments={appointments} />
       )}
@@ -380,22 +380,14 @@ function AppointmentListItem({ appointment }: { appointment: Appointment }) {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-white py-16">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-        <CalendarDays className="h-8 w-8 text-primary" />
-      </div>
-      <h3 className="font-heading text-lg font-semibold text-foreground">
-        Brak spotkań w tym miesiącu
-      </h3>
-      <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
-        Dodaj nowe spotkanie, aby rozpocząć planowanie.
-      </p>
-      <Link href="/dashboard/calendar/new" className="mt-6">
-        <Button className="gap-2 rounded-xl">
-          <Plus className="h-4 w-4" />
-          Zaplanuj spotkanie
-        </Button>
-      </Link>
-    </div>
+    <OnboardingEmptyState
+      icon={CalendarDays}
+      title="Brak spotkań w tym miesiącu"
+      description="Zaplanuj pierwsze spotkanie z klientem, żeby utrzymać rytm kontaktu i mieć nadchodzące zadania widoczne na dashboardzie."
+      actionHref="/dashboard/calendar/new"
+      actionLabel="Zaplanuj spotkanie"
+      secondaryHref="/dashboard/clients"
+      secondaryLabel="Dodaj klienta"
+    />
   );
 }

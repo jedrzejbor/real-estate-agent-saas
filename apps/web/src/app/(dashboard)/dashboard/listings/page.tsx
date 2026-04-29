@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Plus, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { ListingCard } from '@/components/listings/listing-card';
 import { ListingFiltersBar } from '@/components/listings/listing-filters';
 import { ListingPagination } from '@/components/listings/listing-pagination';
@@ -64,7 +65,11 @@ export default function ListingsPage() {
           <p className="text-sm text-destructive">{error}</p>
         </div>
       ) : listings.length === 0 ? (
-        <EmptyState hasFilters={!!filters.search || !!filters.propertyType || !!filters.status} />
+        <EmptyState
+          hasFilters={
+            !!filters.search || !!filters.propertyType || !!filters.status
+          }
+        />
       ) : (
         <>
           {/* Grid */}
@@ -83,27 +88,26 @@ export default function ListingsPage() {
 }
 
 function EmptyState({ hasFilters }: { hasFilters: boolean }) {
+  if (hasFilters) {
+    return (
+      <OnboardingEmptyState
+        icon={Building2}
+        title="Brak wyników"
+        description="Nie znaleźliśmy ofert dla wybranych filtrów. Wyczyść kryteria albo zmień zapytanie, żeby wrócić do pełnej listy."
+        compact
+      />
+    );
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-white py-16">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-        <Building2 className="h-8 w-8 text-primary" />
-      </div>
-      <h3 className="font-heading text-lg font-semibold text-foreground">
-        {hasFilters ? 'Brak wyników' : 'Brak ofert'}
-      </h3>
-      <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
-        {hasFilters
-          ? 'Zmień kryteria wyszukiwania lub wyczyść filtry.'
-          : 'Dodaj swoją pierwszą ofertę nieruchomości, aby rozpocząć.'}
-      </p>
-      {!hasFilters && (
-        <Link href="/dashboard/listings/new" className="mt-6">
-          <Button className="gap-2 rounded-xl">
-            <Plus className="h-4 w-4" />
-            Dodaj pierwszą ofertę
-          </Button>
-        </Link>
-      )}
-    </div>
+    <OnboardingEmptyState
+      icon={Building2}
+      title="Dodaj pierwszą ofertę"
+      description="Oferta jest pierwszym praktycznym krokiem w EstateFlow: po jej zapisaniu dashboard, raporty i późniejsze publiczne strony zaczną mieć realne dane."
+      actionHref="/dashboard/listings/new"
+      actionLabel="Dodaj ofertę"
+      secondaryHref="/dashboard"
+      secondaryLabel="Wróć do checklisty"
+    />
   );
 }

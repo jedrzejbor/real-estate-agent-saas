@@ -19,13 +19,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip } from '@/components/ui/tooltip';
+import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { OnboardingChecklist } from '@/components/dashboard/onboarding-checklist';
 import { PlanUsageCard } from '@/components/dashboard/plan-usage-card';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/hooks/use-dashboard';
-import {
-  isUsageWarning,
-} from '@/lib/auth';
+import { isUsageWarning } from '@/lib/auth';
 import { getPlanUsageMetrics } from '@/lib/plan';
 import {
   type DashboardStats,
@@ -111,7 +110,9 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2">
                     <Badge
                       variant={
-                        user.entitlements.plan.code === 'free' ? 'muted' : 'gold'
+                        user.entitlements.plan.code === 'free'
+                          ? 'muted'
+                          : 'gold'
                       }
                     >
                       Plan {user.entitlements.plan.label}
@@ -121,7 +122,8 @@ export default function DashboardPage() {
                     ) : null}
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Monitoruj wykorzystanie limitów, aby uniknąć blokady przy tworzeniu nowych rekordów.
+                    Monitoruj wykorzystanie limitów, aby uniknąć blokady przy
+                    tworzeniu nowych rekordów.
                   </p>
                 </div>
                 <Link
@@ -275,8 +277,8 @@ function ConversionCard({
     <div className="space-y-1.5">
       <p className="font-semibold">Współczynnik konwersji</p>
       <p className="leading-relaxed opacity-90">
-        Procent klientów, których transakcja zakończyła się sukcesem
-        spośród wszystkich zamkniętych spraw.
+        Procent klientów, których transakcja zakończyła się sukcesem spośród
+        wszystkich zamkniętych spraw.
       </p>
       <p className="mt-1 font-mono opacity-75">
         = zamknięci (sukces) / (sukces + straceni) × 100
@@ -287,7 +289,9 @@ function ConversionCard({
           {closedLost !== 1 ? 'ch' : ''}
         </p>
       ) : (
-        <p className="opacity-75">Brak zamkniętych spraw — dodaj więcej klientów.</p>
+        <p className="opacity-75">
+          Brak zamkniętych spraw — dodaj więcej klientów.
+        </p>
       )}
     </div>
   );
@@ -313,11 +317,7 @@ function ConversionCard({
     </div>
   );
 
-  return (
-    <Link href="/dashboard/clients">
-      {content}
-    </Link>
-  );
+  return <Link href="/dashboard/clients">{content}</Link>;
 }
 
 // ── Revenue Card ──
@@ -348,11 +348,7 @@ function RevenueCard({
 
 // ── Recent Activity ──
 
-function RecentActivityCard({
-  activities,
-}: {
-  activities: RecentActivity[];
-}) {
+function RecentActivityCard({ activities }: { activities: RecentActivity[] }) {
   const ACTIVITY_ICONS: Record<RecentActivity['type'], React.ElementType> = {
     listing: Home,
     client: User,
@@ -375,9 +371,18 @@ function RecentActivityCard({
       </div>
 
       {activities.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">
-          Brak aktywności. Dodaj swoją pierwszą ofertę!
-        </p>
+        <OnboardingEmptyState
+          icon={Clock}
+          title="Tu pojawią się pierwsze działania"
+          description="Dodaj ofertę, klienta albo spotkanie, a ta karta zacznie działać jak szybka historia pracy w CRM."
+          actionHref="/dashboard/listings/new"
+          actionLabel="Dodaj ofertę"
+          secondaryHref="/dashboard/clients/new"
+          secondaryLabel="Dodaj klienta"
+          compact
+          surface={false}
+          className="mt-4"
+        />
       ) : (
         <div className="mt-4 space-y-3">
           {activities.map((activity) => {
@@ -436,16 +441,16 @@ function UpcomingAppointmentsCard({
       </div>
 
       {appointments.length === 0 ? (
-        <div className="mt-4 text-center">
-          <p className="text-sm text-muted-foreground">
-            Brak zaplanowanych spotkań.
-          </p>
-          <Link href="/dashboard/calendar/new" className="mt-3 inline-block">
-            <Button variant="outline" size="sm" className="rounded-xl">
-              Zaplanuj spotkanie
-            </Button>
-          </Link>
-        </div>
+        <OnboardingEmptyState
+          icon={CalendarCheck}
+          title="Brak nadchodzących spotkań"
+          description="Zaplanuj pierwszy kontakt, prezentację lub konsultację, żeby mieć najbliższe zadania pod ręką od razu po wejściu do panelu."
+          actionHref="/dashboard/calendar/new"
+          actionLabel="Zaplanuj spotkanie"
+          compact
+          surface={false}
+          className="mt-4"
+        />
       ) : (
         <div className="mt-4 space-y-3">
           {appointments.map((appt) => (
@@ -518,9 +523,16 @@ function ListingStatusBreakdown({
       </div>
 
       {stats.total === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">
-          Brak ofert. Dodaj swoją pierwszą ofertę!
-        </p>
+        <OnboardingEmptyState
+          icon={Building2}
+          title="Brak ofert do pokazania"
+          description="Dodaj pierwszą ofertę, żeby zobaczyć rozkład statusów i przygotować grunt pod publiczne strony ofert."
+          actionHref="/dashboard/listings/new"
+          actionLabel="Dodaj ofertę"
+          compact
+          surface={false}
+          className="mt-4"
+        />
       ) : (
         <>
           {/* Horizontal bar */}
@@ -544,9 +556,7 @@ function ListingStatusBreakdown({
               .filter((r) => r.value > 0)
               .map((row) => (
                 <div key={row.label} className="flex items-center gap-2">
-                  <div
-                    className={`h-2.5 w-2.5 rounded-full ${row.color}`}
-                  />
+                  <div className={`h-2.5 w-2.5 rounded-full ${row.color}`} />
                   <span className="text-xs text-muted-foreground">
                     {row.label}
                   </span>
@@ -573,7 +583,11 @@ function ClientPipelineBreakdown({
     { label: 'Nowi', value: stats.new, color: 'bg-blue-400' },
     { label: 'Aktywni', value: stats.active, color: 'bg-emerald-500' },
     { label: 'Negocjacje', value: stats.negotiating, color: 'bg-amber-500' },
-    { label: 'Zamknięci (sukces)', value: stats.closedWon, color: 'bg-green-600' },
+    {
+      label: 'Zamknięci (sukces)',
+      value: stats.closedWon,
+      color: 'bg-green-600',
+    },
     { label: 'Straceni', value: stats.closedLost, color: 'bg-red-400' },
   ];
 
@@ -592,9 +606,16 @@ function ClientPipelineBreakdown({
       </div>
 
       {stats.total === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">
-          Brak klientów. Dodaj swojego pierwszego klienta!
-        </p>
+        <OnboardingEmptyState
+          icon={Users}
+          title="Pipeline czeka na pierwszego klienta"
+          description="Dodaj kontakt albo zaimportuj bazę CSV, a statusy klientów zaczną pokazywać realny lejek pracy."
+          actionHref="/dashboard/clients/new"
+          actionLabel="Dodaj klienta"
+          compact
+          surface={false}
+          className="mt-4"
+        />
       ) : (
         <>
           {/* Funnel-like bars */}

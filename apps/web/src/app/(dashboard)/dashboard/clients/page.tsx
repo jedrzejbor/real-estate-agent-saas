@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Plus, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { ClientCard } from '@/components/clients/client-card';
 import { ClientCsvImport } from '@/components/clients/client-csv-import';
 import { ClientFiltersBar } from '@/components/clients/client-filters';
@@ -89,27 +90,29 @@ export default function ClientsPage() {
 }
 
 function EmptyState({ hasFilters }: { hasFilters: boolean }) {
+  if (hasFilters) {
+    return (
+      <OnboardingEmptyState
+        icon={Users}
+        title="Brak wyników"
+        description="Nie znaleźliśmy klientów dla wybranych filtrów. Wyczyść kryteria albo zmień wyszukiwanie, żeby wrócić do pełnej listy."
+        compact
+      />
+    );
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-white py-16">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-        <Users className="h-8 w-8 text-primary" />
+    <OnboardingEmptyState
+      icon={Users}
+      title="Zbuduj pierwszą bazę klientów"
+      description="Dodaj klienta ręcznie albo zaimportuj CSV. Dzięki temu checklisty, pipeline i raport Klienci od razu pokażą pierwszą wartość."
+      actionHref="/dashboard/clients/new"
+      actionLabel="Dodaj klienta"
+    >
+      <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+        Import CSV znajdziesz nad filtrami na tej stronie. Przyda się, gdy masz
+        już listę kontaktów z arkusza lub poprzedniego CRM.
       </div>
-      <h3 className="font-heading text-lg font-semibold text-foreground">
-        {hasFilters ? 'Brak wyników' : 'Brak klientów'}
-      </h3>
-      <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
-        {hasFilters
-          ? 'Zmień kryteria wyszukiwania lub wyczyść filtry.'
-          : 'Dodaj swojego pierwszego klienta, aby rozpocząć zarządzanie CRM.'}
-      </p>
-      {!hasFilters && (
-        <Link href="/dashboard/clients/new" className="mt-6">
-          <Button className="gap-2 rounded-xl">
-            <Plus className="h-4 w-4" />
-            Dodaj pierwszego klienta
-          </Button>
-        </Link>
-      )}
-    </div>
+    </OnboardingEmptyState>
   );
 }

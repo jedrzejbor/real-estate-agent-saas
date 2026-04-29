@@ -533,11 +533,18 @@ Użytkownik po rejestracji przechodzi prosty onboarding i wykonuje pierwsze kluc
     - parser obsługuje podstawowe CSV z separatorami `,` i `;`; bardziej złożone importy można później przenieść do backendowego parsera plików,
     - warto rozważyć deduplikację po emailu / telefonie przed publicznym releasem, jeśli import ma być często używany na istniejących bazach kontaktów.
 
-- [ ] `F2.5` Dodać onboardingowe empty states w dashboardzie i modułach
+- [x] `F2.5` Dodać onboardingowe empty states w dashboardzie i modułach
   - Zakres: brak ofert, brak klientów, brak spotkań, brak raportów.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-29
   - Wykonano:
+    - dodano wspólny komponent onboardingowego empty state, aby moduły miały spójny język, CTA i układ dla pustych danych,
+    - zaktualizowano empty states ofert, klientów i kalendarza tak, aby prowadziły do pierwszej oferty, pierwszego klienta/importu CSV oraz pierwszego spotkania,
+    - dodano onboardingowe stany puste w kartach dashboardu: ostatnia aktywność, nadchodzące spotkania, rozkład statusów ofert i pipeline klientów,
+    - dodano CTA w raportach Oferty i Klienci, gdy brakuje danych wejściowych do sensownej analityki,
+    - przy okazji uproszczono synchronizację miesiąca w kalendarzu, usuwając synchroniczne `setState` w efekcie i opierając widok na query params.
   - Uwagi / follow-up:
+    - po wdrożeniu publicznych stron ofert warto rozszerzyć empty state ofert o CTA do publikacji i udostępnienia linku,
+    - F2.6 powinno mierzyć ekspozycję tych empty states oraz kliknięcia w ich główne CTA.
 
 - [ ] `F2.6` Zmierzyć aktywację w kluczowych punktach
   - Zakres: eventy analytics dla onboardingu i pierwszej wartości.

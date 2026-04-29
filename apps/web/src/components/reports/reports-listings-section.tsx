@@ -7,6 +7,7 @@ import {
   PieChart,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ReportSectionCard } from '@/components/reports/report-section-card';
 import { formatPricePL } from '@/lib/dashboard';
@@ -28,9 +29,7 @@ interface ReportsListingsSectionProps {
   data: ListingsReportResponse;
 }
 
-export function ReportsListingsSection({
-  data,
-}: ReportsListingsSectionProps) {
+export function ReportsListingsSection({ data }: ReportsListingsSectionProps) {
   const { summary, breakdowns, notes } = data;
 
   return (
@@ -43,6 +42,17 @@ export function ReportsListingsSection({
           Pierwszy dedykowany pionowy slice raportowy
         </span>
       </div>
+
+      {summary.totalListings === 0 ? (
+        <OnboardingEmptyState
+          icon={Building2}
+          title="Raport Oferty potrzebuje pierwszej oferty"
+          description="Po dodaniu oferty zobaczysz tutaj aktywacje, statusy, typy nieruchomości i podstawową wartość portfela."
+          actionHref="/dashboard/listings/new"
+          actionLabel="Dodaj ofertę"
+          compact
+        />
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <SummaryCard
@@ -91,20 +101,26 @@ export function ReportsListingsSection({
         <BreakdownCard
           title="Statusy ofert"
           items={breakdowns.byStatus}
-          getLabel={(item) => LISTING_STATUS_LABELS[item.key as ListingStatus] ?? item.key}
+          getLabel={(item) =>
+            LISTING_STATUS_LABELS[item.key as ListingStatus] ?? item.key
+          }
           accent="emerald"
         />
         <BreakdownCard
           title="Typy nieruchomości"
           items={breakdowns.byPropertyType}
-          getLabel={(item) => PROPERTY_TYPE_LABELS[item.key as PropertyType] ?? item.key}
+          getLabel={(item) =>
+            PROPERTY_TYPE_LABELS[item.key as PropertyType] ?? item.key
+          }
           accent="gold"
           showDetails
         />
         <BreakdownCard
           title="Typy transakcji"
           items={breakdowns.byTransactionType}
-          getLabel={(item) => TRANSACTION_TYPE_LABELS[item.key as TransactionType] ?? item.key}
+          getLabel={(item) =>
+            TRANSACTION_TYPE_LABELS[item.key as TransactionType] ?? item.key
+          }
           accent="info"
           showDetails
         />
@@ -184,13 +200,20 @@ function BreakdownCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Brak danych dla wybranego zakresu.</p>
+          <p className="text-sm text-muted-foreground">
+            Brak danych dla wybranego zakresu.
+          </p>
         ) : (
           items.map((item) => (
-            <div key={item.key} className="space-y-2 rounded-xl border border-border/70 bg-muted/10 p-3">
+            <div
+              key={item.key}
+              className="space-y-2 rounded-xl border border-border/70 bg-muted/10 p-3"
+            >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="font-medium text-foreground">{getLabel(item)}</div>
+                  <div className="font-medium text-foreground">
+                    {getLabel(item)}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {item.count} ofert • {item.percentage}% udziału
                   </div>
@@ -202,7 +225,9 @@ function BreakdownCard({
               <div className="h-2 overflow-hidden rounded-full bg-muted">
                 <div
                   className={cn('h-full rounded-full', accentClass)}
-                  style={{ width: `${Math.max(item.percentage, item.count > 0 ? 6 : 0)}%` }}
+                  style={{
+                    width: `${Math.max(item.percentage, item.count > 0 ? 6 : 0)}%`,
+                  }}
                 />
               </div>
               {showDetails && (
