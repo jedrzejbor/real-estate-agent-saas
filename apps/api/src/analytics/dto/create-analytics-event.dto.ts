@@ -19,6 +19,7 @@ export const ANALYTICS_EVENT_NAMES = [
   'public_listing_viewed',
   'public_listing_share_clicked',
   'public_listing_link_copied',
+  'public_lead_submitted',
   'client_created',
   'clients_imported',
   'appointment_created',
@@ -33,6 +34,7 @@ export const PUBLIC_LISTING_ANALYTICS_EVENT_NAMES = [
   'public_listing_viewed',
   'public_listing_share_clicked',
   'public_listing_link_copied',
+  'public_lead_submitted',
 ] as const;
 
 export type PublicListingAnalyticsEventName =

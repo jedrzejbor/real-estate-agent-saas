@@ -704,11 +704,18 @@ Publiczna oferta generuje leady, które trafiają do systemu i mogą być obsłu
     - F4.2 powinno dodać DTO i publiczny endpoint zapisu formularza z walidacją oraz ochroną antyspamową,
     - F4.3 powinno obsłużyć deduplikację i konwersję `PublicLead` do `Client`.
 
-- [ ] `F4.2` Dodać formularz kontaktowy na publicznej ofercie
+- [x] `F4.2` Dodać formularz kontaktowy na publicznej ofercie
   - Zakres: pola, walidacja, zgody, ochrona antyspamowa.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - dodano publiczny endpoint `POST /api/public-leads/listings/:slug` zapisujący zapytania dla opublikowanych ofert,
+    - dodano DTO i walidację formularza po stronie API oraz web, w tym wymóg maila lub telefonu i zgody kontaktowej,
+    - dodano podstawową ochronę antyspamową: honeypot, minimalny czas wypełniania formularza, snapshot adresu URL/referrera/UTM i hash IP,
+    - dodano komponent formularza kontaktowego na publicznej stronie oferty z obsługą stanu wysyłania, błędów i potwierdzenia,
+    - podpięto event `public_lead_submitted` po udanym wysłaniu formularza.
   - Uwagi / follow-up:
+    - F4.3 powinno przekonwertować `PublicLead` do CRM z deduplikacją po mailu/telefonie,
+    - F4.4 powinno dodać powiadomienia dla agenta po nowym leadzie.
 
 - [ ] `F4.3` Zapisać lead do CRM i powiązać z ofertą
   - Zakres: tworzenie klienta/leada, historia źródła, deduplikacja podstawowa.

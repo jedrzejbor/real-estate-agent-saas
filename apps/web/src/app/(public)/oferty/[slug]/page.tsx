@@ -10,7 +10,6 @@ import {
   CalendarDays,
   Home,
   Layers3,
-  Mail,
   MapPin,
   Maximize,
   Phone,
@@ -31,6 +30,7 @@ import {
 } from '@/lib/listings';
 import { ApiError } from '@/lib/api-client';
 import { PublicListingAnalytics } from '@/components/listings/public-listing-analytics';
+import { PublicListingContactForm } from '@/components/listings/public-listing-contact-form';
 
 interface PublicListingPageProps {
   params: Promise<{ slug: string }>;
@@ -295,13 +295,11 @@ export default async function PublicListingPage({
                   Zadzwoń
                 </a>
               ) : null}
-              <a
-                href={`mailto:?subject=${encodeURIComponent(`Pytanie o ofertę: ${listing.title}`)}`}
-                className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted"
-              >
-                <Mail className="h-4 w-4" />
-                Wyślij zapytanie
-              </a>
+              <PublicListingContactForm
+                slug={listing.slug}
+                listingId={listing.id}
+                listingTitle={listing.title}
+              />
               <PublicListingAnalytics
                 slug={listing.slug}
                 listingId={listing.id}
@@ -309,11 +307,6 @@ export default async function PublicListingPage({
                 url={canonicalUrl}
               />
             </div>
-            <p className="mt-4 text-xs leading-5 text-muted-foreground">
-              Formularz leadowy zostanie dodany w kolejnym sprincie. Na tym
-              etapie publiczna strona pełni rolę gotowej karty oferty do
-              udostępniania.
-            </p>
           </div>
         </aside>
       </section>
