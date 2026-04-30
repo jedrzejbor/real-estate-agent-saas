@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Check, Copy, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AnalyticsEventName, trackPublicListingEvent } from '@/lib/analytics';
+import { ListingQrAsset } from './listing-qr-asset';
 
 interface PublicListingAnalyticsProps {
   slug: string;
@@ -70,6 +71,20 @@ export function PublicListingAnalytics({
     await copyUrl();
   }
 
+  function handleQrDownload() {
+    trackPublicListingEvent({
+      slug,
+      name: AnalyticsEventName.PUBLIC_LISTING_SHARE_CLICKED,
+      properties: {
+        funnelStage: 'share',
+        listingId,
+        publicSlug: slug,
+        method: 'qr_download',
+        source: 'public_listing_page',
+      },
+    });
+  }
+
   async function copyUrl() {
     try {
       await navigator.clipboard.writeText(url);
@@ -92,29 +107,37 @@ export function PublicListingAnalytics({
   }
 
   return (
-    <div className="grid gap-2 sm:grid-cols-2">
-      <Button
-        type="button"
-        variant="outline"
-        onClick={handleShare}
-        className="h-11 gap-2 rounded-xl"
-      >
-        <Share2 className="h-4 w-4" />
-        Udostępnij
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={handleCopy}
-        className="h-11 gap-2 rounded-xl"
-      >
-        {isCopied ? (
-          <Check className="h-4 w-4" />
-        ) : (
-          <Copy className="h-4 w-4" />
-        )}
-        {isCopied ? 'Skopiowano' : 'Kopiuj link'}
-      </Button>
+    <div className="space-y-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleShare}
+          className="h-11 gap-2 rounded-xl"
+        >
+          <Share2 className="h-4 w-4" />
+          Udostępnij
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleCopy}
+          className="h-11 gap-2 rounded-xl"
+        >
+          {isCopied ? (
+            <Check className="h-4 w-4" />
+          ) : (
+            <Copy className="h-4 w-4" />
+          )}
+          {isCopied ? 'Skopiowano' : 'Kopiuj link'}
+        </Button>
+      </div>
+      <ListingQrAsset
+        url={url}
+        title={title}
+        downloadFileName={`estateflow-${slug}-qr.png`}
+        onDownload={handleQrDownload}
+      />
     </div>
   );
 }

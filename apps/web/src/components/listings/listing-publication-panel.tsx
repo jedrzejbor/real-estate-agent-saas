@@ -9,9 +9,9 @@ import {
   Eye,
   EyeOff,
   Link2,
-  QrCode,
   RadioTower,
   Save,
+  Share2,
 } from 'lucide-react';
 import { z } from 'zod';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
 import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
+import { ListingQrAsset } from './listing-qr-asset';
 import {
   LISTING_PUBLICATION_STATUS_LABELS,
   ListingPublicationStatus,
@@ -37,9 +38,7 @@ interface ListingPublicationPanelProps {
   density?: 'default' | 'compact';
 }
 
-type FieldErrors = Partial<
-  Record<keyof PublicListingSettingsFormData, string>
->;
+type FieldErrors = Partial<Record<keyof PublicListingSettingsFormData, string>>;
 
 const STATUS_BADGE_VARIANT: Record<
   ListingPublicationStatus,
@@ -72,9 +71,7 @@ export function ListingPublicationPanel({
   const publicPath = listing.publicSlug ? `/oferty/${listing.publicSlug}` : '';
   const publicUrl = origin && publicPath ? `${origin}${publicPath}` : '';
 
-  async function handleSettingsSubmit(
-    event: React.FormEvent<HTMLFormElement>,
-  ) {
+  async function handleSettingsSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFieldErrors({});
 
@@ -98,7 +95,10 @@ export function ListingPublicationPanel({
 
     try {
       setIsSaving(true);
-      const updated = await updatePublicListingSettings(listing.id, parsed.data);
+      const updated = await updatePublicListingSettings(
+        listing.id,
+        parsed.data,
+      );
       onListingChange?.(updated);
       showSuccessToast({
         title: 'Ustawienia publikacji zapisane',
@@ -110,7 +110,9 @@ export function ListingPublicationPanel({
       showErrorToast({
         title: 'Nie udało się zapisać ustawień',
         description:
-          error instanceof Error ? error.message : 'Spróbuj ponownie za chwilę.',
+          error instanceof Error
+            ? error.message
+            : 'Spróbuj ponownie za chwilę.',
       });
     } finally {
       setIsSaving(false);
@@ -136,7 +138,9 @@ export function ListingPublicationPanel({
           ? 'Nie udało się wyłączyć publikacji'
           : 'Nie udało się opublikować oferty',
         description:
-          error instanceof Error ? error.message : 'Spróbuj ponownie za chwilę.',
+          error instanceof Error
+            ? error.message
+            : 'Spróbuj ponownie za chwilę.',
       });
     } finally {
       setIsPublishing(false);
@@ -168,6 +172,48 @@ export function ListingPublicationPanel({
         description: 'Zaznacz adres ręcznie i skopiuj go z pola.',
       });
     }
+  }
+
+  async function handleShareUrl() {
+    if (!publicUrl) return;
+
+    const canUseNativeShare = typeof navigator.share === 'function';
+    trackAnalyticsEvent({
+      name: AnalyticsEventName.PUBLIC_LISTING_SHARE_CLICKED,
+      properties: {
+        listingId: listing.id,
+        publicSlug: listing.publicSlug ?? null,
+        source: 'agent_publication_panel',
+        method: canUseNativeShare ? 'native_share' : 'copy_fallback',
+      },
+    });
+
+    if (canUseNativeShare) {
+      try {
+        await navigator.share({
+          title: listing.publicTitle || listing.title,
+          text: listing.publicTitle || listing.title,
+          url: publicUrl,
+        });
+        return;
+      } catch {
+        return;
+      }
+    }
+
+    await handleCopyUrl();
+  }
+
+  function handleQrDownload() {
+    trackAnalyticsEvent({
+      name: AnalyticsEventName.PUBLIC_LISTING_SHARE_CLICKED,
+      properties: {
+        listingId: listing.id,
+        publicSlug: listing.publicSlug ?? null,
+        source: 'agent_publication_panel',
+        method: 'qr_download',
+      },
+    });
   }
 
   return (
@@ -202,7 +248,10 @@ export function ListingPublicationPanel({
           variant={isPublished ? 'outline' : 'default'}
           onClick={handlePublicationToggle}
           disabled={isPublishing || isSaving}
-          className={cn('gap-2 rounded-xl', isCompact ? 'w-full' : 'sm:self-start')}
+          className={cn(
+            'gap-2 rounded-xl',
+            isCompact ? 'w-full' : 'sm:self-start',
+          )}
         >
           {isPublished ? (
             <EyeOff className="h-4 w-4" />
@@ -224,7 +273,10 @@ export function ListingPublicationPanel({
         )}
       >
         <div className="space-y-3">
-          <label className="text-sm font-medium text-foreground" htmlFor="public-url">
+          <label
+            className="text-sm font-medium text-foreground"
+            htmlFor="public-url"
+          >
             Publiczny link
           </label>
           <div className="space-y-2">
@@ -237,7 +289,9 @@ export function ListingPublicationPanel({
                 className="h-10 rounded-xl pl-9 text-sm"
               />
             </div>
-            <div className={cn('grid gap-2', isCompact ? '' : 'sm:grid-cols-2')}>
+            <div
+              className={cn('grid gap-2', isCompact ? '' : 'sm:grid-cols-3')}
+            >
               <Button
                 type="button"
                 variant="outline"
@@ -251,6 +305,16 @@ export function ListingPublicationPanel({
                   <Copy className="h-4 w-4" />
                 )}
                 {isCopied ? 'Skopiowano' : 'Kopiuj'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleShareUrl}
+                disabled={!publicUrl}
+                className="w-full gap-2 rounded-xl"
+              >
+                <Share2 className="h-4 w-4" />
+                Udostępnij
               </Button>
               {publicPath ? (
                 <Button
@@ -279,15 +343,13 @@ export function ListingPublicationPanel({
           </div>
         </div>
 
-        <div className="flex min-h-[128px] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 p-4 text-center">
-          <QrCode className="h-8 w-8 text-muted-foreground" />
-          <p className="mt-2 text-sm font-medium text-foreground">
-            QR wkrótce
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Miejsce na kod do materiałów drukowanych.
-          </p>
-        </div>
+        <ListingQrAsset
+          url={publicUrl}
+          title={listing.publicTitle || listing.title}
+          disabled={!isPublished || !publicUrl}
+          downloadFileName={`estateflow-${listing.publicSlug ?? listing.id}-qr.png`}
+          onDownload={handleQrDownload}
+        />
       </div>
 
       <form
@@ -429,7 +491,10 @@ function PublicationField({
 }) {
   return (
     <div className={cn('space-y-1.5', className)}>
-      <label htmlFor={name} className="block text-sm font-medium text-foreground">
+      <label
+        htmlFor={name}
+        className="block text-sm font-medium text-foreground"
+      >
         {label}
       </label>
       {children}

@@ -4,5 +4,6 @@ export { ListingForm } from './listing-form';
 export { ListingPublicationPanel } from './listing-publication-panel';
 export { PublicListingAnalytics } from './public-listing-analytics';
 export { PublicListingContactForm } from './public-listing-contact-form';
+export { ListingQrAsset } from './listing-qr-asset';
 export { ListingPagination } from './listing-pagination';
 export { ListingStatusBadge } from './listing-status-badge';

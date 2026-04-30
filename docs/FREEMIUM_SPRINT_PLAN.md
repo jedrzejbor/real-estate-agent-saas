@@ -3,6 +3,7 @@
 Dokument operacyjny do wdrożenia wersji freemium EstateFlow.
 
 Jego celem jest rozpisanie prac na sprinty i konkretne zadania tak, aby:
+
 - przygotować gotowy produkt do publicznego udostępnienia wersji freemium,
 - prowadzić realizację krok po kroku,
 - odznaczać wykonane zadania,
@@ -16,20 +17,25 @@ Dokument bazuje na założeniach z `docs/FREEMIUM_GROWTH_PLAN.md` i powinien by�
 ## 1. Jak pracujemy z tym dokumentem
 
 ### Statusy
+
 - `[ ]` — nie rozpoczęto
 - `[-]` — w trakcie
 - `[x]` — zakończone
 - `[!]` — zablokowane / wymaga decyzji
 
 ### Zasada aktualizacji
+
 Po zakończeniu zadania uzupełniamy:
+
 - status checkboxa,
 - datę wykonania,
 - krótki opis zakresu,
 - ewentualne decyzje / follow-upy.
 
 ### Szablon aktualizacji zadania
+
 Przy każdym zadaniu można dopisać:
+
 - `Data zakończenia:`
 - `Wykonano:`
 - `Uwagi / follow-up:`
@@ -39,6 +45,7 @@ Przy każdym zadaniu można dopisać:
 ## 2. Główny cel release'u freemium
 
 Pierwsze publiczne wydanie freemium ma dostarczyć:
+
 - mały, realnie używalny CRM dla solo agenta / małego biura,
 - publiczne strony ofert jako natychmiastową wartość biznesową,
 - podstawowe zbieranie leadów z publicznych ofert,
@@ -51,6 +58,7 @@ Pierwsze publiczne wydanie freemium ma dostarczyć:
 ## 3. Kryteria gotowości do udostępnienia freemium
 
 Wersję uznajemy za gotową do release'u, gdy spełnione są wszystkie poniższe warunki:
+
 - istnieje zdefiniowany darmowy plan z limitami i zasadami dostępu,
 - użytkownik może założyć konto i przejść onboarding,
 - użytkownik może dodać ofertę, klienta i spotkanie,
@@ -77,6 +85,7 @@ Domknąć zakres darmowego planu, limity, reguły produktu i wymagania release'u
 Jednoznacznie zdefiniowany freemium scope, gotowy do wdrożenia w aplikacji i komunikacji produktowej.
 
 #### Zadania
+
 - [ ] `F0.1` Zdefiniować limity darmowego planu
   - Zakres: liczba ofert, klientów, spotkań, użytkowników, zdjęć, leadów, raportów.
   - Proponowane limity na release freemium MVP:
@@ -241,6 +250,7 @@ Jednoznacznie zdefiniowany freemium scope, gotowy do wdrożenia w aplikacji i ko
   - Uwagi / follow-up:
 
 #### Definition of Done
+
 - zakres freemium jest spisany i zaakceptowany,
 - są znane wszystkie limity i wyjątki,
 - istnieje lista funkcji na release i poza release,
@@ -248,6 +258,7 @@ Jednoznacznie zdefiniowany freemium scope, gotowy do wdrożenia w aplikacji i ko
 - istnieje release checklist, na której można oprzeć wejście w wykonanie Sprintu 1.
 
 #### Log sprintu
+
 - Status sprintu:
 - Data zamknięcia:
 - Co dowieźliśmy:
@@ -265,6 +276,7 @@ Wdrożyć podstawowe mechanizmy planu darmowego w obecnym produkcie CRM.
 Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe komunikaty.
 
 **Założenia techniczne na bazie obecnej architektury:**
+
 - właścicielem planu i limitów powinno być `Agency`, bo ta encja już zawiera pola `subscription` i `plan`,
 - użytkownik rejestrujący się w MVP powinien automatycznie otrzymywać własne `Agency` w planie `free`,
 - `Agent` powinien być przypisany do tego `Agency` już podczas rejestracji,
@@ -273,18 +285,21 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
 - UI powinno operować na prostym modelu: `plan`, `limits`, `usage`, `features`.
 
 **Minimalny model danych do wdrożenia w Sprincie 1:**
+
 - `Agency.plan` — np. `free`, `starter`, `professional`, `enterprise`,
 - `Agency.subscription` — np. `active`, `trial`, `past_due`, `canceled` lub prostszy stan MVP,
 - dodatkowe pole techniczne rekomendowane do dodania: `planLimitsSnapshot` lub wyliczane entitlementy z serwisu,
 - dodatkowe pole techniczne rekomendowane do dodania: `trialEndsAt` tylko jeśli chcemy zostawić drogę pod trial płatnych planów.
 
 **Minimalny kontrakt danych dla web:**
+
 - `plan: { code, label, status }`,
 - `usage: { activeListings, clients, monthlyAppointments }`,
 - `limits: { activeListings, clients, monthlyAppointments, users, imagesPerListing }`,
 - `features: { reportsOverview, reportsListingsBasic, reportsClientsBasic, customBranding, multiUser }`.
 
 #### Zadania
+
 - [x] `F1.1` Dodać model planu / subskrypcji / entitlements
   - Zakres: plan `free`, limity, flagi funkcji, miejsce na późniejsze plany płatne.
   - Proponowana implementacja MVP:
@@ -446,6 +461,7 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
     - jeśli pojawi się potrzeba zarządzania flagami bez restartu API, można później dołożyć prosty storage DB lub remote config nad obecnym kontraktem env.
 
 #### Definition of Done
+
 - plan `free` działa end-to-end,
 - limity są egzekwowane po stronie backendu i czytelne po stronie UI,
 - produkt jest gotowy na onboarding pierwszego darmowego użytkownika,
@@ -454,6 +470,7 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
 - istnieje bezpieczna baza pod późniejsze płatne plany i upgrade flow.
 
 #### Proponowana kolejność realizacji Sprintu 1
+
 1. `F1.1` Model planu, tworzenie `Agency`, kontrakt `auth/me`
 2. `F1.2` Egzekwowanie limitów w API
 3. `F1.5` Feature gating raportów
@@ -462,12 +479,14 @@ Aplikacja rozpoznaje użytkownika freemium, stosuje limity i pokazuje właściwe
 6. `F1.4` Widok `Plan i limity`
 
 #### Ryzyka techniczne Sprintu 1
+
 - obecne dane domenowe są powiązane głównie z `agentId`, więc usage per `Agency` trzeba liczyć przez relację agentów,
 - obecny flow rejestracji tworzy `User` i `Agent`, ale nie tworzy `Agency`,
 - kontrakt auth na web będzie wymagał rozszerzenia typów `AuthUser` i `AuthResponse`,
 - jeśli plan premium ma wejść później, nie warto jeszcze wdrażać pełnego billing engine — tylko czysty entitlement layer.
 
 #### Log sprintu
+
 - Status sprintu:
 - Data zamknięcia:
 - Co dowieźliśmy:
@@ -485,6 +504,7 @@ Doprowadzić nowego użytkownika do pierwszej wartości w 10-15 minut.
 Użytkownik po rejestracji przechodzi prosty onboarding i wykonuje pierwsze kluczowe akcje.
 
 #### Zadania
+
 - [x] `F2.1` Zaprojektować onboarding checklist
   - Zakres: dodaj ofertę, dodaj klienta, dodaj spotkanie, opublikuj ofertę, udostępnij link.
   - Data zakończenia: 2026-04-28
@@ -561,11 +581,13 @@ Użytkownik po rejestracji przechodzi prosty onboarding i wykonuje pierwsze kluc
     - po wdrożeniu publicznych ofert należy dopiąć eventy `listing_published`, `public_listing_viewed`, `public_lead_submitted` i share/copy link.
 
 #### Definition of Done
+
 - nowy użytkownik ma jasną ścieżkę startową,
 - można łatwo dodać pierwsze dane,
 - zebrane są eventy aktywacyjne.
 
 #### Log sprintu
+
 - Status sprintu:
 - Data zamknięcia:
 - Co dowieźliśmy:
@@ -583,6 +605,7 @@ Dać użytkownikowi możliwość publikacji publicznej strony oferty z poziomu o
 Oferty mogą być publikowane pod publicznym linkiem i stanowią realny asset acquisition / SEO / sharing.
 
 #### Zadania
+
 - [x] `F3.1` Zdefiniować publiczny model danych oferty
   - Zakres: slug, status publikacji, pola publiczne, SEO metadata, branding.
   - Data zakończenia: 2026-04-29
@@ -668,11 +691,13 @@ Oferty mogą być publikowane pod publicznym linkiem i stanowią realny asset ac
     - po dodaniu formularza leadowego w Sprincie 4 należy dopiąć `public_lead_submitted`.
 
 #### Definition of Done
+
 - użytkownik publikuje ofertę z CRM do publicznego linku,
 - publiczna karta jest czytelna i gotowa do udostępniania,
 - mamy podstawy SEO i pomiar ruchu.
 
 #### Log sprintu
+
 - Status sprintu:
 - Data zamknięcia:
 - Co dowieźliśmy:
@@ -690,6 +715,7 @@ Zamienić publiczną stronę oferty w kanał pozyskiwania leadów.
 Publiczna oferta generuje leady, które trafiają do systemu i mogą być obsługiwane przez użytkownika freemium.
 
 #### Zadania
+
 - [x] `F4.1` Zdefiniować model publicznego leada
   - Zakres: źródło, zgoda kontaktowa, powiązanie z ofertą, status obsługi.
   - Data zakończenia: 2026-04-30
@@ -771,12 +797,14 @@ Publiczna oferta generuje leady, które trafiają do systemu i mogą być obsłu
     - w kolejnych sprintach można dodać dashboard metryk dla publicznych ofert na bazie `analytics_events`.
 
 #### Definition of Done
+
 - publiczna oferta generuje lead,
 - lead trafia do CRM,
 - użytkownik jest informowany o nowym kontakcie,
 - można mierzyć podstawową konwersję.
 
 #### Log sprintu
+
 - Status sprintu:
 - Data zamknięcia:
 - Co dowieźliśmy:
@@ -794,6 +822,7 @@ Uruchomić najmocniejszy acquisition loop: publiczne dodanie oferty bez pełnego
 Użytkownik może dodać ofertę bez konta, opublikować ją, a następnie po rejestracji przypisać do swojego workspace.
 
 #### Zadania
+
 - [x] `F5.1` Zaprojektować uproszczony publiczny wizard dodania oferty
   - Zakres: minimalny zestaw pól, upload zdjęć, dane kontaktowe, UX mobile-first.
   - Data zakończenia: 2026-04-30
@@ -894,12 +923,14 @@ Użytkownik może dodać ofertę bez konta, opublikować ją, a następnie po re
     - obecny MVP zakłada self-service: agent poprawia szkic i ponownie publikuje z panelu oferty.
 
 #### Definition of Done
+
 - użytkownik bez konta może opublikować ofertę,
 - oferta jest weryfikowana i bezpieczna,
 - po założeniu konta można ją przejąć do CRM,
 - mamy kontrolę nad spamem i nadużyciami.
 
 #### Log sprintu
+
 - Status sprintu:
 - Data zamknięcia:
 - Co dowieźliśmy:
@@ -917,6 +948,7 @@ Wzmocnić dystrybucję i retencję przez publiczne elementy profilu i udostępni
 Użytkownik dostaje dodatkowe darmowe narzędzia promocyjne zwiększające wartość produktu.
 
 #### Zadania
+
 - [x] `F6.1` Dodać publiczny profil agenta / biura
   - Zakres: podstawowe dane, avatar/logo, aktywne oferty, formularz kontaktowy.
   - Data zakończenia: 2026-04-30
@@ -930,11 +962,16 @@ Użytkownik dostaje dodatkowe darmowe narzędzia promocyjne zwiększające warto
     - obecny MVP używa stabilnego `agentId` w URL; później warto dodać publiczne slugi profili i panel ustawień widoczności profilu,
     - profil biura jest na razie reprezentowany jako kontekst agencji w profilu agenta; rozbudowany profil biura zostaje w scope `P13`.
 
-- [ ] `F6.2` Dodać QR i szybkie udostępnianie oferty
+- [x] `F6.2` Dodać QR i szybkie udostępnianie oferty
   - Zakres: generowanie QR, copy/share actions, gotowy asset do druku.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - dodano bibliotekę `qrcode` oraz współdzielony komponent generowania kodu QR dla publicznego URL oferty,
+    - publiczna oferta pokazuje szybkie akcje `Udostępnij`, `Kopiuj link` oraz kod QR z możliwością pobrania gotowego assetu PNG do druku,
+    - panel publikacji agenta dostał natywne udostępnianie, kopiowanie linku oraz generowany QR zamiast placeholdera,
+    - pobranie QR zapisuje event `public_listing_share_clicked` z metodą `qr_download`, osobno dla publicznej strony i panelu agenta.
   - Uwagi / follow-up:
+    - później można dodać gotowy wariant PDF/A4 oraz możliwość personalizacji assetu po stronie premium brandingu.
 
 - [ ] `F6.3` Dodać generator opisu oferty / quality hints
   - Zakres: prosty AI helper lub rule-based assist dla darmowego planu z limitem użyć.
@@ -955,11 +992,13 @@ Użytkownik dostaje dodatkowe darmowe narzędzia promocyjne zwiększające warto
   - Uwagi / follow-up:
 
 #### Definition of Done
+
 - są dodatkowe darmowe funkcje promujące produkt,
 - publiczny profil i sharing zwiększają ekspozycję,
 - funkcje growth mają gotowe ścieżki do monetyzacji.
 
 #### Log sprintu
+
 - Status sprintu:
 - Data zamknięcia:
 - Co dowieźliśmy:
@@ -977,6 +1016,7 @@ Domknąć release freemium pod kątem jakości, bezpieczeństwa, legal i pomiaru
 Wersja freemium jest gotowa do kontrolowanego udostępnienia użytkownikom.
 
 #### Zadania
+
 - [ ] `F7.1` Wykonać przegląd bezpieczeństwa dla funkcji publicznych
   - Zakres: auth boundaries, public endpoints, abuse cases, upload review, rate limit review.
   - Data zakończenia:
@@ -1014,11 +1054,13 @@ Wersja freemium jest gotowa do kontrolowanego udostępnienia użytkownikom.
   - Uwagi / follow-up:
 
 #### Definition of Done
+
 - kluczowe ryzyka są obsłużone,
 - zespół ma checklistę rolloutową,
 - można bezpiecznie uruchomić freemium dla pierwszych użytkowników.
 
 #### Log sprintu
+
 - Status sprintu:
 - Data zamknięcia:
 - Co dowieźliśmy:
@@ -1032,6 +1074,7 @@ Wersja freemium jest gotowa do kontrolowanego udostępnienia użytkownikom.
 Tę sekcję rozwijamy po domknięciu freemium MVP. Na ten moment zapisujemy kierunki, ale nie wrzucamy ich do aktywnego scope release'u.
 
 ### Priorytet A — płatne rozszerzenia produktu
+
 - [ ] `P1` Zaawansowane raporty premium
 - [ ] `P2` Integracje portalowe
 - [ ] `P3` Automatyzacje leadów i powiadomień
@@ -1039,12 +1082,14 @@ Tę sekcję rozwijamy po domknięciu freemium MVP. Na ten moment zapisujemy kier
 - [ ] `P5` White-label / custom branding / własna domena
 
 ### Priorytet B — monetyzacja i billing
+
 - [ ] `P6` Model planów płatnych i billing lifecycle
 - [ ] `P7` Upgrade, downgrade, trial i grace period
 - [ ] `P8` Paywall logic i entitlement sync
 - [ ] `P9` Ekrany pricing / checkout / subscription management
 
 ### Priorytet C — pogłębione growth loops
+
 - [ ] `P10` Rozbudowany publiczny katalog ofert
 - [ ] `P11` Lepsze SEO i strony indeksowalne na szeroką skalę
 - [ ] `P12` Referral / invite loops
@@ -1055,6 +1100,7 @@ Tę sekcję rozwijamy po domknięciu freemium MVP. Na ten moment zapisujemy kier
 ## 6. Zależności i kolejność prac
 
 Rekomendowana kolejność realizacji:
+
 1. Sprint 0
 2. Sprint 1
 3. Sprint 2
@@ -1065,6 +1111,7 @@ Rekomendowana kolejność realizacji:
 8. Sprint 7
 
 Kluczowe zależności:
+
 - Sprint 1 powinien zacząć się dopiero po domknięciu limitów z Sprintu 0.
 - Sprint 3 powinien bazować na gotowych zasadach planu free.
 - Sprint 4 zależy od Sprintu 3.
@@ -1076,12 +1123,14 @@ Kluczowe zależności:
 ## 7. Proponowany sposób prowadzenia dalszych aktualizacji
 
 Po każdym zakończonym zadaniu aktualizujemy dokument w tym formacie:
+
 - zmiana checkboxa na `[x]`,
 - wpisanie daty wykonania,
 - dopisanie 2-5 punktów co zostało zrobione,
 - dopisanie follow-upów jeśli zadanie rodzi kolejne prace.
 
 Po każdym sprincie uzupełniamy sekcję `Log sprintu`:
+
 - co dowieźliśmy,
 - czego nie domknęliśmy,
 - jakie decyzje podjęliśmy,
@@ -1092,6 +1141,7 @@ Po każdym sprincie uzupełniamy sekcję `Log sprintu`:
 ## 8. Proponowany pierwszy krok od razu
 
 Najbardziej sensowny start to rozpoczęcie od Sprintu 0 i domknięcie tych 5 decyzji:
+
 - limity free,
 - zakres darmowych funkcji,
 - scope premium,
