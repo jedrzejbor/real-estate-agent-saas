@@ -9,6 +9,7 @@ import {
   Building2,
   CalendarClock,
   CircleAlert,
+  MessageSquareText,
   UserRoundPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ const CATEGORY_ICON: Record<NotificationCategory, typeof CalendarClock> = {
   appointment: CalendarClock,
   client: UserRoundPlus,
   listing: Building2,
+  public_lead: MessageSquareText,
 };
 
 const VARIANT_STYLES = {
@@ -102,7 +104,9 @@ export function NotificationsDropdown() {
         <div className="absolute right-0 top-full z-50 mt-2 w-[24rem] overflow-hidden rounded-2xl border border-border bg-white shadow-xl ring-1 ring-black/5">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-foreground">Powiadomienia</p>
+              <p className="text-sm font-semibold text-foreground">
+                Powiadomienia
+              </p>
               <p className="text-xs text-muted-foreground">
                 Najważniejsze komunikaty systemowe i przypomnienia.
               </p>
@@ -171,7 +175,6 @@ export function NotificationsDropdown() {
                     setIsOpen(false);
                     router.push(href);
                   }}
-                  onSelect={() => setIsOpen(false)}
                 />
               ))}
             </div>
@@ -188,14 +191,12 @@ function NotificationRow({
   isBusy,
   onMarkAsRead,
   onNavigate,
-  onSelect,
 }: {
   item: NotificationItem;
   isAnimating: boolean;
   isBusy: boolean;
   onMarkAsRead: (id: string) => Promise<void>;
   onNavigate: (href: string | undefined, id: string) => Promise<void>;
-  onSelect: () => void;
 }) {
   const Icon = CATEGORY_ICON[item.category] ?? CircleAlert;
   const content = (

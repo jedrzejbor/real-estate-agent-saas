@@ -731,11 +731,18 @@ Publiczna oferta generuje leady, które trafiają do systemu i mogą być obsłu
     - F4.4 powinno dodać powiadomienie dla agenta o nowym leadzie / kliencie z formularza,
     - F4.5 powinno pokazać publiczne zapytania i ich statusy w panelu.
 
-- [ ] `F4.4` Dodać powiadomienia o nowym leadzie
+- [x] `F4.4` Dodać powiadomienia o nowym leadzie
   - Zakres: in-app, email lub minimalne powiadomienie systemowe.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - dodano kategorię powiadomień `public_lead` dla zapytań z publicznych ofert,
+    - backend pokazuje świeże publiczne leady w istniejącym endpointcie `GET /api/notifications`,
+    - powiadomienie prowadzi do skonwertowanego klienta CRM, jeśli lead ma `converted_client_id`,
+    - nowe powiadomienie ma wyższy priorytet niż ogólne powiadomienie o nowym kliencie,
+    - dropdown powiadomień dostał dedykowaną ikonę dla leadów z formularzy publicznych.
   - Uwagi / follow-up:
+    - F4.5 powinno dodać osobny widok publicznych zapytań, bo obecnie powiadomienie prowadzi do klienta CRM,
+    - email / push można dodać później nad tym samym źródłem danych, jeśli będzie potrzebny kanał poza aplikacją.
 
 - [ ] `F4.5` Dodać podstawowy widok lead source / public inquiries
   - Zakres: lista leadów z publicznych ofert, filtrowanie po ofercie.

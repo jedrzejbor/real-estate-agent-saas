@@ -1,6 +1,10 @@
 import { apiFetch } from './api-client';
 
-export type NotificationCategory = 'appointment' | 'client' | 'listing';
+export type NotificationCategory =
+  | 'appointment'
+  | 'client'
+  | 'listing'
+  | 'public_lead';
 export type NotificationVariant = 'info' | 'warning' | 'success';
 
 export interface NotificationItem {

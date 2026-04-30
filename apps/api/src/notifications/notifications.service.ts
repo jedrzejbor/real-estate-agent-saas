@@ -2,16 +2,25 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { Appointment } from '../appointments/entities/appointment.entity';
-import { AppointmentStatus, ListingStatus, ClientStatus } from '../common/enums';
+import {
+  AppointmentStatus,
+  ListingStatus,
+  ClientStatus,
+} from '../common/enums';
 import { Client } from '../clients/entities/client.entity';
 import { Listing } from '../listings/entities/listing.entity';
+import { PublicLead } from '../public-leads/entities';
 import { Agent } from '../users/entities/agent.entity';
 import { UsersService } from '../users';
 import { NotificationsQueryDto } from './dto/notifications-query.dto';
 import { NotificationRead } from './entities';
 
 export type NotificationVariant = 'info' | 'warning' | 'success';
-export type NotificationCategory = 'appointment' | 'client' | 'listing';
+export type NotificationCategory =
+  | 'appointment'
+  | 'client'
+  | 'listing'
+  | 'public_lead';
 
 export interface NotificationItem {
   id: string;
@@ -46,6 +55,8 @@ export class NotificationsService {
     private readonly listingRepo: Repository<Listing>,
     @InjectRepository(Client)
     private readonly clientRepo: Repository<Client>,
+    @InjectRepository(PublicLead)
+    private readonly publicLeadRepo: Repository<PublicLead>,
     @InjectRepository(NotificationRead)
     private readonly notificationReadRepo: Repository<NotificationRead>,
     private readonly usersService: UsersService,
@@ -62,45 +73,59 @@ export class NotificationsService {
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
 
-    const [overdueAppointments, upcomingAppointments, newClients, staleDrafts] =
-      await Promise.all([
-        this.appointmentRepo.find({
-          where: {
-            agentId: agent.id,
-            status: AppointmentStatus.SCHEDULED,
-            startTime: LessThan(now),
-          },
-          order: { startTime: 'DESC' },
-          take: 3,
-          relations: ['client'],
-        }),
-        this.appointmentRepo.find({
-          where: {
-            agentId: agent.id,
-            status: AppointmentStatus.SCHEDULED,
-            startTime: MoreThanOrEqual(now),
-          },
-          order: { startTime: 'ASC' },
-          take: 4,
-          relations: ['client'],
-        }),
-        this.clientRepo.find({
-          where: {
-            agentId: agent.id,
-            status: ClientStatus.NEW,
-            createdAt: MoreThanOrEqual(threeDaysAgo),
-          },
-          order: { createdAt: 'DESC' },
-          take: 3,
-        }),
-        this.listingRepo.count({
-          where: {
-            agentId: agent.id,
-            status: ListingStatus.DRAFT,
-            createdAt: LessThan(sevenDaysAgo),
-          },
-        }),
-      ]);
+    const [
+      overdueAppointments,
+      upcomingAppointments,
+      newClients,
+      recentPublicLeads,
+      staleDrafts,
+    ] = await Promise.all([
+      this.appointmentRepo.find({
+        where: {
+          agentId: agent.id,
+          status: AppointmentStatus.SCHEDULED,
+          startTime: LessThan(now),
+        },
+        order: { startTime: 'DESC' },
+        take: 3,
+        relations: ['client'],
+      }),
+      this.appointmentRepo.find({
+        where: {
+          agentId: agent.id,
+          status: AppointmentStatus.SCHEDULED,
+          startTime: MoreThanOrEqual(now),
+        },
+        order: { startTime: 'ASC' },
+        take: 4,
+        relations: ['client'],
+      }),
+      this.clientRepo.find({
+        where: {
+          agentId: agent.id,
+          status: ClientStatus.NEW,
+          createdAt: MoreThanOrEqual(threeDaysAgo),
+        },
+        order: { createdAt: 'DESC' },
+        take: 6,
+      }),
+      this.publicLeadRepo.find({
+        where: {
+          agentId: agent.id,
+          createdAt: MoreThanOrEqual(threeDaysAgo),
+        },
+        order: { createdAt: 'DESC' },
+        take: 5,
+        relations: ['listing', 'convertedClient'],
+      }),
+      this.listingRepo.count({
+        where: {
+          agentId: agent.id,
+          status: ListingStatus.DRAFT,
+          createdAt: LessThan(sevenDaysAgo),
+        },
+      }),
+    ]);
 
     const ranked: RankedNotification[] = [];
 
@@ -134,7 +159,31 @@ export class NotificationsService {
       });
     }
 
-    for (const client of newClients) {
+    for (const lead of recentPublicLeads) {
+      ranked.push({
+        id: `public-lead-new-${lead.id}`,
+        category: 'public_lead',
+        variant: 'success',
+        title: 'Nowy lead z publicznej oferty',
+        description: this.buildPublicLeadDescription(lead),
+        href: lead.convertedClientId
+          ? `/dashboard/clients/${lead.convertedClientId}`
+          : '/dashboard/clients',
+        createdAt: lead.createdAt.toISOString(),
+        priority: 220,
+        sortTimestamp: lead.createdAt.getTime(),
+      });
+    }
+
+    const publicLeadClientIds = new Set(
+      recentPublicLeads
+        .map((lead) => lead.convertedClientId)
+        .filter((clientId): clientId is string => Boolean(clientId)),
+    );
+
+    for (const client of newClients
+      .filter((client) => !publicLeadClientIds.has(client.id))
+      .slice(0, 3)) {
       ranked.push({
         id: `client-new-${client.id}`,
         category: 'client',
@@ -188,10 +237,12 @@ export class NotificationsService {
       candidateItems.map((item) => item.id),
     );
 
-    const items = candidateItems.map(({ priority, sortTimestamp, ...item }) => ({
-      ...item,
-      isRead: readIds.has(item.id),
-    }));
+    const items = candidateItems.map(
+      ({ priority, sortTimestamp, ...item }) => ({
+        ...item,
+        isRead: readIds.has(item.id),
+      }),
+    );
 
     return {
       generatedAt: now.toISOString(),
@@ -249,6 +300,14 @@ export class NotificationsService {
       .getMany();
 
     return new Set(readItems.map((item) => item.notificationId));
+  }
+
+  private buildPublicLeadDescription(lead: PublicLead): string {
+    const listingTitle =
+      lead.listing?.publicTitle || lead.listing?.title || 'publicznej oferty';
+    const contact = lead.fullName.trim() || 'Nowy kontakt';
+
+    return `${contact} wysłał zapytanie z oferty "${listingTitle}".`;
   }
 
   private pluralize(
