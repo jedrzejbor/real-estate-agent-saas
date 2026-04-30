@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Loader2,
   RotateCcw,
+  ShieldAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/contexts/toast-context';
@@ -58,8 +59,12 @@ function ClaimListingContent() {
       .then((result) => {
         setState({ status: 'success', result });
         showSuccessToast({
-          title: 'Oferta przejęta',
-          description: 'Dodaliśmy ją do Twojego CRM i opublikowaliśmy stronę.',
+          title: result.reviewRequired
+            ? 'Oferta przejęta jako szkic'
+            : 'Oferta przejęta',
+          description: result.reviewRequired
+            ? 'Dodaliśmy ją do CRM. Wymaga sprawdzenia przed publikacją.'
+            : 'Dodaliśmy ją do Twojego CRM i opublikowaliśmy stronę.',
           duration: 6000,
         });
       })
@@ -144,15 +149,28 @@ function ClaimListingShell({ state }: { state: ClaimState }) {
 
         {state.status === 'success' ? (
           <div className="flex flex-col items-center py-12 text-center">
-            <div className="rounded-full bg-emerald-100 p-3 text-emerald-700">
-              <CheckCircle2 className="h-8 w-8" />
+            <div
+              className={
+                state.result.reviewRequired
+                  ? 'rounded-full bg-amber-100 p-3 text-amber-700'
+                  : 'rounded-full bg-emerald-100 p-3 text-emerald-700'
+              }
+            >
+              {state.result.reviewRequired ? (
+                <ShieldAlert className="h-8 w-8" />
+              ) : (
+                <CheckCircle2 className="h-8 w-8" />
+              )}
             </div>
             <h2 className="mt-5 font-heading text-xl font-semibold">
-              Oferta jest w Twoim CRM
+              {state.result.reviewRequired
+                ? 'Oferta czeka na sprawdzenie'
+                : 'Oferta jest w Twoim CRM'}
             </h2>
             <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-              Możesz uzupełnić dane, dodać zdjęcia, obsługiwać leady i wrócić do
-              publicznego linku w panelu publikacji.
+              {state.result.reviewRequired
+                ? 'Dodaliśmy ją jako szkic. Uzupełnij opis, zdjęcia albo cenę, a potem opublikuj ją z panelu oferty.'
+                : 'Możesz uzupełnić dane, dodać zdjęcia, obsługiwać leady i wrócić do publicznego linku w panelu publikacji.'}
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Link href={`/dashboard/listings/${state.result.listingId}`}>

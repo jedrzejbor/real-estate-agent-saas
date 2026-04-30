@@ -20,6 +20,7 @@ import {
 } from '../common/enums';
 import { FeatureAccessDeniedException } from '../common/exceptions/feature-access-denied.exception';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
+import { assertPublicListingModerationPassed } from '../common/public-listing-moderation';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ListingQueryDto } from './dto/listing-query.dto';
@@ -276,6 +277,14 @@ export class ListingsService {
     }
 
     this.assertListingCanBePublished(listing);
+    assertPublicListingModerationPassed({
+      title: listing.publicTitle || listing.title,
+      description: listing.publicDescription || listing.description,
+      price: listing.price,
+      areaM2: listing.areaM2,
+      transactionType: listing.transactionType,
+      imageUrls: listing.images?.map((image) => image.url) ?? [],
+    });
 
     const previousState = this.createListingSnapshot(listing);
 
@@ -367,27 +376,29 @@ export class ListingsService {
   }
 
   async findPublicSitemapEntries(): Promise<PublicListingSitemapEntry[]> {
-    return this.listingRepo.find({
-      select: {
-        publicSlug: true,
-        updatedAt: true,
-      },
-      where: {
-        publicationStatus: ListingPublicationStatus.PUBLISHED,
-      },
-      order: {
-        updatedAt: 'DESC',
-      },
-    }).then((listings) =>
-      listings
-        .filter((listing): listing is Listing & { publicSlug: string } =>
-          Boolean(listing.publicSlug),
-        )
-        .map((listing) => ({
-          slug: listing.publicSlug,
-          updatedAt: listing.updatedAt,
-        })),
-    );
+    return this.listingRepo
+      .find({
+        select: {
+          publicSlug: true,
+          updatedAt: true,
+        },
+        where: {
+          publicationStatus: ListingPublicationStatus.PUBLISHED,
+        },
+        order: {
+          updatedAt: 'DESC',
+        },
+      })
+      .then((listings) =>
+        listings
+          .filter((listing): listing is Listing & { publicSlug: string } =>
+            Boolean(listing.publicSlug),
+          )
+          .map((listing) => ({
+            slug: listing.publicSlug,
+            updatedAt: listing.updatedAt,
+          })),
+      );
   }
 
   // ── Delete (soft → archived, or hard delete for drafts) ──

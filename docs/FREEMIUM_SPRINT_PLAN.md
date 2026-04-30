@@ -878,11 +878,20 @@ Użytkownik może dodać ofertę bez konta, opublikować ją, a następnie po re
     - F5.7 powinno wykorzystać `metadata.abuse` do soft moderation / review queue,
     - UI przycisku „zgłoś nadużycie” na publicznej ofercie może zostać dodane osobno, bo API/event jest już gotowy.
 
-- [ ] `F5.7` Dodać podstawową moderację publicznych ofert
+- [x] `F5.7` Dodać podstawową moderację publicznych ofert
   - Zakres: reguły walidacji, soft moderation, kolejka do review jeśli potrzebna.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - dodano wspólną warstwę `public-listing-moderation` oceniającą ryzyko publikacji na podstawie sygnałów antyspamowych, treści, zdjęć i ceny za m²,
+    - claim publicznego submissionu uruchamia moderację przed publikacją,
+    - submission wymagający review nadal trafia do CRM, ale jako oferta `draft` bez `publicSlug`, bez `publishedAt` i z `publicationStatus = draft`,
+    - wynik claim flow zwraca `reviewRequired` oraz `moderationReasons`, aby UI mogło pokazać właściwy stan kontynuacji,
+    - `metadata.moderation` zapisuje `riskScore`, powody, datę oceny i flagę review,
+    - publish z panelu agenta blokuje publikację oferty, jeśli aktualne dane nadal nie przechodzą podstawowej moderacji,
+    - ekran `/dashboard/claim-listing` pokazuje osobny stan dla ofert przejętych jako szkic do sprawdzenia.
   - Uwagi / follow-up:
+    - kolejka review dla admina/moderatora może zostać dodana później jako osobny widok operacyjny,
+    - obecny MVP zakłada self-service: agent poprawia szkic i ponownie publikuje z panelu oferty.
 
 #### Definition of Done
 - użytkownik bez konta może opublikować ofertę,

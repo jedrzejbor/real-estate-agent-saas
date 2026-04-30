@@ -14,6 +14,8 @@ export interface PublicListingSubmissionClaimResult {
   listingId: string;
   publicSlug: string | null;
   claimedAt: string;
+  reviewRequired: boolean;
+  moderationReasons: string[];
 }
 
 export async function verifyPublicListingSubmission(
@@ -50,6 +52,7 @@ export async function claimPublicListingSubmission(
       submissionId: result.id,
       listingId: result.listingId,
       publicSlug: result.publicSlug,
+      reviewRequired: result.reviewRequired,
     },
   });
 

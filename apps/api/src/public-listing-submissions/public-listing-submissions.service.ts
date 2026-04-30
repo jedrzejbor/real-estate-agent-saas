@@ -18,7 +18,6 @@ import { UsersService } from '../users';
 import {
   ActivityAction,
   ActivityEntityType,
-  ListingPublicationStatus,
   ListingStatus,
   PropertyType,
   PublicListingSubmissionSource,
@@ -33,6 +32,11 @@ import {
   getRequestFingerprint,
   normalizeOptional,
 } from '../common/abuse-protection';
+import {
+  evaluatePublicListingModeration,
+  getModeratedListingState,
+  type PublicListingModerationResult,
+} from '../common/public-listing-moderation';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import {
   ClaimPublicListingSubmissionDto,
@@ -89,6 +93,8 @@ export interface PublicListingSubmissionClaimResult {
   listingId: string;
   publicSlug: string | null;
   claimedAt: Date;
+  reviewRequired: boolean;
+  moderationReasons: string[];
 }
 
 @Injectable()
@@ -316,14 +322,18 @@ export class PublicListingSubmissionsService {
     await this.assertListingCreateWithinPlanLimit(access);
 
     const now = new Date();
+    const moderation = evaluateSubmissionModeration(submission);
+    const listingState = getModeratedListingState(moderation);
     const claimed = await this.dataSource.transaction(async (manager) => {
       const listing = manager.create(Listing, {
         ...buildListingDataFromPayload(submission.payload),
         agentId: access.agent.id,
-        status: ListingStatus.ACTIVE,
-        publicationStatus: ListingPublicationStatus.PUBLISHED,
-        publicSlug: await this.generateUniquePublicSlug(submission.payload),
-        publishedAt: now,
+        status: listingState.status,
+        publicationStatus: listingState.publicationStatus,
+        publicSlug: moderation.reviewRequired
+          ? null
+          : await this.generateUniquePublicSlug(submission.payload),
+        publishedAt: listingState.publishedAt,
         unpublishedAt: null,
       });
 
@@ -350,7 +360,7 @@ export class PublicListingSubmissionsService {
 
       submission.status = PublicListingSubmissionStatus.CLAIMED;
       submission.claimedAt = now;
-      submission.publishedAt = now;
+      submission.publishedAt = moderation.reviewRequired ? null : now;
       submission.publishedListingId = savedListing.id;
       submission.claimedAgentId = access.agent.id;
       submission.claimedAgencyId = access.agency?.id ?? null;
@@ -363,6 +373,7 @@ export class PublicListingSubmissionsService {
           agencyId: access.agency?.id ?? null,
           claimedAt: now.toISOString(),
         },
+        moderation,
       };
       const savedSubmission = await manager.save(
         PublicListingSubmission,
@@ -397,6 +408,8 @@ export class PublicListingSubmissionsService {
       listingId: claimed.listing.id,
       publicSlug: claimed.listing.publicSlug ?? null,
       claimedAt: claimed.submission.claimedAt ?? now,
+      reviewRequired: moderation.reviewRequired,
+      moderationReasons: moderation.reasons,
     };
   }
 
@@ -604,6 +617,34 @@ function buildListingDataFromPayload(
     ),
     estateflowBrandingEnabled: true,
   };
+}
+
+function evaluateSubmissionModeration(
+  submission: PublicListingSubmission,
+): PublicListingModerationResult {
+  const listing = submission.payload.listing ?? {};
+  const images = submission.payload.images ?? [];
+
+  return evaluatePublicListingModeration({
+    title: getNullableString(listing.title),
+    description: getNullableString(listing.description),
+    price: getNullableNumber(listing.price),
+    areaM2: getNullableNumber(listing.areaM2),
+    transactionType: getNullableString(listing.transactionType),
+    imageUrls: images
+      .map((image) => getNullableString(image.url))
+      .filter((url): url is string => Boolean(url)),
+    storedAbuse: getStoredAbuseReport(submission.metadata),
+  });
+}
+
+function getStoredAbuseReport(
+  metadata: Record<string, unknown> | null | undefined,
+): { riskScore?: unknown; signals?: unknown } | null {
+  const abuse = metadata?.abuse;
+  return typeof abuse === 'object' && abuse !== null
+    ? (abuse as { riskScore?: unknown; signals?: unknown })
+    : null;
 }
 
 function buildAddressDataFromPayload(
