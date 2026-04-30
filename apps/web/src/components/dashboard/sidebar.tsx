@@ -6,6 +6,7 @@ import {
   Users,
   CalendarCheck,
   BarChart3,
+  MessageSquareText,
   Settings,
   LogOut,
 } from 'lucide-react';
@@ -19,6 +20,7 @@ const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Oferty', href: '/dashboard/listings', icon: Building2 },
   { label: 'Klienci', href: '/dashboard/clients', icon: Users },
+  { label: 'Zapytania', href: '/dashboard/inquiries', icon: MessageSquareText },
   { label: 'Kalendarz', href: '/dashboard/calendar', icon: CalendarCheck },
   { label: 'Raporty', href: '/dashboard/reports', icon: BarChart3 },
 ] as const;

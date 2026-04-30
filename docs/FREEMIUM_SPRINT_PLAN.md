@@ -744,11 +744,18 @@ Publiczna oferta generuje leady, które trafiają do systemu i mogą być obsłu
     - F4.5 powinno dodać osobny widok publicznych zapytań, bo obecnie powiadomienie prowadzi do klienta CRM,
     - email / push można dodać później nad tym samym źródłem danych, jeśli będzie potrzebny kanał poza aplikacją.
 
-- [ ] `F4.5` Dodać podstawowy widok lead source / public inquiries
+- [x] `F4.5` Dodać podstawowy widok lead source / public inquiries
   - Zakres: lista leadów z publicznych ofert, filtrowanie po ofercie.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - dodano chroniony endpoint `GET /api/public-leads` z paginacją i filtrami `status`, `source`, `listingId`, `search`,
+    - endpoint zwraca bezpieczny model listy bez danych technicznych typu hash IP / user-agent,
+    - dodano widok `/dashboard/inquiries` z listą publicznych zapytań, filtrami, statusami, źródłami i linkiem do klienta CRM,
+    - dodano link do publicznej oferty oraz informację o zgodzie marketingowej, UTM i wiadomości z formularza,
+    - dodano pozycję `Zapytania` w sidebarze dashboardu.
   - Uwagi / follow-up:
+    - F4.6 powinno dopiąć eventy lejka dla przejść visit → submit lead → lead accepted,
+    - później można dodać akcje zmiany statusu publicznego zapytania bezpośrednio z widoku listy.
 
 - [ ] `F4.6` Dodać eventy mierzące conversion funnel oferty
   - Zakres: visit → submit lead → lead accepted.

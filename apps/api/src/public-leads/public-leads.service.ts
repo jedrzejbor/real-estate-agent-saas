@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash } from 'crypto';
 import type { Request } from 'express';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { Brackets, DataSource, EntityManager, Repository } from 'typeorm';
 import { ActivityService } from '../activity';
 import { Client } from '../clients/entities/client.entity';
 import { ClientNote } from '../clients/entities/client-note.entity';
@@ -21,7 +21,7 @@ import {
 } from '../common/enums';
 import { Listing } from '../listings/entities/listing.entity';
 import { Agent } from '../users/entities';
-import { CreatePublicLeadDto } from './dto';
+import { CreatePublicLeadDto, PublicLeadQueryDto } from './dto';
 import { PublicLead } from './entities';
 
 const MIN_FORM_COMPLETION_MS = 2500;
@@ -37,11 +37,54 @@ export interface PublicLeadSubmitResult {
   conversion: 'created' | 'matched' | 'skipped';
 }
 
+export interface PublicLeadListItem {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  message: string | null;
+  source: PublicLeadSource;
+  status: PublicLeadStatus;
+  sourceUrl: string | null;
+  referrer: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  contactConsent: boolean;
+  marketingConsent: boolean;
+  handledAt: Date | null;
+  convertedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  listing: {
+    id: string;
+    title: string;
+    publicSlug: string | null;
+  } | null;
+  convertedClient: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
+}
+
+export interface PaginatedPublicLeads {
+  data: PublicLeadListItem[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 @Injectable()
 export class PublicLeadsService {
   private readonly logger = new Logger(PublicLeadsService.name);
 
   constructor(
+    @InjectRepository(PublicLead)
+    private readonly publicLeadRepo: Repository<PublicLead>,
     @InjectRepository(Listing)
     private readonly listingRepo: Repository<Listing>,
     @InjectRepository(Agent)
@@ -49,6 +92,82 @@ export class PublicLeadsService {
     private readonly dataSource: DataSource,
     private readonly activityService: ActivityService,
   ) {}
+
+  async findAll(
+    userId: string,
+    query: PublicLeadQueryDto,
+  ): Promise<PaginatedPublicLeads> {
+    const agent = await this.resolveAgent(userId);
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+      status,
+      source,
+      listingId,
+      search,
+    } = query;
+
+    const qb = this.publicLeadRepo
+      .createQueryBuilder('lead')
+      .leftJoinAndSelect('lead.listing', 'listing')
+      .leftJoinAndSelect('lead.convertedClient', 'convertedClient')
+      .where('lead.agentId = :agentId', { agentId: agent.id });
+
+    if (status) {
+      qb.andWhere('lead.status = :status', { status });
+    }
+
+    if (source) {
+      qb.andWhere('lead.source = :source', { source });
+    }
+
+    if (listingId) {
+      qb.andWhere('lead.listingId = :listingId', { listingId });
+    }
+
+    if (search?.trim()) {
+      const searchValue = `%${search.trim()}%`;
+      qb.andWhere(
+        new Brackets((subQb) => {
+          subQb
+            .where('LOWER(lead.fullName) LIKE LOWER(:search)', {
+              search: searchValue,
+            })
+            .orWhere('LOWER(lead.email) LIKE LOWER(:search)', {
+              search: searchValue,
+            })
+            .orWhere('LOWER(lead.phone) LIKE LOWER(:search)', {
+              search: searchValue,
+            })
+            .orWhere('LOWER(listing.title) LIKE LOWER(:search)', {
+              search: searchValue,
+            })
+            .orWhere('LOWER(listing.publicTitle) LIKE LOWER(:search)', {
+              search: searchValue,
+            });
+        }),
+      );
+    }
+
+    const allowedSortColumns = ['createdAt', 'status'];
+    const column = allowedSortColumns.includes(sortBy) ? sortBy : 'createdAt';
+    qb.orderBy(`lead.${column}`, sortOrder === 'ASC' ? 'ASC' : 'DESC');
+    qb.skip((page - 1) * limit).take(limit);
+
+    const [data, total] = await qb.getManyAndCount();
+
+    return {
+      data: data.map(mapPublicLeadListItem),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
 
   async createForPublicListing(
     slug: string,
@@ -326,6 +445,53 @@ export class PublicLeadsService {
       throw new BadRequestException('Podaj email albo numer telefonu');
     }
   }
+
+  private async resolveAgent(userId: string): Promise<Agent> {
+    const agent = await this.agentRepo.findOne({ where: { userId } });
+
+    if (!agent) {
+      throw new NotFoundException('Profil agenta nie znaleziony');
+    }
+
+    return agent;
+  }
+}
+
+function mapPublicLeadListItem(lead: PublicLead): PublicLeadListItem {
+  return {
+    id: lead.id,
+    fullName: lead.fullName,
+    email: lead.email ?? null,
+    phone: lead.phone ?? null,
+    message: lead.message ?? null,
+    source: lead.source,
+    status: lead.status,
+    sourceUrl: lead.sourceUrl ?? null,
+    referrer: lead.referrer ?? null,
+    utmSource: lead.utmSource ?? null,
+    utmMedium: lead.utmMedium ?? null,
+    utmCampaign: lead.utmCampaign ?? null,
+    contactConsent: lead.contactConsent,
+    marketingConsent: lead.marketingConsent,
+    handledAt: lead.handledAt ?? null,
+    convertedAt: lead.convertedAt ?? null,
+    createdAt: lead.createdAt,
+    updatedAt: lead.updatedAt,
+    listing: lead.listing
+      ? {
+          id: lead.listing.id,
+          title: lead.listing.publicTitle || lead.listing.title,
+          publicSlug: lead.listing.publicSlug ?? null,
+        }
+      : null,
+    convertedClient: lead.convertedClient
+      ? {
+          id: lead.convertedClient.id,
+          firstName: lead.convertedClient.firstName,
+          lastName: lead.convertedClient.lastName,
+        }
+      : null,
+  };
 }
 
 function normalizeOptional(value: string | undefined | null): string | null {
