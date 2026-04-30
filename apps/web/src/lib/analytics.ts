@@ -16,6 +16,8 @@ export const AnalyticsEventName = {
   PUBLIC_LISTING_LINK_COPIED: 'public_listing_link_copied',
   PUBLIC_LEAD_SUBMITTED: 'public_lead_submitted',
   PUBLIC_LEAD_ACCEPTED: 'public_lead_accepted',
+  PUBLIC_LISTING_CLAIM_STARTED: 'public_listing_claim_started',
+  PUBLIC_LISTING_CLAIM_COMPLETED: 'public_listing_claim_completed',
   CLIENT_CREATED: 'client_created',
   CLIENTS_IMPORTED: 'clients_imported',
   APPOINTMENT_CREATED: 'appointment_created',

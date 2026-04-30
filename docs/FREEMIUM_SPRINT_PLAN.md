@@ -850,11 +850,17 @@ Użytkownik może dodać ofertę bez konta, opublikować ją, a następnie po re
   - Uwagi / follow-up:
     - F5.5 powinno dobudować UI/CTA po claimie: przejście do nowo utworzonej oferty, onboarding i sugestie kolejnych kroków w CRM.
 
-- [ ] `F5.5` Dodać flow „przejmij ofertę i zacznij używać CRM"
+- [x] `F5.5` Dodać flow „przejmij ofertę i zacznij używać CRM"
   - Zakres: CTA po claimie, onboarding kontynuacyjny, sugestie kolejnych kroków.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - dodano publiczną stronę `/dodaj-oferte/potwierdzono?token=...`, która weryfikuje email submission i pokazuje CTA do rejestracji albo logowania,
+    - formularze `/register` i `/login` obsługują `claimToken`, zachowują kontekst między auth screenami i po auth przekierowują do claim flow,
+    - dodano chronioną stronę `/dashboard/claim-listing?claimToken=...`, która automatycznie wykonuje claim, pokazuje status, obsługuje błędy i prowadzi do nowej oferty w CRM,
+    - dodano frontendową warstwę API dla verification/claim oraz eventy `public_listing_claim_started` i `public_listing_claim_completed`,
+    - rozszerzono whitelistę analytics API o eventy claim flow.
   - Uwagi / follow-up:
+    - pełny publiczny wizard `/dodaj-oferte` nadal powinien zostać dobudowany w kolejnych krokach UI, bo F5.5 domyka głównie ścieżkę po kliknięciu linku z emaila.
 
 - [ ] `F5.6` Dodać mechanizmy antyspamowe i nadużyciowe
   - Zakres: rate limiting, CAPTCHA, heurystyki, report abuse.

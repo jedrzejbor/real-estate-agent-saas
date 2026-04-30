@@ -32,12 +32,19 @@ interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (data: LoginFormData) => Promise<void>;
-  register: (data: RegisterFormData) => Promise<void>;
+  login: (data: LoginFormData, options?: AuthRedirectOptions) => Promise<void>;
+  register: (
+    data: RegisterFormData,
+    options?: AuthRedirectOptions,
+  ) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+interface AuthRedirectOptions {
+  redirectTo?: string;
+}
 
 // ── Provider ──
 
@@ -164,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [notifyAuthorizationLost, pathname, performLogout]);
 
   const login = useCallback(
-    async (data: LoginFormData) => {
+    async (data: LoginFormData, options?: AuthRedirectOptions) => {
       const res = await apiFetch<AuthResponse>('/auth/login', {
         method: 'POST',
         body: data,
@@ -179,13 +186,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           agencyId: res.user.agency?.id ?? null,
         },
       });
-      router.push('/dashboard');
+      router.push(options?.redirectTo ?? '/dashboard');
     },
     [router],
   );
 
   const register = useCallback(
-    async (data: RegisterFormData) => {
+    async (data: RegisterFormData, options?: AuthRedirectOptions) => {
       const res = await apiFetch<AuthResponse>('/auth/register', {
         method: 'POST',
         body: data,
@@ -193,7 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       storeTokens(res);
       setUser(res.user);
-      router.push('/dashboard');
+      router.push(options?.redirectTo ?? '/dashboard');
     },
     [router],
   );

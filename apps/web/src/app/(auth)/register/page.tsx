@@ -1,22 +1,42 @@
 'use client';
 
+import { Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { registerSchema, type RegisterFormData } from '@/lib/auth';
+import {
+  buildClaimAuthPath,
+  buildClaimRedirectPath,
+} from '@/lib/public-listing-submissions';
 import { useAuthForm } from '@/hooks/use-auth-form';
 import { Button } from '@/components/ui/button';
 import { AuthFormField } from '@/components/auth/auth-form-field';
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
+  );
+}
 
-  const { handleSubmit, getFieldError, globalError, isLoading } =
-    useAuthForm<typeof registerSchema>({
-      schema: registerSchema,
-      onSubmit: async (data: RegisterFormData) => {
-        await register(data);
-      },
-    });
+function RegisterForm() {
+  const { register } = useAuth();
+  const searchParams = useSearchParams();
+  const claimToken = searchParams.get('claimToken');
+  const claimRedirectPath = claimToken
+    ? buildClaimRedirectPath(claimToken)
+    : undefined;
+
+  const { handleSubmit, getFieldError, globalError, isLoading } = useAuthForm<
+    typeof registerSchema
+  >({
+    schema: registerSchema,
+    onSubmit: async (data: RegisterFormData) => {
+      await register(data, { redirectTo: claimRedirectPath });
+    },
+  });
 
   return (
     <>
@@ -25,11 +45,20 @@ export default function RegisterPage() {
           Utwórz konto
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Rozpocznij darmowy okres próbny EstateFlow
+          {claimToken
+            ? 'Utwórz konto, aby przejąć ofertę i zacząć pracę w CRM'
+            : 'Rozpocznij darmowy okres próbny EstateFlow'}
         </p>
       </div>
 
       <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+        {claimToken && (
+          <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
+            Oferta jest już zweryfikowana. Po rejestracji automatycznie dodamy
+            ją do Twojego panelu.
+          </div>
+        )}
+
         {globalError && (
           <div className="mb-4 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {globalError}
@@ -87,7 +116,9 @@ export default function RegisterPage() {
       <p className="mt-4 text-center text-sm text-muted-foreground">
         Masz już konto?{' '}
         <Link
-          href="/login"
+          href={
+            claimToken ? buildClaimAuthPath('/login', claimToken) : '/login'
+          }
           className="font-medium text-primary hover:underline"
         >
           Zaloguj się

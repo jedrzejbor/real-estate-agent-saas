@@ -21,6 +21,8 @@ export const ANALYTICS_EVENT_NAMES = [
   'public_listing_link_copied',
   'public_lead_submitted',
   'public_lead_accepted',
+  'public_listing_claim_started',
+  'public_listing_claim_completed',
   'client_created',
   'clients_imported',
   'appointment_created',
