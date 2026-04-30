@@ -837,11 +837,18 @@ Użytkownik może dodać ofertę bez konta, opublikować ją, a następnie po re
     - przed produkcją trzeba podpiąć realnego providera email przez `EmailService`,
     - F5.4 powinno wykorzystać verified submission do claim flow i utworzenia/przypięcia oferty do workspace.
 
-- [ ] `F5.4` Dodać mechanizm claim listing do konta
+- [x] `F5.4` Dodać mechanizm claim listing do konta
   - Zakres: przypięcie oferty do workspace po rejestracji lub logowaniu, audit log.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - endpoint `POST /api/public-listing-submissions/verify` zwraca jednorazowy `claimToken`, a w bazie przechowywany jest tylko jego hash SHA-256,
+    - dodano chroniony endpoint `POST /api/public-listing-submissions/claim`, który przypina verified submission do zalogowanego konta agenta,
+    - claim tworzy ofertę CRM z danymi listing/address/images z publicznego submission, publikuje ją i nadaje unikalny `publicSlug`,
+    - mechanizm respektuje limit aktywnych ofert z planu agencji przed utworzeniem nowej oferty,
+    - po claimie submission przechodzi w status `claimed`, zapisuje `publishedListingId`, `claimedAgentId`, `claimedAgencyId`, `claimedAt` i czyści `claimTokenHash`,
+    - dodano audit log `ActivityAction.CLAIMED` oraz migrację `20260430_public_listing_submission_claim.sql` dla enumu activity.
   - Uwagi / follow-up:
+    - F5.5 powinno dobudować UI/CTA po claimie: przejście do nowo utworzonej oferty, onboarding i sugestie kolejnych kroków w CRM.
 
 - [ ] `F5.5` Dodać flow „przejmij ofertę i zacznij używać CRM"
   - Zakres: CTA po claimie, onboarding kontynuacyjny, sugestie kolejnych kroków.

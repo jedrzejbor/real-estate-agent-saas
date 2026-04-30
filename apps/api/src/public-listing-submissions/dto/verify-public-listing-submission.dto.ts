@@ -6,3 +6,10 @@ export class VerifyPublicListingSubmissionDto {
   @MaxLength(255)
   token: string;
 }
+
+export class ClaimPublicListingSubmissionDto {
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(255)
+  claimToken: string;
+}

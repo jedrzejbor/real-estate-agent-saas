@@ -9,7 +9,9 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { Public } from '../auth/decorators/public.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import {
+  ClaimPublicListingSubmissionDto,
   CreatePublicListingSubmissionDto,
   VerifyPublicListingSubmissionDto,
 } from './dto';
@@ -46,5 +48,15 @@ export class PublicListingSubmissionsController {
   @HttpCode(HttpStatus.OK)
   async verify(@Body() dto: VerifyPublicListingSubmissionDto) {
     return this.submissionsService.verify(dto);
+  }
+
+  /** POST /api/public-listing-submissions/claim — claim verified public submission into current workspace. */
+  @Post('claim')
+  @HttpCode(HttpStatus.CREATED)
+  async claim(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ClaimPublicListingSubmissionDto,
+  ) {
+    return this.submissionsService.claim(userId, dto);
   }
 }

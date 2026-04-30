@@ -138,6 +138,7 @@ export enum ActivityAction {
   ARCHIVED = 'archived',
   PUBLISHED = 'published',
   UNPUBLISHED = 'unpublished',
+  CLAIMED = 'claimed',
   NOTE_ADDED = 'note_added',
   NOTE_REMOVED = 'note_removed',
 }

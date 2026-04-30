@@ -8,17 +8,33 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes } from 'crypto';
 import type { Request } from 'express';
-import { Repository } from 'typeorm';
+import { DataSource, In, Not, Repository } from 'typeorm';
+import { ActivityService } from '../activity';
 import { EmailService } from '../email';
+import { Address } from '../listings/entities/address.entity';
+import { Listing } from '../listings/entities/listing.entity';
+import { ListingImage } from '../listings/entities/listing-image.entity';
+import { UsersService } from '../users';
 import {
+  ActivityAction,
+  ActivityEntityType,
+  ListingPublicationStatus,
+  ListingStatus,
+  PropertyType,
   PublicListingSubmissionSource,
   PublicListingSubmissionStatus,
+  TransactionType,
 } from '../common/enums';
+import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import {
+  ClaimPublicListingSubmissionDto,
   CreatePublicListingSubmissionDto,
   VerifyPublicListingSubmissionDto,
 } from './dto';
-import { PublicListingSubmission } from './entities';
+import {
+  PublicListingSubmission,
+  type PublicListingSubmissionPayload,
+} from './entities';
 
 const MIN_FORM_COMPLETION_MS = 5000;
 const MAX_FORM_AGE_MS = 24 * 60 * 60 * 1000;
@@ -43,12 +59,21 @@ export interface PublicListingSubmissionVerificationResult {
   id: string;
   status: PublicListingSubmissionStatus;
   verifiedAt: Date;
+  claimToken: string;
 }
 
 export interface PublicListingSubmissionResendResult {
   success: true;
   emailMasked: string;
   expiresAt: Date;
+}
+
+export interface PublicListingSubmissionClaimResult {
+  id: string;
+  status: PublicListingSubmissionStatus;
+  listingId: string;
+  publicSlug: string | null;
+  claimedAt: Date;
 }
 
 @Injectable()
@@ -58,8 +83,13 @@ export class PublicListingSubmissionsService {
   constructor(
     @InjectRepository(PublicListingSubmission)
     private readonly submissionRepo: Repository<PublicListingSubmission>,
+    @InjectRepository(Listing)
+    private readonly listingRepo: Repository<Listing>,
+    private readonly dataSource: DataSource,
+    private readonly activityService: ActivityService,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
   ) {}
 
   async create(
@@ -181,10 +211,15 @@ export class PublicListingSubmissionsService {
         throw new BadRequestException('Nieprawidłowy stan weryfikacji');
       }
 
+      const claimToken = createTokenPair();
+      submission.claimTokenHash = claimToken.hash;
+      await this.submissionRepo.save(submission);
+
       return {
         id: submission.id,
         status: submission.status,
         verifiedAt: submission.verifiedAt,
+        claimToken: claimToken.token,
       };
     }
 
@@ -207,9 +242,11 @@ export class PublicListingSubmissionsService {
     }
 
     const now = new Date();
+    const claimToken = createTokenPair();
     submission.status = PublicListingSubmissionStatus.VERIFIED;
     submission.verifiedAt = now;
     submission.verificationTokenHash = null;
+    submission.claimTokenHash = claimToken.hash;
 
     const saved = await this.submissionRepo.save(submission);
 
@@ -217,6 +254,112 @@ export class PublicListingSubmissionsService {
       id: saved.id,
       status: saved.status,
       verifiedAt: saved.verifiedAt ?? now,
+      claimToken: claimToken.token,
+    };
+  }
+
+  async claim(
+    userId: string,
+    dto: ClaimPublicListingSubmissionDto,
+  ): Promise<PublicListingSubmissionClaimResult> {
+    const claimTokenHash = hashToken(dto.claimToken);
+    const submission = await this.submissionRepo.findOne({
+      where: { claimTokenHash },
+    });
+
+    if (!submission) {
+      throw new BadRequestException('Nieprawidłowy token przejęcia oferty');
+    }
+
+    if (submission.status !== PublicListingSubmissionStatus.VERIFIED) {
+      throw new BadRequestException('To zgłoszenie nie może zostać przejęte');
+    }
+
+    const access = await this.usersService.getAgencyAccessContext(userId);
+    await this.assertListingCreateWithinPlanLimit(access);
+
+    const now = new Date();
+    const claimed = await this.dataSource.transaction(async (manager) => {
+      const listing = manager.create(Listing, {
+        ...buildListingDataFromPayload(submission.payload),
+        agentId: access.agent.id,
+        status: ListingStatus.ACTIVE,
+        publicationStatus: ListingPublicationStatus.PUBLISHED,
+        publicSlug: await this.generateUniquePublicSlug(submission.payload),
+        publishedAt: now,
+        unpublishedAt: null,
+      });
+
+      const savedListing = await manager.save(Listing, listing);
+      const address = manager.create(Address, {
+        ...buildAddressDataFromPayload(submission.payload),
+        listing: savedListing,
+      });
+      await manager.save(Address, address);
+
+      const images = buildImageDataFromPayload(submission.payload).map(
+        (image, index) =>
+          manager.create(ListingImage, {
+            ...image,
+            order: image.order ?? index,
+            isPrimary: index === 0,
+            listing: savedListing,
+          }),
+      );
+
+      if (images.length > 0) {
+        await manager.save(ListingImage, images);
+      }
+
+      submission.status = PublicListingSubmissionStatus.CLAIMED;
+      submission.claimedAt = now;
+      submission.publishedAt = now;
+      submission.publishedListingId = savedListing.id;
+      submission.claimedAgentId = access.agent.id;
+      submission.claimedAgencyId = access.agency?.id ?? null;
+      submission.claimTokenHash = null;
+      submission.metadata = {
+        ...submission.metadata,
+        claim: {
+          listingId: savedListing.id,
+          agentId: access.agent.id,
+          agencyId: access.agency?.id ?? null,
+          claimedAt: now.toISOString(),
+        },
+      };
+      const savedSubmission = await manager.save(
+        PublicListingSubmission,
+        submission,
+      );
+
+      return { listing: savedListing, submission: savedSubmission };
+    });
+
+    await this.activityService.log({
+      userId,
+      entityType: ActivityEntityType.LISTING,
+      entityId: claimed.listing.id,
+      action: ActivityAction.CLAIMED,
+      description: 'Przejęto ofertę z publicznego zgłoszenia',
+      changes: [
+        {
+          field: 'publicListingSubmissionId',
+          oldValue: null,
+          newValue: claimed.submission.id,
+        },
+      ],
+    });
+
+    this.logger.log(
+      `Public listing submission claimed: ${claimed.submission.id} -> listing ${claimed.listing.id}`,
+    );
+
+    return {
+      id: claimed.submission.id,
+      status: claimed.submission.status,
+      listingId: claimed.listing.id,
+      publicSlug: claimed.listing.publicSlug ?? null,
+      claimedAt: claimed.submission.claimedAt ?? now,
     };
   }
 
@@ -268,6 +411,225 @@ export class PublicListingSubmissionsService {
       throw new BadRequestException('Akceptacja regulaminu jest wymagana');
     }
   }
+
+  private async assertListingCreateWithinPlanLimit(
+    access: Awaited<ReturnType<UsersService['getAgencyAccessContext']>>,
+  ): Promise<void> {
+    const limit = access.entitlements.limits.activeListings;
+
+    if (limit === null) {
+      return;
+    }
+
+    const currentUsage = await this.listingRepo.count({
+      where: {
+        agentId: In(access.agencyAgentIds),
+        status: Not(ListingStatus.ARCHIVED),
+      },
+    });
+
+    if (currentUsage >= limit) {
+      throw new PlanLimitReachedException({
+        resource: 'listings',
+        limit,
+        currentUsage,
+        planCode: access.entitlements.plan.code,
+        message:
+          'Osiągnięto limit aktywnych ofert w Twoim planie. Przejdź na wyższy plan, aby przejąć kolejną ofertę.',
+      });
+    }
+  }
+
+  private async generateUniquePublicSlug(
+    payload: PublicListingSubmissionPayload,
+  ): Promise<string> {
+    const listing = payload.listing ?? {};
+    const address = payload.address ?? {};
+    const title = getString(listing.title, 'oferta');
+    const city = getString(address.city, '');
+    const baseSlug = slugify([title, city].filter(Boolean).join(' '));
+    const fallbackSlug = `oferta-${randomBytes(4).toString('hex')}`;
+    const slugBase = (baseSlug || fallbackSlug).slice(0, 140);
+
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const suffix = attempt === 0 ? '' : `-${attempt + 1}`;
+      const candidate = `${slugBase}${suffix}`.slice(0, 160);
+      const existing = await this.listingRepo.findOne({
+        where: { publicSlug: candidate },
+        select: ['id'],
+      });
+
+      if (!existing) {
+        return candidate;
+      }
+    }
+
+    return `${slugBase}-${randomBytes(4).toString('hex')}`.slice(0, 160);
+  }
+}
+
+function buildListingDataFromPayload(
+  payload: PublicListingSubmissionPayload,
+): Partial<Listing> {
+  const listing = payload.listing ?? {};
+  const publicSettings = payload.publicSettings ?? {};
+  const title = getString(listing.title, 'Oferta nieruchomości');
+  const description = getOptionalString(listing.description);
+  const publicTitle = getNullableString(publicSettings.publicTitle) ?? title;
+  const publicDescription =
+    getNullableString(publicSettings.publicDescription) ?? description;
+
+  return {
+    title,
+    description,
+    propertyType: getEnumValue(
+      listing.propertyType,
+      Object.values(PropertyType),
+      PropertyType.APARTMENT,
+    ),
+    transactionType: getEnumValue(
+      listing.transactionType,
+      Object.values(TransactionType),
+      TransactionType.SALE,
+    ),
+    price: getNumber(listing.price, 1),
+    currency: getString(listing.currency, 'PLN').slice(0, 3),
+    areaM2: getOptionalNumber(listing.areaM2),
+    plotAreaM2: getOptionalNumber(listing.plotAreaM2),
+    rooms: getOptionalNumber(listing.rooms),
+    bathrooms: getOptionalNumber(listing.bathrooms),
+    floor: getOptionalNumber(listing.floor),
+    totalFloors: getOptionalNumber(listing.totalFloors),
+    yearBuilt: getOptionalNumber(listing.yearBuilt),
+    isPremium: false,
+    publicTitle,
+    publicDescription,
+    seoTitle: buildSeoTitle(publicTitle, payload.address),
+    seoDescription: buildSeoDescription(publicDescription, payload.address),
+    shareImageUrl: getFirstImageUrl(payload),
+    showPriceOnPublicPage: true,
+    showExactAddressOnPublicPage: Boolean(
+      publicSettings.showExactAddressOnPublicPage,
+    ),
+    estateflowBrandingEnabled: true,
+  };
+}
+
+function buildAddressDataFromPayload(
+  payload: PublicListingSubmissionPayload,
+): Partial<Address> {
+  const address = payload.address ?? {};
+
+  return {
+    street: getOptionalString(address.street),
+    city: getString(address.city, 'Nieznane miasto'),
+    postalCode: getOptionalString(address.postalCode),
+    district: getOptionalString(address.district),
+    voivodeship: getOptionalString(address.voivodeship),
+  };
+}
+
+function buildImageDataFromPayload(
+  payload: PublicListingSubmissionPayload,
+): Array<Partial<ListingImage>> {
+  return (payload.images ?? []).slice(0, 15).flatMap((image) => {
+    const url = getOptionalString(image.url);
+
+    if (!url) {
+      return [];
+    }
+
+    return [
+      {
+        url,
+        altText: getOptionalString(image.altText),
+        order: getOptionalNumber(image.order) ?? 0,
+      },
+    ];
+  });
+}
+
+function getString(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+}
+
+function getNullableString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function getOptionalString(value: unknown): string | undefined {
+  return getNullableString(value) ?? undefined;
+}
+
+function getNumber(value: unknown, fallback: number): number {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function getNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function getOptionalNumber(value: unknown): number | undefined {
+  return getNullableNumber(value) ?? undefined;
+}
+
+function getEnumValue<T extends string>(
+  value: unknown,
+  allowedValues: T[],
+  fallback: T,
+): T {
+  return typeof value === 'string' && allowedValues.includes(value as T)
+    ? (value as T)
+    : fallback;
+}
+
+function getFirstImageUrl(
+  payload: PublicListingSubmissionPayload,
+): string | null {
+  const firstImage = payload.images?.find((image) =>
+    getNullableString(image.url),
+  );
+  return firstImage ? getNullableString(firstImage.url) : null;
+}
+
+function buildSeoTitle(
+  title: string,
+  address: Record<string, unknown> | undefined,
+): string {
+  const city = getNullableString(address?.city);
+  return `${title}${city ? `, ${city}` : ''}`.slice(0, 70);
+}
+
+function buildSeoDescription(
+  description: string | undefined,
+  address: Record<string, unknown> | undefined,
+): string {
+  if (description) {
+    return description.replace(/\s+/g, ' ').slice(0, 180);
+  }
+
+  const city = getNullableString(address?.city);
+  return `Sprawdź szczegóły publicznej oferty nieruchomości${city ? ` w ${city}` : ''} w EstateFlow.`.slice(
+    0,
+    180,
+  );
+}
+
+function slugify(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/ł/g, 'l')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-');
 }
 
 function buildSubmissionPayload(
