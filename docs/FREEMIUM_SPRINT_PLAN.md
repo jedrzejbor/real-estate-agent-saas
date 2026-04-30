@@ -717,11 +717,19 @@ Publiczna oferta generuje leady, które trafiają do systemu i mogą być obsłu
     - F4.3 powinno przekonwertować `PublicLead` do CRM z deduplikacją po mailu/telefonie,
     - F4.4 powinno dodać powiadomienia dla agenta po nowym leadzie.
 
-- [ ] `F4.3` Zapisać lead do CRM i powiązać z ofertą
+- [x] `F4.3` Zapisać lead do CRM i powiązać z ofertą
   - Zakres: tworzenie klienta/leada, historia źródła, deduplikacja podstawowa.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - po wysłaniu publicznego formularza lead jest automatycznie konwertowany do klienta CRM,
+    - dodano deduplikację po emailu oraz telefonie z tolerancją prefiksu kraju,
+    - istniejący klient jest uzupełniany brakującym kontaktem i powiązany przez `converted_client_id`,
+    - nowy klient dostaje źródło `website`, notatkę początkową i notatkę źródłową z ofertą publiczną,
+    - publiczny lead dostaje status `converted_to_client`, `convertedAt`, `handledAt` i metadane konwersji,
+    - dodano wpisy activity history dla utworzenia klienta albo powiązania z istniejącym klientem.
   - Uwagi / follow-up:
+    - F4.4 powinno dodać powiadomienie dla agenta o nowym leadzie / kliencie z formularza,
+    - F4.5 powinno pokazać publiczne zapytania i ich statusy w panelu.
 
 - [ ] `F4.4` Dodać powiadomienia o nowym leadzie
   - Zakres: in-app, email lub minimalne powiadomienie systemowe.

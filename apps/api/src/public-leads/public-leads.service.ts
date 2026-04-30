@@ -7,8 +7,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash } from 'crypto';
 import type { Request } from 'express';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
+import { ActivityService } from '../activity';
+import { Client } from '../clients/entities/client.entity';
+import { ClientNote } from '../clients/entities/client-note.entity';
 import {
+  ActivityAction,
+  ActivityEntityType,
+  ClientSource,
   ListingPublicationStatus,
   PublicLeadSource,
   PublicLeadStatus,
@@ -20,25 +26,35 @@ import { PublicLead } from './entities';
 
 const MIN_FORM_COMPLETION_MS = 2500;
 const MAX_FORM_AGE_MS = 24 * 60 * 60 * 1000;
+const PHONE_DEDUP_MIN_DIGITS = 6;
+const PHONE_DEDUP_MAX_SUFFIX_DIGITS = 9;
+
+export interface PublicLeadSubmitResult {
+  id: string;
+  status: PublicLeadStatus;
+  createdAt: Date;
+  convertedClientId: string | null;
+  conversion: 'created' | 'matched' | 'skipped';
+}
 
 @Injectable()
 export class PublicLeadsService {
   private readonly logger = new Logger(PublicLeadsService.name);
 
   constructor(
-    @InjectRepository(PublicLead)
-    private readonly publicLeadRepo: Repository<PublicLead>,
     @InjectRepository(Listing)
     private readonly listingRepo: Repository<Listing>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    private readonly dataSource: DataSource,
+    private readonly activityService: ActivityService,
   ) {}
 
   async createForPublicListing(
     slug: string,
     dto: CreatePublicLeadDto,
     request: Request,
-  ) {
+  ): Promise<PublicLeadSubmitResult> {
     this.assertHumanSubmission(dto);
     this.assertContactable(dto);
 
@@ -49,58 +65,241 @@ export class PublicLeadsService {
       },
     });
 
-    if (!listing?.publicSlug) {
+    const publicSlug = listing?.publicSlug;
+    if (!publicSlug) {
       throw new NotFoundException('Publiczna oferta nie znaleziona');
     }
 
     const agent = await this.agentRepo.findOne({
       where: { id: listing.agentId },
-      relations: ['agency'],
+      relations: ['agency', 'user'],
     });
 
     if (!agent) {
       throw new NotFoundException('Publiczna oferta nie znaleziona');
     }
 
-    const now = new Date();
-    const lead = this.publicLeadRepo.create({
-      fullName: dto.fullName.trim(),
-      email: normalizeOptional(dto.email),
-      phone: normalizeOptional(dto.phone),
-      message: normalizeOptional(dto.message),
-      source: dto.source ?? PublicLeadSource.PUBLIC_LISTING_PAGE,
-      status: PublicLeadStatus.NEW,
-      publicSlugSnapshot: listing.publicSlug,
-      sourceUrl: normalizeOptional(dto.sourceUrl),
-      referrer: normalizeOptional(dto.referrer),
-      utmSource: normalizeOptional(dto.utmSource),
-      utmMedium: normalizeOptional(dto.utmMedium),
-      utmCampaign: normalizeOptional(dto.utmCampaign),
-      utmTerm: normalizeOptional(dto.utmTerm),
-      utmContent: normalizeOptional(dto.utmContent),
-      contactConsent: dto.contactConsent,
-      marketingConsent: dto.marketingConsent ?? false,
-      consentText: normalizeOptional(dto.consentText),
-      consentedAt: dto.contactConsent ? now : null,
-      ipHash: hashIp(getClientIp(request)),
-      userAgent: normalizeOptional(request.get('user-agent')),
-      metadata: sanitizeMetadata(dto.metadata),
-      listingId: listing.id,
-      agentId: agent.id,
-      agencyId: agent.agencyId ?? null,
+    const email = normalizeOptional(dto.email);
+    const phone = normalizeOptional(dto.phone);
+
+    const conversion = await this.dataSource.transaction(async (manager) => {
+      const now = new Date();
+      const lead = manager.create(PublicLead, {
+        fullName: dto.fullName.trim(),
+        email,
+        phone,
+        message: normalizeOptional(dto.message),
+        source: dto.source ?? PublicLeadSource.PUBLIC_LISTING_PAGE,
+        status: PublicLeadStatus.NEW,
+        publicSlugSnapshot: publicSlug,
+        sourceUrl: normalizeOptional(dto.sourceUrl),
+        referrer: normalizeOptional(dto.referrer),
+        utmSource: normalizeOptional(dto.utmSource),
+        utmMedium: normalizeOptional(dto.utmMedium),
+        utmCampaign: normalizeOptional(dto.utmCampaign),
+        utmTerm: normalizeOptional(dto.utmTerm),
+        utmContent: normalizeOptional(dto.utmContent),
+        contactConsent: dto.contactConsent,
+        marketingConsent: dto.marketingConsent ?? false,
+        consentText: normalizeOptional(dto.consentText),
+        consentedAt: dto.contactConsent ? now : null,
+        ipHash: hashIp(getClientIp(request)),
+        userAgent: normalizeOptional(request.get('user-agent')),
+        metadata: sanitizeMetadata(dto.metadata),
+        listingId: listing.id,
+        agentId: agent.id,
+        agencyId: agent.agencyId ?? null,
+      });
+
+      const savedLead = await manager.save(PublicLead, lead);
+      const clientMatch = await this.findMatchingClient(manager, {
+        agentId: agent.id,
+        email,
+        phone,
+      });
+
+      const { client, conversion } = clientMatch
+        ? {
+            client: await this.updateMatchedClient(manager, clientMatch, {
+              email,
+              phone,
+            }),
+            conversion: 'matched' as const,
+          }
+        : {
+            client: await this.createClientFromLead(manager, savedLead, {
+              agentId: agent.id,
+            }),
+            conversion: 'created' as const,
+          };
+
+      await this.addSourceNote(manager, {
+        client,
+        lead: savedLead,
+        agent,
+        listing,
+      });
+
+      savedLead.status = PublicLeadStatus.CONVERTED_TO_CLIENT;
+      savedLead.convertedClientId = client.id;
+      savedLead.convertedAt = now;
+      savedLead.handledAt = now;
+      savedLead.metadata = {
+        ...savedLead.metadata,
+        crmConversion: {
+          type: conversion,
+          clientId: client.id,
+          convertedAt: now.toISOString(),
+        },
+      };
+
+      const convertedLead = await manager.save(PublicLead, savedLead);
+
+      return {
+        lead: convertedLead,
+        client,
+        conversion,
+      };
     });
 
-    const savedLead = await this.publicLeadRepo.save(lead);
-
     this.logger.log(
-      `Public lead captured: ${savedLead.id} for listing ${listing.id}`,
+      `Public lead captured: ${conversion.lead.id} for listing ${listing.id} and ${conversion.conversion} CRM client ${conversion.client.id}`,
     );
 
+    await this.logClientActivity({
+      agent,
+      clientId: conversion.client.id,
+      conversion: conversion.conversion,
+    });
+
     return {
-      id: savedLead.id,
-      status: savedLead.status,
-      createdAt: savedLead.createdAt,
+      id: conversion.lead.id,
+      status: conversion.lead.status,
+      createdAt: conversion.lead.createdAt,
+      convertedClientId: conversion.client.id,
+      conversion: conversion.conversion,
     };
+  }
+
+  private async findMatchingClient(
+    manager: EntityManager,
+    input: { agentId: string; email: string | null; phone: string | null },
+  ): Promise<Client | null> {
+    const qb = manager
+      .getRepository(Client)
+      .createQueryBuilder('client')
+      .where('client.agentId = :agentId', { agentId: input.agentId });
+
+    const matchers: string[] = [];
+    const params: Record<string, string | number> = {};
+
+    if (input.email) {
+      matchers.push('LOWER(client.email) = LOWER(:email)');
+      params.email = input.email;
+    }
+
+    const phoneSuffix = normalizeComparablePhoneSuffix(input.phone);
+    if (phoneSuffix && phoneSuffix.length >= PHONE_DEDUP_MIN_DIGITS) {
+      matchers.push(
+        "RIGHT(regexp_replace(client.phone, '\\D', '', 'g'), :phoneLength) = :phone",
+      );
+      params.phone = phoneSuffix;
+      params.phoneLength = phoneSuffix.length;
+    }
+
+    if (matchers.length === 0) {
+      return null;
+    }
+
+    return qb
+      .andWhere(`(${matchers.join(' OR ')})`, params)
+      .orderBy('client.createdAt', 'ASC')
+      .getOne();
+  }
+
+  private async updateMatchedClient(
+    manager: EntityManager,
+    client: Client,
+    input: { email: string | null; phone: string | null },
+  ): Promise<Client> {
+    let shouldSave = false;
+
+    if (!client.email && input.email) {
+      client.email = input.email;
+      shouldSave = true;
+    }
+
+    if (!client.phone && input.phone) {
+      client.phone = input.phone;
+      shouldSave = true;
+    }
+
+    if (!shouldSave) {
+      return client;
+    }
+
+    return manager.save(Client, client);
+  }
+
+  private async createClientFromLead(
+    manager: EntityManager,
+    lead: PublicLead,
+    input: { agentId: string },
+  ): Promise<Client> {
+    const { firstName, lastName } = splitFullName(lead.fullName);
+    const client = manager.create(Client, {
+      firstName,
+      lastName,
+      email: lead.email ?? undefined,
+      phone: lead.phone ?? undefined,
+      source: ClientSource.WEBSITE,
+      notes: buildClientInitialNotes(lead),
+      agentId: input.agentId,
+    });
+
+    return manager.save(Client, client);
+  }
+
+  private async addSourceNote(
+    manager: EntityManager,
+    input: {
+      client: Client;
+      lead: PublicLead;
+      agent: Agent;
+      listing: Listing;
+    },
+  ): Promise<void> {
+    const note = manager.create(ClientNote, {
+      content: buildClientSourceNote(input.lead, input.listing),
+      client: { id: input.client.id } as Client,
+      agent: { id: input.agent.id } as Agent,
+    });
+
+    await manager.save(ClientNote, note);
+  }
+
+  private async logClientActivity(input: {
+    agent: Agent;
+    clientId: string;
+    conversion: 'created' | 'matched';
+  }): Promise<void> {
+    if (!input.agent.userId) {
+      return;
+    }
+
+    await this.activityService.log({
+      userId: input.agent.userId,
+      entityType: ActivityEntityType.CLIENT,
+      entityId: input.clientId,
+      action:
+        input.conversion === 'created'
+          ? ActivityAction.CREATED
+          : ActivityAction.UPDATED,
+      description:
+        input.conversion === 'created'
+          ? 'Utworzono klienta z formularza publicznej oferty'
+          : 'Powiązano publiczny lead z istniejącym klientem',
+    });
   }
 
   private assertHumanSubmission(dto: CreatePublicLeadDto): void {
@@ -132,6 +331,63 @@ export class PublicLeadsService {
 function normalizeOptional(value: string | undefined | null): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
+}
+
+function normalizeComparablePhoneSuffix(
+  value: string | undefined | null,
+): string | null {
+  const digits = value?.replace(/\D/g, '');
+  return digits ? digits.slice(-PHONE_DEDUP_MAX_SUFFIX_DIGITS) : null;
+}
+
+function splitFullName(fullName: string): {
+  firstName: string;
+  lastName: string;
+} {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) {
+    return { firstName: 'Nieznane', lastName: 'zapytanie' };
+  }
+
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: 'z formularza' };
+  }
+
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(' '),
+  };
+}
+
+function buildClientInitialNotes(lead: PublicLead): string {
+  const lines = [
+    'Klient utworzony automatycznie z publicznego formularza oferty.',
+  ];
+
+  if (lead.message) {
+    lines.push('', 'Wiadomość:', lead.message);
+  }
+
+  return lines.join('\n');
+}
+
+function buildClientSourceNote(lead: PublicLead, listing: Listing): string {
+  const title = listing.publicTitle || listing.title;
+  const lines = [
+    `Źródło: publiczna oferta "${title}"`,
+    `Publiczny lead: ${lead.id}`,
+  ];
+
+  if (lead.sourceUrl) {
+    lines.push(`URL: ${lead.sourceUrl}`);
+  }
+
+  if (lead.message) {
+    lines.push('', 'Wiadomość z formularza:', lead.message);
+  }
+
+  return lines.join('\n');
 }
 
 function sanitizeMetadata(
