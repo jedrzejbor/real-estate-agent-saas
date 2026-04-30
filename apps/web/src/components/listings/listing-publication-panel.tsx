@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
+import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 import {
   LISTING_PUBLICATION_STATUS_LABELS,
@@ -149,6 +150,14 @@ export function ListingPublicationPanel({
       await navigator.clipboard.writeText(publicUrl);
       setIsCopied(true);
       window.setTimeout(() => setIsCopied(false), 1800);
+      trackAnalyticsEvent({
+        name: AnalyticsEventName.PUBLIC_LISTING_LINK_COPIED,
+        properties: {
+          listingId: listing.id,
+          publicSlug: listing.publicSlug ?? null,
+          source: 'agent_publication_panel',
+        },
+      });
       showSuccessToast({
         title: 'Link skopiowany',
         description: 'Publiczny adres oferty jest w schowku.',

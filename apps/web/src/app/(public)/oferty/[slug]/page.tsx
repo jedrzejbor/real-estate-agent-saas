@@ -30,6 +30,7 @@ import {
   type PublicListing,
 } from '@/lib/listings';
 import { ApiError } from '@/lib/api-client';
+import { PublicListingAnalytics } from '@/components/listings/public-listing-analytics';
 
 interface PublicListingPageProps {
   params: Promise<{ slug: string }>;
@@ -301,6 +302,12 @@ export default async function PublicListingPage({
                 <Mail className="h-4 w-4" />
                 Wyślij zapytanie
               </a>
+              <PublicListingAnalytics
+                slug={listing.slug}
+                listingId={listing.id}
+                title={listing.title}
+                url={canonicalUrl}
+              />
             </div>
             <p className="mt-4 text-xs leading-5 text-muted-foreground">
               Formularz leadowy zostanie dodany w kolejnym sprincie. Na tym

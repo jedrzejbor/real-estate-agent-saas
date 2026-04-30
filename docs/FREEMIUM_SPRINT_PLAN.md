@@ -654,11 +654,18 @@ Oferty mogą być publikowane pod publicznym linkiem i stanowią realny asset ac
     - produkcyjnie należy ustawić `NEXT_PUBLIC_SITE_URL` / `SITE_URL`, żeby canonical i sitemap wskazywały domenę produkcyjną,
     - jeśli publicznych ofert będzie dużo, endpoint sitemapowy warto podzielić na paginowane sitemapy.
 
-- [ ] `F3.6` Dodać analitykę odsłon i share'ów
+- [x] `F3.6` Dodać analitykę odsłon i share'ów
   - Zakres: page views, copy link, share intent, source tagging.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - dodano eventy `public_listing_viewed`, `public_listing_share_clicked` i `public_listing_link_copied`,
+    - dodano publiczny endpoint `POST /api/analytics/public-listings/:slug/events`, który przypisuje anonimowe eventy do właściciela oferty po `publicSlug`,
+    - publiczna strona oferty wysyła event odsłony oraz obsługuje przyciski udostępniania i kopiowania linku,
+    - kopiowanie publicznego URL w panelu agenta wysyła event z `source = agent_publication_panel`,
+    - eventy zawierają `listingId`, `publicSlug`, ścieżkę oraz podstawowe oznaczenie źródła/referrera.
   - Uwagi / follow-up:
+    - dashboard metryk w Sprincie 7 powinien agregować te eventy po `agencyId`, `agentId`, `listingId` i `source`,
+    - po dodaniu formularza leadowego w Sprincie 4 należy dopiąć `public_lead_submitted`.
 
 #### Definition of Done
 - użytkownik publikuje ofertę z CRM do publicznego linku,

@@ -11,6 +11,9 @@ export const AnalyticsEventName = {
   LISTING_CREATED: 'listing_created',
   LISTING_PUBLISHED: 'listing_published',
   LISTING_UNPUBLISHED: 'listing_unpublished',
+  PUBLIC_LISTING_VIEWED: 'public_listing_viewed',
+  PUBLIC_LISTING_SHARE_CLICKED: 'public_listing_share_clicked',
+  PUBLIC_LISTING_LINK_COPIED: 'public_listing_link_copied',
   CLIENT_CREATED: 'client_created',
   CLIENTS_IMPORTED: 'clients_imported',
   APPOINTMENT_CREATED: 'appointment_created',
@@ -54,6 +57,36 @@ export function trackAnalyticsEvent({
   }).catch((error) => {
     if (process.env.NODE_ENV !== 'production') {
       console.warn('Analytics event failed', name, error);
+    }
+  });
+}
+
+export function trackPublicListingEvent({
+  slug,
+  name,
+  properties,
+  path,
+}: TrackAnalyticsEventInput & { slug: string }): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const payload = {
+    name,
+    path: path ?? `${window.location.pathname}${window.location.search}`,
+    properties: compactProperties({
+      referrer: document.referrer || null,
+      ...properties,
+    }),
+  };
+
+  void apiFetch(`/analytics/public-listings/${slug}/events`, {
+    method: 'POST',
+    skipAuth: true,
+    body: payload,
+  }).catch((error) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Public listing analytics event failed', name, error);
     }
   });
 }

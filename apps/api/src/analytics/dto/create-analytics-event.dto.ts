@@ -16,6 +16,9 @@ export const ANALYTICS_EVENT_NAMES = [
   'listing_created',
   'listing_published',
   'listing_unpublished',
+  'public_listing_viewed',
+  'public_listing_share_clicked',
+  'public_listing_link_copied',
   'client_created',
   'clients_imported',
   'appointment_created',
@@ -26,9 +29,32 @@ export const ANALYTICS_EVENT_NAMES = [
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENT_NAMES)[number];
 
+export const PUBLIC_LISTING_ANALYTICS_EVENT_NAMES = [
+  'public_listing_viewed',
+  'public_listing_share_clicked',
+  'public_listing_link_copied',
+] as const;
+
+export type PublicListingAnalyticsEventName =
+  (typeof PUBLIC_LISTING_ANALYTICS_EVENT_NAMES)[number];
+
 export class CreateAnalyticsEventDto {
   @IsIn(ANALYTICS_EVENT_NAMES)
   name: AnalyticsEventName;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  path?: string;
+
+  @IsOptional()
+  @IsObject()
+  properties?: Record<string, unknown>;
+}
+
+export class CreatePublicListingAnalyticsEventDto {
+  @IsIn(PUBLIC_LISTING_ANALYTICS_EVENT_NAMES)
+  name: PublicListingAnalyticsEventName;
 
   @IsOptional()
   @IsString()
