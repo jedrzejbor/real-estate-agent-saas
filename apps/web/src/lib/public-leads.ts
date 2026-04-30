@@ -63,6 +63,8 @@ export interface PublicLeadSubmissionResult {
   id: string;
   status: string;
   createdAt: string;
+  convertedClientId: string | null;
+  conversion: 'created' | 'matched' | 'skipped';
 }
 
 export async function submitPublicLead(

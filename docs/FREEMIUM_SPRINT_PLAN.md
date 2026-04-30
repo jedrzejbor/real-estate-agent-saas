@@ -757,11 +757,18 @@ Publiczna oferta generuje leady, które trafiają do systemu i mogą być obsłu
     - F4.6 powinno dopiąć eventy lejka dla przejść visit → submit lead → lead accepted,
     - później można dodać akcje zmiany statusu publicznego zapytania bezpośrednio z widoku listy.
 
-- [ ] `F4.6` Dodać eventy mierzące conversion funnel oferty
+- [x] `F4.6` Dodać eventy mierzące conversion funnel oferty
   - Zakres: visit → submit lead → lead accepted.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - ustandaryzowano eventy lejka przez właściwość `funnelStage`: `visit`, `submit`, `accepted`,
+    - wzbogacono `public_listing_viewed` o `listingId` i `publicSlug`,
+    - wzbogacono `public_lead_submitted` o `publicLeadId`, `convertedClientId`, typ konwersji, status leada, metodę kontaktu, UTM i czas wypełniania formularza,
+    - dodano backendowy event `public_lead_accepted` zapisywany po konwersji publicznego leada do klienta CRM,
+    - event `public_lead_accepted` zawiera powiązania `listingId`, `publicSlug`, `publicLeadId`, `clientId`, typ konwersji i zgody.
   - Uwagi / follow-up:
+    - raport konwersji ofert może teraz liczyć funnel z eventów `public_listing_viewed` → `public_lead_submitted` → `public_lead_accepted`,
+    - w kolejnych sprintach można dodać dashboard metryk dla publicznych ofert na bazie `analytics_events`.
 
 #### Definition of Done
 - publiczna oferta generuje lead,

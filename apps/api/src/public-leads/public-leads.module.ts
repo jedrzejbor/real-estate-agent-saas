@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ActivityModule } from '../activity';
+import { AnalyticsModule } from '../analytics';
 import { Client } from '../clients/entities/client.entity';
 import { ClientNote } from '../clients/entities/client-note.entity';
 import { Listing } from '../listings/entities/listing.entity';
@@ -13,6 +14,7 @@ import { PublicLeadsService } from './public-leads.service';
   imports: [
     TypeOrmModule.forFeature([PublicLead, Listing, Agent, Client, ClientNote]),
     ActivityModule,
+    AnalyticsModule,
   ],
   controllers: [PublicLeadsController],
   providers: [PublicLeadsService],

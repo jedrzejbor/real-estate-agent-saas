@@ -20,6 +20,7 @@ export const ANALYTICS_EVENT_NAMES = [
   'public_listing_share_clicked',
   'public_listing_link_copied',
   'public_lead_submitted',
+  'public_lead_accepted',
   'client_created',
   'clients_imported',
   'appointment_created',

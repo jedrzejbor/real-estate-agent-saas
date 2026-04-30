@@ -3,10 +3,7 @@
 import * as React from 'react';
 import { Check, Copy, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  AnalyticsEventName,
-  trackPublicListingEvent,
-} from '@/lib/analytics';
+import { AnalyticsEventName, trackPublicListingEvent } from '@/lib/analytics';
 
 interface PublicListingAnalyticsProps {
   slug: string;
@@ -32,7 +29,9 @@ export function PublicListingAnalytics({
       slug,
       name: AnalyticsEventName.PUBLIC_LISTING_VIEWED,
       properties: {
+        funnelStage: 'visit',
         listingId,
+        publicSlug: slug,
       },
     });
   }, [listingId, slug]);
@@ -44,7 +43,9 @@ export function PublicListingAnalytics({
       slug,
       name: AnalyticsEventName.PUBLIC_LISTING_SHARE_CLICKED,
       properties: {
+        funnelStage: 'share',
         listingId,
+        publicSlug: slug,
         method: canUseNativeShare ? 'native_share' : 'copy_fallback',
       },
     });
@@ -79,7 +80,9 @@ export function PublicListingAnalytics({
         slug,
         name: AnalyticsEventName.PUBLIC_LISTING_LINK_COPIED,
         properties: {
+          funnelStage: 'share',
           listingId,
+          publicSlug: slug,
           source: 'public_listing_page',
         },
       });
@@ -105,7 +108,11 @@ export function PublicListingAnalytics({
         onClick={handleCopy}
         className="h-11 gap-2 rounded-xl"
       >
-        {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+        {isCopied ? (
+          <Check className="h-4 w-4" />
+        ) : (
+          <Copy className="h-4 w-4" />
+        )}
         {isCopied ? 'Skopiowano' : 'Kopiuj link'}
       </Button>
     </div>

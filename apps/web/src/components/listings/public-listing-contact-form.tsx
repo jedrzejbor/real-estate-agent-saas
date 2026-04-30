@@ -58,6 +58,7 @@ export function PublicListingContactForm({
     }
 
     const utm = getUtmParams();
+    const completionMs = Date.now() - formStartedAt.current;
 
     try {
       setIsSubmitting(true);
@@ -82,9 +83,21 @@ export function PublicListingContactForm({
         slug,
         name: AnalyticsEventName.PUBLIC_LEAD_SUBMITTED,
         properties: {
+          funnelStage: 'submit',
           listingId,
+          publicSlug: slug,
           publicLeadId: result.id,
+          convertedClientId: result.convertedClientId,
+          conversion: result.conversion,
+          leadStatus: result.status,
           source: 'public_listing_contact_form',
+          contactMethod: getContactMethod(parsed.data),
+          hasMessage: Boolean(parsed.data.message?.trim()),
+          marketingConsent: Boolean(parsed.data.marketingConsent),
+          formCompletionMs: completionMs,
+          utmSource: utm.utm_source,
+          utmMedium: utm.utm_medium,
+          utmCampaign: utm.utm_campaign,
         },
       });
 
@@ -222,6 +235,16 @@ export function PublicListingContactForm({
   );
 }
 
+function getContactMethod(data: PublicLeadFormData): string {
+  const hasEmail = Boolean(data.email?.trim());
+  const hasPhone = Boolean(data.phone?.trim());
+
+  if (hasEmail && hasPhone) return 'email_and_phone';
+  if (hasEmail) return 'email';
+  if (hasPhone) return 'phone';
+  return 'unknown';
+}
+
 function LeadField({
   label,
   name,
@@ -237,7 +260,10 @@ function LeadField({
 }) {
   return (
     <div className="space-y-1.5">
-      <label htmlFor={name} className="block text-sm font-medium text-foreground">
+      <label
+        htmlFor={name}
+        className="block text-sm font-medium text-foreground"
+      >
         {label}
         {required ? <span className="ml-0.5 text-destructive">*</span> : null}
       </label>

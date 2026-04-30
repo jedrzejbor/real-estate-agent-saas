@@ -9,6 +9,7 @@ import { createHash } from 'crypto';
 import type { Request } from 'express';
 import { Brackets, DataSource, EntityManager, Repository } from 'typeorm';
 import { ActivityService } from '../activity';
+import { AnalyticsService } from '../analytics';
 import { Client } from '../clients/entities/client.entity';
 import { ClientNote } from '../clients/entities/client-note.entity';
 import {
@@ -91,6 +92,7 @@ export class PublicLeadsService {
     private readonly agentRepo: Repository<Agent>,
     private readonly dataSource: DataSource,
     private readonly activityService: ActivityService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   async findAll(
@@ -291,6 +293,14 @@ export class PublicLeadsService {
       conversion: conversion.conversion,
     });
 
+    await this.trackLeadAccepted({
+      agent,
+      listing,
+      lead: conversion.lead,
+      clientId: conversion.client.id,
+      conversion: conversion.conversion,
+    });
+
     return {
       id: conversion.lead.id,
       status: conversion.lead.status,
@@ -419,6 +429,46 @@ export class PublicLeadsService {
           ? 'Utworzono klienta z formularza publicznej oferty'
           : 'Powiązano publiczny lead z istniejącym klientem',
     });
+  }
+
+  private async trackLeadAccepted(input: {
+    agent: Agent;
+    listing: Listing;
+    lead: PublicLead;
+    clientId: string;
+    conversion: 'created' | 'matched';
+  }): Promise<void> {
+    if (!input.agent.userId) {
+      return;
+    }
+
+    try {
+      await this.analyticsService.track(input.agent.userId, {
+        name: 'public_lead_accepted',
+        path:
+          input.lead.sourceUrl ?? `/oferty/${input.lead.publicSlugSnapshot}`,
+        properties: {
+          funnelStage: 'accepted',
+          listingId: input.listing.id,
+          publicSlug: input.lead.publicSlugSnapshot,
+          publicLeadId: input.lead.id,
+          clientId: input.clientId,
+          conversion: input.conversion,
+          leadStatus: input.lead.status,
+          source: input.lead.source,
+          hasEmail: Boolean(input.lead.email),
+          hasPhone: Boolean(input.lead.phone),
+          hasMessage: Boolean(input.lead.message),
+          marketingConsent: input.lead.marketingConsent,
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to track public lead accepted event for lead ${input.lead.id}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
   }
 
   private assertHumanSubmission(dto: CreatePublicLeadDto): void {
