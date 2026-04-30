@@ -1,7 +1,17 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowLeft, Link2 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'Publiczne oferty | EstateFlow',
+  description: 'Publiczne strony ofert EstateFlow.',
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
 
 export default function PublicListingsIndexPage() {
   return (

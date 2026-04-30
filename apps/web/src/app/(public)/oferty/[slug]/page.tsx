@@ -17,6 +17,11 @@ import {
   Ruler,
 } from 'lucide-react';
 import {
+  absoluteUrl,
+  compactJsonLd,
+  getSiteUrl,
+} from '@/lib/seo';
+import {
   fetchPublicListing,
   formatArea,
   formatPrice,
@@ -43,6 +48,10 @@ export async function generateMetadata({
   if (!listing) {
     return {
       title: 'Oferta nie znaleziona | EstateFlow',
+      robots: {
+        index: false,
+        follow: false,
+      },
     };
   }
 
@@ -51,16 +60,48 @@ export async function generateMetadata({
     listing.seoDescription ||
     listing.description ||
     `${PROPERTY_TYPE_LABELS[listing.propertyType]} ${getLocationLabel(listing)} w EstateFlow.`;
-  const image = listing.shareImageUrl || getPrimaryImageUrl(listing);
+  const canonicalUrl = absoluteUrl(`/oferty/${listing.slug}`);
+  const imageUrl = getSeoImageUrl(listing);
 
   return {
+    metadataBase: getSiteUrl(),
     title,
     description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+        'max-video-preview': -1,
+      },
+    },
     openGraph: {
       title,
       description,
+      url: canonicalUrl,
+      siteName: 'EstateFlow',
       type: 'article',
-      images: image ? [{ url: image }] : undefined,
+      locale: 'pl_PL',
+      publishedTime: listing.publishedAt,
+      modifiedTime: listing.updatedAt,
+      images: [
+        {
+          url: imageUrl,
+          alt: title,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [imageUrl],
     },
   };
 }
@@ -81,9 +122,15 @@ export default async function PublicListingPage({
   const agentName = [listing.agent?.firstName, listing.agent?.lastName]
     .filter(Boolean)
     .join(' ');
+  const canonicalUrl = absoluteUrl(`/oferty/${listing.slug}`);
+  const jsonLd = buildListingJsonLd(listing, canonicalUrl, primaryImage);
 
   return (
     <main className="min-h-screen bg-[#FAFAF9] text-[#1C1917]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <section className="relative min-h-[78vh] overflow-hidden bg-stone-950 text-white">
         <img
           src={primaryImage}
@@ -294,6 +341,29 @@ function getGalleryImages(listing: PublicListing) {
     .slice(0, 6);
 }
 
+function getSeoImageUrl(listing: PublicListing): string {
+  const candidateImages = [
+    listing.shareImageUrl,
+    getPrimaryImageUrl(listing),
+    FALLBACK_HERO_IMAGE,
+  ];
+
+  return absoluteUrl(
+    candidateImages.find((image) => isCrawlableImageUrl(image)) ??
+      FALLBACK_HERO_IMAGE,
+  );
+}
+
+function isCrawlableImageUrl(value: string | null | undefined): value is string {
+  if (!value) return false;
+
+  return (
+    value.startsWith('/') ||
+    value.startsWith('https://') ||
+    value.startsWith('http://')
+  );
+}
+
 function getLocationLabel(listing: PublicListing): string {
   const address = listing.address;
   if (!address) return '';
@@ -315,6 +385,78 @@ function formatFloor(listing: PublicListing): string {
   return listing.totalFloors
     ? `${listing.floor} / ${listing.totalFloors}`
     : String(listing.floor);
+}
+
+function buildListingJsonLd(
+  listing: PublicListing,
+  canonicalUrl: string,
+  primaryImage: string,
+) {
+  const locationLabel = getLocationLabel(listing);
+  const imageUrls = [
+    listing.shareImageUrl,
+    primaryImage,
+    ...listing.images.map((image) => image.url),
+  ]
+    .filter(isCrawlableImageUrl)
+    .map((image) => absoluteUrl(image));
+  const uniqueImageUrls = Array.from(new Set(imageUrls));
+  const agentName = [listing.agent?.firstName, listing.agent?.lastName]
+    .filter(Boolean)
+    .join(' ');
+
+  return compactJsonLd({
+    '@context': 'https://schema.org',
+    '@type': 'RealEstateListing',
+    '@id': canonicalUrl,
+    url: canonicalUrl,
+    name: listing.title,
+    description: listing.description,
+    datePosted: listing.publishedAt,
+    dateModified: listing.updatedAt,
+    image: uniqueImageUrls,
+    offers: listing.price
+      ? {
+          '@type': 'Offer',
+          price: String(listing.price),
+          priceCurrency: listing.currency,
+          availability: 'https://schema.org/InStock',
+          url: canonicalUrl,
+        }
+      : undefined,
+    itemOffered: {
+      '@type': 'Residence',
+      name: listing.title,
+      floorSize: listing.areaM2
+        ? {
+            '@type': 'QuantitativeValue',
+            value: Number(listing.areaM2),
+            unitCode: 'MTK',
+          }
+        : undefined,
+      numberOfRooms: listing.rooms,
+      address: listing.address
+        ? {
+            '@type': 'PostalAddress',
+            addressLocality: listing.address.city,
+            addressRegion: listing.address.voivodeship,
+            streetAddress: [listing.address.street, listing.address.district]
+              .filter(Boolean)
+              .join(', '),
+            postalCode: listing.address.postalCode,
+            addressCountry: 'PL',
+          }
+        : undefined,
+    },
+    provider: agentName
+      ? {
+          '@type': 'RealEstateAgent',
+          name: agentName,
+          telephone: listing.agent?.phone,
+        }
+      : undefined,
+    areaServed: locationLabel,
+  });
 }
 
 function Fact({

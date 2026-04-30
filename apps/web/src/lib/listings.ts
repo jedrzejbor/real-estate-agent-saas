@@ -180,6 +180,12 @@ export interface PublicListing {
   shareImageUrl?: string | null;
   estateflowBrandingEnabled: boolean;
   publishedAt: string;
+  updatedAt: string;
+}
+
+export interface PublicListingSitemapEntry {
+  slug: string;
+  updatedAt: string;
 }
 
 export interface PaginationMeta {
@@ -361,6 +367,14 @@ export async function fetchListing(id: string): Promise<Listing> {
 
 export async function fetchPublicListing(slug: string): Promise<PublicListing> {
   return apiFetch<PublicListing>(`/listings/public/${slug}`, {
+    skipAuth: true,
+  });
+}
+
+export async function fetchPublicListingSitemapEntries(): Promise<
+  PublicListingSitemapEntry[]
+> {
+  return apiFetch<PublicListingSitemapEntry[]>('/listings/public', {
     skipAuth: true,
   });
 }

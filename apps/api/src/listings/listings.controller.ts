@@ -38,6 +38,13 @@ export class ListingsController {
     return this.listingsService.findAll(userId, query);
   }
 
+  /** GET /api/listings/public — list public listing URLs for sitemap. */
+  @Public()
+  @Get('public')
+  async findPublicSitemapEntries() {
+    return this.listingsService.findPublicSitemapEntries();
+  }
+
   /** GET /api/listings/public/:slug — get public listing by slug. */
   @Public()
   @Get('public/:slug')

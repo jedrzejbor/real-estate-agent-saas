@@ -640,11 +640,19 @@ Oferty mogą być publikowane pod publicznym linkiem i stanowią realny asset ac
     - F3.6 powinno dopiąć event copy/share oraz public page view,
     - przyszłe plany płatne mogą dodać manualne sterowanie brandingiem EstateFlow w tym panelu.
 
-- [ ] `F3.5` Dodać SEO basics dla publicznych ofert
+- [x] `F3.5` Dodać SEO basics dla publicznych ofert
   - Zakres: meta tags, open graph, indeksowalność, sitemap strategy.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - rozszerzono metadata publicznej oferty o canonical URL, robots directives, Open Graph, Twitter card, locale oraz daty publikacji/aktualizacji,
+    - dodano JSON-LD `RealEstateListing` z ofertą, adresem, ceną, zdjęciami i agentem,
+    - dodano `robots.txt` z blokadą panelu, auth i API oraz linkiem do sitemap,
+    - dodano dynamiczny `sitemap.xml`, który pobiera opublikowane slugi z publicznego endpointu API,
+    - dodano publiczny endpoint `GET /api/listings/public` zwracający minimalne wpisy sitemapowe,
+    - strona `/oferty` bez sluga jest oznaczona jako `noindex`.
   - Uwagi / follow-up:
+    - produkcyjnie należy ustawić `NEXT_PUBLIC_SITE_URL` / `SITE_URL`, żeby canonical i sitemap wskazywały domenę produkcyjną,
+    - jeśli publicznych ofert będzie dużo, endpoint sitemapowy warto podzielić na paginowane sitemapy.
 
 - [ ] `F3.6` Dodać analitykę odsłon i share'ów
   - Zakres: page views, copy link, share intent, source tagging.

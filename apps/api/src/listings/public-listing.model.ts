@@ -57,6 +57,11 @@ export interface PublicListingView {
   updatedAt: Date;
 }
 
+export interface PublicListingSitemapEntry {
+  slug: string;
+  updatedAt: Date;
+}
+
 export interface ListingPublicDefaults {
   title: string;
   description?: string | null;
