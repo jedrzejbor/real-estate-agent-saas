@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { apiFetch } from './api-client';
-import { AnalyticsEventName, trackAnalyticsEvent } from './analytics';
+import {
+  AnalyticsEventName,
+  trackAnalyticsEvent,
+  trackPublicListingEvent,
+} from './analytics';
 
 // ── Enums (mirroring backend) ──
 
@@ -376,6 +380,20 @@ export async function fetchPublicListingSitemapEntries(): Promise<
 > {
   return apiFetch<PublicListingSitemapEntry[]>('/listings/public', {
     skipAuth: true,
+  });
+}
+
+export function reportPublicListingAbuse(
+  slug: string,
+  input: { reason: string; details?: string },
+): void {
+  trackPublicListingEvent({
+    slug,
+    name: AnalyticsEventName.PUBLIC_LISTING_ABUSE_REPORTED,
+    properties: {
+      reason: input.reason,
+      details: input.details ?? null,
+    },
   });
 }
 

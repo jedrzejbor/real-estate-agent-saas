@@ -9,6 +9,7 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -31,6 +32,7 @@ export class PublicLeadsController {
   /** POST /api/public-leads/listings/:slug — capture a public listing inquiry. */
   @Public()
   @Post('listings/:slug')
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @HttpCode(HttpStatus.CREATED)
   async createForPublicListing(
     @Param('slug') slug: string,

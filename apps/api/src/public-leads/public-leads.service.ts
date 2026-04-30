@@ -5,9 +5,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { createHash } from 'crypto';
 import type { Request } from 'express';
-import { Brackets, DataSource, EntityManager, Repository } from 'typeorm';
+import {
+  Brackets,
+  DataSource,
+  EntityManager,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { ActivityService } from '../activity';
 import { AnalyticsService } from '../analytics';
 import { Client } from '../clients/entities/client.entity';
@@ -20,6 +25,15 @@ import {
   PublicLeadSource,
   PublicLeadStatus,
 } from '../common/enums';
+import {
+  assertPublicFormHoneypot,
+  assertPublicFormTiming,
+  assertPublicTextAllowed,
+  assertRateLimit,
+  getRequestFingerprint,
+  normalizeContactFingerprint,
+  normalizeOptional,
+} from '../common/abuse-protection';
 import { Listing } from '../listings/entities/listing.entity';
 import { Agent } from '../users/entities';
 import { CreatePublicLeadDto, PublicLeadQueryDto } from './dto';
@@ -29,6 +43,12 @@ const MIN_FORM_COMPLETION_MS = 2500;
 const MAX_FORM_AGE_MS = 24 * 60 * 60 * 1000;
 const PHONE_DEDUP_MIN_DIGITS = 6;
 const PHONE_DEDUP_MAX_SUFFIX_DIGITS = 9;
+const PUBLIC_LEAD_IP_WINDOW_MS = 60 * 60 * 1000;
+const PUBLIC_LEAD_IP_LIMIT = 8;
+const PUBLIC_LEAD_LISTING_IP_LIMIT = 3;
+const PUBLIC_LEAD_CONTACT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const PUBLIC_LEAD_CONTACT_LIMIT = 5;
+const MAX_LEAD_MESSAGE_LINKS = 1;
 
 export interface PublicLeadSubmitResult {
   id: string;
@@ -178,6 +198,7 @@ export class PublicLeadsService {
   ): Promise<PublicLeadSubmitResult> {
     this.assertHumanSubmission(dto);
     this.assertContactable(dto);
+    const fingerprint = getRequestFingerprint(request);
 
     const listing = await this.listingRepo.findOne({
       where: {
@@ -202,6 +223,16 @@ export class PublicLeadsService {
 
     const email = normalizeOptional(dto.email);
     const phone = normalizeOptional(dto.phone);
+    await this.assertCreateRateLimits({
+      listingId: listing.id,
+      ipHash: fingerprint.ipHash,
+      email,
+      phone,
+    });
+    const abuseReport = assertPublicTextAllowed(
+      { message: dto.message, imageUrls: ['lead'] },
+      { maxLinks: MAX_LEAD_MESSAGE_LINKS },
+    );
 
     const conversion = await this.dataSource.transaction(async (manager) => {
       const now = new Date();
@@ -224,9 +255,15 @@ export class PublicLeadsService {
         marketingConsent: dto.marketingConsent ?? false,
         consentText: normalizeOptional(dto.consentText),
         consentedAt: dto.contactConsent ? now : null,
-        ipHash: hashIp(getClientIp(request)),
-        userAgent: normalizeOptional(request.get('user-agent')),
-        metadata: sanitizeMetadata(dto.metadata),
+        ipHash: fingerprint.ipHash,
+        userAgent: fingerprint.userAgent,
+        metadata: {
+          ...sanitizeMetadata(dto.metadata),
+          abuse: {
+            riskScore: abuseReport.riskScore,
+            signals: abuseReport.signals,
+          },
+        },
         listingId: listing.id,
         agentId: agent.id,
         agencyId: agent.agencyId ?? null,
@@ -472,18 +509,11 @@ export class PublicLeadsService {
   }
 
   private assertHumanSubmission(dto: CreatePublicLeadDto): void {
-    if (dto.website?.trim()) {
-      throw new BadRequestException('Nie udało się zapisać formularza');
-    }
-
-    if (!dto.formStartedAt) {
-      return;
-    }
-
-    const elapsed = Date.now() - dto.formStartedAt;
-    if (elapsed < MIN_FORM_COMPLETION_MS || elapsed > MAX_FORM_AGE_MS) {
-      throw new BadRequestException('Spróbuj wysłać formularz ponownie');
-    }
+    assertPublicFormHoneypot(dto.website);
+    assertPublicFormTiming(dto.formStartedAt, {
+      minCompletionMs: MIN_FORM_COMPLETION_MS,
+      maxAgeMs: MAX_FORM_AGE_MS,
+    });
   }
 
   private assertContactable(dto: CreatePublicLeadDto): void {
@@ -504,6 +534,68 @@ export class PublicLeadsService {
     }
 
     return agent;
+  }
+
+  private async assertCreateRateLimits(input: {
+    listingId: string;
+    ipHash: string | null;
+    email: string | null;
+    phone: string | null;
+  }): Promise<void> {
+    const now = Date.now();
+
+    if (input.ipHash) {
+      const windowStart = new Date(now - PUBLIC_LEAD_IP_WINDOW_MS);
+      const [ipUsage, listingIpUsage] = await Promise.all([
+        this.publicLeadRepo.count({
+          where: {
+            ipHash: input.ipHash,
+            createdAt: MoreThanOrEqual(windowStart),
+          },
+        }),
+        this.publicLeadRepo.count({
+          where: {
+            listingId: input.listingId,
+            ipHash: input.ipHash,
+            createdAt: MoreThanOrEqual(windowStart),
+          },
+        }),
+      ]);
+
+      assertRateLimit(ipUsage, PUBLIC_LEAD_IP_LIMIT);
+      assertRateLimit(listingIpUsage, PUBLIC_LEAD_LISTING_IP_LIMIT);
+    }
+
+    const contactFingerprints = [
+      normalizeContactFingerprint(input.email),
+      normalizeContactFingerprint(input.phone),
+    ].filter((value): value is string => Boolean(value));
+
+    if (contactFingerprints.length === 0) {
+      return;
+    }
+
+    const contactWindowStart = new Date(now - PUBLIC_LEAD_CONTACT_WINDOW_MS);
+    const contactUsage = await this.publicLeadRepo
+      .createQueryBuilder('lead')
+      .where('lead.createdAt >= :contactWindowStart', { contactWindowStart })
+      .andWhere(
+        new Brackets((qb) => {
+          if (input.email) {
+            qb.where('LOWER(lead.email) = LOWER(:email)', {
+              email: input.email,
+            });
+          }
+
+          if (input.phone) {
+            const method = input.email ? 'orWhere' : 'where';
+            qb[method]('lead.phone = :phone', { phone: input.phone });
+          }
+        }),
+      )
+      .getCount();
+
+    assertRateLimit(contactUsage, PUBLIC_LEAD_CONTACT_LIMIT);
   }
 }
 
@@ -542,11 +634,6 @@ function mapPublicLeadListItem(lead: PublicLead): PublicLeadListItem {
         }
       : null,
   };
-}
-
-function normalizeOptional(value: string | undefined | null): string | null {
-  const normalized = value?.trim();
-  return normalized ? normalized : null;
 }
 
 function normalizeComparablePhoneSuffix(
@@ -616,15 +703,4 @@ function sanitizeMetadata(
       ['string', 'number', 'boolean'].includes(typeof value),
     ),
   );
-}
-
-function getClientIp(request: Request): string | null {
-  const forwardedFor = request.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return forwardedFor || request.ip || null;
-}
-
-function hashIp(ip: string | null): string | null {
-  if (!ip) return null;
-
-  return createHash('sha256').update(ip).digest('hex');
 }

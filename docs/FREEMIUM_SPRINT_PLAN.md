@@ -862,11 +862,21 @@ Użytkownik może dodać ofertę bez konta, opublikować ją, a następnie po re
   - Uwagi / follow-up:
     - pełny publiczny wizard `/dodaj-oferte` nadal powinien zostać dobudowany w kolejnych krokach UI, bo F5.5 domyka głównie ścieżkę po kliknięciu linku z emaila.
 
-- [ ] `F5.6` Dodać mechanizmy antyspamowe i nadużyciowe
+- [x] `F5.6` Dodać mechanizmy antyspamowe i nadużyciowe
   - Zakres: rate limiting, CAPTCHA, heurystyki, report abuse.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - dodano wspólną warstwę `abuse-protection` dla publicznych formularzy: honeypot, timing guard, hash IP, normalizacja fingerprintów kontaktowych i heurystyki treści,
+    - publiczne submissiony ofert mają limity per hash IP, per email i per telefon oraz zapisują w `metadata.abuse` `riskScore` i listę sygnałów,
+    - resend verification ma dodatkowy limit per hash IP oprócz cooldownu i limitu per submission,
+    - formularze publicznych leadów mają limity per hash IP, per oferta + hash IP oraz per kontakt,
+    - dodano twardą blokadę nadmiernej liczby linków w publicznym submission i publicznym leadzie,
+    - dopięto precyzyjne throttle na publiczne endpointy submit / resend / verify / lead submit / public analytics,
+    - dodano event `public_listing_abuse_reported` jako backendowy fundament pod report abuse z publicznej strony oferty.
   - Uwagi / follow-up:
+    - CAPTCHA pozostaje jako opcjonalny provider do podpięcia przy realnym ruchu albo wzroście false-negative,
+    - F5.7 powinno wykorzystać `metadata.abuse` do soft moderation / review queue,
+    - UI przycisku „zgłoś nadużycie” na publicznej ofercie może zostać dodane osobno, bo API/event jest już gotowy.
 
 - [ ] `F5.7` Dodać podstawową moderację publicznych ofert
   - Zakres: reguły walidacji, soft moderation, kolejka do review jeśli potrzebna.

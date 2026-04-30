@@ -6,6 +6,7 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { AnalyticsService } from './analytics.service';
@@ -31,6 +32,7 @@ export class AnalyticsController {
   /** POST /api/analytics/public-listings/:slug/events — store public listing analytics. */
   @Public()
   @Post('public-listings/:slug/events')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(HttpStatus.ACCEPTED)
   async trackPublicListing(
     @Param('slug') slug: string,

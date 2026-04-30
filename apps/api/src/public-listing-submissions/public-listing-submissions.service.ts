@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes } from 'crypto';
 import type { Request } from 'express';
-import { DataSource, In, Not, Repository } from 'typeorm';
+import { DataSource, In, MoreThanOrEqual, Not, Repository } from 'typeorm';
 import { ActivityService } from '../activity';
 import { EmailService } from '../email';
 import { Address } from '../listings/entities/address.entity';
@@ -25,6 +25,14 @@ import {
   PublicListingSubmissionStatus,
   TransactionType,
 } from '../common/enums';
+import {
+  assertPublicFormHoneypot,
+  assertPublicFormTiming,
+  assertPublicTextAllowed,
+  assertRateLimit,
+  getRequestFingerprint,
+  normalizeOptional,
+} from '../common/abuse-protection';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import {
   ClaimPublicListingSubmissionDto,
@@ -42,6 +50,13 @@ const VERIFICATION_TOKEN_BYTES = 32;
 const VERIFICATION_TTL_MS = 48 * 60 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 5 * 60 * 1000;
 const MAX_VERIFICATION_EMAILS = 5;
+const SUBMISSION_IP_WINDOW_MS = 60 * 60 * 1000;
+const SUBMISSION_IP_LIMIT = 5;
+const SUBMISSION_CONTACT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const SUBMISSION_CONTACT_LIMIT = 3;
+const RESEND_IP_WINDOW_MS = 60 * 60 * 1000;
+const RESEND_IP_LIMIT = 10;
+const MAX_DESCRIPTION_LINKS = 2;
 
 interface TokenPair {
   token: string;
@@ -100,6 +115,16 @@ export class PublicListingSubmissionsService {
     this.assertConsents(dto);
 
     const now = new Date();
+    const fingerprint = getRequestFingerprint(request);
+    await this.assertCreateRateLimits(dto, fingerprint.ipHash, now);
+    const abuseReport = assertPublicTextAllowed(
+      {
+        title: dto.listing.title,
+        description: dto.listing.description,
+        imageUrls: dto.images?.map((image) => image.url),
+      },
+      { maxLinks: MAX_DESCRIPTION_LINKS },
+    );
     const verification = createTokenPair();
     const expiresAt = new Date(now.getTime() + VERIFICATION_TTL_MS);
 
@@ -119,10 +144,16 @@ export class PublicListingSubmissionsService {
       verificationExpiresAt: expiresAt,
       verificationEmailSentAt: now,
       verificationEmailCount: 1,
-      ipHash: hashIp(getClientIp(request)),
-      userAgent: normalizeOptional(request.get('user-agent')),
+      ipHash: fingerprint.ipHash,
+      userAgent: fingerprint.userAgent,
       payload: buildSubmissionPayload(dto),
-      metadata: sanitizeMetadata(dto.metadata),
+      metadata: {
+        ...sanitizeMetadata(dto.metadata),
+        abuse: {
+          riskScore: abuseReport.riskScore,
+          signals: abuseReport.signals,
+        },
+      },
       sourceUrl: normalizeOptional(dto.sourceUrl),
       referrer: normalizeOptional(dto.referrer),
       utmSource: normalizeOptional(dto.utmSource),
@@ -145,6 +176,7 @@ export class PublicListingSubmissionsService {
 
   async resendVerification(
     id: string,
+    request: Request,
   ): Promise<PublicListingSubmissionResendResult> {
     const submission = await this.submissionRepo.findOne({ where: { id } });
 
@@ -160,6 +192,11 @@ export class PublicListingSubmissionsService {
     }
 
     const now = new Date();
+    await this.assertResendRateLimit(
+      getRequestFingerprint(request).ipHash,
+      now,
+    );
+
     if (
       submission.verificationEmailSentAt &&
       now.getTime() - submission.verificationEmailSentAt.getTime() <
@@ -388,18 +425,11 @@ export class PublicListingSubmissionsService {
   }
 
   private assertHumanSubmission(dto: CreatePublicListingSubmissionDto): void {
-    if (dto.website?.trim()) {
-      throw new BadRequestException('Nie udało się zapisać formularza');
-    }
-
-    if (!dto.formStartedAt) {
-      return;
-    }
-
-    const elapsed = Date.now() - dto.formStartedAt;
-    if (elapsed < MIN_FORM_COMPLETION_MS || elapsed > MAX_FORM_AGE_MS) {
-      throw new BadRequestException('Spróbuj wysłać formularz ponownie');
-    }
+    assertPublicFormHoneypot(dto.website);
+    assertPublicFormTiming(dto.formStartedAt, {
+      minCompletionMs: MIN_FORM_COMPLETION_MS,
+      maxAgeMs: MAX_FORM_AGE_MS,
+    });
   }
 
   private assertConsents(dto: CreatePublicListingSubmissionDto): void {
@@ -438,6 +468,67 @@ export class PublicListingSubmissionsService {
           'Osiągnięto limit aktywnych ofert w Twoim planie. Przejdź na wyższy plan, aby przejąć kolejną ofertę.',
       });
     }
+  }
+
+  private async assertCreateRateLimits(
+    dto: CreatePublicListingSubmissionDto,
+    ipHash: string | null,
+    now: Date,
+  ): Promise<void> {
+    if (ipHash) {
+      const ipWindowStart = new Date(now.getTime() - SUBMISSION_IP_WINDOW_MS);
+      const ipUsage = await this.submissionRepo.count({
+        where: {
+          ipHash,
+          createdAt: MoreThanOrEqual(ipWindowStart),
+        },
+      });
+      assertRateLimit(ipUsage, SUBMISSION_IP_LIMIT);
+    }
+
+    const contactWindowStart = new Date(
+      now.getTime() - SUBMISSION_CONTACT_WINDOW_MS,
+    );
+    const [emailUsage, phoneUsage] = await Promise.all([
+      this.submissionRepo.count({
+        where: {
+          email: dto.email.toLowerCase().trim(),
+          createdAt: MoreThanOrEqual(contactWindowStart),
+        },
+      }),
+      this.submissionRepo.count({
+        where: {
+          phone: dto.phone.trim(),
+          createdAt: MoreThanOrEqual(contactWindowStart),
+        },
+      }),
+    ]);
+
+    assertRateLimit(emailUsage, SUBMISSION_CONTACT_LIMIT);
+    assertRateLimit(phoneUsage, SUBMISSION_CONTACT_LIMIT);
+  }
+
+  private async assertResendRateLimit(
+    ipHash: string | null,
+    now: Date,
+  ): Promise<void> {
+    if (!ipHash) {
+      return;
+    }
+
+    const windowStart = new Date(now.getTime() - RESEND_IP_WINDOW_MS);
+    const currentUsage = await this.submissionRepo.count({
+      where: {
+        ipHash,
+        verificationEmailSentAt: MoreThanOrEqual(windowStart),
+      },
+    });
+
+    assertRateLimit(
+      currentUsage,
+      RESEND_IP_LIMIT,
+      'Zbyt wiele prób wysyłki emaila. Spróbuj ponownie później.',
+    );
   }
 
   private async generateUniquePublicSlug(
@@ -674,11 +765,6 @@ function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-function normalizeOptional(value: string | undefined | null): string | null {
-  const normalized = value?.trim();
-  return normalized ? normalized : null;
-}
-
 function sanitizeMetadata(
   metadata: Record<string, unknown> | undefined,
 ): Record<string, unknown> {
@@ -689,16 +775,6 @@ function sanitizeMetadata(
       ['string', 'number', 'boolean'].includes(typeof value),
     ),
   );
-}
-
-function getClientIp(request: Request): string | null {
-  const forwardedFor = request.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return forwardedFor || request.ip || null;
-}
-
-function hashIp(ip: string | null): string | null {
-  if (!ip) return null;
-  return createHash('sha256').update(ip).digest('hex');
 }
 
 function maskEmail(email: string): string {
