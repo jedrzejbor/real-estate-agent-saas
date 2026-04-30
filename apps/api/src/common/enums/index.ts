@@ -92,6 +92,23 @@ export enum PublicLeadStatus {
   ARCHIVED = 'archived',
 }
 
+export enum PublicListingSubmissionSource {
+  PUBLIC_WIZARD = 'public_wizard',
+  EMBED = 'embed',
+  PARTNER = 'partner',
+  OTHER = 'other',
+}
+
+export enum PublicListingSubmissionStatus {
+  DRAFT = 'draft',
+  PENDING_EMAIL_VERIFICATION = 'pending_email_verification',
+  VERIFIED = 'verified',
+  PUBLISHED = 'published',
+  CLAIMED = 'claimed',
+  REJECTED = 'rejected',
+  EXPIRED = 'expired',
+}
+
 export enum AppointmentType {
   VIEWING = 'viewing',
   NEGOTIATION = 'negotiation',

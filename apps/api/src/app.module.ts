@@ -16,6 +16,7 @@ import { SearchModule } from './search';
 import { NotificationsModule } from './notifications';
 import { AnalyticsModule } from './analytics';
 import { PublicLeadsModule } from './public-leads';
+import { PublicListingSubmissionsModule } from './public-listing-submissions';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { PublicLeadsModule } from './public-leads';
     NotificationsModule,
     AnalyticsModule,
     PublicLeadsModule,
+    PublicListingSubmissionsModule,
   ],
   controllers: [AppController],
   providers: [

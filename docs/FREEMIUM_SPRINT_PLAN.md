@@ -794,17 +794,34 @@ Uruchomić najmocniejszy acquisition loop: publiczne dodanie oferty bez pełnego
 Użytkownik może dodać ofertę bez konta, opublikować ją, a następnie po rejestracji przypisać do swojego workspace.
 
 #### Zadania
-- [ ] `F5.1` Zaprojektować uproszczony publiczny wizard dodania oferty
+- [x] `F5.1` Zaprojektować uproszczony publiczny wizard dodania oferty
   - Zakres: minimalny zestaw pól, upload zdjęć, dane kontaktowe, UX mobile-first.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - dodano dokument projektowy `docs/PUBLIC_LISTING_SUBMISSION_WIZARD.md`,
+    - ustalono publiczny entry point `/dodaj-oferte`,
+    - zaprojektowano 5 kroków wizardu: podstawy, parametry, zdjęcia, kontakt i zgody, podsumowanie,
+    - zdefiniowano minimalne pola, walidację, zasady uploadu zdjęć i mobile-first UX,
+    - zdefiniowano rekomendowany model `PublicListingSubmission` pod F5.2,
+    - opisano kontrakty API, flow email verification, claim listing, antyspam, moderation guardrails i eventy.
   - Uwagi / follow-up:
+    - F5.2 powinno wdrożyć osobną encję publicznego submission zamiast tworzyć `Listing` od razu,
+    - decyzja do F5.2: czy verified submission może publikować ofertę przed claimem, czy bezpiecznie publikujemy dopiero po claimie.
 
-- [ ] `F5.2` Dodać model publicznego draftu / submission
+- [x] `F5.2` Dodać model publicznego draftu / submission
   - Zakres: statusy, token weryfikacyjny, źródło, wersja przed claimem.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - dodano enumy `PublicListingSubmissionStatus` i `PublicListingSubmissionSource`,
+    - dodano encję `PublicListingSubmission` jako osobny model publicznego draftu przed claimem,
+    - model przechowuje statusy, źródło, hashe tokenów verification/claim, dane kontaktowe, zgody, metadane techniczne i snapshot `payload`,
+    - dodano opcjonalne powiązania do opublikowanej oferty oraz przyszłego claimu przez agenta/agencję,
+    - dodano `PublicListingSubmissionsModule` i rejestrację modułu w API,
+    - dodano migrację produkcyjną `20260430_public_listing_submissions.sql`.
   - Uwagi / follow-up:
+    - F5.3 powinno generować i obsłużyć `verificationTokenHash` oraz `verificationExpiresAt`,
+    - F5.4 powinno użyć `claimTokenHash`, `claimedAgentId`, `claimedAgencyId` i `claimedAt` do przejęcia oferty,
+    - zgodnie z decyzją MVP bezpieczniejsze jest publikowanie oferty dopiero po claimie, a nie od razu po samym verified submission.
 
 - [ ] `F5.3` Dodać email verification dla publicznego submitu
   - Zakres: link weryfikacyjny, czas życia tokenu, retry.
