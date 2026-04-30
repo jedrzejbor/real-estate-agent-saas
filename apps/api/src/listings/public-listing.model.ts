@@ -23,10 +23,17 @@ export interface PublicListingImage {
 }
 
 export interface PublicListingAgent {
+  id?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   phone?: string | null;
+  bio?: string | null;
   avatarUrl?: string | null;
+  agency?: {
+    id: string;
+    name: string;
+    logoUrl?: string | null;
+  } | null;
 }
 
 export interface PublicListingView {
@@ -59,6 +66,39 @@ export interface PublicListingView {
 
 export interface PublicListingSitemapEntry {
   slug: string;
+  updatedAt: Date;
+}
+
+export interface PublicAgentProfileListing {
+  id: string;
+  slug: string;
+  title: string;
+  propertyType: PropertyType;
+  transactionType: TransactionType;
+  price?: number | string | null;
+  currency: string;
+  areaM2?: number | string | null;
+  plotAreaM2?: number | string | null;
+  rooms?: number | null;
+  address?: PublicListingAddress | null;
+  imageUrl?: string | null;
+  publishedAt: Date;
+}
+
+export interface PublicAgentProfileView {
+  id: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  agency?: {
+    id: string;
+    name: string;
+    address?: string | null;
+    logoUrl?: string | null;
+  } | null;
+  listings: PublicAgentProfileListing[];
   updatedAt: Date;
 }
 

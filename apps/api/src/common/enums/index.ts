@@ -78,6 +78,7 @@ export enum ClientStatus {
 export enum PublicLeadSource {
   PUBLIC_LISTING_PAGE = 'public_listing_page',
   PUBLIC_LISTING_SHARE = 'public_listing_share',
+  PUBLIC_PROFILE = 'public_profile',
   QR_CODE = 'qr_code',
   EMBED = 'embed',
   OTHER = 'other',

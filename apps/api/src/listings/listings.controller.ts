@@ -45,6 +45,15 @@ export class ListingsController {
     return this.listingsService.findPublicSitemapEntries();
   }
 
+  /** GET /api/listings/public-agents/:agentId — get public agent profile. */
+  @Public()
+  @Get('public-agents/:agentId')
+  async findPublicAgentProfile(
+    @Param('agentId', ParseUUIDPipe) agentId: string,
+  ) {
+    return this.listingsService.findPublicAgentProfile(agentId);
+  }
+
   /** GET /api/listings/public/:slug — get public listing by slug. */
   @Public()
   @Get('public/:slug')

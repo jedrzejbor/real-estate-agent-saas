@@ -13,6 +13,7 @@ BEGIN
     CREATE TYPE public_leads_source_enum AS ENUM (
       'public_listing_page',
       'public_listing_share',
+      'public_profile',
       'qr_code',
       'embed',
       'other'

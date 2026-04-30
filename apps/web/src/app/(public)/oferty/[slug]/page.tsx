@@ -15,11 +15,7 @@ import {
   Phone,
   Ruler,
 } from 'lucide-react';
-import {
-  absoluteUrl,
-  compactJsonLd,
-  getSiteUrl,
-} from '@/lib/seo';
+import { absoluteUrl, compactJsonLd, getSiteUrl } from '@/lib/seo';
 import {
   fetchPublicListing,
   formatArea,
@@ -285,7 +281,20 @@ export default async function PublicListingPage({
             <h2 className="mt-2 font-heading text-2xl font-semibold">
               {agentName || 'Agent nieruchomości'}
             </h2>
+            {listing.agent?.agency?.name ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {listing.agent.agency.name}
+              </p>
+            ) : null}
             <div className="mt-5 space-y-3">
+              {listing.agent?.id ? (
+                <Link
+                  href={`/agenci/${listing.agent.id}`}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted"
+                >
+                  Profil i oferty
+                </Link>
+              ) : null}
               {listing.agent?.phone ? (
                 <a
                   href={`tel:${listing.agent.phone}`}
@@ -354,7 +363,9 @@ function getSeoImageUrl(listing: PublicListing): string {
   );
 }
 
-function isCrawlableImageUrl(value: string | null | undefined): value is string {
+function isCrawlableImageUrl(
+  value: string | null | undefined,
+): value is string {
   if (!value) return false;
 
   return (

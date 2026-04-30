@@ -25,6 +25,7 @@ import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ListingQueryDto } from './dto/listing-query.dto';
 import {
+  PublicAgentProfileView,
   PublicListingSitemapEntry,
   PublicListingView,
 } from './public-listing.model';
@@ -365,7 +366,7 @@ export class ListingsService {
         publicSlug: slug,
         publicationStatus: ListingPublicationStatus.PUBLISHED,
       },
-      relations: ['address', 'images', 'agent'],
+      relations: ['address', 'images', 'agent', 'agent.agency'],
     });
 
     if (!listing || !listing.publicSlug || !listing.publishedAt) {
@@ -373,6 +374,97 @@ export class ListingsService {
     }
 
     return this.toPublicListingView(listing);
+  }
+
+  async findPublicAgentProfile(
+    agentId: string,
+  ): Promise<PublicAgentProfileView> {
+    const agent = await this.agentRepo.findOne({
+      where: { id: agentId },
+      relations: ['agency'],
+    });
+
+    if (!agent) {
+      throw new NotFoundException('Publiczny profil nie znaleziony');
+    }
+
+    const listings = await this.listingRepo.find({
+      where: {
+        agentId,
+        publicationStatus: ListingPublicationStatus.PUBLISHED,
+      },
+      relations: ['address', 'images'],
+      order: {
+        publishedAt: 'DESC',
+      },
+    });
+
+    const publicListings = listings
+      .filter((listing) => Boolean(listing.publicSlug && listing.publishedAt))
+      .map((listing) => ({
+        id: listing.id,
+        slug: listing.publicSlug as string,
+        title: listing.publicTitle || listing.title,
+        propertyType: listing.propertyType,
+        transactionType: listing.transactionType,
+        price: listing.showPriceOnPublicPage ? listing.price : null,
+        currency: listing.currency,
+        areaM2: listing.areaM2 ?? null,
+        plotAreaM2: listing.plotAreaM2 ?? null,
+        rooms: listing.rooms ?? null,
+        address: listing.address
+          ? {
+              city: listing.address.city,
+              district: listing.address.district ?? null,
+              voivodeship: listing.address.voivodeship ?? null,
+              street: listing.showExactAddressOnPublicPage
+                ? (listing.address.street ?? null)
+                : null,
+              postalCode: listing.showExactAddressOnPublicPage
+                ? (listing.address.postalCode ?? null)
+                : null,
+              lat: listing.showExactAddressOnPublicPage
+                ? (listing.address.lat ?? null)
+                : null,
+              lng: listing.showExactAddressOnPublicPage
+                ? (listing.address.lng ?? null)
+                : null,
+            }
+          : null,
+        imageUrl:
+          listing.images?.slice().sort((a, b) => {
+            if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+            return a.order - b.order;
+          })[0]?.url ?? null,
+        publishedAt: listing.publishedAt as Date,
+      }));
+
+    if (publicListings.length === 0) {
+      throw new NotFoundException('Publiczny profil nie znaleziony');
+    }
+
+    return {
+      id: agent.id,
+      firstName: agent.firstName ?? null,
+      lastName: agent.lastName ?? null,
+      phone: agent.phone ?? null,
+      bio: agent.bio ?? null,
+      avatarUrl: agent.avatarUrl ?? null,
+      agency: agent.agency
+        ? {
+            id: agent.agency.id,
+            name: agent.agency.name,
+            address: agent.agency.address ?? null,
+            logoUrl: agent.agency.logoUrl ?? null,
+          }
+        : null,
+      listings: publicListings,
+      updatedAt: publicListings.reduce(
+        (latest, listing) =>
+          listing.publishedAt > latest ? listing.publishedAt : latest,
+        agent.updatedAt,
+      ),
+    };
   }
 
   async findPublicSitemapEntries(): Promise<PublicListingSitemapEntry[]> {
@@ -607,10 +699,19 @@ export class ListingsService {
         })),
       agent: listing.agent
         ? {
+            id: listing.agent.id,
             firstName: listing.agent.firstName ?? null,
             lastName: listing.agent.lastName ?? null,
             phone: listing.agent.phone ?? null,
+            bio: listing.agent.bio ?? null,
             avatarUrl: listing.agent.avatarUrl ?? null,
+            agency: listing.agent.agency
+              ? {
+                  id: listing.agent.agency.id,
+                  name: listing.agent.agency.name,
+                  logoUrl: listing.agent.agency.logoUrl ?? null,
+                }
+              : null,
           }
         : null,
       seoTitle: listing.seoTitle ?? this.buildDefaultSeoTitle(listing),

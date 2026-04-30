@@ -225,6 +225,7 @@ export class PublicLeadsService {
     const phone = normalizeOptional(dto.phone);
     await this.assertCreateRateLimits({
       listingId: listing.id,
+      agentId: agent.id,
       ipHash: fingerprint.ipHash,
       email,
       phone,
@@ -347,6 +348,161 @@ export class PublicLeadsService {
     };
   }
 
+  async createForPublicAgentProfile(
+    agentId: string,
+    dto: CreatePublicLeadDto,
+    request: Request,
+  ): Promise<PublicLeadSubmitResult> {
+    this.assertHumanSubmission(dto);
+    this.assertContactable(dto);
+    const fingerprint = getRequestFingerprint(request);
+
+    const agent = await this.agentRepo.findOne({
+      where: { id: agentId },
+      relations: ['agency', 'user'],
+    });
+
+    if (!agent) {
+      throw new NotFoundException('Publiczny profil nie znaleziony');
+    }
+
+    const publishedListingsCount = await this.listingRepo.count({
+      where: {
+        agentId: agent.id,
+        publicationStatus: ListingPublicationStatus.PUBLISHED,
+      },
+    });
+
+    if (publishedListingsCount === 0) {
+      throw new NotFoundException('Publiczny profil nie znaleziony');
+    }
+
+    const email = normalizeOptional(dto.email);
+    const phone = normalizeOptional(dto.phone);
+    await this.assertCreateRateLimits({
+      agentId: agent.id,
+      ipHash: fingerprint.ipHash,
+      email,
+      phone,
+    });
+    const abuseReport = assertPublicTextAllowed(
+      { message: dto.message, imageUrls: ['lead'] },
+      { maxLinks: MAX_LEAD_MESSAGE_LINKS },
+    );
+
+    const conversion = await this.dataSource.transaction(async (manager) => {
+      const now = new Date();
+      const lead = manager.create(PublicLead, {
+        fullName: dto.fullName.trim(),
+        email,
+        phone,
+        message: normalizeOptional(dto.message),
+        source: dto.source ?? PublicLeadSource.PUBLIC_PROFILE,
+        status: PublicLeadStatus.NEW,
+        publicSlugSnapshot: `agent-profile-${agent.id}`,
+        sourceUrl: normalizeOptional(dto.sourceUrl),
+        referrer: normalizeOptional(dto.referrer),
+        utmSource: normalizeOptional(dto.utmSource),
+        utmMedium: normalizeOptional(dto.utmMedium),
+        utmCampaign: normalizeOptional(dto.utmCampaign),
+        utmTerm: normalizeOptional(dto.utmTerm),
+        utmContent: normalizeOptional(dto.utmContent),
+        contactConsent: dto.contactConsent,
+        marketingConsent: dto.marketingConsent ?? false,
+        consentText: normalizeOptional(dto.consentText),
+        consentedAt: dto.contactConsent ? now : null,
+        ipHash: fingerprint.ipHash,
+        userAgent: fingerprint.userAgent,
+        metadata: {
+          ...sanitizeMetadata(dto.metadata),
+          abuse: {
+            riskScore: abuseReport.riskScore,
+            signals: abuseReport.signals,
+          },
+        },
+        listingId: null,
+        agentId: agent.id,
+        agencyId: agent.agencyId ?? null,
+      });
+
+      const savedLead = await manager.save(PublicLead, lead);
+      const clientMatch = await this.findMatchingClient(manager, {
+        agentId: agent.id,
+        email,
+        phone,
+      });
+
+      const { client, conversion } = clientMatch
+        ? {
+            client: await this.updateMatchedClient(manager, clientMatch, {
+              email,
+              phone,
+            }),
+            conversion: 'matched' as const,
+          }
+        : {
+            client: await this.createClientFromLead(manager, savedLead, {
+              agentId: agent.id,
+            }),
+            conversion: 'created' as const,
+          };
+
+      await this.addSourceNote(manager, {
+        client,
+        lead: savedLead,
+        agent,
+        listing: null,
+      });
+
+      savedLead.status = PublicLeadStatus.CONVERTED_TO_CLIENT;
+      savedLead.convertedClientId = client.id;
+      savedLead.convertedAt = now;
+      savedLead.handledAt = now;
+      savedLead.metadata = {
+        ...savedLead.metadata,
+        crmConversion: {
+          type: conversion,
+          clientId: client.id,
+          convertedAt: now.toISOString(),
+        },
+      };
+
+      const convertedLead = await manager.save(PublicLead, savedLead);
+
+      return {
+        lead: convertedLead,
+        client,
+        conversion,
+      };
+    });
+
+    this.logger.log(
+      `Public lead captured: ${conversion.lead.id} for agent profile ${agent.id} and ${conversion.conversion} CRM client ${conversion.client.id}`,
+    );
+
+    await this.logClientActivity({
+      agent,
+      clientId: conversion.client.id,
+      conversion: conversion.conversion,
+    });
+
+    await this.trackLeadAccepted({
+      agent,
+      listing: null,
+      lead: conversion.lead,
+      clientId: conversion.client.id,
+      conversion: conversion.conversion,
+    });
+
+    return {
+      id: conversion.lead.id,
+      status: conversion.lead.status,
+      createdAt: conversion.lead.createdAt,
+      convertedClientId: conversion.client.id,
+      conversion: conversion.conversion,
+    };
+  }
+
   private async findMatchingClient(
     manager: EntityManager,
     input: { agentId: string; email: string | null; phone: string | null },
@@ -432,7 +588,7 @@ export class PublicLeadsService {
       client: Client;
       lead: PublicLead;
       agent: Agent;
-      listing: Listing;
+      listing: Listing | null;
     },
   ): Promise<void> {
     const note = manager.create(ClientNote, {
@@ -463,14 +619,14 @@ export class PublicLeadsService {
           : ActivityAction.UPDATED,
       description:
         input.conversion === 'created'
-          ? 'Utworzono klienta z formularza publicznej oferty'
+          ? 'Utworzono klienta z formularza publicznego'
           : 'Powiązano publiczny lead z istniejącym klientem',
     });
   }
 
   private async trackLeadAccepted(input: {
     agent: Agent;
-    listing: Listing;
+    listing: Listing | null;
     lead: PublicLead;
     clientId: string;
     conversion: 'created' | 'matched';
@@ -486,7 +642,7 @@ export class PublicLeadsService {
           input.lead.sourceUrl ?? `/oferty/${input.lead.publicSlugSnapshot}`,
         properties: {
           funnelStage: 'accepted',
-          listingId: input.listing.id,
+          listingId: input.listing?.id ?? null,
           publicSlug: input.lead.publicSlugSnapshot,
           publicLeadId: input.lead.id,
           clientId: input.clientId,
@@ -537,7 +693,8 @@ export class PublicLeadsService {
   }
 
   private async assertCreateRateLimits(input: {
-    listingId: string;
+    listingId?: string | null;
+    agentId?: string | null;
     ipHash: string | null;
     email: string | null;
     phone: string | null;
@@ -546,6 +703,15 @@ export class PublicLeadsService {
 
     if (input.ipHash) {
       const windowStart = new Date(now - PUBLIC_LEAD_IP_WINDOW_MS);
+      const contextWhere: { listingId: string } | { agentId: string } =
+        input.listingId
+          ? { listingId: input.listingId }
+          : { agentId: input.agentId ?? '' };
+
+      if ('agentId' in contextWhere && !contextWhere.agentId) {
+        throw new BadRequestException('Brak kontekstu publicznego leada');
+      }
+
       const [ipUsage, listingIpUsage] = await Promise.all([
         this.publicLeadRepo.count({
           where: {
@@ -555,7 +721,7 @@ export class PublicLeadsService {
         }),
         this.publicLeadRepo.count({
           where: {
-            listingId: input.listingId,
+            ...contextWhere,
             ipHash: input.ipHash,
             createdAt: MoreThanOrEqual(windowStart),
           },
@@ -665,7 +831,9 @@ function splitFullName(fullName: string): {
 
 function buildClientInitialNotes(lead: PublicLead): string {
   const lines = [
-    'Klient utworzony automatycznie z publicznego formularza oferty.',
+    lead.listingId
+      ? 'Klient utworzony automatycznie z publicznego formularza oferty.'
+      : 'Klient utworzony automatycznie z publicznego formularza profilu.',
   ];
 
   if (lead.message) {
@@ -675,10 +843,15 @@ function buildClientInitialNotes(lead: PublicLead): string {
   return lines.join('\n');
 }
 
-function buildClientSourceNote(lead: PublicLead, listing: Listing): string {
-  const title = listing.publicTitle || listing.title;
+function buildClientSourceNote(
+  lead: PublicLead,
+  listing: Listing | null,
+): string {
+  const title = listing?.publicTitle || listing?.title;
   const lines = [
-    `Źródło: publiczna oferta "${title}"`,
+    title
+      ? `Źródło: publiczna oferta "${title}"`
+      : 'Źródło: publiczny profil agenta / biura',
     `Publiczny lead: ${lead.id}`,
   ];
 

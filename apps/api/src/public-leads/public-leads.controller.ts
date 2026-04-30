@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
   Req,
@@ -40,5 +41,22 @@ export class PublicLeadsController {
     @Req() request: Request,
   ) {
     return this.publicLeadsService.createForPublicListing(slug, dto, request);
+  }
+
+  /** POST /api/public-leads/agents/:agentId — capture a public profile inquiry. */
+  @Public()
+  @Post('agents/:agentId')
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  @HttpCode(HttpStatus.CREATED)
+  async createForPublicAgentProfile(
+    @Param('agentId', ParseUUIDPipe) agentId: string,
+    @Body() dto: CreatePublicLeadDto,
+    @Req() request: Request,
+  ) {
+    return this.publicLeadsService.createForPublicAgentProfile(
+      agentId,
+      dto,
+      request,
+    );
   }
 }

@@ -4,6 +4,7 @@ import { apiFetch } from './api-client';
 export const PublicLeadSource = {
   PUBLIC_LISTING_PAGE: 'public_listing_page',
   PUBLIC_LISTING_SHARE: 'public_listing_share',
+  PUBLIC_PROFILE: 'public_profile',
   QR_CODE: 'qr_code',
   EMBED: 'embed',
   OTHER: 'other',
@@ -73,6 +74,20 @@ export async function submitPublicLead(
 ): Promise<PublicLeadSubmissionResult> {
   return apiFetch<PublicLeadSubmissionResult>(
     `/public-leads/listings/${slug}`,
+    {
+      method: 'POST',
+      skipAuth: true,
+      body: cleanPublicLeadPayload(input),
+    },
+  );
+}
+
+export async function submitPublicProfileLead(
+  agentId: string,
+  input: CreatePublicLeadInput,
+): Promise<PublicLeadSubmissionResult> {
+  return apiFetch<PublicLeadSubmissionResult>(
+    `/public-leads/agents/${agentId}`,
     {
       method: 'POST',
       skipAuth: true,

@@ -917,11 +917,18 @@ Wzmocnić dystrybucję i retencję przez publiczne elementy profilu i udostępni
 Użytkownik dostaje dodatkowe darmowe narzędzia promocyjne zwiększające wartość produktu.
 
 #### Zadania
-- [ ] `F6.1` Dodać publiczny profil agenta / biura
+- [x] `F6.1` Dodać publiczny profil agenta / biura
   - Zakres: podstawowe dane, avatar/logo, aktywne oferty, formularz kontaktowy.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - dodano publiczny endpoint profilu agenta `GET /api/listings/public-agents/:agentId`, który zwraca podstawowe dane agenta, kontekst biura oraz opublikowane aktywne oferty,
+    - publiczna oferta pokazuje link do profilu opiekuna, jeśli backend zwraca `agent.id`,
+    - dodano publiczną stronę `/agenci/[id]` z avatar/logo, bio, nazwą biura, listą ofert, SEO metadata i JSON-LD,
+    - dodano formularz kontaktowy profilu oraz endpoint `POST /api/public-leads/agents/:agentId`, który tworzy publicznego leada i konwertuje go do klienta CRM,
+    - rozszerzono źródła publicznych leadów o `public_profile` oraz dodano migrację produkcyjną dla wartości enum.
   - Uwagi / follow-up:
+    - obecny MVP używa stabilnego `agentId` w URL; później warto dodać publiczne slugi profili i panel ustawień widoczności profilu,
+    - profil biura jest na razie reprezentowany jako kontekst agencji w profilu agenta; rozbudowany profil biura zostaje w scope `P13`.
 
 - [ ] `F6.2` Dodać QR i szybkie udostępnianie oferty
   - Zakres: generowanie QR, copy/share actions, gotowy asset do druku.

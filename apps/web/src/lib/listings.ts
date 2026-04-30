@@ -153,10 +153,17 @@ export interface Listing {
 }
 
 export interface PublicListingAgent {
+  id?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   phone?: string | null;
+  bio?: string | null;
   avatarUrl?: string | null;
+  agency?: {
+    id: string;
+    name: string;
+    logoUrl?: string | null;
+  } | null;
 }
 
 export interface PublicListing {
@@ -189,6 +196,39 @@ export interface PublicListing {
 
 export interface PublicListingSitemapEntry {
   slug: string;
+  updatedAt: string;
+}
+
+export interface PublicAgentProfileListing {
+  id: string;
+  slug: string;
+  title: string;
+  propertyType: PropertyType;
+  transactionType: TransactionType;
+  price?: number | string | null;
+  currency: string;
+  areaM2?: number | string | null;
+  plotAreaM2?: number | string | null;
+  rooms?: number | null;
+  address?: Address | null;
+  imageUrl?: string | null;
+  publishedAt: string;
+}
+
+export interface PublicAgentProfile {
+  id: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  agency?: {
+    id: string;
+    name: string;
+    address?: string | null;
+    logoUrl?: string | null;
+  } | null;
+  listings: PublicAgentProfileListing[];
   updatedAt: string;
 }
 
@@ -371,6 +411,14 @@ export async function fetchListing(id: string): Promise<Listing> {
 
 export async function fetchPublicListing(slug: string): Promise<PublicListing> {
   return apiFetch<PublicListing>(`/listings/public/${slug}`, {
+    skipAuth: true,
+  });
+}
+
+export async function fetchPublicAgentProfile(
+  agentId: string,
+): Promise<PublicAgentProfile> {
+  return apiFetch<PublicAgentProfile>(`/listings/public-agents/${agentId}`, {
     skipAuth: true,
   });
 }
