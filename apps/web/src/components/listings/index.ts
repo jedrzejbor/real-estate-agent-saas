@@ -1,4 +1,5 @@
 export { ListingCard } from './listing-card';
+export { ListingDescriptionAssistant } from './listing-description-assistant';
 export { ListingFiltersBar } from './listing-filters';
 export { ListingForm } from './listing-form';
 export { ListingPublicationPanel } from './listing-publication-panel';

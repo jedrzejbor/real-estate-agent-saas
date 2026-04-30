@@ -973,11 +973,17 @@ Użytkownik dostaje dodatkowe darmowe narzędzia promocyjne zwiększające warto
   - Uwagi / follow-up:
     - później można dodać gotowy wariant PDF/A4 oraz możliwość personalizacji assetu po stronie premium brandingu.
 
-- [ ] `F6.3` Dodać generator opisu oferty / quality hints
+- [x] `F6.3` Dodać generator opisu oferty / quality hints
   - Zakres: prosty AI helper lub rule-based assist dla darmowego planu z limitem użyć.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-01
   - Wykonano:
+    - dodano rule-based generator opisu oferty działający lokalnie w formularzu tworzenia / edycji oferty,
+    - generator buduje opis z faktycznie wpisanych pól: typ transakcji, typ nieruchomości, lokalizacja, metraż, pokoje, piętro, rok budowy i cena,
+    - dodano quality hints z oceną `0-100`, które wskazują brakujący tytuł, opis, metraż, powierzchnię działki, pokoje, dzielnicę albo rok budowy,
+    - wprowadzono miękki miesięczny limit użyć helpera po stronie przeglądarki, bez kosztów i bez integracji z zewnętrznym AI.
   - Uwagi / follow-up:
+    - później można przenieść limit na backend, jeśli generator stanie się kosztowym AI endpointem,
+    - wariant premium może dodać tone-of-voice biura, wersje językowe i generator SEO/publicznego opisu.
 
 - [ ] `F6.4` Dodać podstawowy widget lead form / embeddable link
   - Zakres: prosty osadzalny formularz lub hosted form entry point.

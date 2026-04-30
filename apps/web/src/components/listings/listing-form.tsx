@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { InlineSelect } from '@/components/ui/inline-select';
 import { useListingForm } from '@/hooks/use-listing-form';
+import { ListingDescriptionAssistant } from '@/components/listings/listing-description-assistant';
 import {
   createListingSchema,
   type CreateListingFormData,
@@ -19,6 +20,13 @@ import {
   createListing,
   updateListing,
 } from '@/lib/listings';
+import {
+  buildListingDescription,
+  evaluateListingQuality,
+  getStoredDescriptionAssistantUsage,
+  incrementStoredDescriptionAssistantUsage,
+  type ListingDescriptionAssistantInput,
+} from '@/lib/listing-description-assistant';
 import { useAuth } from '@/contexts/auth-context';
 import { Badge } from '@/components/ui/badge';
 import { isUsageExceeded, isUsageWarning } from '@/lib/auth';
@@ -40,10 +48,19 @@ export function ListingForm({
   const { user } = useAuth();
   const isEdit = !!listing;
   const isGuidedCreate = !isEdit && variant === 'guided';
+  const formRef = React.useRef<HTMLFormElement>(null);
+  const descriptionRef = React.useRef<HTMLTextAreaElement>(null);
   const [propertyType, setPropertyType] = useState<PropertyType | ''>(
     listing?.propertyType ?? '',
   );
   const [showDetails, setShowDetails] = useState(!isGuidedCreate);
+  const [assistantInput, setAssistantInput] =
+    useState<ListingDescriptionAssistantInput>(() =>
+      getInitialAssistantInput(listing),
+    );
+  const [assistantUsage, setAssistantUsage] = useState(() =>
+    getStoredDescriptionAssistantUsage(),
+  );
 
   const listingsUsage = user?.usage.activeListings ?? 0;
   const listingsLimit = user?.entitlements.limits.activeListings ?? null;
@@ -66,8 +83,50 @@ export function ListingForm({
       },
     });
 
+  const qualityReport = React.useMemo(
+    () => evaluateListingQuality(assistantInput),
+    [assistantInput],
+  );
+
+  function syncAssistantInput() {
+    setAssistantInput(
+      collectAssistantInput(formRef.current, propertyType, listing),
+    );
+  }
+
+  function handleGenerateDescription() {
+    if (assistantUsage.remaining <= 0) return;
+
+    const nextInput = collectAssistantInput(
+      formRef.current,
+      propertyType,
+      listing,
+    );
+    const generatedDescription = buildListingDescription(nextInput);
+
+    if (descriptionRef.current) {
+      descriptionRef.current.value = generatedDescription;
+      descriptionRef.current.dispatchEvent(
+        new Event('input', { bubbles: true }),
+      );
+    }
+
+    const nextUsage = incrementStoredDescriptionAssistantUsage();
+    setAssistantUsage(nextUsage);
+    setAssistantInput({
+      ...nextInput,
+      description: generatedDescription,
+    });
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8" noValidate>
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      onInput={syncAssistantInput}
+      className="space-y-8"
+      noValidate
+    >
       {isGuidedCreate ? <GuidedCreateIntro /> : null}
 
       {!isEdit && (showUsageWarning || showUsageExceeded) ? (
@@ -216,6 +275,7 @@ export function ListingForm({
               className="sm:col-span-2"
             >
               <textarea
+                ref={descriptionRef}
                 name="description"
                 defaultValue={listing?.description ?? ''}
                 rows={isGuidedCreate ? 4 : 5}
@@ -226,6 +286,11 @@ export function ListingForm({
                   'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
                   'resize-y',
                 )}
+              />
+              <ListingDescriptionAssistant
+                report={qualityReport}
+                usage={assistantUsage}
+                onGenerate={handleGenerateDescription}
               />
             </FormField>
           ) : null}
@@ -583,6 +648,85 @@ function FormField({
       )}
     </div>
   );
+}
+
+function getInitialAssistantInput(
+  listing: Listing | undefined,
+): ListingDescriptionAssistantInput {
+  return {
+    title: listing?.title ?? '',
+    propertyType: listing?.propertyType ?? '',
+    transactionType: listing?.transactionType ?? '',
+    price: toNumberOrNull(listing?.price),
+    currency: listing?.currency ?? 'PLN',
+    city: listing?.address?.city ?? '',
+    district: listing?.address?.district ?? '',
+    street: listing?.address?.street ?? '',
+    areaM2: toNumberOrNull(listing?.areaM2),
+    plotAreaM2: toNumberOrNull(listing?.plotAreaM2),
+    rooms: toNumberOrNull(listing?.rooms),
+    bathrooms: toNumberOrNull(listing?.bathrooms),
+    floor: toNumberOrNull(listing?.floor),
+    totalFloors: toNumberOrNull(listing?.totalFloors),
+    yearBuilt: toNumberOrNull(listing?.yearBuilt),
+    description: listing?.description ?? '',
+  };
+}
+
+function collectAssistantInput(
+  form: HTMLFormElement | null,
+  fallbackPropertyType: PropertyType | '',
+  listing: Listing | undefined,
+): ListingDescriptionAssistantInput {
+  if (!form) return getInitialAssistantInput(listing);
+
+  return {
+    title: getFormValue(form, 'title'),
+    propertyType:
+      (getFormValue(form, 'propertyType') as PropertyType | '') ||
+      fallbackPropertyType,
+    transactionType: getFormValue(form, 'transactionType') as
+      | ListingDescriptionAssistantInput['transactionType']
+      | '',
+    price: toNumberOrNull(getFormValue(form, 'price')),
+    currency: listing?.currency ?? 'PLN',
+    city: getFormValue(form, 'address.city'),
+    district: getFormValue(form, 'address.district'),
+    street: getFormValue(form, 'address.street'),
+    areaM2: toNumberOrNull(getFormValue(form, 'areaM2')),
+    plotAreaM2: toNumberOrNull(getFormValue(form, 'plotAreaM2')),
+    rooms: toNumberOrNull(getFormValue(form, 'rooms')),
+    bathrooms: toNumberOrNull(getFormValue(form, 'bathrooms')),
+    floor: toNumberOrNull(getFormValue(form, 'floor')),
+    totalFloors: toNumberOrNull(getFormValue(form, 'totalFloors')),
+    yearBuilt: toNumberOrNull(getFormValue(form, 'yearBuilt')),
+    description: getFormValue(form, 'description'),
+  };
+}
+
+function getFormValue(form: HTMLFormElement, name: string): string {
+  const element = form.elements.namedItem(name);
+  if (!element) return '';
+
+  if (element instanceof RadioNodeList) {
+    return String(element.value ?? '').trim();
+  }
+
+  if (
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLTextAreaElement ||
+    element instanceof HTMLSelectElement
+  ) {
+    return element.value.trim();
+  }
+
+  return '';
+}
+
+function toNumberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 function FormSelect({
