@@ -823,11 +823,19 @@ Użytkownik może dodać ofertę bez konta, opublikować ją, a następnie po re
     - F5.4 powinno użyć `claimTokenHash`, `claimedAgentId`, `claimedAgencyId` i `claimedAt` do przejęcia oferty,
     - zgodnie z decyzją MVP bezpieczniejsze jest publikowanie oferty dopiero po claimie, a nie od razu po samym verified submission.
 
-- [ ] `F5.3` Dodać email verification dla publicznego submitu
+- [x] `F5.3` Dodać email verification dla publicznego submitu
   - Zakres: link weryfikacyjny, czas życia tokenu, retry.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - dodano publiczny endpoint `POST /api/public-listing-submissions` tworzący submission w statusie `pending_email_verification`,
+    - generowany jest losowy token weryfikacyjny, a w bazie zapisywany jest tylko hash SHA-256 oraz `verificationExpiresAt`,
+    - dodano publiczny endpoint `POST /api/public-listing-submissions/verify` oznaczający submission jako `verified` i czyszczący hash tokenu,
+    - dodano publiczny endpoint `POST /api/public-listing-submissions/:id/resend-verification` z cooldownem i limitem ponownych wysyłek,
+    - dodano `EmailService` z log-providerem dla developmentu i gotowym miejscem pod realny SMTP/Resend/SES,
+    - dodano migrację `20260430_public_listing_submission_verification.sql` dla metadanych wysyłki verification email.
   - Uwagi / follow-up:
+    - przed produkcją trzeba podpiąć realnego providera email przez `EmailService`,
+    - F5.4 powinno wykorzystać verified submission do claim flow i utworzenia/przypięcia oferty do workspace.
 
 - [ ] `F5.4` Dodać mechanizm claim listing do konta
   - Zakres: przypięcie oferty do workspace po rejestracji lub logowaniu, audit log.

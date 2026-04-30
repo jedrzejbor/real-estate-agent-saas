@@ -100,6 +100,16 @@ export class PublicListingSubmission {
   })
   verificationExpiresAt?: Date | null;
 
+  @Column({
+    type: 'timestamptz',
+    name: 'verification_email_sent_at',
+    nullable: true,
+  })
+  verificationEmailSentAt?: Date | null;
+
+  @Column({ type: 'int', name: 'verification_email_count', default: 0 })
+  verificationEmailCount: number;
+
   @Column({ type: 'timestamptz', name: 'verified_at', nullable: true })
   verifiedAt?: Date | null;
 
