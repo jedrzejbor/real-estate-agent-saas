@@ -690,11 +690,19 @@ Zamienić publiczną stronę oferty w kanał pozyskiwania leadów.
 Publiczna oferta generuje leady, które trafiają do systemu i mogą być obsługiwane przez użytkownika freemium.
 
 #### Zadania
-- [ ] `F4.1` Zdefiniować model publicznego leada
+- [x] `F4.1` Zdefiniować model publicznego leada
   - Zakres: źródło, zgoda kontaktowa, powiązanie z ofertą, status obsługi.
-  - Data zakończenia:
+  - Data zakończenia: 2026-04-30
   - Wykonano:
+    - dodano enumy `PublicLeadSource` i `PublicLeadStatus`,
+    - dodano encję `PublicLead` z danymi kontaktowymi, wiadomością, źródłem, UTM/referrerem, zgodą kontaktową/marketingową, metadanymi technicznymi i statusem obsługi,
+    - powiązano publicznego leada z ofertą, agentem, agencją oraz opcjonalnym klientem po konwersji,
+    - dodano indeksy pod listę leadów, filtrowanie po ofercie/agencie/agencji/statusie i przyszłe raporty konwersji,
+    - dodano `PublicLeadsModule` jako fundament pod endpoint submit, widok public inquiries i konwersję do klienta,
+    - dodano migrację produkcyjną `20260430_public_leads.sql`.
   - Uwagi / follow-up:
+    - F4.2 powinno dodać DTO i publiczny endpoint zapisu formularza z walidacją oraz ochroną antyspamową,
+    - F4.3 powinno obsłużyć deduplikację i konwersję `PublicLead` do `Client`.
 
 - [ ] `F4.2` Dodać formularz kontaktowy na publicznej ofercie
   - Zakres: pola, walidacja, zgody, ochrona antyspamowa.

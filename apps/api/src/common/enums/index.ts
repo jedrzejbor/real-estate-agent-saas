@@ -75,6 +75,23 @@ export enum ClientStatus {
   INACTIVE = 'inactive',
 }
 
+export enum PublicLeadSource {
+  PUBLIC_LISTING_PAGE = 'public_listing_page',
+  PUBLIC_LISTING_SHARE = 'public_listing_share',
+  QR_CODE = 'qr_code',
+  EMBED = 'embed',
+  OTHER = 'other',
+}
+
+export enum PublicLeadStatus {
+  NEW = 'new',
+  CONTACTED = 'contacted',
+  QUALIFIED = 'qualified',
+  CONVERTED_TO_CLIENT = 'converted_to_client',
+  SPAM = 'spam',
+  ARCHIVED = 'archived',
+}
+
 export enum AppointmentType {
   VIEWING = 'viewing',
   NEGOTIATION = 'negotiation',
