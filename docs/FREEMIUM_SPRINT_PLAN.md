@@ -1025,6 +1025,131 @@ Użytkownik dostaje dodatkowe darmowe narzędzia promocyjne zwiększające warto
 
 ---
 
+### Sprint 6.5 — Audyt luk przed release readiness
+
+**Cel sprintu:**
+Domknąć elementy, które są częścią realnego core flow, a nie powinny zostać odkryte dopiero w Sprincie 7.
+
+**Rezultat sprintu:**
+Sprint 7 zaczyna się jako release readiness, a nie jako ratowanie braków produktowych.
+
+#### Dlaczego dodajemy ten bufor
+
+Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemium jest gotowa, ale kilka miejsc wymaga domknięcia:
+
+- zdjęcia ofert istnieją w modelu i publicznym renderze, ale brakuje pełnego upload/manage flow,
+- publiczny submission backendowo obsługuje obrazy, ale nie ma publicznego wizardu `/dodaj-oferte`,
+- abuse/moderation działa regułowo, ale brakuje widocznej ścieżki operacyjnej,
+- upselle są zdefiniowane, ale brakuje realnego pricing/upgrade destination,
+- eventy istnieją, ale brakuje dashboardu lub raportu do oceny release'u.
+
+#### Zadania
+
+- [ ] `F6.5.1` Dodać zdjęcia oferty end-to-end
+  - Zakres: upload, storage, galeria, ustawianie zdjęcia głównego, sortowanie, usuwanie, limit zdjęć per plan.
+  - Minimalny zakres MVP:
+    - agent może dodać zdjęcia w tworzeniu / edycji oferty,
+    - agent może usunąć zdjęcie,
+    - agent może ustawić zdjęcie główne,
+    - publiczna oferta używa zdjęcia głównego jako hero,
+    - galeria publiczna pokazuje pozostałe zdjęcia,
+    - backend egzekwuje limit `imagesPerListing`,
+    - API waliduje typ pliku, rozmiar i liczbę zdjęć,
+    - `shareImageUrl` domyślnie wynika z pierwszego / głównego zdjęcia, jeśli użytkownik nie podał własnego URL.
+  - Decyzje techniczne:
+    - wybrać storage dla plików w MVP,
+    - zdecydować, czy upload idzie przez backend, signed URL, czy adapter storage,
+    - zdecydować, czy w planie free pozwalamy tylko na obrazy zoptymalizowane po stronie serwera.
+  - Data zakończenia:
+  - Wykonano:
+  - Uwagi / follow-up:
+
+- [ ] `F6.5.2` Domknąć publiczny wizard `/dodaj-oferte` albo wyłączyć go z MVP
+  - Zakres: publiczny entry point dodania oferty bez konta.
+  - Minimalny zakres MVP, jeśli zostaje w release:
+    - strona `/dodaj-oferte`,
+    - kroki: podstawy, parametry, zdjęcia, kontakt i zgody, podsumowanie,
+    - draft w `localStorage`,
+    - submit do `POST /api/public-listing-submissions`,
+    - ekran “sprawdź email” po wysyłce,
+    - obsługa walidacji, honeypot/timing i błędów rate limitu,
+    - zdjęcia spięte z tym samym mechanizmem uploadu co CRM.
+  - Alternatywa:
+    - jeśli wizard wychodzi poza release, ukryć publiczny entry point i oznaczyć flow jako post-MVP.
+  - Data zakończenia:
+  - Wykonano:
+  - Uwagi / follow-up:
+
+- [ ] `F6.5.3` Dodać widoczny abuse report flow
+  - Zakres: zgłaszanie nadużyć na publicznych stronach i minimalna obsługa operacyjna.
+  - Minimalny zakres MVP:
+    - link/przycisk “Zgłoś nadużycie” na publicznej ofercie,
+    - formularz z powodem zgłoszenia,
+    - event/log zgłoszenia z `publicSlug`, `listingId`, powodem i timestampem,
+    - instrukcja operacyjna, jak zespół ręcznie reaguje na zgłoszenie.
+  - Poza MVP:
+    - pełny panel moderation queue,
+    - automatyczne zdejmowanie ofert po wielu zgłoszeniach.
+  - Data zakończenia:
+  - Wykonano:
+  - Uwagi / follow-up:
+
+- [ ] `F6.5.4` Domknąć legal copy i zgody w publicznych formularzach
+  - Zakres: publiczne leady, publiczny wizard, zdjęcia, claim listing.
+  - Minimalny zakres MVP:
+    - link do regulaminu publikacji ofert,
+    - link do polityki prywatności,
+    - zgoda na kontakt i przetwarzanie danych w publicznych formularzach,
+    - oświadczenie o prawach do zdjęć w wizardzie,
+    - informacja o administratorze danych,
+    - procedura usunięcia publicznej oferty / danych.
+  - Data zakończenia:
+  - Wykonano:
+  - Uwagi / follow-up:
+
+- [ ] `F6.5.5` Przygotować minimalny dashboard / raport metryk freemium
+  - Zakres: widok lub raport bazujący na `analytics_events` i usage.
+  - Minimalny zakres MVP:
+    - first listing created,
+    - first listing published,
+    - public listing viewed,
+    - public link copied/shared,
+    - public lead submitted,
+    - claim started/completed,
+    - limit warning/reached,
+    - upgrade CTA clicked.
+  - Data zakończenia:
+  - Wykonano:
+  - Uwagi / follow-up:
+
+- [ ] `F6.5.6` Doprecyzować pricing / upgrade destination
+  - Zakres: co dzieje się po kliknięciu upsella albo dobiciu do limitu.
+  - Minimalny zakres MVP:
+    - ekran planów albo formularz zainteresowania wyższym planem,
+    - jasny komunikat dla `upgrade_cta_clicked`,
+    - zapis intentu w analityce,
+    - spójny tekst dla limitów ofert, klientów, spotkań i zdjęć.
+  - Data zakończenia:
+  - Wykonano:
+  - Uwagi / follow-up:
+
+#### Definition of Done
+
+- zdjęcia ofert działają end-to-end albo zakres release'u jest formalnie ograniczony,
+- wiadomo, czy publiczny wizard wchodzi do release'u,
+- abuse/legal/analytics mają minimalne działające ścieżki,
+- Sprint 7 może skupić się na bezpieczeństwie, testach, monitoringu i rollout planie.
+
+#### Log sprintu
+
+- Status sprintu:
+- Data zamknięcia:
+- Co dowieźliśmy:
+- Decyzje:
+- Otwarte tematy:
+
+---
+
 ### Sprint 7 — Release readiness, bezpieczeństwo i operacyjny launch
 
 **Cel sprintu:**
@@ -1126,7 +1251,8 @@ Rekomendowana kolejność realizacji:
 5. Sprint 4
 6. Sprint 5
 7. Sprint 6
-8. Sprint 7
+8. Sprint 6.5
+9. Sprint 7
 
 Kluczowe zależności:
 
@@ -1134,6 +1260,7 @@ Kluczowe zależności:
 - Sprint 3 powinien bazować na gotowych zasadach planu free.
 - Sprint 4 zależy od Sprintu 3.
 - Sprint 5 wymaga gotowych podstaw publicznych ofert oraz ochrony antyspamowej.
+- Sprint 6.5 powinien domknąć zdjęcia, publiczny wizard albo decyzję o jego przesunięciu, abuse/legal/analytics i pricing destination.
 - Sprint 7 zamyka całość i nie powinien być pomijany.
 
 ---

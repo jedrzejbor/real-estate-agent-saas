@@ -431,7 +431,154 @@ Moja ocena tego pomysłu:
 
 ---
 
-## 12. Podsumowanie
+## 12. Audyt aplikacji przed Sprintem 7
+
+Przed wejściem w Sprint 7 warto zatrzymać się na krótkim audycie produktu. Sprint 7 ma domykać release, a nie odkrywać brakujące elementy core flow. Aktualny stan aplikacji pokazuje, że freemium ma już mocne fundamenty: limity planu, publiczne strony ofert, lead form, claim listing, profil agenta, QR/share, generator opisu i upselle. Brakuje jednak kilku elementów, bez których release może wyglądać kompletnie w dokumencie, ale być niepełny dla realnego agenta.
+
+### 12.1. Krytyczny brak: zdjęcia oferty
+
+To jest najważniejsza luka przed Sprintem 7.
+
+W aplikacji istnieje już techniczny model zdjęć:
+- backend ma encję `ListingImage`,
+- publiczna strona oferty potrafi wyrenderować hero image i galerię,
+- submission publiczny potrafi przenieść listę obrazów do oferty po claimie,
+- limity planu zawierają `imagesPerListing`.
+
+Problem: użytkownik nie ma kompletnego produktu do zarządzania zdjęciami.
+
+Brakuje:
+- uploadu zdjęć w panelu agenta,
+- uploadu zdjęć w publicznym wizardzie `/dodaj-oferte`,
+- endpointów do dodawania, usuwania, sortowania i ustawiania zdjęcia głównego,
+- realnego storage plików albo jasnej integracji z zewnętrznym storage,
+- walidacji typu, rozmiaru, liczby zdjęć i limitu planu na backendzie,
+- UI galerii w formularzu tworzenia / edycji oferty,
+- obsługi alt text i kolejności zdjęć,
+- spójnego fallbacku, gdy oferta nie ma zdjęć,
+- decyzji, czy `shareImageUrl` ma być ręcznie wpisywanym URL-em, czy generować się z pierwszego zdjęcia.
+
+Rekomendacja:
+- nie wchodzić w pełny Sprint 7 bez domknięcia MVP zdjęć,
+- dodać osobny pre-sprint albo pod-sprint `6.5 — Listing media MVP`,
+- minimum release: upload 1-15 zdjęć, pierwsze jako główne, reorder, delete, limit per plan, publiczny render, share image z pierwszego zdjęcia.
+
+### 12.2. Publiczny wizard dodania oferty nie ma pełnego entry pointu
+
+Backend i claim flow są mocno zaawansowane, ale frontendowo widać tylko stronę potwierdzenia `/dodaj-oferte/potwierdzono`. Brakuje właściwego publicznego formularza startowego `/dodaj-oferte`.
+
+Brakuje:
+- strony `/dodaj-oferte`,
+- wieloetapowego wizardu podstawy → parametry → zdjęcia → kontakt → podsumowanie,
+- zapisu draftu w `localStorage`,
+- submitu do `POST /api/public-listing-submissions`,
+- ekranu “sprawdź email” po wysyłce,
+- obsługi błędów antyspamowych i walidacyjnych w UI,
+- integracji uploadu zdjęć z publicznym flow.
+
+Rekomendacja:
+- jeśli publiczne dodanie oferty ma być częścią release freemium, to wizard musi wejść przed Sprintem 7,
+- jeśli nie zdążymy, trzeba jasno przesunąć publiczny wizard poza MVP i zostawić tylko claim flow / potwierdzenie jako niedostępne z publicznej nawigacji.
+
+### 12.3. Brakuje operacyjnej moderacji i obsługi nadużyć
+
+Reguły moderacji i event `public_listing_abuse_reported` istnieją jako fundament, ale release publicznych stron wymaga obsługi operacyjnej.
+
+Brakuje:
+- widocznego przycisku / formularza zgłoszenia nadużycia na publicznej ofercie,
+- inboxa albo listy zgłoszeń dla administratora,
+- prostego widoku ofert wymagających review,
+- procedury: kto sprawdza, jak odpublikować, jak kontaktować się z właścicielem,
+- stanów UI dla oferty zatrzymanej przez moderację.
+
+Rekomendacja:
+- MVP może być proste: zgłoszenie nadużycia + log/event + ręczna procedura w dokumencie operacyjnym,
+- ale trzeba mieć przynajmniej ścieżkę reakcji przed publicznym ruchem.
+
+### 12.4. Brakuje pełnego legal/public consent layer
+
+Publiczne oferty, zdjęcia, leady i claim flow dotykają treści oraz danych osobowych.
+
+Brakuje:
+- finalnej treści regulaminu publikacji ofert,
+- polityki prywatności pod publiczne leady i publiczne submissiony,
+- jasnego oświadczenia o prawach do zdjęć,
+- zgody na kontakt i przetwarzanie danych pokazanej w UI publicznych formularzy,
+- informacji, kto jest administratorem danych przy leadzie,
+- procedury usunięcia publicznej oferty / danych.
+
+Rekomendacja:
+- Sprint 7 nie powinien ograniczyć się do checklisty prawnej; trzeba dopiąć realne copy i linki w formularzach.
+
+### 12.5. Analityka jest eventowa, ale brakuje dashboardu decyzyjnego
+
+Eventy są zbierane, ale release freemium wymaga widoku, który odpowiada na pytanie: czy freemium działa?
+
+Brakuje:
+- dashboardu aktywacji,
+- metryk drop-off dla onboardingu i publicznego wizardu,
+- metryk publikacji ofert,
+- metryk publicznych odsłon i leadów,
+- metryk kliknięć upgrade,
+- widoku workspace'ów zbliżających się do limitów.
+
+Rekomendacja:
+- przed publicznym release wystarczy wewnętrzny dashboard MVP albo raport admin/dev,
+- kluczowe metryki: first listing, first published listing, first copied link, first lead, claim completed, limit reached, upgrade CTA clicked.
+
+### 12.6. Brakuje billing/pricing destination dla upselli
+
+Upselle są widoczne i mierzalne, ale CTA prowadzą do ekranu planu bez realnej ścieżki zakupu.
+
+Brakuje:
+- decyzji, czy release freemium ma mieć płatny checkout, waitlistę, kontakt sprzedażowy czy tylko komunikat “wkrótce”,
+- ekranu pricing z jasnym porównaniem planów,
+- obsługi “upgrade intent” po kliknięciu CTA,
+- komunikatu dla użytkownika po wejściu w limit.
+
+Rekomendacja:
+- dla MVP można użyć prostego formularza “Chcę wyższy plan”,
+- ale nie zostawiać CTA bez następnego kroku.
+
+### 12.7. Brakuje testów E2E dla najważniejszych ścieżek
+
+Przed Sprintem 7 warto rozróżnić test plan od faktycznie pokrytych scenariuszy.
+
+Najważniejsze ścieżki do przejścia:
+- rejestracja → onboarding → pierwsza oferta,
+- dodanie zdjęć → publikacja → publiczna galeria,
+- publiczna oferta → lead → klient w CRM,
+- limit planu free → paywall / upgrade CTA,
+- publiczne dodanie oferty → email verify → claim → publikacja,
+- oferta z treścią ryzykowną → review/draft,
+- brak zdjęć → fallback bez wizualnego błędu.
+
+Rekomendacja:
+- dopisać testy automatyczne tam, gdzie flow jest stabilne,
+- resztę przejść ręcznie na release checklist.
+
+### 12.8. Rekomendowany bufor przed Sprintem 7
+
+Przed Sprintem 7 dodałbym bufor:
+
+`Sprint 6.5 — Listing media, public wizard i release gaps`
+
+Zakres minimalny:
+1. Zdjęcia oferty end-to-end.
+2. Publiczny wizard `/dodaj-oferte` albo świadome wyłączenie go z MVP.
+3. Widoczny abuse report flow.
+4. Legal copy i zgody w publicznych formularzach.
+5. Minimalny dashboard / raport metryk freemium.
+6. Doprecyzowanie pricing destination dla upselli.
+7. Ręczne przejście krytycznych flow.
+
+Decyzja produktowa:
+- jeśli celem jest prawdziwy publiczny launch, zdjęcia i publiczny wizard są blockerami,
+- jeśli celem jest zamknięta beta dla kilku użytkowników, publiczny wizard można przesunąć, ale zdjęcia nadal powinny wejść przed release.
+
+---
+
+## 13. Podsumowanie
 
 EstateFlow może być bardzo atrakcyjnym produktem freemium, jeśli darmowa wersja:
 - daje realny efekt,
