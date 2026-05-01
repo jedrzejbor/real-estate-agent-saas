@@ -997,11 +997,17 @@ Użytkownik dostaje dodatkowe darmowe narzędzia promocyjne zwiększające warto
     - później można dodać konfigurację kolorów / wysokości iframe i osobny embed script zamiast samego iframe,
     - obecny widget jest powiązany z konkretną opublikowaną ofertą; ogólny widget biura może wejść w scope rozbudowanych profili.
 
-- [ ] `F6.5` Zdefiniować miejsca premium upsell dla growth features
+- [x] `F6.5` Zdefiniować miejsca premium upsell dla growth features
   - Zakres: custom branding, większe limity, lepsze profile, automatyzacje.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-01
   - Wykonano:
+    - zdefiniowano współdzieloną konfigurację premium growth upselli: własny branding, profile pro, personalizowane widgety, automatyzacje i większe limity,
+    - dodano reusable kartę upsell z eventem `upgrade_cta_clicked`, aby kliknięcia w premium entry pointy były mierzalne,
+    - panel publikacji oferty pokazuje kontekstowe premium entry pointy po publikacji/share/widget flow,
+    - ekran `Plan i limity` dostał sekcję `Growth upgrade paths`, która zbiera wszystkie miejsca monetyzacji funkcji growth.
   - Uwagi / follow-up:
+    - CTA prowadzą na razie do ekranu planu; po wdrożeniu billing/pricing należy podpiąć właściwy checkout lub kontakt sprzedażowy,
+    - przyszłe entitlementy mogą rozdzielić `customBranding`, `profilePro`, `embedCustomization`, `growthAutomations` i `higherLimits` na osobne flagi backendowe.
 
 #### Definition of Done
 

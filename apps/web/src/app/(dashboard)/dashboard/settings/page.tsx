@@ -12,8 +12,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PlanUsageCard } from '@/components/dashboard/plan-usage-card';
+import { GrowthUpsellCard } from '@/components/growth/growth-upsell-card';
 import { useAuth } from '@/contexts/auth-context';
 import { isUsageExceeded, isUsageWarning } from '@/lib/auth';
+import {
+  getGrowthUpsells,
+  SETTINGS_GROWTH_UPSELL_IDS,
+} from '@/lib/growth-upsells';
 import { getPlanFeatureItems, getPlanUsageMetrics } from '@/lib/plan';
 import { getResolvedReleaseFlags } from '@/lib/release-flags';
 
@@ -42,6 +47,7 @@ export default function PlanSettingsPage() {
     user.entitlements.plan.status === 'active' ? 'Aktywny' : 'W trakcie';
   const imagesPerListing = user.entitlements.limits.imagesPerListing;
   const workspaceName = user.agency?.name || 'Twoje biuro';
+  const growthUpsells = getGrowthUpsells(SETTINGS_GROWTH_UPSELL_IDS);
 
   return (
     <div className="space-y-6">
@@ -52,11 +58,14 @@ export default function PlanSettingsPage() {
               <h1 className="font-heading text-2xl font-bold text-foreground">
                 Plan i limity
               </h1>
-              <Badge variant={planBadgeVariant}>Plan {user.entitlements.plan.label}</Badge>
+              <Badge variant={planBadgeVariant}>
+                Plan {user.entitlements.plan.label}
+              </Badge>
               <Badge variant="outline">{planStatusLabel}</Badge>
             </div>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Jedno miejsce do monitorowania limitów, funkcji planu i potencjalnych triggerów upgrade'u.
+              Jedno miejsce do monitorowania limitów, funkcji planu i
+              potencjalnych triggerów upgrade.
             </p>
           </div>
 
@@ -82,7 +91,8 @@ export default function PlanSettingsPage() {
               Workspace: {workspaceName}
             </p>
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              Plan definiuje limity rekordów, dostępność raportów i funkcje premium odblokowywane przy skalowaniu pracy.
+              Plan definiuje limity rekordów, dostępność raportów i funkcje
+              premium odblokowywane przy skalowaniu pracy.
             </p>
           </div>
 
@@ -113,7 +123,9 @@ export default function PlanSettingsPage() {
               <p className="text-sm font-semibold">Limit zdjęć</p>
             </div>
             <p className="mt-3 text-lg font-semibold text-foreground">
-              {imagesPerListing !== null ? `${imagesPerListing} / ofertę` : 'Bez limitu'}
+              {imagesPerListing !== null
+                ? `${imagesPerListing} / ofertę`
+                : 'Bez limitu'}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               Dotyczy zdjęć dodawanych do pojedynczej oferty publicznej.
@@ -129,14 +141,13 @@ export default function PlanSettingsPage() {
               Wykorzystanie
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Monitoruj użycie limitów, zanim create flow zacznie blokować nowe rekordy.
+              Monitoruj użycie limitów, zanim create flow zacznie blokować nowe
+              rekordy.
             </p>
           </div>
           {warningCount > 0 || exceededCount > 0 ? (
             <Badge variant={exceededCount > 0 ? 'destructive' : 'warning'}>
-              {exceededCount > 0
-                ? 'Wymaga uwagi'
-                : 'Zbliżasz się do limitu'}
+              {exceededCount > 0 ? 'Wymaga uwagi' : 'Zbliżasz się do limitu'}
             </Badge>
           ) : null}
         </div>
@@ -149,7 +160,11 @@ export default function PlanSettingsPage() {
       </section>
 
       <section
-        className={showFreemiumUpsell ? 'grid gap-6 xl:grid-cols-[1.1fr_0.9fr]' : 'grid gap-6'}
+        className={
+          showFreemiumUpsell
+            ? 'grid gap-6 xl:grid-cols-[1.1fr_0.9fr]'
+            : 'grid gap-6'
+        }
       >
         <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
           <div className="flex items-center gap-2">
@@ -182,67 +197,94 @@ export default function PlanSettingsPage() {
 
         {showFreemiumUpsell ? (
           <div className="space-y-6">
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-2">
-              <LockKeyhole className="h-5 w-5 text-brand-gold-dark" />
-              <h2 className="font-heading text-xl font-semibold text-foreground">
-                Odblokuj więcej
-              </h2>
+            <div className="rounded-2xl border border-[#D4A853]/25 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-brand-gold-dark" />
+                <h2 className="font-heading text-xl font-semibold text-foreground">
+                  Growth upgrade paths
+                </h2>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Premium miejsca powiązane z publicznymi profilami, sharingiem,
+                widgetami lead form i automatyzacjami.
+              </p>
+              <div className="mt-4 grid gap-3">
+                {growthUpsells.map((upsell) => (
+                  <GrowthUpsellCard
+                    key={upsell.id}
+                    upsell={upsell}
+                    source="plan_settings_growth_upsell"
+                  />
+                ))}
+              </div>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Placeholder pod kolejne plany płatne — już teraz pokazuje, które obszary będą naturalnym krokiem przy wzroście workspace.
-            </p>
 
-            <div className="mt-4 space-y-3">
-              {lockedFeatures.map((feature) => (
-                <div
-                  key={feature.key}
-                  className="rounded-xl border border-[#D4A853]/20 bg-[#FFF9E6]/40 p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {feature.label}
-                      </p>
-                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                        {feature.description}
-                      </p>
+            <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-2">
+                <LockKeyhole className="h-5 w-5 text-brand-gold-dark" />
+                <h2 className="font-heading text-xl font-semibold text-foreground">
+                  Odblokuj więcej
+                </h2>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Placeholder pod kolejne plany płatne — już teraz pokazuje, które
+                obszary będą naturalnym krokiem przy wzroście workspace.
+              </p>
+
+              <div className="mt-4 space-y-3">
+                {lockedFeatures.map((feature) => (
+                  <div
+                    key={feature.key}
+                    className="rounded-xl border border-[#D4A853]/20 bg-[#FFF9E6]/40 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {feature.label}
+                        </p>
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                          {feature.description}
+                        </p>
+                      </div>
+                      <Badge variant="gold">Premium</Badge>
                     </div>
-                    <Badge variant="gold">Premium</Badge>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+
+              <div className="mt-5 rounded-xl border border-dashed border-[#D4A853]/35 bg-[#FFF9E6]/50 p-4">
+                <p className="text-sm font-medium text-foreground">
+                  Upgrade CTA placeholder
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  W kolejnych sprintach w tym miejscu podepniemy pricing, lead
+                  capture lub kontakt sprzedażowy.
+                </p>
+                <Button variant="outline" className="mt-4" disabled>
+                  Upgrade wkrótce
+                </Button>
+              </div>
             </div>
 
-            <div className="mt-5 rounded-xl border border-dashed border-[#D4A853]/35 bg-[#FFF9E6]/50 p-4">
-              <p className="text-sm font-medium text-foreground">
-                Upgrade CTA placeholder
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                W kolejnych sprintach w tym miejscu podepniemy pricing, lead capture lub kontakt sprzedażowy.
-              </p>
-              <Button variant="outline" className="mt-4" disabled>
-                Upgrade wkrótce
-              </Button>
+            <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+              <h2 className="font-heading text-xl font-semibold text-foreground">
+                Kiedy warto przejść wyżej?
+              </h2>
+              <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+                <p>
+                  Gdy regularnie dobiegasz do limitu ofert, klientów lub spotkań
+                  i nie chcesz blokować kolejnych działań sprzedażowych.
+                </p>
+                <p>
+                  Gdy potrzebujesz własnego brandingu na stronach publicznych
+                  albo chcesz pracować w więcej niż jedną osobę.
+                </p>
+                <p>
+                  Gdy chcesz rozszerzyć raportowanie i zyskać bardziej
+                  zaawansowany wgląd w skuteczność zespołu.
+                </p>
+              </div>
             </div>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-            <h2 className="font-heading text-xl font-semibold text-foreground">
-              Kiedy warto przejść wyżej?
-            </h2>
-            <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-              <p>
-                Gdy regularnie dobiegasz do limitu ofert, klientów lub spotkań i nie chcesz blokować kolejnych działań sprzedażowych.
-              </p>
-              <p>
-                Gdy potrzebujesz własnego brandingu na stronach publicznych albo chcesz pracować w więcej niż jedną osobę.
-              </p>
-              <p>
-                Gdy chcesz rozszerzyć raportowanie i zyskać bardziej zaawansowany wgląd w skuteczność zespołu.
-              </p>
-            </div>
-          </div>
           </div>
         ) : null}
       </section>

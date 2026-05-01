@@ -18,8 +18,15 @@ import { z } from 'zod';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { GrowthUpsellCard } from '@/components/growth/growth-upsell-card';
 import { useToast } from '@/contexts/toast-context';
+import { useAuth } from '@/contexts/auth-context';
 import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
+import {
+  getGrowthUpsells,
+  PUBLICATION_GROWTH_UPSELL_IDS,
+} from '@/lib/growth-upsells';
+import { getResolvedReleaseFlags } from '@/lib/release-flags';
 import { cn } from '@/lib/utils';
 import { ListingQrAsset } from './listing-qr-asset';
 import {
@@ -56,6 +63,7 @@ export function ListingPublicationPanel({
   density = 'default',
 }: ListingPublicationPanelProps) {
   const { success: showSuccessToast, error: showErrorToast } = useToast();
+  const { user } = useAuth();
   const [origin, setOrigin] = React.useState('');
   const [isSaving, setIsSaving] = React.useState(false);
   const [isPublishing, setIsPublishing] = React.useState(false);
@@ -70,6 +78,11 @@ export function ListingPublicationPanel({
   const isPublished =
     listing.publicationStatus === ListingPublicationStatus.PUBLISHED;
   const isCompact = density === 'compact';
+  const releaseFlags = getResolvedReleaseFlags(user?.releaseFlags);
+  const showGrowthUpsells =
+    releaseFlags.freemiumUpsellEnabled &&
+    user?.entitlements.plan.code === 'free';
+  const publicationUpsells = getGrowthUpsells(PUBLICATION_GROWTH_UPSELL_IDS);
   const publicPath = listing.publicSlug ? `/oferty/${listing.publicSlug}` : '';
   const publicUrl = origin && publicPath ? `${origin}${publicPath}` : '';
   const leadFormPath = listing.publicSlug
@@ -567,6 +580,33 @@ export function ListingPublicationPanel({
           className="mt-3 w-full min-w-0 resize-none rounded-xl border border-border/80 bg-white px-3 py-2 font-mono text-xs leading-5 text-muted-foreground shadow-sm outline-none"
         />
       </div>
+
+      {showGrowthUpsells ? (
+        <div className="mt-6 rounded-2xl border border-[#D4A853]/25 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="font-heading text-sm font-semibold text-foreground">
+                Premium growth features
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Te miejsca są naturalnym krokiem po publikacji ofert i
+                pierwszych leadach.
+              </p>
+            </div>
+            <Badge variant="gold">Upgrade paths</Badge>
+          </div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-3">
+            {publicationUpsells.map((upsell) => (
+              <GrowthUpsellCard
+                key={upsell.id}
+                upsell={upsell}
+                source="listing_publication_panel"
+                compact
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
