@@ -18,6 +18,9 @@ interface PublicListingContactFormProps {
   slug: string;
   listingId: string;
   listingTitle: string;
+  source?: PublicLeadSource;
+  trackingSource?: string;
+  compact?: boolean;
 }
 
 type FieldErrors = Partial<Record<keyof PublicLeadFormData, string>>;
@@ -29,6 +32,9 @@ export function PublicListingContactForm({
   slug,
   listingId,
   listingTitle,
+  source = PublicLeadSource.PUBLIC_LISTING_PAGE,
+  trackingSource = 'public_listing_contact_form',
+  compact = false,
 }: PublicListingContactFormProps) {
   const formStartedAt = React.useRef(Date.now());
   const [fieldErrors, setFieldErrors] = React.useState<FieldErrors>({});
@@ -64,7 +70,7 @@ export function PublicListingContactForm({
       setIsSubmitting(true);
       const result = await submitPublicLead(slug, {
         ...parsed.data,
-        source: PublicLeadSource.PUBLIC_LISTING_PAGE,
+        source,
         sourceUrl: window.location.href,
         referrer: document.referrer || undefined,
         utmSource: utm.utm_source,
@@ -90,7 +96,8 @@ export function PublicListingContactForm({
           convertedClientId: result.convertedClientId,
           conversion: result.conversion,
           leadStatus: result.status,
-          source: 'public_listing_contact_form',
+          source: trackingSource,
+          leadSource: source,
           contactMethod: getContactMethod(parsed.data),
           hasMessage: Boolean(parsed.data.message?.trim()),
           marketingConsent: Boolean(parsed.data.marketingConsent),
@@ -147,7 +154,12 @@ export function PublicListingContactForm({
         />
       </LeadField>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+      <div
+        className={cn(
+          'grid gap-3',
+          compact ? 'sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-1',
+        )}
+      >
         <LeadField label="Email" name="email" error={fieldErrors.email}>
           <Input
             id="email"

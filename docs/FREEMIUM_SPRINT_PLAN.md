@@ -985,11 +985,17 @@ Użytkownik dostaje dodatkowe darmowe narzędzia promocyjne zwiększające warto
     - później można przenieść limit na backend, jeśli generator stanie się kosztowym AI endpointem,
     - wariant premium może dodać tone-of-voice biura, wersje językowe i generator SEO/publicznego opisu.
 
-- [ ] `F6.4` Dodać podstawowy widget lead form / embeddable link
+- [x] `F6.4` Dodać podstawowy widget lead form / embeddable link
   - Zakres: prosty osadzalny formularz lub hosted form entry point.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-01
   - Wykonano:
+    - dodano publiczny hosted formularz leada pod `/formularz/oferty/[slug]`, działający bez logowania i oparty o istniejący endpoint publicznych leadów,
+    - formularz embed używa źródła `embed`, zachowuje antyspamowe pola formularza, zgody, UTM-y i event `public_lead_submitted`,
+    - panel publikacji oferty dostał sekcję `Widget lead form` z bezpośrednim linkiem oraz gotowym kodem iframe do skopiowania,
+    - kopiowanie kodu osadzenia zapisuje event produktowy z informacją, że skopiowano `lead_form_embed_code`.
   - Uwagi / follow-up:
+    - później można dodać konfigurację kolorów / wysokości iframe i osobny embed script zamiast samego iframe,
+    - obecny widget jest powiązany z konkretną opublikowaną ofertą; ogólny widget biura może wejść w scope rozbudowanych profili.
 
 - [ ] `F6.5` Zdefiniować miejsca premium upsell dla growth features
   - Zakres: custom branding, większe limity, lepsze profile, automatyzacje.

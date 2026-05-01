@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import {
   Check,
+  Code2,
   Copy,
   ExternalLink,
   Eye,
@@ -59,6 +60,7 @@ export function ListingPublicationPanel({
   const [isSaving, setIsSaving] = React.useState(false);
   const [isPublishing, setIsPublishing] = React.useState(false);
   const [isCopied, setIsCopied] = React.useState(false);
+  const [isEmbedCopied, setIsEmbedCopied] = React.useState(false);
   const [fieldErrors, setFieldErrors] = React.useState<FieldErrors>({});
 
   React.useEffect(() => {
@@ -70,6 +72,13 @@ export function ListingPublicationPanel({
   const isCompact = density === 'compact';
   const publicPath = listing.publicSlug ? `/oferty/${listing.publicSlug}` : '';
   const publicUrl = origin && publicPath ? `${origin}${publicPath}` : '';
+  const leadFormPath = listing.publicSlug
+    ? `/formularz/oferty/${listing.publicSlug}`
+    : '';
+  const leadFormUrl = origin && leadFormPath ? `${origin}${leadFormPath}` : '';
+  const embedCode = leadFormUrl
+    ? `<iframe src="${leadFormUrl}" title="Formularz kontaktowy EstateFlow" width="100%" height="720" style="border:0;border-radius:16px;overflow:hidden" loading="lazy"></iframe>`
+    : '';
 
   async function handleSettingsSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -170,6 +179,34 @@ export function ListingPublicationPanel({
       showErrorToast({
         title: 'Nie udało się skopiować linku',
         description: 'Zaznacz adres ręcznie i skopiuj go z pola.',
+      });
+    }
+  }
+
+  async function handleCopyEmbedCode() {
+    if (!embedCode) return;
+
+    try {
+      await navigator.clipboard.writeText(embedCode);
+      setIsEmbedCopied(true);
+      window.setTimeout(() => setIsEmbedCopied(false), 1800);
+      trackAnalyticsEvent({
+        name: AnalyticsEventName.PUBLIC_LISTING_LINK_COPIED,
+        properties: {
+          listingId: listing.id,
+          publicSlug: listing.publicSlug ?? null,
+          source: 'agent_publication_panel',
+          copiedAsset: 'lead_form_embed_code',
+        },
+      });
+      showSuccessToast({
+        title: 'Kod osadzenia skopiowany',
+        description: 'Wklej iframe na swojej stronie albo landing page.',
+      });
+    } catch {
+      showErrorToast({
+        title: 'Nie udało się skopiować kodu',
+        description: 'Zaznacz kod ręcznie i skopiuj go z pola.',
       });
     }
   }
@@ -472,6 +509,64 @@ export function ListingPublicationPanel({
           </Button>
         </div>
       </form>
+
+      <div className="mt-6 rounded-xl border border-border bg-muted/20 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Code2 className="h-4 w-4 text-primary" />
+              <h3 className="font-heading text-sm font-semibold text-foreground">
+                Widget lead form
+              </h3>
+            </div>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Osadź sam formularz kontaktowy na zewnętrznej stronie albo wyślij
+              bezpośredni link do formularza bez pełnej strony oferty.
+            </p>
+          </div>
+          <Badge variant={isPublished ? 'success' : 'secondary'}>
+            {isPublished ? 'Gotowy' : 'Po publikacji'}
+          </Badge>
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="min-w-0">
+            <label
+              className="text-xs font-medium text-muted-foreground"
+              htmlFor="lead-form-url"
+            >
+              Hosted link
+            </label>
+            <Input
+              id="lead-form-url"
+              value={leadFormUrl || 'Link pojawi się po publikacji oferty'}
+              readOnly
+              className="mt-1 h-10 rounded-xl text-sm"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCopyEmbedCode}
+            disabled={!embedCode || !isPublished}
+            className="h-10 gap-2 rounded-xl lg:self-end"
+          >
+            {isEmbedCopied ? (
+              <Check className="h-4 w-4" />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+            {isEmbedCopied ? 'Skopiowano' : 'Kopiuj iframe'}
+          </Button>
+        </div>
+
+        <textarea
+          value={embedCode || 'Kod iframe pojawi się po publikacji oferty.'}
+          readOnly
+          rows={3}
+          className="mt-3 w-full min-w-0 resize-none rounded-xl border border-border/80 bg-white px-3 py-2 font-mono text-xs leading-5 text-muted-foreground shadow-sm outline-none"
+        />
+      </div>
     </section>
   );
 }
