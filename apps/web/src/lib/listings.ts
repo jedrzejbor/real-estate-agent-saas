@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { apiFetch } from './api-client';
+import { apiFetch, apiFormDataFetch } from './api-client';
 import {
   AnalyticsEventName,
   trackAnalyticsEvent,
@@ -489,6 +489,57 @@ export async function updatePublicListingSettings(
   return apiFetch<Listing>(`/listings/${id}`, {
     method: 'PATCH',
     body: cleanPublicListingSettingsPayload(data),
+  });
+}
+
+export async function uploadListingImages(
+  id: string,
+  files: File[],
+): Promise<Listing> {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('images', file));
+
+  return apiFormDataFetch<Listing>(`/listings/${id}/images`, formData, {
+    method: 'POST',
+  });
+}
+
+export async function updateListingImage(
+  id: string,
+  imageId: string,
+  data: { altText?: string },
+): Promise<Listing> {
+  return apiFetch<Listing>(`/listings/${id}/images/${imageId}`, {
+    method: 'PATCH',
+    body: data,
+  });
+}
+
+export async function setListingPrimaryImage(
+  id: string,
+  imageId: string,
+): Promise<Listing> {
+  return apiFetch<Listing>(`/listings/${id}/images/${imageId}/primary`, {
+    method: 'POST',
+  });
+}
+
+export async function reorderListingImages(
+  id: string,
+  imageIds: string[],
+): Promise<Listing> {
+  return apiFetch<Listing>(`/listings/${id}/images/reorder`, {
+    method: 'PATCH',
+    body: { imageIds },
+  });
+}
+
+export async function deleteListingImage(
+  id: string,
+  imageId: string,
+): Promise<Listing> {
+  return apiFetch<Listing>(`/listings/${id}/images/${imageId}`, {
+    method: 'DELETE',
   });
 }
 

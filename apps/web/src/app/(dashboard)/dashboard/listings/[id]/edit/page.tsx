@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { ListingForm } from '@/components/listings/listing-form';
+import { ListingImageManager } from '@/components/listings/listing-image-manager';
 import { ListingPublicationPanel } from '@/components/listings/listing-publication-panel';
 import { fetchListing, type Listing } from '@/lib/listings';
 
@@ -70,6 +71,8 @@ export default function EditListingPage() {
       <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
         <ListingForm listing={listing} />
       </div>
+
+      <ListingImageManager listing={listing} onListingChange={setListing} />
 
       <ListingPublicationPanel listing={listing} onListingChange={setListing} />
     </div>

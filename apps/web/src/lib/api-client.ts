@@ -29,7 +29,7 @@ export class ApiError extends Error {
 
 export interface PlanLimitErrorBody extends Record<string, unknown> {
   code: 'PLAN_LIMIT_REACHED';
-  resource: 'listings' | 'clients' | 'appointments';
+  resource: 'listings' | 'clients' | 'appointments' | 'images';
   limit: number;
   currentUsage: number;
   planCode: string;
@@ -98,7 +98,13 @@ async function ensureRefreshed(): Promise<void> {
  */
 export async function apiFetch<T = unknown>(
   path: string,
-  { body, skipAuth, _retried, headers: extraHeaders, ...init }: RequestOptions = {},
+  {
+    body,
+    skipAuth,
+    _retried,
+    headers: extraHeaders,
+    ...init
+  }: RequestOptions = {},
 ): Promise<T> {
   const headers = new Headers(extraHeaders);
 
@@ -127,11 +133,73 @@ export async function apiFetch<T = unknown>(
     try {
       await ensureRefreshed();
       // Retry the original request with the new access token
-      return apiFetch<T>(path, { body, skipAuth, _retried: true, headers: extraHeaders, ...init });
+      return apiFetch<T>(path, {
+        body,
+        skipAuth,
+        _retried: true,
+        headers: extraHeaders,
+        ...init,
+      });
     } catch {
       // Refresh itself failed — session is truly expired
       notifyAuthorizationLost();
-      throw new ApiError(401, { message: 'Sesja wygasła. Zaloguj się ponownie.' });
+      throw new ApiError(401, {
+        message: 'Sesja wygasła. Zaloguj się ponownie.',
+      });
+    }
+  }
+
+  const json = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    if (!skipAuth && res.status === 401) {
+      notifyAuthorizationLost();
+    }
+    throw new ApiError(res.status, json);
+  }
+
+  return json as T;
+}
+
+export async function apiFormDataFetch<T = unknown>(
+  path: string,
+  formData: FormData,
+  {
+    skipAuth,
+    _retried,
+    headers: extraHeaders,
+    ...init
+  }: Omit<RequestOptions, 'body'> = {},
+): Promise<T> {
+  const headers = new Headers(extraHeaders);
+
+  if (!skipAuth && typeof window !== 'undefined') {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+  }
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers,
+    body: formData,
+  });
+
+  if (!skipAuth && res.status === 401 && !_retried) {
+    try {
+      await ensureRefreshed();
+      return apiFormDataFetch<T>(path, formData, {
+        skipAuth,
+        _retried: true,
+        headers: extraHeaders,
+        ...init,
+      });
+    } catch {
+      notifyAuthorizationLost();
+      throw new ApiError(401, {
+        message: 'Sesja wygasła. Zaloguj się ponownie.',
+      });
     }
   }
 

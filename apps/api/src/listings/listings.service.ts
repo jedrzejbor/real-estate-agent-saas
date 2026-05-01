@@ -5,11 +5,16 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository, SelectQueryBuilder } from 'typeorm';
+import { mkdir, unlink, writeFile } from 'fs/promises';
+import { randomUUID } from 'crypto';
+import { extname, join } from 'path';
 import { ActivityService } from '../activity';
 import { Listing } from './entities/listing.entity';
 import { Address } from './entities/address.entity';
+import { ListingImage } from './entities/listing-image.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { UsersService } from '../users';
 import {
@@ -22,6 +27,7 @@ import { FeatureAccessDeniedException } from '../common/exceptions/feature-acces
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { assertPublicListingModerationPassed } from '../common/public-listing-moderation';
 import { CreateListingDto } from './dto/create-listing.dto';
+import { UpdateListingImageDto } from './dto/listing-image.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ListingQueryDto } from './dto/listing-query.dto';
 import {
@@ -41,6 +47,12 @@ export interface PaginatedResult<T> {
   };
 }
 
+interface UploadedListingImageFile {
+  buffer: Buffer;
+  mimetype: string;
+  originalname: string;
+}
+
 @Injectable()
 export class ListingsService {
   private readonly logger = new Logger(ListingsService.name);
@@ -50,10 +62,13 @@ export class ListingsService {
     private readonly listingRepo: Repository<Listing>,
     @InjectRepository(Address)
     private readonly addressRepo: Repository<Address>,
+    @InjectRepository(ListingImage)
+    private readonly listingImageRepo: Repository<ListingImage>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
     private readonly usersService: UsersService,
     private readonly activityService: ActivityService,
+    private readonly configService: ConfigService,
   ) {}
 
   // ── Create ──
@@ -260,6 +275,203 @@ export class ListingsService {
         changes,
       });
     }
+
+    return updatedListing;
+  }
+
+  async addImages(
+    id: string,
+    userId: string,
+    files: UploadedListingImageFile[],
+  ): Promise<Listing> {
+    if (!files.length) {
+      throw new BadRequestException('Wybierz co najmniej jedno zdjęcie');
+    }
+
+    const listing = await this.findOneOrFail(id);
+    await this.assertOwnership(listing, userId);
+    const previousState = this.createListingSnapshot(listing);
+    const access = await this.usersService.getAgencyAccessContext(userId);
+    const currentImages = this.getOrderedImages(listing);
+    const imageLimit = access.entitlements.limits.imagesPerListing;
+
+    if (
+      imageLimit !== null &&
+      currentImages.length + files.length > imageLimit
+    ) {
+      throw new PlanLimitReachedException({
+        resource: 'images',
+        limit: imageLimit,
+        currentUsage: currentImages.length,
+        planCode: access.entitlements.plan.code,
+        message:
+          'Osiągnięto limit zdjęć dla tej oferty. Usuń zdjęcie albo przejdź na wyższy plan.',
+      });
+    }
+
+    const nextOrder =
+      currentImages.length > 0
+        ? Math.max(...currentImages.map((image) => image.order)) + 1
+        : 0;
+    const isFirstImage = currentImages.length === 0;
+    const uploadedFiles = await this.persistUploadedImages(files);
+
+    try {
+      const images = uploadedFiles.map((file, index) =>
+        this.listingImageRepo.create({
+          listing,
+          url: file.url,
+          order: nextOrder + index,
+          isPrimary: isFirstImage && index === 0,
+          altText: listing.publicTitle || listing.title,
+        }),
+      );
+
+      await this.listingImageRepo.save(images);
+
+      if (isFirstImage && !listing.shareImageUrl) {
+        listing.shareImageUrl = images[0].url;
+        await this.listingRepo.save(listing);
+      }
+    } catch (error) {
+      await Promise.all(
+        uploadedFiles.map((file) => this.removeLocalUpload(file.url)),
+      );
+      throw error;
+    }
+
+    const updatedListing = await this.findOneOrFail(id);
+    await this.logListingImageUpdate(userId, updatedListing, previousState);
+
+    return updatedListing;
+  }
+
+  async updateImage(
+    id: string,
+    imageId: string,
+    userId: string,
+    dto: UpdateListingImageDto,
+  ): Promise<Listing> {
+    const listing = await this.findOneOrFail(id);
+    await this.assertOwnership(listing, userId);
+    const image = this.findListingImage(listing, imageId);
+    const previousState = this.createListingSnapshot(listing);
+
+    image.altText = dto.altText?.trim() || null;
+    await this.listingImageRepo.save(image);
+
+    const updatedListing = await this.findOneOrFail(id);
+    await this.logListingImageUpdate(userId, updatedListing, previousState);
+
+    return updatedListing;
+  }
+
+  async setPrimaryImage(
+    id: string,
+    imageId: string,
+    userId: string,
+  ): Promise<Listing> {
+    const listing = await this.findOneOrFail(id);
+    await this.assertOwnership(listing, userId);
+    const images = this.getOrderedImages(listing);
+    const targetImage = this.findListingImage(listing, imageId);
+    const previousState = this.createListingSnapshot(listing);
+    const oldPrimaryUrl = images.find((image) => image.isPrimary)?.url ?? null;
+
+    for (const image of images) {
+      image.isPrimary = image.id === targetImage.id;
+    }
+
+    targetImage.order = 0;
+    const remainingImages = images.filter(
+      (image) => image.id !== targetImage.id,
+    );
+    remainingImages.forEach((image, index) => {
+      image.order = index + 1;
+    });
+
+    await this.listingImageRepo.save([targetImage, ...remainingImages]);
+
+    if (!listing.shareImageUrl || listing.shareImageUrl === oldPrimaryUrl) {
+      listing.shareImageUrl = targetImage.url;
+      await this.listingRepo.save(listing);
+    }
+
+    const updatedListing = await this.findOneOrFail(id);
+    await this.logListingImageUpdate(userId, updatedListing, previousState);
+
+    return updatedListing;
+  }
+
+  async reorderImages(
+    id: string,
+    userId: string,
+    imageIds: string[],
+  ): Promise<Listing> {
+    const listing = await this.findOneOrFail(id);
+    await this.assertOwnership(listing, userId);
+    const images = this.getOrderedImages(listing);
+    const previousState = this.createListingSnapshot(listing);
+
+    if (imageIds.length !== images.length) {
+      throw new BadRequestException(
+        'Przekazana kolejność musi obejmować wszystkie zdjęcia oferty',
+      );
+    }
+
+    const imagesById = new Map(images.map((image) => [image.id, image]));
+    const orderedImages = imageIds.map((imageId) => {
+      const image = imagesById.get(imageId);
+
+      if (!image) {
+        throw new BadRequestException('Nieprawidłowa lista zdjęć oferty');
+      }
+
+      return image;
+    });
+
+    orderedImages.forEach((image, index) => {
+      image.order = index;
+    });
+
+    await this.listingImageRepo.save(orderedImages);
+
+    const updatedListing = await this.findOneOrFail(id);
+    await this.logListingImageUpdate(userId, updatedListing, previousState);
+
+    return updatedListing;
+  }
+
+  async removeImage(
+    id: string,
+    imageId: string,
+    userId: string,
+  ): Promise<Listing> {
+    const listing = await this.findOneOrFail(id);
+    await this.assertOwnership(listing, userId);
+    const image = this.findListingImage(listing, imageId);
+    const previousState = this.createListingSnapshot(listing);
+    const wasPrimary = image.isPrimary;
+    const removedImageUrl = image.url;
+
+    await this.listingImageRepo.remove(image);
+    await this.removeLocalUpload(removedImageUrl);
+
+    const refreshedListing = await this.findOneOrFail(id);
+    const remainingImages = this.getOrderedImages(refreshedListing);
+
+    if (wasPrimary && remainingImages.length > 0) {
+      remainingImages[0].isPrimary = true;
+      await this.listingImageRepo.save(remainingImages[0]);
+    }
+
+    if (refreshedListing.shareImageUrl === removedImageUrl) {
+      refreshedListing.shareImageUrl = remainingImages[0]?.url ?? null;
+      await this.listingRepo.save(refreshedListing);
+    }
+
+    const updatedListing = await this.findOneOrFail(id);
+    await this.logListingImageUpdate(userId, updatedListing, previousState);
 
     return updatedListing;
   }
@@ -747,6 +959,108 @@ export class ListingsService {
     }
   }
 
+  private getOrderedImages(listing: Listing): ListingImage[] {
+    return (listing.images ?? []).slice().sort((a, b) => {
+      if (a.order !== b.order) return a.order - b.order;
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+  }
+
+  private findListingImage(listing: Listing, imageId: string): ListingImage {
+    const image = (listing.images ?? []).find((item) => item.id === imageId);
+
+    if (!image) {
+      throw new NotFoundException('Zdjęcie oferty nie znalezione');
+    }
+
+    return image;
+  }
+
+  private buildUploadPublicUrl(filename: string): string {
+    const configuredBaseUrl =
+      this.configService.get<string>('API_PUBLIC_URL') ||
+      this.configService.get<string>('PUBLIC_API_URL') ||
+      `http://localhost:${this.configService.get('PORT', 4000)}`;
+    const baseUrl = configuredBaseUrl.replace(/\/+$/, '');
+
+    return `${baseUrl}/uploads/listings/${filename}`;
+  }
+
+  private async persistUploadedImages(
+    files: UploadedListingImageFile[],
+  ): Promise<Array<{ filename: string; url: string }>> {
+    const uploadDir = join(process.cwd(), 'uploads', 'listings');
+    await mkdir(uploadDir, { recursive: true });
+
+    const savedFiles: Array<{ filename: string; url: string }> = [];
+
+    for (const file of files) {
+      const filename = `${randomUUID()}${normalizeImageExtension(
+        file.originalname,
+        file.mimetype,
+      )}`;
+      const filePath = join(uploadDir, filename);
+
+      await writeFile(filePath, file.buffer);
+      savedFiles.push({
+        filename,
+        url: this.buildUploadPublicUrl(filename),
+      });
+    }
+
+    return savedFiles;
+  }
+
+  private async removeLocalUpload(imageUrl: string): Promise<void> {
+    let pathname: string;
+
+    try {
+      pathname = new URL(imageUrl).pathname;
+    } catch {
+      pathname = imageUrl;
+    }
+
+    if (!pathname.startsWith('/uploads/listings/')) {
+      return;
+    }
+
+    const relativePath = pathname.replace(/^\/uploads\//, '');
+
+    try {
+      await unlink(join(process.cwd(), 'uploads', relativePath));
+    } catch (error) {
+      this.logger.warn(
+        `Could not remove listing image file ${relativePath}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
+  }
+
+  private async logListingImageUpdate(
+    userId: string,
+    listing: Listing,
+    previousState: Record<string, unknown>,
+  ): Promise<void> {
+    const changes = this.activityService.buildChanges(
+      previousState,
+      this.createListingSnapshot(listing),
+    );
+
+    if (changes.length === 0) {
+      return;
+    }
+
+    await this.activityService.log({
+      userId,
+      entityType: ActivityEntityType.LISTING,
+      entityId: listing.id,
+      action: ActivityAction.UPDATED,
+      description: 'Zaktualizowano zdjęcia oferty',
+      changes,
+    });
+  }
+
   /** Apply optional filters to the query builder. */
   private applyFilters(
     qb: SelectQueryBuilder<Listing>,
@@ -840,6 +1154,34 @@ export class ListingsService {
       'address.voivodeship': listing.address?.voivodeship ?? null,
       'address.lat': listing.address?.lat ?? null,
       'address.lng': listing.address?.lng ?? null,
+      images: this.getOrderedImages(listing).map((image) => ({
+        id: image.id,
+        url: image.url,
+        order: image.order,
+        isPrimary: image.isPrimary,
+        altText: image.altText ?? null,
+      })),
     };
+  }
+}
+
+function normalizeImageExtension(
+  originalName: string,
+  mimetype: string,
+): string {
+  const extension = extname(originalName).toLowerCase();
+
+  if (['.jpg', '.jpeg', '.png', '.webp'].includes(extension)) {
+    return extension;
+  }
+
+  switch (mimetype) {
+    case 'image/png':
+      return '.png';
+    case 'image/webp':
+      return '.webp';
+    case 'image/jpeg':
+    default:
+      return '.jpg';
   }
 }

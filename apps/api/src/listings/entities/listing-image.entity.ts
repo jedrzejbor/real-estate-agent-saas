@@ -23,7 +23,7 @@ export class ListingImage {
   isPrimary: boolean;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  altText: string;
+  altText: string | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;

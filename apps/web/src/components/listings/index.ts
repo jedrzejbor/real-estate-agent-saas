@@ -2,6 +2,7 @@ export { ListingCard } from './listing-card';
 export { ListingDescriptionAssistant } from './listing-description-assistant';
 export { ListingFiltersBar } from './listing-filters';
 export { ListingForm } from './listing-form';
+export { ListingImageManager } from './listing-image-manager';
 export { ListingPublicationPanel } from './listing-publication-panel';
 export { PublicListingAnalytics } from './public-listing-analytics';
 export { PublicListingContactForm } from './public-listing-contact-form';

@@ -1,7 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 
 interface PlanLimitReachedOptions {
-  resource: 'listings' | 'clients' | 'appointments';
+  resource: 'listings' | 'clients' | 'appointments' | 'images';
   limit: number;
   currentUsage: number;
   planCode: string;

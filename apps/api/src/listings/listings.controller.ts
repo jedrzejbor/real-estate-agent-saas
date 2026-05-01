@@ -10,11 +10,63 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
+  BadRequestException,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { ListingsService } from './listings.service';
-import { CreateListingDto, UpdateListingDto, ListingQueryDto } from './dto';
+import {
+  CreateListingDto,
+  ListingQueryDto,
+  ReorderListingImagesDto,
+  UpdateListingDto,
+  UpdateListingImageDto,
+} from './dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+
+interface UploadedImageFile {
+  buffer: Buffer;
+  mimetype: string;
+  originalname: string;
+  size: number;
+}
+
+interface IncomingUploadFile {
+  mimetype: string;
+}
+
+const MAX_LISTING_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_LISTING_IMAGE_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
+
+const listingImageUploadInterceptor = FilesInterceptor('images', 15, {
+  limits: {
+    fileSize: MAX_LISTING_IMAGE_SIZE_BYTES,
+    files: 15,
+  },
+  fileFilter: (
+    _req: unknown,
+    file: IncomingUploadFile,
+    callback: (error: Error | null, acceptFile: boolean) => void,
+  ) => {
+    if (!ALLOWED_LISTING_IMAGE_MIME_TYPES.has(file.mimetype)) {
+      callback(
+        new BadRequestException(
+          'Dozwolone formaty zdjęć to JPG, PNG oraz WebP',
+        ),
+        false,
+      );
+      return;
+    }
+
+    callback(null, true);
+  },
+});
 
 @Controller('listings')
 export class ListingsController {
@@ -87,6 +139,58 @@ export class ListingsController {
     @Body() dto: UpdateListingDto,
   ) {
     return this.listingsService.update(id, userId, dto);
+  }
+
+  /** POST /api/listings/:id/images — upload listing images. */
+  @Post(':id/images')
+  @UseInterceptors(listingImageUploadInterceptor)
+  async uploadImages(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @UploadedFiles() files: UploadedImageFile[],
+  ) {
+    return this.listingsService.addImages(id, userId, files);
+  }
+
+  /** PATCH /api/listings/:id/images/reorder — reorder all listing images. */
+  @Patch(':id/images/reorder')
+  async reorderImages(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: ReorderListingImagesDto,
+  ) {
+    return this.listingsService.reorderImages(id, userId, dto.imageIds);
+  }
+
+  /** PATCH /api/listings/:id/images/:imageId — update image metadata. */
+  @Patch(':id/images/:imageId')
+  async updateImage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('imageId', ParseUUIDPipe) imageId: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: UpdateListingImageDto,
+  ) {
+    return this.listingsService.updateImage(id, imageId, userId, dto);
+  }
+
+  /** POST /api/listings/:id/images/:imageId/primary — set primary image. */
+  @Post(':id/images/:imageId/primary')
+  async setPrimaryImage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('imageId', ParseUUIDPipe) imageId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.listingsService.setPrimaryImage(id, imageId, userId);
+  }
+
+  /** DELETE /api/listings/:id/images/:imageId — remove a listing image. */
+  @Delete(':id/images/:imageId')
+  async removeImage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('imageId', ParseUUIDPipe) imageId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.listingsService.removeImage(id, imageId, userId);
   }
 
   /** POST /api/listings/:id/publish — publish public listing page. */

@@ -1045,7 +1045,7 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
 
 #### Zadania
 
-- [ ] `F6.5.1` Dodać zdjęcia oferty end-to-end
+- [x] `F6.5.1` Dodać zdjęcia oferty end-to-end
   - Zakres: upload, storage, galeria, ustawianie zdjęcia głównego, sortowanie, usuwanie, limit zdjęć per plan.
   - Minimalny zakres MVP:
     - agent może dodać zdjęcia w tworzeniu / edycji oferty,
@@ -1060,9 +1060,19 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
     - wybrać storage dla plików w MVP,
     - zdecydować, czy upload idzie przez backend, signed URL, czy adapter storage,
     - zdecydować, czy w planie free pozwalamy tylko na obrazy zoptymalizowane po stronie serwera.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-01
   - Wykonano:
+    - dodano endpointy backendowe do uploadu, aktualizacji alt text, ustawiania zdjęcia głównego, sortowania i usuwania zdjęć oferty,
+    - API zapisuje pliki w lokalnym storage `uploads/listings`, serwuje je publicznie przez `/uploads` i zwraca pełne publiczne URL-e obrazów,
+    - backend egzekwuje limit `imagesPerListing`, waliduje format `jpg/png/webp`, limit 10 MB na plik i maksymalnie 15 plików w jednym uploadzie,
+    - pierwsze dodane zdjęcie automatycznie staje się zdjęciem głównym oraz domyślnym `shareImageUrl`,
+    - usunięcie zdjęcia głównego wybiera kolejne zdjęcie z galerii i aktualizuje `shareImageUrl`, jeśli wskazywał na usunięty plik,
+    - dodano komponent `ListingImageManager` w edycji oferty z uploadem wielu zdjęć, ustawianiem zdjęcia głównego, zmianą kolejności, edycją opisu i usuwaniem,
+    - publiczna strona oferty korzysta z istniejącego renderu hero/galerii na podstawie uzupełnionych `ListingImage`.
   - Uwagi / follow-up:
+    - obecny storage jest lokalny i dobry dla MVP/dev; przed produkcją warto podmienić adapter na S3/R2 albo signed URLs,
+    - publiczny wizard `/dodaj-oferte` nadal wymaga spięcia z tym samym mechanizmem uploadu w `F6.5.2`,
+    - tworzenie oferty nadal zapisuje najpierw dane podstawowe, a zdjęcia dodaje się po zapisie w ekranie edycji.
 
 - [ ] `F6.5.2` Domknąć publiczny wizard `/dodaj-oferte` albo wyłączyć go z MVP
   - Zakres: publiczny entry point dodania oferty bez konta.
