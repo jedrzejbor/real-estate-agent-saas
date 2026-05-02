@@ -4,10 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchReportsAppointments,
   fetchReportsClients,
+  fetchReportsFreemiumMetrics,
   fetchReportsListings,
   fetchReportsOverview,
   type AppointmentsReportResponse,
   type ClientsReportResponse,
+  type FreemiumMetricsReportResponse,
   type ListingsReportResponse,
   type ReportsFilters,
   type ReportsOverviewResponse,
@@ -41,9 +43,7 @@ export function useReportsOverview(
     } catch (err) {
       if (requestId === requestIdRef.current) {
         setError(
-          err instanceof Error
-            ? err.message
-            : 'Nie udało się pobrać raportów',
+          err instanceof Error ? err.message : 'Nie udało się pobrać raportów',
         );
       }
     } finally {
@@ -207,6 +207,53 @@ export function useReportsAppointments(
       }
     }
   }, [enabled, filters]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return { data, isLoading, error, refresh: load };
+}
+
+interface UseReportsFreemiumMetricsResult {
+  data: FreemiumMetricsReportResponse | null;
+  isLoading: boolean;
+  error: string | null;
+  refresh: () => void;
+}
+
+export function useReportsFreemiumMetrics(
+  filters: ReportsFilters,
+): UseReportsFreemiumMetricsResult {
+  const [data, setData] = useState<FreemiumMetricsReportResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
+
+  const load = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await fetchReportsFreemiumMetrics(filters);
+      if (requestId === requestIdRef.current) {
+        setData(result);
+      }
+    } catch (err) {
+      if (requestId === requestIdRef.current) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Nie udało się pobrać raportu freemium',
+        );
+      }
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [filters]);
 
   useEffect(() => {
     void load();

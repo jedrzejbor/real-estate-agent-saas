@@ -10,6 +10,7 @@ import { Listing } from '../listings/entities/listing.entity';
 import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
+import { AnalyticsEvent } from '../analytics/entities/analytics-event.entity';
 import { UsersService } from '../users';
 import { AgencyEntitlements } from '../users/agency-plan.service';
 import { FeatureAccessDeniedException } from '../common/exceptions/feature-access-denied.exception';
@@ -21,10 +22,7 @@ import {
   ListingStatus,
   UserRole,
 } from '../common/enums';
-import {
-  ReportFiltersDto,
-  ReportsGroupBy,
-} from './dto/report-filters.dto';
+import { ReportFiltersDto, ReportsGroupBy } from './dto/report-filters.dto';
 
 interface ReportsUserContext {
   id: string;
@@ -194,6 +192,76 @@ export interface AppointmentsReportResponse {
   notes: string[];
 }
 
+export type FreemiumMetricKey =
+  | 'listing_created'
+  | 'listing_published'
+  | 'public_listing_viewed'
+  | 'public_listing_link_copied'
+  | 'public_listing_share_clicked'
+  | 'public_lead_submitted'
+  | 'public_listing_claim_started'
+  | 'public_listing_claim_completed'
+  | 'limit_warning_shown'
+  | 'limit_reached'
+  | 'upgrade_cta_clicked';
+
+export interface FreemiumMetricsSummary {
+  firstListings: number;
+  publishedListings: number;
+  publicViews: number;
+  publicShares: number;
+  publicLeads: number;
+  claimStarts: number;
+  claimCompletions: number;
+  limitWarnings: number;
+  limitsReached: number;
+  upgradeClicks: number;
+  publishRate: number;
+  leadCaptureRate: number;
+  claimCompletionRate: number;
+}
+
+export interface FreemiumMetricCount {
+  key: FreemiumMetricKey;
+  label: string;
+  count: number;
+}
+
+export interface FreemiumMetricsBucket {
+  key: string;
+  label: string;
+  listingCreated: number;
+  listingPublished: number;
+  publicViews: number;
+  publicLeads: number;
+  upgradeClicks: number;
+}
+
+export interface FreemiumUpgradeIntentItem {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface FreemiumMetricsReportResponse {
+  generatedAt: string;
+  filtersApplied: {
+    dateFrom: string;
+    dateTo: string;
+    groupBy: ReportsGroupBy;
+    requestedAgentId?: string;
+    effectiveAgentIds: string[];
+  };
+  summary: FreemiumMetricsSummary;
+  events: FreemiumMetricCount[];
+  timeline: FreemiumMetricsBucket[];
+  upgradeIntent: {
+    byUpsell: FreemiumUpgradeIntentItem[];
+    bySource: FreemiumUpgradeIntentItem[];
+  };
+  notes: string[];
+}
+
 export interface ReportsOverviewResponse {
   generatedAt: string;
   filtersApplied: {
@@ -247,6 +315,8 @@ export class ReportsService {
     private readonly appointmentRepo: Repository<Appointment>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    @InjectRepository(AnalyticsEvent)
+    private readonly analyticsEventRepo: Repository<AnalyticsEvent>,
     private readonly usersService: UsersService,
   ) {}
 
@@ -255,7 +325,10 @@ export class ReportsService {
     filters: ReportFiltersDto,
   ): Promise<ReportsOverviewResponse> {
     const normalizedFilters = this.normalizeFilters(filters);
-    const scope = await this.resolveScope(user, normalizedFilters.requestedAgentId);
+    const scope = await this.resolveScope(
+      user,
+      normalizedFilters.requestedAgentId,
+    );
     const previousPeriod = this.getPreviousPeriod(normalizedFilters);
     const [summary, previousSummary, timeline] = await Promise.all([
       this.buildOverviewSummary(normalizedFilters, scope),
@@ -331,7 +404,10 @@ export class ReportsService {
     filters: ReportFiltersDto,
   ): Promise<ListingsReportResponse> {
     const normalizedFilters = this.normalizeFilters(filters);
-    const scope = await this.resolveScope(user, normalizedFilters.requestedAgentId);
+    const scope = await this.resolveScope(
+      user,
+      normalizedFilters.requestedAgentId,
+    );
 
     const [summary, byStatus, byPropertyType, byTransactionType] =
       await Promise.all([
@@ -371,7 +447,10 @@ export class ReportsService {
     filters: ReportFiltersDto,
   ): Promise<ClientsReportResponse> {
     const normalizedFilters = this.normalizeFilters(filters);
-    const scope = await this.resolveScope(user, normalizedFilters.requestedAgentId);
+    const scope = await this.resolveScope(
+      user,
+      normalizedFilters.requestedAgentId,
+    );
 
     const [summary, byStatus, bySource] = await Promise.all([
       this.buildClientsSummary(normalizedFilters, scope),
@@ -414,7 +493,10 @@ export class ReportsService {
     );
 
     const normalizedFilters = this.normalizeFilters(filters);
-    const scope = await this.resolveScope(user, normalizedFilters.requestedAgentId);
+    const scope = await this.resolveScope(
+      user,
+      normalizedFilters.requestedAgentId,
+    );
 
     const [summary, byStatus, byType] = await Promise.all([
       this.buildAppointmentsSummary(normalizedFilters, scope),
@@ -442,6 +524,67 @@ export class ReportsService {
         'Raport Spotkania bazuje na danych z modelu Appointment oraz opcjonalnych powiązaniach do klienta i oferty.',
         'Filtry `propertyType` i `transactionType` są stosowane tylko do spotkań powiązanych z ofertą, aby wynik był semantycznie poprawny.',
         'Completion rate liczony jest jako udział spotkań zakończonych w całkowitej liczbie spotkań w wybranym okresie.',
+      ],
+    };
+  }
+
+  async getFreemiumMetricsReport(
+    user: ReportsUserContext,
+    filters: ReportFiltersDto,
+  ): Promise<FreemiumMetricsReportResponse> {
+    const normalizedFilters = this.normalizeFilters(filters);
+    const scope = await this.resolveScope(
+      user,
+      normalizedFilters.requestedAgentId,
+    );
+    const [events, timeline, upgradeIntent] = await Promise.all([
+      this.buildFreemiumEventCounts(normalizedFilters, scope),
+      this.buildFreemiumTimeline(normalizedFilters, scope),
+      this.buildFreemiumUpgradeIntent(normalizedFilters, scope),
+    ]);
+    const eventMap = new Map(events.map((event) => [event.key, event.count]));
+    const publicShares =
+      (eventMap.get('public_listing_link_copied') ?? 0) +
+      (eventMap.get('public_listing_share_clicked') ?? 0);
+    const firstListings = eventMap.get('listing_created') ?? 0;
+    const publishedListings = eventMap.get('listing_published') ?? 0;
+    const publicViews = eventMap.get('public_listing_viewed') ?? 0;
+    const publicLeads = eventMap.get('public_lead_submitted') ?? 0;
+    const claimStarts = eventMap.get('public_listing_claim_started') ?? 0;
+    const claimCompletions =
+      eventMap.get('public_listing_claim_completed') ?? 0;
+
+    return {
+      generatedAt: new Date().toISOString(),
+      filtersApplied: {
+        dateFrom: normalizedFilters.dateFrom.toISOString(),
+        dateTo: normalizedFilters.dateTo.toISOString(),
+        groupBy: normalizedFilters.groupBy,
+        requestedAgentId: normalizedFilters.requestedAgentId,
+        effectiveAgentIds: scope.effectiveAgentIds,
+      },
+      summary: {
+        firstListings,
+        publishedListings,
+        publicViews,
+        publicShares,
+        publicLeads,
+        claimStarts,
+        claimCompletions,
+        limitWarnings: eventMap.get('limit_warning_shown') ?? 0,
+        limitsReached: eventMap.get('limit_reached') ?? 0,
+        upgradeClicks: eventMap.get('upgrade_cta_clicked') ?? 0,
+        publishRate: this.percentage(publishedListings, firstListings),
+        leadCaptureRate: this.percentage(publicLeads, publicViews),
+        claimCompletionRate: this.percentage(claimCompletions, claimStarts),
+      },
+      events,
+      timeline,
+      upgradeIntent,
+      notes: [
+        'Raport Freemium agreguje wyłącznie eventy zapisane w `analytics_events` dla dostępnego zakresu agentów.',
+        'Współczynniki są liczone jako proste relacje eventów w wybranym okresie, dlatego pokazują trend produktu, a nie pełną kohortową analitykę atrybucji.',
+        'Upgrade intent bazuje na kliknięciach `upgrade_cta_clicked` i właściwościach `upsellId` oraz `source` przesyłanych z kart upsell.',
       ],
     };
   }
@@ -486,7 +629,9 @@ export class ReportsService {
     dateTo.setHours(23, 59, 59, 999);
 
     if (dateFrom > dateTo) {
-      throw new BadRequestException('`dateFrom` nie może być późniejsze niż `dateTo`.');
+      throw new BadRequestException(
+        '`dateFrom` nie może być późniejsze niż `dateTo`.',
+      );
     }
 
     const diffDays = Math.ceil(
@@ -518,14 +663,18 @@ export class ReportsService {
     user: ReportsUserContext,
     requestedAgentId?: string,
   ): Promise<ResolvedScope> {
-    const currentAgent = await this.agentRepo.findOne({ where: { userId: user.id } });
+    const currentAgent = await this.agentRepo.findOne({
+      where: { userId: user.id },
+    });
     if (!currentAgent) {
       throw new NotFoundException('Profil agenta nie znaleziony');
     }
 
     if (user.role === UserRole.AGENT || user.role === UserRole.VIEWER) {
       if (requestedAgentId && requestedAgentId !== currentAgent.id) {
-        throw new ForbiddenException('Nie możesz filtrować raportów innych agentów.');
+        throw new ForbiddenException(
+          'Nie możesz filtrować raportów innych agentów.',
+        );
       }
 
       return {
@@ -539,7 +688,9 @@ export class ReportsService {
 
     if (!currentAgent.agencyId) {
       if (requestedAgentId && requestedAgentId !== currentAgent.id) {
-        throw new ForbiddenException('Brak dostępu do danych poza własnym profilem.');
+        throw new ForbiddenException(
+          'Brak dostępu do danych poza własnym profilem.',
+        );
       }
 
       return {
@@ -558,7 +709,9 @@ export class ReportsService {
 
     const allowedAgentIds = new Set(agencyAgents.map((agent) => agent.id));
     if (requestedAgentId && !allowedAgentIds.has(requestedAgentId)) {
-      throw new ForbiddenException('Wybrany agent nie należy do Twojego zakresu danych.');
+      throw new ForbiddenException(
+        'Wybrany agent nie należy do Twojego zakresu danych.',
+      );
     }
 
     return {
@@ -712,7 +865,7 @@ export class ReportsService {
       listingBase
         .clone()
         .select(
-          "AVG(EXTRACT(EPOCH FROM (listing.updatedAt - listing.createdAt)) / 86400)::numeric",
+          'AVG(EXTRACT(EPOCH FROM (listing.updatedAt - listing.createdAt)) / 86400)::numeric',
           'avgDays',
         )
         .andWhere('listing.updatedAt BETWEEN :dateFrom AND :dateTo', {
@@ -785,7 +938,9 @@ export class ReportsService {
       clientBase
         .clone()
         .andWhere('client.createdAt <= :dateTo', { dateTo: filters.dateTo })
-        .andWhere('client.status = :status', { status: ClientStatus.NEGOTIATING })
+        .andWhere('client.status = :status', {
+          status: ClientStatus.NEGOTIATING,
+        })
         .getCount(),
       clientBase
         .clone()
@@ -793,7 +948,9 @@ export class ReportsService {
           dateFrom: filters.dateFrom,
           dateTo: filters.dateTo,
         })
-        .andWhere('client.status = :status', { status: ClientStatus.CLOSED_WON })
+        .andWhere('client.status = :status', {
+          status: ClientStatus.CLOSED_WON,
+        })
         .getCount(),
       clientBase
         .clone()
@@ -801,7 +958,9 @@ export class ReportsService {
           dateFrom: filters.dateFrom,
           dateTo: filters.dateTo,
         })
-        .andWhere('client.status = :status', { status: ClientStatus.CLOSED_LOST })
+        .andWhere('client.status = :status', {
+          status: ClientStatus.CLOSED_LOST,
+        })
         .getCount(),
     ]);
 
@@ -839,7 +998,8 @@ export class ReportsService {
       .map((row) => ({
         key: row.key,
         count: Number(row.count),
-        percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+        percentage:
+          total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
       }))
       .sort((a, b) => b.count - a.count);
   }
@@ -848,7 +1008,10 @@ export class ReportsService {
     filters: NormalizedFilters,
     scope: ResolvedScope,
   ): Promise<AppointmentsReportSummary> {
-    const appointmentBase = this.createAppointmentReportBaseQuery(filters, scope);
+    const appointmentBase = this.createAppointmentReportBaseQuery(
+      filters,
+      scope,
+    );
 
     const [
       totalAppointments,
@@ -943,7 +1106,10 @@ export class ReportsService {
     filters: NormalizedFilters,
     scope: ResolvedScope,
   ): Promise<AppointmentsBreakdownItem[]> {
-    const appointmentBase = this.createAppointmentReportBaseQuery(filters, scope);
+    const appointmentBase = this.createAppointmentReportBaseQuery(
+      filters,
+      scope,
+    );
 
     const rows = await appointmentBase
       .clone()
@@ -975,7 +1141,8 @@ export class ReportsService {
       .map((row) => ({
         key: row.key,
         count: Number(row.count),
-        percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+        percentage:
+          total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
         linkedToClient: Number(row.linkedToClient),
         linkedToListing: Number(row.linkedToListing),
       }))
@@ -986,7 +1153,10 @@ export class ReportsService {
     filters: NormalizedFilters,
     scope: ResolvedScope,
   ): Promise<AppointmentsBreakdownItem[]> {
-    const appointmentBase = this.createAppointmentReportBaseQuery(filters, scope);
+    const appointmentBase = this.createAppointmentReportBaseQuery(
+      filters,
+      scope,
+    );
 
     const rows = await appointmentBase
       .clone()
@@ -1018,11 +1188,133 @@ export class ReportsService {
       .map((row) => ({
         key: row.key,
         count: Number(row.count),
-        percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+        percentage:
+          total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
         linkedToClient: Number(row.linkedToClient),
         linkedToListing: Number(row.linkedToListing),
       }))
       .sort((a, b) => b.count - a.count);
+  }
+
+  private async buildFreemiumEventCounts(
+    filters: NormalizedFilters,
+    scope: ResolvedScope,
+  ): Promise<FreemiumMetricCount[]> {
+    const rows = await this.createFreemiumAnalyticsBaseQuery(filters, scope)
+      .select('event.name', 'key')
+      .addSelect('COUNT(*)::int', 'count')
+      .groupBy('event.name')
+      .getRawMany<{ key: FreemiumMetricKey; count: string }>();
+    const countMap = new Map(rows.map((row) => [row.key, Number(row.count)]));
+
+    return FREEMIUM_METRICS.map((metric) => ({
+      key: metric.key,
+      label: metric.label,
+      count: countMap.get(metric.key) ?? 0,
+    }));
+  }
+
+  private async buildFreemiumTimeline(
+    filters: NormalizedFilters,
+    scope: ResolvedScope,
+  ): Promise<FreemiumMetricsBucket[]> {
+    const bucketFormat = 'YYYY-MM-DD';
+    const bucketExpr = this.getBucketExpression(
+      'event.createdAt',
+      filters.groupBy,
+    );
+    const rows = await this.createFreemiumAnalyticsBaseQuery(filters, scope)
+      .select(`TO_CHAR(${bucketExpr}, '${bucketFormat}')`, 'bucket')
+      .addSelect(
+        `COUNT(*) FILTER (WHERE event.name = 'listing_created')::int`,
+        'listingCreated',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE event.name = 'listing_published')::int`,
+        'listingPublished',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE event.name = 'public_listing_viewed')::int`,
+        'publicViews',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE event.name = 'public_lead_submitted')::int`,
+        'publicLeads',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE event.name = 'upgrade_cta_clicked')::int`,
+        'upgradeClicks',
+      )
+      .groupBy(`TO_CHAR(${bucketExpr}, '${bucketFormat}')`)
+      .orderBy(`MIN(${bucketExpr})`, 'ASC')
+      .getRawMany<{
+        bucket: string;
+        listingCreated: string;
+        listingPublished: string;
+        publicViews: string;
+        publicLeads: string;
+        upgradeClicks: string;
+      }>();
+    const rowMap = new Map(rows.map((row) => [row.bucket, row]));
+
+    return this.generateBucketKeys(
+      filters.dateFrom,
+      filters.dateTo,
+      filters.groupBy,
+    ).map((bucketKey) => {
+      const row = rowMap.get(bucketKey);
+
+      return {
+        key: bucketKey,
+        label: this.formatBucketLabel(bucketKey, filters.groupBy),
+        listingCreated: Number(row?.listingCreated ?? 0),
+        listingPublished: Number(row?.listingPublished ?? 0),
+        publicViews: Number(row?.publicViews ?? 0),
+        publicLeads: Number(row?.publicLeads ?? 0),
+        upgradeClicks: Number(row?.upgradeClicks ?? 0),
+      };
+    });
+  }
+
+  private async buildFreemiumUpgradeIntent(
+    filters: NormalizedFilters,
+    scope: ResolvedScope,
+  ): Promise<FreemiumMetricsReportResponse['upgradeIntent']> {
+    const [byUpsellRows, bySourceRows] = await Promise.all([
+      this.createFreemiumAnalyticsBaseQuery(filters, scope)
+        .andWhere('event.name = :eventName', {
+          eventName: 'upgrade_cta_clicked',
+        })
+        .select("COALESCE(event.properties ->> 'upsellId', 'unknown')", 'key')
+        .addSelect('COUNT(*)::int', 'count')
+        .groupBy("COALESCE(event.properties ->> 'upsellId', 'unknown')")
+        .orderBy('COUNT(*)', 'DESC')
+        .limit(8)
+        .getRawMany<{ key: string; count: string }>(),
+      this.createFreemiumAnalyticsBaseQuery(filters, scope)
+        .andWhere('event.name = :eventName', {
+          eventName: 'upgrade_cta_clicked',
+        })
+        .select("COALESCE(event.properties ->> 'source', 'unknown')", 'key')
+        .addSelect('COUNT(*)::int', 'count')
+        .groupBy("COALESCE(event.properties ->> 'source', 'unknown')")
+        .orderBy('COUNT(*)', 'DESC')
+        .limit(8)
+        .getRawMany<{ key: string; count: string }>(),
+    ]);
+
+    return {
+      byUpsell: byUpsellRows.map((row) => ({
+        key: row.key,
+        label: FREEMIUM_UPSELL_LABELS[row.key] ?? row.key,
+        count: Number(row.count),
+      })),
+      bySource: bySourceRows.map((row) => ({
+        key: row.key,
+        label: row.key === 'unknown' ? 'Nieznane źródło' : row.key,
+        count: Number(row.count),
+      })),
+    };
   }
 
   private async buildClientsSourceBreakdown(
@@ -1060,7 +1352,8 @@ export class ReportsService {
       .map((row) => ({
         key: row.key,
         count: Number(row.count),
-        percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+        percentage:
+          total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
         wonCount: Number(row.wonCount),
         lostCount: Number(row.lostCount),
       }))
@@ -1087,7 +1380,8 @@ export class ReportsService {
       .map((row) => ({
         key: row.key,
         count: Number(row.count),
-        percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+        percentage:
+          total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
       }))
       .sort((a, b) => b.count - a.count);
   }
@@ -1112,7 +1406,10 @@ export class ReportsService {
       )
       .addSelect('COALESCE(SUM(listing.price), 0)::numeric', 'totalValue')
       .setParameter('activeStatus', ListingStatus.ACTIVE)
-      .setParameter('closedStatuses', [ListingStatus.SOLD, ListingStatus.RENTED])
+      .setParameter('closedStatuses', [
+        ListingStatus.SOLD,
+        ListingStatus.RENTED,
+      ])
       .andWhere('listing.createdAt <= :dateTo', { dateTo: filters.dateTo })
       .groupBy('listing.propertyType')
       .getRawMany<{
@@ -1129,7 +1426,8 @@ export class ReportsService {
       .map((row) => ({
         key: row.key,
         count: Number(row.count),
-        percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+        percentage:
+          total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
         activeCount: Number(row.activeCount),
         closedCount: Number(row.closedCount),
         totalValue: Number(row.totalValue),
@@ -1157,7 +1455,10 @@ export class ReportsService {
       )
       .addSelect('COALESCE(SUM(listing.price), 0)::numeric', 'totalValue')
       .setParameter('activeStatus', ListingStatus.ACTIVE)
-      .setParameter('closedStatuses', [ListingStatus.SOLD, ListingStatus.RENTED])
+      .setParameter('closedStatuses', [
+        ListingStatus.SOLD,
+        ListingStatus.RENTED,
+      ])
       .andWhere('listing.createdAt <= :dateTo', { dateTo: filters.dateTo })
       .groupBy('listing.transactionType')
       .getRawMany<{
@@ -1174,7 +1475,8 @@ export class ReportsService {
       .map((row) => ({
         key: row.key,
         count: Number(row.count),
-        percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+        percentage:
+          total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
         activeCount: Number(row.activeCount),
         closedCount: Number(row.closedCount),
         totalValue: Number(row.totalValue),
@@ -1229,7 +1531,10 @@ export class ReportsService {
         .getRawMany<{ bucket: string; count: string }>(),
       appointmentBase
         .clone()
-        .select(`TO_CHAR(${appointmentBucketExpr}, '${bucketFormat}')`, 'bucket')
+        .select(
+          `TO_CHAR(${appointmentBucketExpr}, '${bucketFormat}')`,
+          'bucket',
+        )
         .addSelect('COUNT(*)::int', 'appointments')
         .addSelect(
           `COUNT(*) FILTER (WHERE appointment.status = :completedStatus)::int`,
@@ -1288,8 +1593,7 @@ export class ReportsService {
     previous: number,
   ): ReportsOverviewMetricDelta {
     const change = current - previous;
-    const direction =
-      change === 0 ? 'flat' : change > 0 ? 'up' : 'down';
+    const direction = change === 0 ? 'flat' : change > 0 ? 'up' : 'down';
 
     if (previous === 0) {
       return {
@@ -1423,10 +1727,29 @@ export class ReportsService {
     return query;
   }
 
-  private getBucketExpression(
-    column: string,
-    groupBy: ReportsGroupBy,
-  ): string {
+  private createFreemiumAnalyticsBaseQuery(
+    filters: Pick<NormalizedFilters, 'dateFrom' | 'dateTo'>,
+    scope: ResolvedScope,
+  ): SelectQueryBuilder<AnalyticsEvent> {
+    return this.analyticsEventRepo
+      .createQueryBuilder('event')
+      .where('event.agentId IN (:...agentIds)', {
+        agentIds: scope.effectiveAgentIds,
+      })
+      .andWhere('event.createdAt BETWEEN :dateFrom AND :dateTo', {
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+      })
+      .andWhere('event.name IN (:...eventNames)', {
+        eventNames: FREEMIUM_METRICS.map((metric) => metric.key),
+      });
+  }
+
+  private percentage(numerator: number, denominator: number): number {
+    return denominator > 0 ? Math.round((numerator / denominator) * 100) : 0;
+  }
+
+  private getBucketExpression(column: string, groupBy: ReportsGroupBy): string {
     switch (groupBy) {
       case ReportsGroupBy.WEEK:
         return `date_trunc('week', ${column})`;
@@ -1528,3 +1851,29 @@ export class ReportsService {
     };
   }
 }
+
+const FREEMIUM_METRICS: Array<{
+  key: FreemiumMetricKey;
+  label: string;
+}> = [
+  { key: 'listing_created', label: 'Utworzone oferty' },
+  { key: 'listing_published', label: 'Opublikowane oferty' },
+  { key: 'public_listing_viewed', label: 'Odsłony publicznych ofert' },
+  { key: 'public_listing_link_copied', label: 'Skopiowane linki ofert' },
+  { key: 'public_listing_share_clicked', label: 'Udostępnienia ofert' },
+  { key: 'public_lead_submitted', label: 'Publiczne leady' },
+  { key: 'public_listing_claim_started', label: 'Rozpoczęte claimy' },
+  { key: 'public_listing_claim_completed', label: 'Zakończone claimy' },
+  { key: 'limit_warning_shown', label: 'Ostrzeżenia limitów' },
+  { key: 'limit_reached', label: 'Osiągnięte limity' },
+  { key: 'upgrade_cta_clicked', label: 'Kliknięcia upgrade CTA' },
+];
+
+const FREEMIUM_UPSELL_LABELS: Record<string, string> = {
+  'custom-branding': 'Własny branding',
+  'profile-pro': 'Profile pro',
+  'embed-customization': 'Personalizacja widgetów',
+  'growth-automation': 'Automatyzacje',
+  'higher-limits': 'Większe limity',
+  unknown: 'Nieznany upsell',
+};

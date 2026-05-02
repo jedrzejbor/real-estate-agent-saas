@@ -1143,7 +1143,7 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
     - przed produkcją warto uzupełnić dane administratora, kanał kontaktu, retencję danych i formalne podstawy przetwarzania,
     - jeśli EstateFlow ma działać jako procesor dla biur, trzeba dopiąć osobną umowę powierzenia / DPA poza tym MVP.
 
-- [ ] `F6.5.5` Przygotować minimalny dashboard / raport metryk freemium
+- [x] `F6.5.5` Przygotować minimalny dashboard / raport metryk freemium
   - Zakres: widok lub raport bazujący na `analytics_events` i usage.
   - Minimalny zakres MVP:
     - first listing created,
@@ -1154,9 +1154,18 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
     - claim started/completed,
     - limit warning/reached,
     - upgrade CTA clicked.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-02
   - Wykonano:
+    - dodano endpoint `GET /api/reports/freemium-metrics`, który agreguje `analytics_events` w serwerowo wymuszonym scope agenta/zespołu,
+    - raport zwraca liczniki eventów: utworzenie/publikacja oferty, odsłony publiczne, kopiowanie/udostępnianie linku, publiczny lead, claim, limity i kliknięcia upgrade CTA,
+    - dodano podstawowe współczynniki MVP: publish rate, lead capture rate i claim completion rate,
+    - dodano timeline freemium zgodny ze wspólnym filtrem dat i grupowaniem raportów,
+    - dodano breakdown `upgrade_cta_clicked` po `upsellId` i `source`, żeby widzieć pierwszą intencję upgrade,
+    - dodano sekcję `Freemium growth` na `/dashboard/reports` z kartami KPI, trendem, licznikami eventów i notatkami interpretacyjnymi.
   - Uwagi / follow-up:
+    - raport jest minimalnym dashboardem operacyjnym, nie pełną analityką kohortową ani atrybucją marketingową,
+    - jakość metryk zależy od kompletności instrumentacji eventów w publicznych ofertach, limitach i kartach upsell,
+    - w kolejnych iteracjach warto dodać eksport, globalny widok admina i retencję/cohorty dla aktywacji freemium.
 
 - [ ] `F6.5.6` Doprecyzować pricing / upgrade destination
   - Zakres: co dzieje się po kliknięciu upsella albo dobiciu do limitu.

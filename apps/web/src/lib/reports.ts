@@ -1,16 +1,7 @@
 import { apiFetch } from './api-client';
-import {
-  type AppointmentStatus,
-  type AppointmentType,
-} from './appointments';
-import {
-  type ClientSource,
-  type ClientStatus,
-} from './clients';
-import {
-  type PropertyType,
-  type TransactionType,
-} from './listings';
+import { type AppointmentStatus, type AppointmentType } from './appointments';
+import { type ClientSource, type ClientStatus } from './clients';
+import { type PropertyType, type TransactionType } from './listings';
 
 export type ReportsGroupBy = 'day' | 'week' | 'month';
 
@@ -185,6 +176,76 @@ export interface AppointmentsReportResponse {
   notes: string[];
 }
 
+export type FreemiumMetricKey =
+  | 'listing_created'
+  | 'listing_published'
+  | 'public_listing_viewed'
+  | 'public_listing_link_copied'
+  | 'public_listing_share_clicked'
+  | 'public_lead_submitted'
+  | 'public_listing_claim_started'
+  | 'public_listing_claim_completed'
+  | 'limit_warning_shown'
+  | 'limit_reached'
+  | 'upgrade_cta_clicked';
+
+export interface FreemiumMetricsSummary {
+  firstListings: number;
+  publishedListings: number;
+  publicViews: number;
+  publicShares: number;
+  publicLeads: number;
+  claimStarts: number;
+  claimCompletions: number;
+  limitWarnings: number;
+  limitsReached: number;
+  upgradeClicks: number;
+  publishRate: number;
+  leadCaptureRate: number;
+  claimCompletionRate: number;
+}
+
+export interface FreemiumMetricCount {
+  key: FreemiumMetricKey;
+  label: string;
+  count: number;
+}
+
+export interface FreemiumMetricsBucket {
+  key: string;
+  label: string;
+  listingCreated: number;
+  listingPublished: number;
+  publicViews: number;
+  publicLeads: number;
+  upgradeClicks: number;
+}
+
+export interface FreemiumUpgradeIntentItem {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface FreemiumMetricsReportResponse {
+  generatedAt: string;
+  filtersApplied: {
+    dateFrom: string;
+    dateTo: string;
+    groupBy: ReportsGroupBy;
+    requestedAgentId?: string;
+    effectiveAgentIds: string[];
+  };
+  summary: FreemiumMetricsSummary;
+  events: FreemiumMetricCount[];
+  timeline: FreemiumMetricsBucket[];
+  upgradeIntent: {
+    byUpsell: FreemiumUpgradeIntentItem[];
+    bySource: FreemiumUpgradeIntentItem[];
+  };
+  notes: string[];
+}
+
 export interface ReportsOverviewResponse {
   generatedAt: string;
   filtersApplied: {
@@ -235,7 +296,8 @@ export function parseReportsFilters(
         ? groupBy
         : defaults.groupBy,
     agentId: source.get('agentId') || undefined,
-    propertyType: (source.get('propertyType') as PropertyType | null) || undefined,
+    propertyType:
+      (source.get('propertyType') as PropertyType | null) || undefined,
     transactionType:
       (source.get('transactionType') as TransactionType | null) || undefined,
   };
@@ -255,7 +317,9 @@ export async function fetchReportsOverview(
     params.set('transactionType', filters.transactionType);
   }
 
-  return apiFetch<ReportsOverviewResponse>(`/reports/overview?${params.toString()}`);
+  return apiFetch<ReportsOverviewResponse>(
+    `/reports/overview?${params.toString()}`,
+  );
 }
 
 export async function fetchReportsListings(
@@ -272,7 +336,9 @@ export async function fetchReportsListings(
     params.set('transactionType', filters.transactionType);
   }
 
-  return apiFetch<ListingsReportResponse>(`/reports/listings?${params.toString()}`);
+  return apiFetch<ListingsReportResponse>(
+    `/reports/listings?${params.toString()}`,
+  );
 }
 
 export async function fetchReportsClients(
@@ -289,7 +355,9 @@ export async function fetchReportsClients(
     params.set('transactionType', filters.transactionType);
   }
 
-  return apiFetch<ClientsReportResponse>(`/reports/clients?${params.toString()}`);
+  return apiFetch<ClientsReportResponse>(
+    `/reports/clients?${params.toString()}`,
+  );
 }
 
 export async function fetchReportsAppointments(
@@ -311,16 +379,32 @@ export async function fetchReportsAppointments(
   );
 }
 
-export function formatReportsDateRange(dateFrom: string, dateTo: string): string {
+export async function fetchReportsFreemiumMetrics(
+  filters: ReportsFilters,
+): Promise<FreemiumMetricsReportResponse> {
+  const params = new URLSearchParams();
+  params.set('dateFrom', filters.dateFrom);
+  params.set('dateTo', filters.dateTo);
+  params.set('groupBy', filters.groupBy);
+
+  if (filters.agentId) params.set('agentId', filters.agentId);
+
+  return apiFetch<FreemiumMetricsReportResponse>(
+    `/reports/freemium-metrics?${params.toString()}`,
+  );
+}
+
+export function formatReportsDateRange(
+  dateFrom: string,
+  dateTo: string,
+): string {
   const from = new Date(dateFrom);
   const to = new Date(dateTo);
 
   return `${from.toLocaleDateString('pl-PL')} – ${to.toLocaleDateString('pl-PL')}`;
 }
 
-export function formatReportsDelta(
-  delta: ReportsOverviewMetricDelta,
-): string {
+export function formatReportsDelta(delta: ReportsOverviewMetricDelta): string {
   if (delta.change === 0) {
     return 'Bez zmian vs poprzedni okres';
   }

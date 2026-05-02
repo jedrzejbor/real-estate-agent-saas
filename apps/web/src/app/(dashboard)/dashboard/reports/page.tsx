@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { ReportsAppointmentsSection } from '@/components/reports/reports-appointments-section';
 import { ReportsClientsSection } from '@/components/reports/reports-clients-section';
 import { ReportsFilterBar } from '@/components/reports/reports-filter-bar';
+import { ReportsFreemiumSection } from '@/components/reports/reports-freemium-section';
 import { ReportsKpiStrip } from '@/components/reports/reports-kpi-strip';
 import { ReportsListingsSection } from '@/components/reports/reports-listings-section';
 import { ReportsPremiumPlaceholder } from '@/components/reports/reports-premium-placeholder';
@@ -24,6 +25,7 @@ import { ReportsTrendCard } from '@/components/reports/reports-trend-card';
 import {
   useReportsAppointments,
   useReportsClients,
+  useReportsFreemiumMetrics,
   useReportsListings,
   useReportsOverview,
 } from '@/hooks/use-reports';
@@ -75,6 +77,12 @@ export default function ReportsPage() {
     refresh: refreshClients,
   } = useReportsClients(filters);
   const {
+    data: freemiumData,
+    isLoading: isFreemiumLoading,
+    error: freemiumError,
+    refresh: refreshFreemium,
+  } = useReportsFreemiumMetrics(filters);
+  const {
     data: appointmentsData,
     isLoading: isAppointmentsLoading,
     error: appointmentsError,
@@ -87,6 +95,7 @@ export default function ReportsPage() {
     refreshOverview();
     refreshListings();
     refreshClients();
+    refreshFreemium();
 
     if (canAccessAppointmentsReport) {
       refreshAppointments();
@@ -105,7 +114,9 @@ export default function ReportsPage() {
       next.set(key, String(value));
     }
 
-    router.replace(next.toString() ? `${pathname}?${next.toString()}` : pathname);
+    router.replace(
+      next.toString() ? `${pathname}?${next.toString()}` : pathname,
+    );
   }
 
   return (
@@ -137,11 +148,14 @@ export default function ReportsPage() {
               isLoading ||
               isListingsLoading ||
               isClientsLoading ||
+              isFreemiumLoading ||
               (canAccessAppointmentsReport && isAppointmentsLoading)
             }
             className="gap-1.5 rounded-xl"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${isLoading || isListingsLoading || isClientsLoading || (canAccessAppointmentsReport && isAppointmentsLoading) ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${isLoading || isListingsLoading || isClientsLoading || isFreemiumLoading || (canAccessAppointmentsReport && isAppointmentsLoading) ? 'animate-spin' : ''}`}
+            />
             Odśwież
           </Button>
         </div>
@@ -166,7 +180,12 @@ export default function ReportsPage() {
       {error && !data && (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
           <p className="text-sm text-destructive">{error}</p>
-          <Button variant="outline" size="sm" className="mt-4" onClick={refreshOverview}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={refreshOverview}
+          >
             Spróbuj ponownie
           </Button>
         </div>
@@ -174,7 +193,10 @@ export default function ReportsPage() {
 
       {data && (
         <>
-          <ReportsKpiStrip summary={data.summary} comparison={data.comparison} />
+          <ReportsKpiStrip
+            summary={data.summary}
+            comparison={data.comparison}
+          />
 
           <div className="grid gap-4 xl:grid-cols-3">
             <ReportsTrendCard
@@ -228,7 +250,9 @@ export default function ReportsPage() {
                 <InfoRow
                   icon={TrendingUp}
                   label="Spotkania"
-                  value={formatReportsDelta(data.comparison.deltas.appointments)}
+                  value={formatReportsDelta(
+                    data.comparison.deltas.appointments,
+                  )}
                 />
                 <InfoRow
                   icon={CalendarRange}
@@ -272,7 +296,10 @@ export default function ReportsPage() {
             >
               <div className="space-y-3 text-sm text-muted-foreground">
                 {data.notes.map((note) => (
-                  <div key={note} className="rounded-xl bg-muted/40 px-3 py-2 text-foreground/80">
+                  <div
+                    key={note}
+                    className="rounded-xl bg-muted/40 px-3 py-2 text-foreground/80"
+                  >
                     {note}
                   </div>
                 ))}
@@ -290,7 +317,8 @@ export default function ReportsPage() {
               }
             >
               <p className="text-sm text-muted-foreground">
-                Nadal utrzymujemy jeden wspólny kontrakt filtrów dla wszystkich sekcji, co upraszcza rozwój, testowanie i spójność interfejsu.
+                Nadal utrzymujemy jeden wspólny kontrakt filtrów dla wszystkich
+                sekcji, co upraszcza rozwój, testowanie i spójność interfejsu.
               </p>
             </ReportSectionCard>
 
@@ -299,7 +327,8 @@ export default function ReportsPage() {
               description="Walidacja DTO, ograniczenie zakresu dat i serwerowe scope enforcement są wdrożone od początku."
             >
               <p className="text-sm text-muted-foreground">
-                To ogranicza ryzyko błędnych agregacji i wycieku danych między agentami lub zespołami.
+                To ogranicza ryzyko błędnych agregacji i wycieku danych między
+                agentami lub zespołami.
               </p>
             </ReportSectionCard>
           </div>
@@ -352,27 +381,55 @@ export default function ReportsPage() {
 
           {clientsData && <ReportsClientsSection data={clientsData} />}
 
-          {canAccessAppointmentsReport && appointmentsError && !appointmentsData && (
+          {freemiumError && !freemiumData && (
             <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
-              <p className="text-sm text-destructive">{appointmentsError}</p>
+              <p className="text-sm text-destructive">{freemiumError}</p>
               <Button
                 variant="outline"
                 size="sm"
                 className="mt-4"
-                onClick={refreshAppointments}
+                onClick={refreshFreemium}
               >
                 Spróbuj ponownie
               </Button>
             </div>
           )}
 
-          {canAccessAppointmentsReport && isAppointmentsLoading && !appointmentsData && (
+          {isFreemiumLoading && !freemiumData && (
             <div className="rounded-2xl border border-border bg-white p-8 shadow-sm">
               <div className="flex items-center justify-center py-10">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
               </div>
             </div>
           )}
+
+          {freemiumData && <ReportsFreemiumSection data={freemiumData} />}
+
+          {canAccessAppointmentsReport &&
+            appointmentsError &&
+            !appointmentsData && (
+              <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+                <p className="text-sm text-destructive">{appointmentsError}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-4"
+                  onClick={refreshAppointments}
+                >
+                  Spróbuj ponownie
+                </Button>
+              </div>
+            )}
+
+          {canAccessAppointmentsReport &&
+            isAppointmentsLoading &&
+            !appointmentsData && (
+              <div className="rounded-2xl border border-border bg-white p-8 shadow-sm">
+                <div className="flex items-center justify-center py-10">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                </div>
+              </div>
+            )}
 
           {canAccessAppointmentsReport && appointmentsData && (
             <ReportsAppointmentsSection data={appointmentsData} />

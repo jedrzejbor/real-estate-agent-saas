@@ -60,4 +60,17 @@ export class ReportsController {
   ) {
     return this.reportsService.getAppointmentsReport(user, filters);
   }
+
+  /**
+   * GET /api/reports/freemium-metrics
+   * Minimal growth dashboard for freemium activation, public listings and upgrade intent.
+   */
+  @Get('freemium-metrics')
+  async getFreemiumMetrics(
+    @CurrentUser()
+    user: { id: string; email: string; role: UserRole },
+    @Query() filters: ReportFiltersDto,
+  ) {
+    return this.reportsService.getFreemiumMetricsReport(user, filters);
+  }
 }

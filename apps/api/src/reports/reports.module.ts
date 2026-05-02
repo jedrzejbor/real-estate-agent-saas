@@ -4,13 +4,20 @@ import { Listing } from '../listings/entities/listing.entity';
 import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
+import { AnalyticsEvent } from '../analytics/entities/analytics-event.entity';
 import { UsersModule } from '../users';
 import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Listing, Client, Appointment, Agent]),
+    TypeOrmModule.forFeature([
+      Listing,
+      Client,
+      Appointment,
+      Agent,
+      AnalyticsEvent,
+    ]),
     UsersModule,
   ],
   controllers: [ReportsController],
