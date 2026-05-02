@@ -5,6 +5,7 @@ export { ListingForm } from './listing-form';
 export { ListingImageManager } from './listing-image-manager';
 export { ListingPublicationPanel } from './listing-publication-panel';
 export { PublicListingAnalytics } from './public-listing-analytics';
+export { PublicListingAbuseReport } from './public-listing-abuse-report';
 export { PublicListingContactForm } from './public-listing-contact-form';
 export { ListingQrAsset } from './listing-qr-asset';
 export { ListingPagination } from './listing-pagination';

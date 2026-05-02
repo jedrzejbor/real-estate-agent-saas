@@ -26,6 +26,7 @@ import {
 } from '@/lib/listings';
 import { ApiError } from '@/lib/api-client';
 import { PublicListingAnalytics } from '@/components/listings/public-listing-analytics';
+import { PublicListingAbuseReport } from '@/components/listings/public-listing-abuse-report';
 import { PublicListingContactForm } from '@/components/listings/public-listing-contact-form';
 
 interface PublicListingPageProps {
@@ -314,6 +315,11 @@ export default async function PublicListingPage({
                 listingId={listing.id}
                 title={listing.title}
                 url={canonicalUrl}
+              />
+              <PublicListingAbuseReport
+                slug={listing.slug}
+                listingId={listing.id}
+                listingTitle={listing.title}
               />
             </div>
           </div>

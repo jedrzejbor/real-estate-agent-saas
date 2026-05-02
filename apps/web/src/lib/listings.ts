@@ -431,16 +431,32 @@ export async function fetchPublicListingSitemapEntries(): Promise<
   });
 }
 
-export function reportPublicListingAbuse(
+export async function reportPublicListingAbuse(
   slug: string,
-  input: { reason: string; details?: string },
-): void {
-  trackPublicListingEvent({
-    slug,
-    name: AnalyticsEventName.PUBLIC_LISTING_ABUSE_REPORTED,
-    properties: {
-      reason: input.reason,
-      details: input.details ?? null,
+  input: {
+    reason: string;
+    details?: string;
+    listingId?: string;
+    listingTitle?: string;
+  },
+): Promise<void> {
+  await apiFetch(`/analytics/public-listings/${slug}/events`, {
+    method: 'POST',
+    skipAuth: true,
+    body: {
+      name: AnalyticsEventName.PUBLIC_LISTING_ABUSE_REPORTED,
+      path:
+        typeof window !== 'undefined'
+          ? `${window.location.pathname}${window.location.search}`
+          : `/oferty/${slug}`,
+      properties: {
+        reason: input.reason,
+        details: input.details ?? null,
+        listingId: input.listingId ?? null,
+        listingTitle: input.listingTitle ?? null,
+        referrer:
+          typeof document !== 'undefined' ? document.referrer || null : null,
+      },
     },
   });
 }

@@ -1099,7 +1099,7 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
     - obecny wizard nie ma jeszcze resend verification na ekranie “sprawdź email”; backendowy endpoint istnieje i można dopiąć go osobnym zadaniem,
     - legal copy jest robocze i powinno zostać domknięte w `F6.5.4`.
 
-- [ ] `F6.5.3` Dodać widoczny abuse report flow
+- [x] `F6.5.3` Dodać widoczny abuse report flow
   - Zakres: zgłaszanie nadużyć na publicznych stronach i minimalna obsługa operacyjna.
   - Minimalny zakres MVP:
     - link/przycisk “Zgłoś nadużycie” na publicznej ofercie,
@@ -1109,9 +1109,17 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
   - Poza MVP:
     - pełny panel moderation queue,
     - automatyczne zdejmowanie ofert po wielu zgłoszeniach.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-02
   - Wykonano:
+    - dodano widoczny komponent `PublicListingAbuseReport` na publicznej stronie oferty,
+    - formularz pozwala wybrać powód zgłoszenia, dodać szczegóły i pokazuje stan sukcesu po wysyłce,
+    - zgłoszenie zapisuje publiczny event `public_listing_abuse_reported` przez istniejący endpoint public analytics,
+    - event zawiera `listingId`, `publicSlug`, tytuł oferty, powód, szczegóły, ścieżkę oraz referrer,
+    - UI pokazuje użytkownikowi, że zgłoszenie trafia do logu operacyjnego EstateFlow.
   - Uwagi / follow-up:
+    - obecny MVP opiera się na logu `analytics_events` i ręcznej reakcji operacyjnej,
+    - pełny panel moderation queue oraz automatyczne zdejmowanie ofert pozostają poza MVP,
+    - procedura operacyjna powinna minimum raz dziennie filtrować `public_listing_abuse_reported` i ręcznie weryfikować zgłoszone oferty.
 
 - [ ] `F6.5.4` Domknąć legal copy i zgody w publicznych formularzach
   - Zakres: publiczne leady, publiczny wizard, zdjęcia, claim listing.
