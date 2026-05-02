@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { SendHorizonal } from 'lucide-react';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import {
   submitPublicLead,
   type PublicLeadFormData,
 } from '@/lib/public-leads';
+import { LEGAL_COPY, LEGAL_LINKS } from '@/lib/legal';
 import { cn } from '@/lib/utils';
 
 interface PublicListingContactFormProps {
@@ -24,9 +26,6 @@ interface PublicListingContactFormProps {
 }
 
 type FieldErrors = Partial<Record<keyof PublicLeadFormData, string>>;
-
-const CONTACT_CONSENT_TEXT =
-  'Wyrażam zgodę na kontakt w sprawie tej oferty nieruchomości.';
 
 export function PublicListingContactForm({
   slug,
@@ -212,11 +211,14 @@ export function PublicListingContactForm({
         />
         <span>
           <span className="font-medium text-foreground">
-            {CONTACT_CONSENT_TEXT}
+            {LEGAL_COPY.publicListingContactConsent}
           </span>
           <span className="mt-1 block">
-            Administratorem danych jest agent obsługujący ofertę. Dane zostaną
-            użyte do odpowiedzi na zapytanie.
+            {LEGAL_COPY.dataController} {LEGAL_COPY.responsePurpose}{' '}
+            <LegalLink href={LEGAL_LINKS.privacy}>
+              Polityka prywatności
+            </LegalLink>
+            .
           </span>
           {fieldErrors.contactConsent ? (
             <span className="mt-1 block text-destructive" role="alert">
@@ -232,7 +234,7 @@ export function PublicListingContactForm({
           name="marketingConsent"
           className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-ring"
         />
-        <span>Chcę otrzymywać także podobne oferty od opiekuna.</span>
+        <span>{LEGAL_COPY.marketingConsent}</span>
       </label>
 
       <Button
@@ -244,6 +246,20 @@ export function PublicListingContactForm({
         {isSubmitting ? 'Wysyłanie...' : 'Wyślij zapytanie'}
       </Button>
     </form>
+  );
+}
+
+function LegalLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link href={href} className="font-medium text-primary hover:underline">
+      {children}
+    </Link>
   );
 }
 

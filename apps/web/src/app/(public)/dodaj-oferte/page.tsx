@@ -29,6 +29,7 @@ import {
   type PropertyType as PropertyTypeValue,
   type TransactionType as TransactionTypeValue,
 } from '@/lib/listings';
+import { LEGAL_COPY, LEGAL_LINKS } from '@/lib/legal';
 import {
   createPublicListingSubmission,
   uploadPublicListingSubmissionImages,
@@ -751,20 +752,37 @@ function StepContact({
           checked={draft.contactConsent}
           error={errors.contactConsent}
           onChange={(checked) => updateDraft('contactConsent', checked)}
-          label="Zgadzam się na kontakt w sprawie tej oferty"
-          description="Potrzebujemy tej zgody, żeby obsłużyć weryfikację i późniejsze przejęcie oferty."
+          label={LEGAL_COPY.publicListingContactConsent}
+          description={
+            <>
+              {LEGAL_COPY.responsePurpose}{' '}
+              <LegalLink href={LEGAL_LINKS.privacy}>
+                Polityka prywatności
+              </LegalLink>
+              .
+            </>
+          }
         />
         <CheckboxField
           checked={draft.termsConsent}
           error={errors.termsConsent}
           onChange={(checked) => updateDraft('termsConsent', checked)}
-          label="Akceptuję regulamin publikacji ofert"
-          description="Potwierdzam też, że mam prawo do treści i zdjęć dodanych do zgłoszenia."
+          label="Akceptuję regulamin i zasady publikacji ofert"
+          description={
+            <>
+              {LEGAL_COPY.publicationConsent}{' '}
+              <LegalLink href={LEGAL_LINKS.terms}>Regulamin</LegalLink> ·{' '}
+              <LegalLink href={LEGAL_LINKS.publicationRules}>
+                Zasady publikacji
+              </LegalLink>
+              .
+            </>
+          }
         />
         <CheckboxField
           checked={draft.marketingConsent}
           onChange={(checked) => updateDraft('marketingConsent', checked)}
-          label="Chcę otrzymywać informacje o funkcjach EstateFlow"
+          label={LEGAL_COPY.marketingConsent}
         />
       </div>
     </div>
@@ -971,8 +989,8 @@ function CheckboxField({
 }: {
   checked: boolean;
   error?: string;
-  label: string;
-  description?: string;
+  label: React.ReactNode;
+  description?: React.ReactNode;
   onChange: (checked: boolean) => void;
 }) {
   return (
@@ -1029,6 +1047,20 @@ function SummaryCard({
 
 function FieldError({ children }: { children: React.ReactNode }) {
   return <p className="text-xs text-destructive">{children}</p>;
+}
+
+function LegalLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link href={href} className="font-medium text-primary hover:underline">
+      {children}
+    </Link>
+  );
 }
 
 function validateStep(
@@ -1194,8 +1226,11 @@ function buildSubmissionPayload(
     contactConsent: draft.contactConsent,
     termsConsent: draft.termsConsent,
     marketingConsent: draft.marketingConsent,
-    consentText:
-      'Użytkownik potwierdził zgodę na kontakt, regulamin publikacji ofert oraz prawo do dodanych treści i zdjęć.',
+    consentText: [
+      LEGAL_COPY.publicListingContactConsent,
+      LEGAL_COPY.publicationConsent,
+      LEGAL_COPY.responsePurpose,
+    ].join(' '),
     source: 'public_wizard' as const,
     sourceUrl: context.sourceUrl,
     referrer: context.referrer,

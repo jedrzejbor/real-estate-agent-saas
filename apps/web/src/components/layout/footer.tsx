@@ -32,9 +32,9 @@ const footerSections = [
   {
     title: 'Prawne',
     links: [
-      { label: 'Regulamin', href: '#' },
-      { label: 'Polityka prywatności', href: '#' },
-      { label: 'RODO', href: '#' },
+      { label: 'Regulamin', href: '/regulamin' },
+      { label: 'Polityka prywatności', href: '/polityka-prywatnosci' },
+      { label: 'Zasady publikacji', href: '/zasady-publikacji' },
     ],
   },
 ] as const;

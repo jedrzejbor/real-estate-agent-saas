@@ -1121,7 +1121,7 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
     - pełny panel moderation queue oraz automatyczne zdejmowanie ofert pozostają poza MVP,
     - procedura operacyjna powinna minimum raz dziennie filtrować `public_listing_abuse_reported` i ręcznie weryfikować zgłoszone oferty.
 
-- [ ] `F6.5.4` Domknąć legal copy i zgody w publicznych formularzach
+- [x] `F6.5.4` Domknąć legal copy i zgody w publicznych formularzach
   - Zakres: publiczne leady, publiczny wizard, zdjęcia, claim listing.
   - Minimalny zakres MVP:
     - link do regulaminu publikacji ofert,
@@ -1130,9 +1130,18 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
     - oświadczenie o prawach do zdjęć w wizardzie,
     - informacja o administratorze danych,
     - procedura usunięcia publicznej oferty / danych.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-02
   - Wykonano:
+    - dodano publiczne strony `/regulamin`, `/polityka-prywatnosci` i `/zasady-publikacji` jako robocze dokumenty MVP,
+    - zaktualizowano linki prawne w stopce marketingowej,
+    - dodano współdzielone stałe `LEGAL_LINKS` i `LEGAL_COPY`, żeby formularze używały spójnych tekstów zgód,
+    - publiczny formularz oferty i formularz profilu agenta pokazują cel przetwarzania danych, rolę agenta/biura jako administratora oraz link do polityki prywatności,
+    - wizard `/dodaj-oferte` pokazuje osobne zgody na kontakt/przetwarzanie danych oraz akceptację regulaminu i zasad publikacji ofert,
+    - payload publicznego submissionu zapisuje pełniejszy `consentText` z aktualną treścią zgód.
   - Uwagi / follow-up:
+    - dokumenty są roboczą wersją produktową MVP i powinny zostać zweryfikowane przez prawnika przed publicznym launch’em,
+    - przed produkcją warto uzupełnić dane administratora, kanał kontaktu, retencję danych i formalne podstawy przetwarzania,
+    - jeśli EstateFlow ma działać jako procesor dla biur, trzeba dopiąć osobną umowę powierzenia / DPA poza tym MVP.
 
 - [ ] `F6.5.5` Przygotować minimalny dashboard / raport metryk freemium
   - Zakres: widok lub raport bazujący na `analytics_events` i usage.
