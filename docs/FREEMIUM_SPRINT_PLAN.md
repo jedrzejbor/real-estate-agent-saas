@@ -1074,7 +1074,7 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
     - publiczny wizard `/dodaj-oferte` nadal wymaga spięcia z tym samym mechanizmem uploadu w `F6.5.2`,
     - tworzenie oferty nadal zapisuje najpierw dane podstawowe, a zdjęcia dodaje się po zapisie w ekranie edycji.
 
-- [ ] `F6.5.2` Domknąć publiczny wizard `/dodaj-oferte` albo wyłączyć go z MVP
+- [x] `F6.5.2` Domknąć publiczny wizard `/dodaj-oferte` albo wyłączyć go z MVP
   - Zakres: publiczny entry point dodania oferty bez konta.
   - Minimalny zakres MVP, jeśli zostaje w release:
     - strona `/dodaj-oferte`,
@@ -1086,9 +1086,18 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
     - zdjęcia spięte z tym samym mechanizmem uploadu co CRM.
   - Alternatywa:
     - jeśli wizard wychodzi poza release, ukryć publiczny entry point i oznaczyć flow jako post-MVP.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-02
   - Wykonano:
+    - dodano publiczną stronę `/dodaj-oferte` z pięciokrokowym wizardem: podstawy, parametry, zdjęcia, kontakt i zgody, podsumowanie,
+    - wizard zapisuje draft w `localStorage`, waliduje dane per krok i wysyła finalny payload do `POST /api/public-listing-submissions`,
+    - dodano publiczny upload zdjęć dla submissionów pod `POST /api/public-listing-submissions/images`, z tym samym lokalnym storage `/uploads`, walidacją `jpg/png/webp`, limitem 10 MB i maksymalnie 15 zdjęciami,
+    - zdjęcia dodane w wizardzie trafiają do payloadu submissionu jako URL-e i po claimie są przenoszone do `ListingImage`,
+    - dodano ekran `/dodaj-oferte/sprawdz-email` po wysyłce zgłoszenia,
+    - wizard obsługuje honeypot `website`, `formStartedAt`, zgody, UTM-y, referrer i błędy API / rate limitu.
   - Uwagi / follow-up:
+    - publiczne zdjęcia submissionów są zapisywane lokalnie w `uploads/public-submissions`; przed produkcją warto podmienić storage na S3/R2 i dodać cleanup nieprzejętych plików,
+    - obecny wizard nie ma jeszcze resend verification na ekranie “sprawdź email”; backendowy endpoint istnieje i można dopiąć go osobnym zadaniem,
+    - legal copy jest robocze i powinno zostać domknięte w `F6.5.4`.
 
 - [ ] `F6.5.3` Dodać widoczny abuse report flow
   - Zakres: zgłaszanie nadużyć na publicznych stronach i minimalna obsługa operacyjna.

@@ -8,6 +8,8 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes } from 'crypto';
 import type { Request } from 'express';
+import { mkdir, writeFile } from 'fs/promises';
+import { extname, join } from 'path';
 import { DataSource, In, MoreThanOrEqual, Not, Repository } from 'typeorm';
 import { ActivityService } from '../activity';
 import { EmailService } from '../email';
@@ -65,6 +67,18 @@ const MAX_DESCRIPTION_LINKS = 2;
 interface TokenPair {
   token: string;
   hash: string;
+}
+
+interface UploadedSubmissionImageFile {
+  buffer: Buffer;
+  mimetype: string;
+  originalname: string;
+}
+
+export interface PublicListingSubmissionUploadedImage {
+  url: string;
+  altText: string | null;
+  order: number;
 }
 
 export interface PublicListingSubmissionCreatedResult {
@@ -178,6 +192,46 @@ export class PublicListingSubmissionsService {
       emailMasked: maskEmail(saved.email),
       expiresAt,
     };
+  }
+
+  async uploadImages(
+    files: UploadedSubmissionImageFile[],
+  ): Promise<{ images: PublicListingSubmissionUploadedImage[] }> {
+    if (!files.length) {
+      throw new BadRequestException('Wybierz co najmniej jedno zdjęcie');
+    }
+
+    const uploadDir = join(process.cwd(), 'uploads', 'public-submissions');
+    await mkdir(uploadDir, { recursive: true });
+
+    const images: PublicListingSubmissionUploadedImage[] = [];
+
+    for (const [index, file] of files.entries()) {
+      const filename = `${randomBytes(16).toString('hex')}${normalizeImageExtension(
+        file.originalname,
+        file.mimetype,
+      )}`;
+      const filePath = join(uploadDir, filename);
+
+      await writeFile(filePath, file.buffer);
+      images.push({
+        url: this.buildUploadPublicUrl(filename),
+        altText: null,
+        order: index,
+      });
+    }
+
+    return { images };
+  }
+
+  private buildUploadPublicUrl(filename: string): string {
+    const configuredBaseUrl =
+      this.configService.get<string>('API_PUBLIC_URL') ||
+      this.configService.get<string>('PUBLIC_API_URL') ||
+      `http://localhost:${this.configService.get('PORT', 4000)}`;
+    const baseUrl = configuredBaseUrl.replace(/\/+$/, '');
+
+    return `${baseUrl}/uploads/public-submissions/${filename}`;
   }
 
   async resendVerification(
@@ -827,4 +881,25 @@ function maskEmail(email: string): string {
 
   const visible = localPart.slice(0, Math.min(2, localPart.length));
   return `${visible}${'*'.repeat(Math.max(3, localPart.length - visible.length))}@${domain}`;
+}
+
+function normalizeImageExtension(
+  originalName: string,
+  mimetype: string,
+): string {
+  const extension = extname(originalName).toLowerCase();
+
+  if (['.jpg', '.jpeg', '.png', '.webp'].includes(extension)) {
+    return extension;
+  }
+
+  switch (mimetype) {
+    case 'image/png':
+      return '.png';
+    case 'image/webp':
+      return '.webp';
+    case 'image/jpeg':
+    default:
+      return '.jpg';
+  }
 }
