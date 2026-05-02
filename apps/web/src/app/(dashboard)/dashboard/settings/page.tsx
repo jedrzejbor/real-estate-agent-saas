@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { isUsageExceeded, isUsageWarning } from '@/lib/auth';
 import {
   getGrowthUpsells,
+  getUpgradeHref,
   SETTINGS_GROWTH_UPSELL_IDS,
 } from '@/lib/growth-upsells';
 import { getPlanFeatureItems, getPlanUsageMetrics } from '@/lib/plan';
@@ -48,6 +49,10 @@ export default function PlanSettingsPage() {
   const imagesPerListing = user.entitlements.limits.imagesPerListing;
   const workspaceName = user.agency?.name || 'Twoje biuro';
   const growthUpsells = getGrowthUpsells(SETTINGS_GROWTH_UPSELL_IDS);
+  const upgradeHref = getUpgradeHref({
+    source: 'plan_settings_upgrade_summary',
+    upsellId: 'higher-limits',
+  });
 
   return (
     <div className="space-y-6">
@@ -227,8 +232,8 @@ export default function PlanSettingsPage() {
                 </h2>
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Placeholder pod kolejne plany płatne — już teraz pokazuje, które
-                obszary będą naturalnym krokiem przy wzroście workspace.
+                Zobacz dostępne kierunki upgrade i zapisz zainteresowanie
+                wyższym planem bez uruchamiania automatycznego checkoutu.
               </p>
 
               <div className="mt-4 space-y-3">
@@ -254,14 +259,18 @@ export default function PlanSettingsPage() {
 
               <div className="mt-5 rounded-xl border border-dashed border-[#D4A853]/35 bg-[#FFF9E6]/50 p-4">
                 <p className="text-sm font-medium text-foreground">
-                  Upgrade CTA placeholder
+                  Gotowe miejsce upgrade
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  W kolejnych sprintach w tym miejscu podepniemy pricing, lead
-                  capture lub kontakt sprzedażowy.
+                  CTA prowadzi do porównania planów i formularza intentu, a
+                  kliknięcia zapisujemy jako `upgrade_cta_clicked`.
                 </p>
-                <Button variant="outline" className="mt-4" disabled>
-                  Upgrade wkrótce
+                <Button
+                  variant="outline"
+                  className="mt-4 rounded-xl"
+                  render={<Link href={upgradeHref} />}
+                >
+                  Zobacz plany
                 </Button>
               </div>
             </div>

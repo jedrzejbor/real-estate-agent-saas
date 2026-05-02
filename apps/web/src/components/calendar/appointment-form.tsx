@@ -4,9 +4,12 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { SearchableSelect, type SelectOption } from '@/components/ui/searchable-select';
+import {
+  SearchableSelect,
+  type SelectOption,
+} from '@/components/ui/searchable-select';
 import { InlineSelect } from '@/components/ui/inline-select';
-import { Badge } from '@/components/ui/badge';
+import { LimitUpgradeBanner } from '@/components/growth/limit-upgrade-banner';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { useClientForm } from '@/hooks/use-client-form';
@@ -53,14 +56,15 @@ export function AppointmentForm({ appointment }: AppointmentFormProps) {
   const schema = isEdit ? updateAppointmentSchema : createAppointmentSchema;
 
   const appointmentsUsage = user?.usage.monthlyAppointments ?? 0;
-  const appointmentsLimit = user?.entitlements.limits.monthlyAppointments ?? null;
+  const appointmentsLimit =
+    user?.entitlements.limits.monthlyAppointments ?? null;
   const showUsageWarning =
     !isEdit && isUsageWarning(appointmentsUsage, appointmentsLimit);
   const showUsageExceeded =
     !isEdit && isUsageExceeded(appointmentsUsage, appointmentsLimit);
 
-  const { handleSubmit, getFieldError, globalError, isLoading } =
-    useClientForm({
+  const { handleSubmit, getFieldError, globalError, isLoading } = useClientForm(
+    {
       schema,
       onSubmit: async (
         data: CreateAppointmentFormData | UpdateAppointmentFormData,
@@ -68,7 +72,9 @@ export function AppointmentForm({ appointment }: AppointmentFormProps) {
         // Convert datetime-local to ISO strings
         const payload = {
           ...data,
-          startTime: data.startTime ? new Date(data.startTime).toISOString() : '',
+          startTime: data.startTime
+            ? new Date(data.startTime).toISOString()
+            : '',
           endTime: data.endTime ? new Date(data.endTime).toISOString() : '',
         };
 
@@ -89,13 +95,17 @@ export function AppointmentForm({ appointment }: AppointmentFormProps) {
         router.push(getCalendarRedirectUrl(savedAppointment.startTime));
         router.refresh();
       },
-    });
+    },
+  );
 
   // ── Async search handlers for relation pickers ──
 
   const searchClients = React.useCallback(
     async (query: string): Promise<SelectOption[]> => {
-      const result = await fetchClients({ search: query || undefined, limit: 30 });
+      const result = await fetchClients({
+        search: query || undefined,
+        limit: 30,
+      });
       return result.data.map((c) => ({
         id: c.id,
         label: clientFullName(c),
@@ -107,7 +117,10 @@ export function AppointmentForm({ appointment }: AppointmentFormProps) {
 
   const searchListings = React.useCallback(
     async (query: string): Promise<SelectOption[]> => {
-      const result = await fetchListings({ search: query || undefined, limit: 30 });
+      const result = await fetchListings({
+        search: query || undefined,
+        limit: 30,
+      });
       return result.data.map((l) => ({
         id: l.id,
         label: l.title,
@@ -122,16 +135,13 @@ export function AppointmentForm({ appointment }: AppointmentFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-8" noValidate>
       {!isEdit && (showUsageWarning || showUsageExceeded) ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <div className="flex items-center gap-2">
-            <Badge variant={showUsageExceeded ? 'destructive' : 'warning'}>
-              {showUsageExceeded ? 'Limit osiągnięty' : 'Zbliżasz się do limitu'}
-            </Badge>
-            <span>
-              Spotkania w tym miesiącu: {appointmentsUsage}/{appointmentsLimit}
-            </span>
-          </div>
-        </div>
+        <LimitUpgradeBanner
+          resource="appointments"
+          usage={appointmentsUsage}
+          limit={appointmentsLimit}
+          exceeded={showUsageExceeded}
+          source="appointment_form_limit_state"
+        />
       ) : null}
 
       {globalError && (
@@ -281,7 +291,8 @@ export function AppointmentForm({ appointment }: AppointmentFormProps) {
                 appointment?.listingId
                   ? {
                       id: appointment.listingId,
-                      label: appointment.listing?.title ?? appointment.listingId,
+                      label:
+                        appointment.listing?.title ?? appointment.listingId,
                     }
                   : undefined
               }

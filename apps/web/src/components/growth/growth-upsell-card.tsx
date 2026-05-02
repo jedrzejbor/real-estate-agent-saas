@@ -5,7 +5,7 @@ import { Crown, LockKeyhole } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
-import type { GrowthUpsell } from '@/lib/growth-upsells';
+import { getUpgradeHref, type GrowthUpsell } from '@/lib/growth-upsells';
 import { cn } from '@/lib/utils';
 
 interface GrowthUpsellCardProps {
@@ -21,12 +21,20 @@ export function GrowthUpsellCard({
   compact,
   className,
 }: GrowthUpsellCardProps) {
+  const href = getUpgradeHref({
+    source,
+    upsellId: upsell.id,
+    plan: upsell.recommendedPlan,
+  });
+
   function handleClick() {
     trackAnalyticsEvent({
       name: AnalyticsEventName.UPGRADE_CTA_CLICKED,
       properties: {
         source,
         upsellId: upsell.id,
+        destination: href,
+        recommendedPlan: upsell.recommendedPlan,
       },
     });
   }
@@ -71,7 +79,7 @@ export function GrowthUpsellCard({
           size="sm"
           className="h-9 rounded-xl"
           onClick={handleClick}
-          render={<Link href="/dashboard/settings" />}
+          render={<Link href={href} />}
         >
           {upsell.ctaLabel}
         </Button>

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Crown, LockKeyhole } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { getUpgradeHref } from '@/lib/growth-upsells';
 import { ReportSectionCard } from './report-section-card';
 
 interface ReportsPremiumPlaceholderProps {
@@ -15,8 +16,13 @@ interface ReportsPremiumPlaceholderProps {
 export function ReportsPremiumPlaceholder({
   title,
   description,
-  ctaLabel = 'Zobacz plan i limity',
+  ctaLabel = 'Zobacz plany',
 }: ReportsPremiumPlaceholderProps) {
+  const href = getUpgradeHref({
+    source: 'reports_premium_placeholder',
+    plan: 'professional',
+  });
+
   return (
     <ReportSectionCard
       title={title}
@@ -39,7 +45,8 @@ export function ReportsPremiumPlaceholder({
                 Rozszerz raportowanie zespołu
               </p>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Ten raport jest poza zakresem planu Free. Po upgrade odblokujesz głębszą analizę spotkań i obłożenia kalendarza.
+                Ten raport jest poza zakresem planu Free. Po upgrade odblokujesz
+                głębszą analizę spotkań i obłożenia kalendarza.
               </p>
             </div>
           </div>
@@ -50,7 +57,7 @@ export function ReportsPremiumPlaceholder({
             <LockKeyhole className="h-4 w-4 text-[#B8922F]" />
             Raport pozostaje zablokowany w planie Free.
           </div>
-          <Link href="/dashboard/settings">
+          <Link href={href}>
             <Button variant="outline">{ctaLabel}</Button>
           </Link>
         </div>

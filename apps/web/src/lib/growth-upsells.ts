@@ -11,7 +11,10 @@ export interface GrowthUpsell {
   description: string;
   benefit: string;
   ctaLabel: string;
+  recommendedPlan: UpgradePlanCode;
 }
+
+export type UpgradePlanCode = 'starter' | 'professional' | 'enterprise';
 
 export const GROWTH_UPSELLS: Record<GrowthUpsellId, GrowthUpsell> = {
   'custom-branding': {
@@ -21,6 +24,7 @@ export const GROWTH_UPSELLS: Record<GrowthUpsellId, GrowthUpsell> = {
       'Ukryj branding EstateFlow i pokaż markę swojego biura na ofertach, profilach, QR i widgetach.',
     benefit: 'Lepsze zaufanie przy udostępnianiu ofert klientom.',
     ctaLabel: 'Odblokuj branding',
+    recommendedPlan: 'professional',
   },
   'profile-pro': {
     id: 'profile-pro',
@@ -29,6 +33,7 @@ export const GROWTH_UPSELLS: Record<GrowthUpsellId, GrowthUpsell> = {
       'Dodaj publiczne slugi, wyróżnione sekcje, zespół, specjalizacje i mocniejsze SEO profilu.',
     benefit: 'Więcej wejść z publicznego profilu i lepsza prezentacja biura.',
     ctaLabel: 'Rozbuduj profil',
+    recommendedPlan: 'professional',
   },
   'embed-customization': {
     id: 'embed-customization',
@@ -37,6 +42,7 @@ export const GROWTH_UPSELLS: Record<GrowthUpsellId, GrowthUpsell> = {
       'Dostosuj kolor, wysokość, branding i wariant osadzenia formularza do własnej strony.',
     benefit: 'Spójniejszy formularz na landing page i stronie biura.',
     ctaLabel: 'Dostosuj widget',
+    recommendedPlan: 'starter',
   },
   'growth-automation': {
     id: 'growth-automation',
@@ -45,6 +51,7 @@ export const GROWTH_UPSELLS: Record<GrowthUpsellId, GrowthUpsell> = {
       'Wysyłaj autorespondery, przypomnienia follow-up i zadania po zapytaniu z publicznej oferty.',
     benefit: 'Szybsza reakcja na lead bez ręcznego pilnowania inboxa.',
     ctaLabel: 'Dodaj automatyzacje',
+    recommendedPlan: 'professional',
   },
   'higher-limits': {
     id: 'higher-limits',
@@ -53,6 +60,7 @@ export const GROWTH_UPSELLS: Record<GrowthUpsellId, GrowthUpsell> = {
       'Zwiększ limity aktywnych ofert, bazy klientów, spotkań i zdjęć na publicznych stronach.',
     benefit: 'Skalowanie pracy bez blokowania nowych rekordów.',
     ctaLabel: 'Zwiększ limity',
+    recommendedPlan: 'starter',
   },
 };
 
@@ -72,4 +80,31 @@ export const SETTINGS_GROWTH_UPSELL_IDS: GrowthUpsellId[] = [
 
 export function getGrowthUpsells(ids: GrowthUpsellId[]): GrowthUpsell[] {
   return ids.map((id) => GROWTH_UPSELLS[id]);
+}
+
+export function getUpgradeHref({
+  source,
+  upsellId,
+  plan,
+  resource,
+}: {
+  source: string;
+  upsellId?: GrowthUpsellId;
+  plan?: UpgradePlanCode;
+  resource?: 'listings' | 'clients' | 'appointments' | 'images';
+}): string {
+  const params = new URLSearchParams({ source });
+
+  if (upsellId) {
+    params.set('upsellId', upsellId);
+    params.set('plan', plan ?? GROWTH_UPSELLS[upsellId].recommendedPlan);
+  } else if (plan) {
+    params.set('plan', plan);
+  }
+
+  if (resource) {
+    params.set('resource', resource);
+  }
+
+  return `/dashboard/upgrade?${params.toString()}`;
 }

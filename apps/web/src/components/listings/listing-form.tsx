@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, Clock3, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { InlineSelect } from '@/components/ui/inline-select';
+import { LimitUpgradeBanner } from '@/components/growth/limit-upgrade-banner';
 import { useListingForm } from '@/hooks/use-listing-form';
 import { ListingDescriptionAssistant } from '@/components/listings/listing-description-assistant';
 import {
@@ -28,7 +29,6 @@ import {
   type ListingDescriptionAssistantInput,
 } from '@/lib/listing-description-assistant';
 import { useAuth } from '@/contexts/auth-context';
-import { Badge } from '@/components/ui/badge';
 import { isUsageExceeded, isUsageWarning } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
@@ -130,18 +130,13 @@ export function ListingForm({
       {isGuidedCreate ? <GuidedCreateIntro /> : null}
 
       {!isEdit && (showUsageWarning || showUsageExceeded) ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <div className="flex items-center gap-2">
-            <Badge variant={showUsageExceeded ? 'destructive' : 'warning'}>
-              {showUsageExceeded
-                ? 'Limit osiągnięty'
-                : 'Zbliżasz się do limitu'}
-            </Badge>
-            <span>
-              Oferty: {listingsUsage}/{listingsLimit}
-            </span>
-          </div>
-        </div>
+        <LimitUpgradeBanner
+          resource="listings"
+          usage={listingsUsage}
+          limit={listingsLimit}
+          exceeded={showUsageExceeded}
+          source="listing_form_limit_state"
+        />
       ) : null}
 
       {/* Global error */}

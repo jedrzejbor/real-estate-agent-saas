@@ -1167,16 +1167,61 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
     - jakość metryk zależy od kompletności instrumentacji eventów w publicznych ofertach, limitach i kartach upsell,
     - w kolejnych iteracjach warto dodać eksport, globalny widok admina i retencję/cohorty dla aktywacji freemium.
 
-- [ ] `F6.5.6` Doprecyzować pricing / upgrade destination
+- [x] `F6.5.6` Doprecyzować pricing / upgrade destination
   - Zakres: co dzieje się po kliknięciu upsella albo dobiciu do limitu.
   - Minimalny zakres MVP:
     - ekran planów albo formularz zainteresowania wyższym planem,
     - jasny komunikat dla `upgrade_cta_clicked`,
     - zapis intentu w analityce,
     - spójny tekst dla limitów ofert, klientów, spotkań i zdjęć.
+  - Data zakończenia: 2026-05-02
+  - Wykonano:
+    - dodano dedykowany ekran `/dashboard/upgrade` jako MVP destination dla kliknięć upsell i limitów,
+    - ekran pokazuje kierunki planów Starter, Professional i Enterprise oraz formularz zainteresowania upgrade bez uruchamiania pełnego checkoutu,
+    - `GrowthUpsellCard` prowadzi teraz do `/dashboard/upgrade` z `source`, `upsellId` i rekomendowanym planem w query params,
+    - zapis intentu pozostaje w `analytics_events` jako `upgrade_cta_clicked`, z dodatkowymi właściwościami: źródło, upsell, zasób limitu, wybrany plan i akcja,
+    - warningi/hard limity w formularzach ofert, klientów, spotkań oraz managerze zdjęć dostały spójny CTA `Zobacz plany`,
+    - placeholder w `Plan i limity` został zastąpiony linkiem do realnego MVP flow upgrade.
+  - Uwagi / follow-up:
+    - to nadal nie jest billing ani checkout self-service; pełny lifecycle płatności zostaje w backlogu `P6-P9`,
+    - formularz zainteresowania nie zmienia planu użytkownika automatycznie, tylko zapisuje intencję do ręcznej obsługi,
+    - przed produkcyjnym billingiem trzeba dodać backendowy model leadów upgrade albo integrację z płatnościami/CRM sprzedażowym.
+
+- [ ] `F6.5.7` Dodać wygodną publiczną galerię zdjęć oferty
+  - Zakres: poprawa UX przeglądania zdjęć na `/oferty/[slug]`.
+  - Minimalny zakres MVP:
+    - lightbox / pełnoekranowy viewer na publicznej stronie oferty,
+    - miniatury i licznik `aktualne / wszystkie`,
+    - nawigacja poprzednie/następne,
+    - obsługa klawiatury `Escape`, strzałki lewo/prawo,
+    - tap-friendly controls na mobile,
+    - zachowanie alt text i kolejności zdjęć,
+    - analytics event np. `public_listing_gallery_opened` oraz `public_listing_gallery_image_viewed`.
   - Data zakończenia:
   - Wykonano:
   - Uwagi / follow-up:
+    - nie wymaga zmiany backendu, jeśli obecny model `ListingImage` i kolejność są wystarczające,
+    - warto nie przeciążać pierwszego renderu: hero + lazy loading galerii.
+
+#### Audit przed zamknięciem Sprintu 6.5 — publiczne odkrywanie ofert
+
+Po domknięciu zdjęć, publicznego wizardu, abuse/legal i metryk widać, że publiczne oferty są już użyteczne jako pojedyncze landing pages, ale nie są jeszcze wygodnym katalogiem ofert. To ważne rozróżnienie przed wejściem w Sprint 7: obecny zakres pozwala wysłać konkretny link do oferty, natomiast nie pozwala jeszcze użytkownikowi końcowemu komfortowo przeglądać rynku w EstateFlow.
+
+Stan aplikacji po analizie kodu:
+
+- zdjęcia ofert działają end-to-end, ale publiczna galeria na `/oferty/[slug]` jest statyczną siatką obrazów bez lightboxa, pełnego ekranu, klawiatury, przewijania, licznika zdjęć i wygodnego widoku mobilnego,
+- publiczne `/oferty` nie jest katalogiem; obecnie pokazuje komunikat o braku identyfikatora oferty i odsyła do pojedynczych URL-i ze slugiem,
+- CRM-owa lista `/dashboard/listings` ma podstawowe filtry, wyszukiwanie tekstowe, paginację i sortowanie, ale jest prywatna, agent-scope i nie rozwiązuje publicznego katalogu wszystkich opublikowanych ofert,
+- backend ma `GET /api/listings/public`, ale endpoint służy do sitemap/listy slugów, a nie do publicznego wyszukiwania ofert z filtrami, paginacją i wynikami,
+- model adresu ma `lat`/`lng`, ale aplikacja nie ma jeszcze mapy, geokodowania, indeksowania zakresu, publicznego filtrowania po bounding box ani UI do zaznaczania obszaru,
+- prywatność adresów jest istotna: `showExactAddressOnPublicPage` ukrywa dokładny adres i współrzędne, więc mapa publiczna musi obsłużyć przybliżone lokalizacje albo wykluczyć oferty bez zgody na dokładny punkt.
+
+Decyzja zakresu:
+
+- wygodna galeria zdjęć wchodzi do obecnego Sprintu 6.5 jako `F6.5.7`, bo jest naturalnym domknięciem publicznej strony pojedynczej oferty,
+- pełna wyszukiwarka `/oferty` jest osobnym sprintem produktowym, bo wymaga publicznego endpointu, filtrów, kart wyników, paginacji, SEO i decyzji o indeksowaniu,
+- mapa ofert jest osobnym sprintem po katalogu, bo wymaga stabilnego kontraktu wyników, współrzędnych, decyzji prywatności adresów i osobnej warstwy UX,
+- Sprint 7 nadal powinien pilnować bezpieczeństwa, testów, monitoringu i rollout planu; dokładanie katalogu i mapy do tego samego sprintu zwiększy ryzyko rozlania zakresu.
 
 #### Definition of Done
 
@@ -1257,6 +1302,155 @@ Wersja freemium jest gotowa do kontrolowanego udostępnienia użytkownikom.
 
 ---
 
+### Sprint 8 — Publiczny katalog ofert i wyszukiwarka
+
+**Cel sprintu:**
+Zamienić `/oferty` z technicznego placeholdera w pełnoprawny publiczny katalog opublikowanych ofert.
+
+**Rezultat sprintu:**
+Użytkownik końcowy może wejść na `/oferty`, wyszukać nieruchomości, filtrować wyniki i przejść do szczegółów konkretnej oferty.
+
+#### Zadania
+
+- [ ] `F8.1` Zaprojektować kontrakt publicznego katalogu ofert
+  - Zakres: DTO, query params, response model, pola publiczne, limity i zasady prywatności.
+  - Uwagi:
+    - endpoint musi zwracać wyłącznie `publicationStatus = published`,
+    - nie używać prywatnego endpointu `/api/listings`, bo respektuje scope zalogowanego agenta,
+    - endpoint sitemap powinien pozostać lekki i osobny.
+  - Data zakończenia:
+  - Wykonano:
+  - Uwagi / follow-up:
+
+- [ ] `F8.2` Dodać publiczny endpoint wyszukiwania ofert
+  - Zakres: lista wyników, filtry, sortowanie, paginacja i bezpieczne limity.
+  - Minimalny zakres MVP:
+    - lokalizacja/miasto,
+    - typ nieruchomości,
+    - typ transakcji,
+    - cena min/max,
+    - powierzchnia min/max,
+    - liczba pokoi,
+    - fraza tekstowa,
+    - sortowanie: najnowsze, cena rosnąco/malejąco, powierzchnia,
+    - paginacja.
+  - Data zakończenia:
+  - Wykonano:
+  - Uwagi / follow-up:
+
+- [ ] `F8.3` Zbudować publiczny ekran `/oferty`
+  - Zakres: UI katalogu, filtry, karty wyników, query params w URL.
+  - Minimalny zakres MVP:
+    - responsywna lista/karty ofert,
+    - zdjęcie główne, cena, lokalizacja, metraż, pokoje i CTA do szczegółów,
+    - stany loading/error/empty,
+    - zachowanie filtrów w URL,
+    - podstawowe eventy analityczne wyszukiwania i kliknięcia oferty.
+  - Data zakończenia:
+  - Wykonano:
+  - Uwagi / follow-up:
+
+- [ ] `F8.4` Doprecyzować SEO katalogu ofert
+  - Zakres: metadata, canonical, robots, indeksowanie wybranych widoków.
+  - Minimalny zakres MVP:
+    - decyzja, które filtry są indeksowalne,
+    - `noindex` dla kombinacji filtrów niskiej jakości,
+    - canonical dla bazowego katalogu,
+    - kontrola duplicate content względem `/oferty/[slug]`.
+  - Data zakończenia:
+  - Wykonano:
+  - Uwagi / follow-up:
+
+#### Definition of Done
+
+- `/oferty` działa jako publiczny katalog, a nie placeholder,
+- wyniki są filtrowalne, paginowane i linkowalne przez URL,
+- publiczny endpoint nie wycieka prywatnych ani nieopublikowanych ofert,
+- podstawowe SEO i stany UX są domknięte.
+
+#### Log sprintu
+
+- Status sprintu:
+- Data zamknięcia:
+- Co dowieźliśmy:
+- Decyzje:
+- Otwarte tematy:
+
+---
+
+### Sprint 9 — Mapa ofert i wyszukiwanie po obszarze
+
+**Cel sprintu:**
+Dodać warstwę mapy do publicznego katalogu ofert oraz umożliwić filtrowanie wyników po zaznaczonym obszarze.
+
+**Rezultat sprintu:**
+Użytkownik może przeglądać oferty na mapie, zaznaczyć obszar i zawęzić wyniki katalogu do wybranej lokalizacji.
+
+#### Zadania
+
+- [ ] `F9.1` Podjąć decyzje techniczne i prywatnościowe dla mapy
+  - Zakres: biblioteka mapy, dostawca kafelków/geokodowania, dokładność lokalizacji, koszty i limity.
+  - Minimalny zakres MVP:
+    - decyzja, czy pokazujemy dokładny punkt, przybliżony punkt, czy tylko obszar,
+    - reguły dla ofert z `showExactAddressOnPublicPage = false`,
+    - fallback dla ofert bez `lat/lng`,
+    - decyzja, czy MVP używa prostego `BETWEEN`, czy od razu PostGIS.
+  - Data zakończenia:
+  - Wykonano:
+  - Uwagi / follow-up:
+
+- [ ] `F9.2` Rozszerzyć publiczny endpoint katalogu o filtrowanie przestrzenne
+  - Zakres: query `bbox` albo `bounds`, walidacja zakresu i limity wyników mapy.
+  - Minimalny zakres MVP:
+    - filtrowanie po `address.lat`/`address.lng`,
+    - odrzucanie niepoprawnych lub zbyt szerokich zakresów,
+    - osobny limit liczby markerów,
+    - odpowiedź zawierająca dane potrzebne do markerów i kart wyników.
+  - Data zakończenia:
+  - Wykonano:
+  - Uwagi / follow-up:
+
+- [ ] `F9.3` Dodać widok mapy zsynchronizowany z katalogiem
+  - Zakres: mapa, markery/cluster, lista wyników i URL state.
+  - Minimalny zakres MVP:
+    - przełącznik lista / mapa albo layout split view,
+    - markery dla ofert z dostępną lokalizacją,
+    - popup/karta miniatury oferty na markerze,
+    - synchronizacja filtrów mapy z listą wyników,
+    - loading/error/empty states dla mapy.
+  - Data zakończenia:
+  - Wykonano:
+  - Uwagi / follow-up:
+
+- [ ] `F9.4` Dodać zaznaczanie obszaru na mapie
+  - Zakres: rysowanie prostokąta albo wielokąta i filtrowanie wyników po zaznaczeniu.
+  - Minimalny zakres MVP:
+    - tryb zaznaczania obszaru,
+    - możliwość wyczyszczenia zaznaczenia,
+    - zapis zakresu w URL,
+    - analytics event dla użycia map search.
+  - Data zakończenia:
+  - Wykonano:
+  - Uwagi / follow-up:
+
+#### Definition of Done
+
+- mapa działa na publicznym katalogu ofert,
+- zaznaczenie obszaru realnie filtruje wyniki,
+- prywatność dokładnych adresów jest zachowana,
+- UI działa sensownie na desktopie i mobile,
+- koszty i limity dostawcy map są znane przed rolloutem.
+
+#### Log sprintu
+
+- Status sprintu:
+- Data zamknięcia:
+- Co dowieźliśmy:
+- Decyzje:
+- Otwarte tematy:
+
+---
+
 ## 5. Backlog po release freemium — przygotowanie wersji płatnych
 
 Tę sekcję rozwijamy po domknięciu freemium MVP. Na ten moment zapisujemy kierunki, ale nie wrzucamy ich do aktywnego scope release'u.
@@ -1278,10 +1472,11 @@ Tę sekcję rozwijamy po domknięciu freemium MVP. Na ten moment zapisujemy kier
 
 ### Priorytet C — pogłębione growth loops
 
-- [ ] `P10` Rozbudowany publiczny katalog ofert
-- [ ] `P11` Lepsze SEO i strony indeksowalne na szeroką skalę
-- [ ] `P12` Referral / invite loops
-- [ ] `P13` Zaawansowane profile agentów i biur
+- [ ] `P10` Rozbudowany publiczny katalog ofert — rozpisany jako Sprint 8
+- [ ] `P11` Mapa ofert i wyszukiwanie po obszarze — rozpisane jako Sprint 9
+- [ ] `P12` Lepsze SEO i strony indeksowalne na szeroką skalę
+- [ ] `P13` Referral / invite loops
+- [ ] `P14` Zaawansowane profile agentów i biur
 
 ---
 
@@ -1298,6 +1493,8 @@ Rekomendowana kolejność realizacji:
 7. Sprint 6
 8. Sprint 6.5
 9. Sprint 7
+10. Sprint 8
+11. Sprint 9
 
 Kluczowe zależności:
 
@@ -1305,8 +1502,10 @@ Kluczowe zależności:
 - Sprint 3 powinien bazować na gotowych zasadach planu free.
 - Sprint 4 zależy od Sprintu 3.
 - Sprint 5 wymaga gotowych podstaw publicznych ofert oraz ochrony antyspamowej.
-- Sprint 6.5 powinien domknąć zdjęcia, publiczny wizard albo decyzję o jego przesunięciu, abuse/legal/analytics i pricing destination.
-- Sprint 7 zamyka całość i nie powinien być pomijany.
+- Sprint 6.5 powinien domknąć zdjęcia, wygodną galerię publiczną, publiczny wizard albo decyzję o jego przesunięciu, abuse/legal/analytics i pricing destination.
+- Sprint 7 zamyka release readiness i nie powinien być pomijany.
+- Sprint 8 powinien zająć się pełnym publicznym katalogiem `/oferty` i wyszukiwarką jako osobnym modułem discovery.
+- Sprint 9 powinien bazować na kontrakcie katalogu ze Sprintu 8 i dopiero wtedy dodać mapę oraz wyszukiwanie po zaznaczonym obszarze.
 
 ---
 

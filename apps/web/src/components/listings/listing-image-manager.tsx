@@ -13,6 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { LimitUpgradeBanner } from '@/components/growth/limit-upgrade-banner';
 import { useAuth } from '@/contexts/auth-context';
 import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
@@ -265,6 +266,18 @@ export function ListingImageManager({
           </Button>
         </div>
       </div>
+
+      {isAtLimit && imageLimit !== null ? (
+        <div className="mt-5">
+          <LimitUpgradeBanner
+            resource="images"
+            usage={images.length}
+            limit={imageLimit}
+            exceeded
+            source="listing_image_manager_limit_state"
+          />
+        </div>
+      ) : null}
 
       {images.length === 0 ? (
         <div className="mt-5 flex min-h-48 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 px-4 py-8 text-center">

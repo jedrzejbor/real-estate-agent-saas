@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { InlineSelect } from '@/components/ui/inline-select';
+import { LimitUpgradeBanner } from '@/components/growth/limit-upgrade-banner';
 import { useClientForm } from '@/hooks/use-client-form';
 import {
   createClientSchema,
@@ -16,7 +17,6 @@ import {
   updateClient,
 } from '@/lib/clients';
 import { useAuth } from '@/contexts/auth-context';
-import { Badge } from '@/components/ui/badge';
 import { isUsageExceeded, isUsageWarning } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
@@ -33,11 +33,13 @@ export function ClientForm({ client }: ClientFormProps) {
 
   const clientsUsage = user?.usage.clients ?? 0;
   const clientsLimit = user?.entitlements.limits.clients ?? null;
-  const showUsageWarning = !isEdit && isUsageWarning(clientsUsage, clientsLimit);
-  const showUsageExceeded = !isEdit && isUsageExceeded(clientsUsage, clientsLimit);
+  const showUsageWarning =
+    !isEdit && isUsageWarning(clientsUsage, clientsLimit);
+  const showUsageExceeded =
+    !isEdit && isUsageExceeded(clientsUsage, clientsLimit);
 
-  const { handleSubmit, getFieldError, globalError, isLoading } =
-    useClientForm({
+  const { handleSubmit, getFieldError, globalError, isLoading } = useClientForm(
+    {
       schema: createClientSchema,
       onSubmit: async (data: CreateClientFormData) => {
         if (isEdit) {
@@ -48,21 +50,19 @@ export function ClientForm({ client }: ClientFormProps) {
         router.push('/dashboard/clients');
         router.refresh();
       },
-    });
+    },
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8" noValidate>
       {!isEdit && (showUsageWarning || showUsageExceeded) ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <div className="flex items-center gap-2">
-            <Badge variant={showUsageExceeded ? 'destructive' : 'warning'}>
-              {showUsageExceeded ? 'Limit osiągnięty' : 'Zbliżasz się do limitu'}
-            </Badge>
-            <span>
-              Klienci: {clientsUsage}/{clientsLimit}
-            </span>
-          </div>
-        </div>
+        <LimitUpgradeBanner
+          resource="clients"
+          usage={clientsUsage}
+          limit={clientsLimit}
+          exceeded={showUsageExceeded}
+          source="client_form_limit_state"
+        />
       ) : null}
 
       {/* Global error */}
@@ -105,11 +105,7 @@ export function ClientForm({ client }: ClientFormProps) {
             />
           </FormField>
 
-          <FormField
-            label="Email"
-            name="email"
-            error={getFieldError('email')}
-          >
+          <FormField label="Email" name="email" error={getFieldError('email')}>
             <Input
               name="email"
               type="email"
