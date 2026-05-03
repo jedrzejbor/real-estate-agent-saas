@@ -1385,7 +1385,7 @@ Użytkownik końcowy może wejść na `/oferty`, wyszukać nieruchomości, filtr
     - implementacja endpointu w `F8.2` powinna użyć osobnej trasy `GET /api/listings/public/catalog`,
     - katalog nie może zwracać dokładnego adresu ani współrzędnych; mapa w Sprincie 9 wymaga osobnej decyzji prywatności.
 
-- [ ] `F8.2` Dodać publiczny endpoint wyszukiwania ofert
+- [x] `F8.2` Dodać publiczny endpoint wyszukiwania ofert
   - Zakres: lista wyników, filtry, sortowanie, paginacja i bezpieczne limity.
   - Minimalny zakres MVP:
     - lokalizacja/miasto,
@@ -1397,9 +1397,19 @@ Użytkownik końcowy może wejść na `/oferty`, wyszukać nieruchomości, filtr
     - fraza tekstowa,
     - sortowanie: najnowsze, cena rosnąco/malejąco, powierzchnia,
     - paginacja.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-03
   - Wykonano:
+    - dodano publiczny endpoint `GET /api/listings/public/catalog`,
+    - endpoint zwraca wyłącznie opublikowane oferty z `publicSlug` i `publishedAt`,
+    - dodano filtry: miasto, dzielnica, województwo, typ nieruchomości, typ transakcji, cena min/max, powierzchnia min/max, pokoje min/max i fraza `q`,
+    - dodano sortowanie: najnowsze, cena rosnąco/malejąco oraz powierzchnia rosnąco/malejąco,
+    - dodano paginację z limitem `1-48` i domyślnym `24`,
+    - response mapuje tylko publiczne pola katalogu: slug, tytuł, przybliżony adres, parametry, primary image, image count i podstawowe dane agenta/agencji,
+    - price filter wymaga `showPriceOnPublicPage = true`, żeby nie zdradzać ukrytych cen,
+    - dodano webowy helper `fetchPublicListingCatalog()`.
   - Uwagi / follow-up:
+    - UI `/oferty` w `F8.3` powinno użyć `fetchPublicListingCatalog()` i utrzymywać filtry w URL,
+    - katalog nadal nie zwraca dokładnego adresu ani współrzędnych; to zostaje decyzją Sprintu 9 dla mapy.
 
 - [ ] `F8.3` Zbudować publiczny ekran `/oferty`
   - Zakres: UI katalogu, filtry, karty wyników, query params w URL.

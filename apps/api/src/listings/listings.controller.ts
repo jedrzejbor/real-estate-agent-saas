@@ -19,6 +19,7 @@ import { ListingsService } from './listings.service';
 import {
   CreateListingDto,
   ListingQueryDto,
+  PublicListingCatalogQueryDto,
   ReorderListingImagesDto,
   UpdateListingDto,
   UpdateListingImageDto,
@@ -96,6 +97,13 @@ export class ListingsController {
   @Get('public')
   async findPublicSitemapEntries() {
     return this.listingsService.findPublicSitemapEntries();
+  }
+
+  /** GET /api/listings/public/catalog — search public listing catalog. */
+  @Public()
+  @Get('public/catalog')
+  async findPublicCatalog(@Query() query: PublicListingCatalogQueryDto) {
+    return this.listingsService.findPublicCatalog(query);
   }
 
   /** GET /api/listings/public-agents/:agentId — get public agent profile. */

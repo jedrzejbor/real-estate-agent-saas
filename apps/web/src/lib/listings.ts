@@ -460,7 +460,9 @@ export type PublicListingSettingsFormData = z.infer<
 
 // ── API Functions ──
 
-function buildQueryString(filters: ListingFilters): string {
+function buildQueryString(
+  filters: ListingFilters | PublicListingCatalogFilters,
+): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
     if (value !== undefined && value !== '' && value !== null) {
@@ -501,6 +503,17 @@ export async function fetchPublicListingSitemapEntries(): Promise<
   return apiFetch<PublicListingSitemapEntry[]>('/listings/public', {
     skipAuth: true,
   });
+}
+
+export async function fetchPublicListingCatalog(
+  filters: PublicListingCatalogFilters = {},
+): Promise<PublicListingCatalogResponse> {
+  return apiFetch<PublicListingCatalogResponse>(
+    `/listings/public/catalog${buildQueryString(filters)}`,
+    {
+      skipAuth: true,
+    },
+  );
 }
 
 export async function reportPublicListingAbuse(

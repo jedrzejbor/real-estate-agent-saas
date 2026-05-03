@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Not, Repository, SelectQueryBuilder } from 'typeorm';
+import { Brackets, In, Not, Repository, SelectQueryBuilder } from 'typeorm';
 import { mkdir, unlink, writeFile } from 'fs/promises';
 import { randomUUID } from 'crypto';
 import { extname, join } from 'path';
@@ -33,7 +33,13 @@ import { UpdateListingImageDto } from './dto/listing-image.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ListingQueryDto } from './dto/listing-query.dto';
 import {
+  PublicListingCatalogQueryDto,
+  PublicListingCatalogSort,
+} from './dto/public-listing-catalog-query.dto';
+import {
   PublicAgentProfileView,
+  PublicListingCatalogItem,
+  PublicListingCatalogResponse,
   PublicListingSitemapEntry,
   PublicListingView,
 } from './public-listing.model';
@@ -627,6 +633,45 @@ export class ListingsService {
     return this.toPublicListingView(listing);
   }
 
+  async findPublicCatalog(
+    query: PublicListingCatalogQueryDto,
+  ): Promise<PublicListingCatalogResponse> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 24;
+    const sort = query.sort ?? PublicListingCatalogSort.NEWEST;
+
+    const qb = this.listingRepo
+      .createQueryBuilder('listing')
+      .leftJoinAndSelect('listing.address', 'address')
+      .leftJoinAndSelect('listing.images', 'images')
+      .leftJoinAndSelect('listing.agent', 'agent')
+      .leftJoinAndSelect('agent.agency', 'agency')
+      .where('listing.publicationStatus = :publicationStatus', {
+        publicationStatus: ListingPublicationStatus.PUBLISHED,
+      })
+      .andWhere('listing.publicSlug IS NOT NULL')
+      .andWhere('listing.publishedAt IS NOT NULL');
+
+    this.applyPublicCatalogFilters(qb, query);
+    this.applyPublicCatalogSort(qb, sort);
+
+    const [listings, total] = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      data: listings.map((listing) => this.toPublicCatalogItem(listing)),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        sort,
+      },
+    };
+  }
+
   async findPublicAgentProfile(
     agentId: string,
   ): Promise<PublicAgentProfileView> {
@@ -973,6 +1018,197 @@ export class ListingsService {
       publishedAt: listing.publishedAt,
       updatedAt: listing.updatedAt,
     };
+  }
+
+  private toPublicCatalogItem(listing: Listing): PublicListingCatalogItem {
+    if (!listing.publicSlug || !listing.publishedAt) {
+      throw new NotFoundException('Publiczna oferta nie znaleziona');
+    }
+
+    const primaryImage = this.getOrderedImages(listing)[0] ?? null;
+
+    return {
+      id: listing.id,
+      slug: listing.publicSlug,
+      title: listing.publicTitle || listing.title,
+      propertyType: listing.propertyType,
+      transactionType: listing.transactionType,
+      price: listing.showPriceOnPublicPage ? listing.price : null,
+      currency: listing.currency,
+      areaM2: listing.areaM2 ?? null,
+      plotAreaM2: listing.plotAreaM2 ?? null,
+      rooms: listing.rooms ?? null,
+      address: listing.address
+        ? {
+            city: listing.address.city,
+            district: listing.address.district ?? null,
+            voivodeship: listing.address.voivodeship ?? null,
+          }
+        : null,
+      primaryImage: primaryImage
+        ? {
+            id: primaryImage.id,
+            url: primaryImage.url,
+            altText: primaryImage.altText ?? null,
+          }
+        : null,
+      imageCount: listing.images?.length ?? 0,
+      agent: listing.agent
+        ? {
+            id: listing.agent.id,
+            firstName: listing.agent.firstName ?? null,
+            lastName: listing.agent.lastName ?? null,
+            agency: listing.agent.agency
+              ? {
+                  id: listing.agent.agency.id,
+                  name: listing.agent.agency.name,
+                  logoUrl: listing.agent.agency.logoUrl ?? null,
+                }
+              : null,
+          }
+        : null,
+      publishedAt: listing.publishedAt,
+      updatedAt: listing.updatedAt,
+    };
+  }
+
+  private applyPublicCatalogFilters(
+    qb: SelectQueryBuilder<Listing>,
+    query: PublicListingCatalogQueryDto,
+  ): void {
+    const city = query.city?.trim();
+    const district = query.district?.trim();
+    const voivodeship = query.voivodeship?.trim();
+    const q = query.q?.trim();
+
+    if (city) {
+      qb.andWhere('LOWER(address.city) LIKE LOWER(:city)', {
+        city: `%${city}%`,
+      });
+    }
+
+    if (district) {
+      qb.andWhere('LOWER(address.district) LIKE LOWER(:district)', {
+        district: `%${district}%`,
+      });
+    }
+
+    if (voivodeship) {
+      qb.andWhere('LOWER(address.voivodeship) LIKE LOWER(:voivodeship)', {
+        voivodeship: `%${voivodeship}%`,
+      });
+    }
+
+    if (query.propertyType) {
+      qb.andWhere('listing.propertyType = :propertyType', {
+        propertyType: query.propertyType,
+      });
+    }
+
+    if (query.transactionType) {
+      qb.andWhere('listing.transactionType = :transactionType', {
+        transactionType: query.transactionType,
+      });
+    }
+
+    if (query.priceMin !== undefined || query.priceMax !== undefined) {
+      qb.andWhere('listing.showPriceOnPublicPage = true');
+    }
+
+    if (query.priceMin !== undefined) {
+      qb.andWhere('listing.price >= :priceMin', { priceMin: query.priceMin });
+    }
+
+    if (query.priceMax !== undefined) {
+      qb.andWhere('listing.price <= :priceMax', { priceMax: query.priceMax });
+    }
+
+    if (query.areaMin !== undefined) {
+      qb.andWhere('listing.areaM2 >= :areaMin', { areaMin: query.areaMin });
+    }
+
+    if (query.areaMax !== undefined) {
+      qb.andWhere('listing.areaM2 <= :areaMax', { areaMax: query.areaMax });
+    }
+
+    if (query.roomsMin !== undefined) {
+      qb.andWhere('listing.rooms >= :roomsMin', { roomsMin: query.roomsMin });
+    }
+
+    if (query.roomsMax !== undefined) {
+      qb.andWhere('listing.rooms <= :roomsMax', { roomsMax: query.roomsMax });
+    }
+
+    if (q) {
+      qb.andWhere(
+        new Brackets((subQb) => {
+          subQb
+            .where('LOWER(listing.publicTitle) LIKE LOWER(:q)', {
+              q: `%${q}%`,
+            })
+            .orWhere('LOWER(listing.title) LIKE LOWER(:q)', { q: `%${q}%` })
+            .orWhere('LOWER(listing.publicDescription) LIKE LOWER(:q)', {
+              q: `%${q}%`,
+            })
+            .orWhere('LOWER(listing.description) LIKE LOWER(:q)', {
+              q: `%${q}%`,
+            })
+            .orWhere('LOWER(address.city) LIKE LOWER(:q)', { q: `%${q}%` })
+            .orWhere('LOWER(address.district) LIKE LOWER(:q)', {
+              q: `%${q}%`,
+            })
+            .orWhere('LOWER(address.voivodeship) LIKE LOWER(:q)', {
+              q: `%${q}%`,
+            });
+        }),
+      );
+    }
+  }
+
+  private applyPublicCatalogSort(
+    qb: SelectQueryBuilder<Listing>,
+    sort: PublicListingCatalogSort,
+  ): void {
+    switch (sort) {
+      case PublicListingCatalogSort.PRICE_ASC:
+        qb.orderBy(
+          'CASE WHEN listing.showPriceOnPublicPage = true AND listing.price IS NOT NULL THEN 0 ELSE 1 END',
+          'ASC',
+        )
+          .addOrderBy('listing.price', 'ASC')
+          .addOrderBy('listing.publishedAt', 'DESC');
+        break;
+      case PublicListingCatalogSort.PRICE_DESC:
+        qb.orderBy(
+          'CASE WHEN listing.showPriceOnPublicPage = true AND listing.price IS NOT NULL THEN 0 ELSE 1 END',
+          'ASC',
+        )
+          .addOrderBy('listing.price', 'DESC')
+          .addOrderBy('listing.publishedAt', 'DESC');
+        break;
+      case PublicListingCatalogSort.AREA_ASC:
+        qb.orderBy(
+          'CASE WHEN listing.areaM2 IS NOT NULL THEN 0 ELSE 1 END',
+          'ASC',
+        )
+          .addOrderBy('listing.areaM2', 'ASC')
+          .addOrderBy('listing.publishedAt', 'DESC');
+        break;
+      case PublicListingCatalogSort.AREA_DESC:
+        qb.orderBy(
+          'CASE WHEN listing.areaM2 IS NOT NULL THEN 0 ELSE 1 END',
+          'ASC',
+        )
+          .addOrderBy('listing.areaM2', 'DESC')
+          .addOrderBy('listing.publishedAt', 'DESC');
+        break;
+      case PublicListingCatalogSort.NEWEST:
+      default:
+        qb.orderBy('listing.publishedAt', 'DESC');
+        break;
+    }
+
+    qb.addOrderBy('listing.id', 'DESC');
   }
 
   /** Find listing by id with relations, or throw. */
