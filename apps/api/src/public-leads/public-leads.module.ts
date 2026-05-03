@@ -5,6 +5,7 @@ import { AnalyticsModule } from '../analytics';
 import { Client } from '../clients/entities/client.entity';
 import { ClientNote } from '../clients/entities/client-note.entity';
 import { Listing } from '../listings/entities/listing.entity';
+import { MonitoringModule } from '../monitoring';
 import { Agent } from '../users/entities';
 import { PublicLead } from './entities/public-lead.entity';
 import { PublicLeadsController } from './public-leads.controller';
@@ -15,6 +16,7 @@ import { PublicLeadsService } from './public-leads.service';
     TypeOrmModule.forFeature([PublicLead, Listing, Agent, Client, ClientNote]),
     ActivityModule,
     AnalyticsModule,
+    MonitoringModule,
   ],
   controllers: [PublicLeadsController],
   providers: [PublicLeadsService],

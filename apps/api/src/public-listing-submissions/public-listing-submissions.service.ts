@@ -16,6 +16,7 @@ import { EmailService } from '../email';
 import { Address } from '../listings/entities/address.entity';
 import { Listing } from '../listings/entities/listing.entity';
 import { ListingImage } from '../listings/entities/listing-image.entity';
+import { MonitoringService } from '../monitoring';
 import { UsersService } from '../users';
 import {
   ActivityAction,
@@ -126,9 +127,29 @@ export class PublicListingSubmissionsService {
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
+    private readonly monitoringService: MonitoringService,
   ) {}
 
   async create(
+    dto: CreatePublicListingSubmissionDto,
+    request: Request,
+  ): Promise<PublicListingSubmissionCreatedResult> {
+    return this.monitoringService.monitor(
+      {
+        flow: 'public_submission_create',
+        failureEvent: 'submission_create_failed',
+        successEvent: 'submission_created',
+        context: { source: dto.source },
+        successContext: (result) => ({
+          submissionId: result.id,
+          status: result.status,
+        }),
+      },
+      () => this.createCore(dto, request),
+    );
+  }
+
+  private async createCore(
     dto: CreatePublicListingSubmissionDto,
     request: Request,
   ): Promise<PublicListingSubmissionCreatedResult> {
@@ -198,6 +219,29 @@ export class PublicListingSubmissionsService {
   async uploadImages(
     files: UploadedSubmissionImageFile[],
   ): Promise<{ images: PublicListingSubmissionUploadedImage[] }> {
+    return this.monitoringService.monitor(
+      {
+        flow: 'public_submission_upload',
+        failureEvent: 'image_upload_failed',
+        successEvent: 'images_uploaded',
+        context: {
+          fileCount: files.length,
+          totalBytes: files.reduce(
+            (sum, file) => sum + (file.buffer?.length ?? 0),
+            0,
+          ),
+        },
+        successContext: (result) => ({
+          imageCount: result.images.length,
+        }),
+      },
+      () => this.uploadImagesCore(files),
+    );
+  }
+
+  private async uploadImagesCore(
+    files: UploadedSubmissionImageFile[],
+  ): Promise<{ images: PublicListingSubmissionUploadedImage[] }> {
     if (!files.length) {
       throw new BadRequestException('Wybierz co najmniej jedno zdjęcie');
     }
@@ -238,6 +282,21 @@ export class PublicListingSubmissionsService {
   }
 
   async resendVerification(
+    id: string,
+    request: Request,
+  ): Promise<PublicListingSubmissionResendResult> {
+    return this.monitoringService.monitor(
+      {
+        flow: 'public_submission_resend',
+        failureEvent: 'verification_resend_failed',
+        successEvent: 'verification_resent',
+        context: { submissionId: id },
+      },
+      () => this.resendVerificationCore(id, request),
+    );
+  }
+
+  private async resendVerificationCore(
     id: string,
     request: Request,
   ): Promise<PublicListingSubmissionResendResult> {
@@ -297,6 +356,23 @@ export class PublicListingSubmissionsService {
   async verify(
     dto: VerifyPublicListingSubmissionDto,
   ): Promise<PublicListingSubmissionVerificationResult> {
+    return this.monitoringService.monitor(
+      {
+        flow: 'public_submission_verify',
+        failureEvent: 'verification_failed',
+        successEvent: 'submission_verified',
+        successContext: (result) => ({
+          submissionId: result.id,
+          status: result.status,
+        }),
+      },
+      () => this.verifyCore(dto),
+    );
+  }
+
+  private async verifyCore(
+    dto: VerifyPublicListingSubmissionDto,
+  ): Promise<PublicListingSubmissionVerificationResult> {
     const tokenHash = hashToken(dto.token);
     const submission = await this.submissionRepo.findOne({
       where: { verificationTokenHash: tokenHash },
@@ -334,6 +410,11 @@ export class PublicListingSubmissionsService {
       !submission.verificationExpiresAt ||
       submission.verificationExpiresAt.getTime() < Date.now()
     ) {
+      this.monitoringService.recordWarning(
+        'public_submission_verify',
+        'verification_expired',
+        { submissionId: submission.id },
+      );
       submission.status = PublicListingSubmissionStatus.EXPIRED;
       submission.expiredAt = new Date();
       submission.verificationTokenHash = null;
@@ -359,6 +440,29 @@ export class PublicListingSubmissionsService {
   }
 
   async claim(
+    userId: string,
+    dto: ClaimPublicListingSubmissionDto,
+  ): Promise<PublicListingSubmissionClaimResult> {
+    return this.monitoringService.monitor(
+      {
+        flow: 'public_submission_claim',
+        failureEvent: 'claim_failed',
+        successEvent: 'submission_claimed',
+        context: { userId },
+        successContext: (result) => ({
+          submissionId: result.id,
+          listingId: result.listingId,
+          publicSlug: result.publicSlug,
+          status: result.status,
+          reviewRequired: result.reviewRequired,
+          moderationReasons: result.moderationReasons,
+        }),
+      },
+      () => this.claimCore(userId, dto),
+    );
+  }
+
+  private async claimCore(
     userId: string,
     dto: ClaimPublicListingSubmissionDto,
   ): Promise<PublicListingSubmissionClaimResult> {

@@ -1290,11 +1290,18 @@ Wersja freemium jest gotowa do kontrolowanego udostępnienia użytkownikom.
     - jeśli EstateFlow działa jako procesor dla biur, trzeba przygotować DPA / umowę powierzenia,
     - decyzje o retencji i cleanupie tymczasowych zdjęć powinny wejść do release checklist.
 
-- [ ] `F7.3` Dodać monitoring i alerty dla kluczowych flow
+- [x] `F7.3` Dodać monitoring i alerty dla kluczowych flow
   - Zakres: błędy publikacji, formularze leadowe, claim flow, onboarding drop-offs.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-03
   - Wykonano:
+    - dodano wspólny `MonitoringModule` / `MonitoringService` po stronie API,
+    - dodano strukturalne logowanie sukcesów, błędów i ostrzeżeń dla publikacji ofert, leadów publicznych, publicznego wizardu, uploadu zdjęć, resend/verify/claim flow oraz public analytics,
+    - dodano minimalne alerty progowe konfigurowane przez `MONITORING_WINDOW_MS`, `MONITORING_FAILURE_ALERT_THRESHOLD` i `MONITORING_WARNING_ALERT_THRESHOLD`,
+    - dodano centralną sanitizację kontekstu monitoringu, żeby nie logować danych osobowych, tokenów ani fingerprintów,
+    - przygotowano opis operacyjny `docs/FREEMIUM_SPRINT_7_MONITORING_ALERTS.md`.
   - Uwagi / follow-up:
+    - alerty są logowe i per-process, więc produkcyjny rollout powinien podpiąć te zdarzenia do APM / observability stack,
+    - frontowe drop-offy onboardingowe wymagają docelowo osobnego funnel analytics w `F7.6`.
 
 - [ ] `F7.4` Przygotować test plan i przejść krytyczne scenariusze E2E
   - Zakres: rejestracja, onboarding, publish listing, lead submit, limit reached, claim listing.

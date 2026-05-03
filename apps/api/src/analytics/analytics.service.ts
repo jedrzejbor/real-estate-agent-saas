@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { UsersService } from '../users';
 import { ListingPublicationStatus } from '../common/enums';
 import { Listing } from '../listings/entities/listing.entity';
+import { MonitoringService } from '../monitoring';
 import { Agent } from '../users/entities/agent.entity';
 import { AnalyticsEvent } from './entities/analytics-event.entity';
 import {
@@ -23,6 +24,7 @@ export class AnalyticsService {
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
     private readonly usersService: UsersService,
+    private readonly monitoringService: MonitoringService,
   ) {}
 
   async track(userId: string, dto: CreateAnalyticsEventDto) {
@@ -52,6 +54,20 @@ export class AnalyticsService {
   }
 
   async trackPublicListing(
+    slug: string,
+    dto: CreatePublicListingAnalyticsEventDto,
+  ) {
+    return this.monitoringService.monitor(
+      {
+        flow: 'public_analytics_event',
+        failureEvent: 'event_track_failed',
+        context: { publicSlug: slug, eventName: dto.name },
+      },
+      () => this.trackPublicListingCore(slug, dto),
+    );
+  }
+
+  private async trackPublicListingCore(
     slug: string,
     dto: CreatePublicListingAnalyticsEventDto,
   ) {
@@ -94,6 +110,18 @@ export class AnalyticsService {
     this.logger.debug(
       `Public listing analytics event tracked: ${savedEvent.name} (${savedEvent.id})`,
     );
+
+    if (savedEvent.name === 'public_listing_abuse_reported') {
+      this.monitoringService.recordWarning(
+        'public_analytics_event',
+        'abuse_reported',
+        {
+          analyticsEventId: savedEvent.id,
+          listingId: listing.id,
+          publicSlug: listing.publicSlug,
+        },
+      );
+    }
 
     return {
       id: savedEvent.id,

@@ -12,6 +12,7 @@ import { mkdir, unlink, writeFile } from 'fs/promises';
 import { randomUUID } from 'crypto';
 import { extname, join } from 'path';
 import { ActivityService } from '../activity';
+import { MonitoringService } from '../monitoring';
 import { Listing } from './entities/listing.entity';
 import { Address } from './entities/address.entity';
 import { ListingImage } from './entities/listing-image.entity';
@@ -70,6 +71,7 @@ export class ListingsService {
     private readonly usersService: UsersService,
     private readonly activityService: ActivityService,
     private readonly configService: ConfigService,
+    private readonly monitoringService: MonitoringService,
   ) {}
 
   // ── Create ──
@@ -478,6 +480,24 @@ export class ListingsService {
   }
 
   async publish(id: string, userId: string): Promise<Listing> {
+    return this.monitoringService.monitor(
+      {
+        flow: 'listing_publish',
+        failureEvent: 'publish_failed',
+        successEvent: 'listing_published',
+        context: { listingId: id, userId },
+        successContext: (listing) => ({
+          listingId: listing.id,
+          agentId: listing.agentId,
+          publicSlug: listing.publicSlug,
+          publicationStatus: listing.publicationStatus,
+        }),
+      },
+      () => this.publishCore(id, userId),
+    );
+  }
+
+  private async publishCore(id: string, userId: string): Promise<Listing> {
     const listing = await this.findOneOrFail(id);
     await this.assertOwnership(listing, userId);
     const access = await this.usersService.getAgencyAccessContext(userId);
@@ -541,6 +561,24 @@ export class ListingsService {
   }
 
   async unpublish(id: string, userId: string): Promise<Listing> {
+    return this.monitoringService.monitor(
+      {
+        flow: 'listing_unpublish',
+        failureEvent: 'unpublish_failed',
+        successEvent: 'listing_unpublished',
+        context: { listingId: id, userId },
+        successContext: (listing) => ({
+          listingId: listing.id,
+          agentId: listing.agentId,
+          publicSlug: listing.publicSlug,
+          publicationStatus: listing.publicationStatus,
+        }),
+      },
+      () => this.unpublishCore(id, userId),
+    );
+  }
+
+  private async unpublishCore(id: string, userId: string): Promise<Listing> {
     const listing = await this.findOneOrFail(id);
     await this.assertOwnership(listing, userId);
 

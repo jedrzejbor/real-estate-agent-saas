@@ -5,6 +5,7 @@ import { EmailModule } from '../email';
 import { Address } from '../listings/entities/address.entity';
 import { Listing } from '../listings/entities/listing.entity';
 import { ListingImage } from '../listings/entities/listing-image.entity';
+import { MonitoringModule } from '../monitoring';
 import { Agent, Agency } from '../users/entities';
 import { UsersModule } from '../users';
 import { PublicListingSubmission } from './entities';
@@ -24,6 +25,7 @@ import { PublicListingSubmissionsService } from './public-listing-submissions.se
     ActivityModule,
     EmailModule,
     UsersModule,
+    MonitoringModule,
   ],
   controllers: [PublicListingSubmissionsController],
   providers: [PublicListingSubmissionsService],

@@ -6,6 +6,7 @@ import { Address } from './entities/address.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { UsersModule } from '../users';
 import { ActivityModule } from '../activity';
+import { MonitoringModule } from '../monitoring';
 import { ListingsService } from './listings.service';
 import { ListingsController } from './listings.controller';
 
@@ -14,6 +15,7 @@ import { ListingsController } from './listings.controller';
     TypeOrmModule.forFeature([Listing, ListingImage, Address, Agent]),
     UsersModule,
     ActivityModule,
+    MonitoringModule,
   ],
   controllers: [ListingsController],
   providers: [ListingsService],

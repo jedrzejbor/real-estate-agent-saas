@@ -17,6 +17,7 @@ import { ActivityService } from '../activity';
 import { AnalyticsService } from '../analytics';
 import { Client } from '../clients/entities/client.entity';
 import { ClientNote } from '../clients/entities/client-note.entity';
+import { MonitoringService } from '../monitoring';
 import {
   ActivityAction,
   ActivityEntityType,
@@ -113,6 +114,7 @@ export class PublicLeadsService {
     private readonly dataSource: DataSource,
     private readonly activityService: ActivityService,
     private readonly analyticsService: AnalyticsService,
+    private readonly monitoringService: MonitoringService,
   ) {}
 
   async findAll(
@@ -192,6 +194,28 @@ export class PublicLeadsService {
   }
 
   async createForPublicListing(
+    slug: string,
+    dto: CreatePublicLeadDto,
+    request: Request,
+  ): Promise<PublicLeadSubmitResult> {
+    return this.monitoringService.monitor(
+      {
+        flow: 'public_lead_listing',
+        failureEvent: 'lead_capture_failed',
+        successEvent: 'lead_captured',
+        context: { publicSlug: slug, source: dto.source },
+        successContext: (result) => ({
+          leadId: result.id,
+          status: result.status,
+          convertedClientId: result.convertedClientId,
+          conversion: result.conversion,
+        }),
+      },
+      () => this.createForPublicListingCore(slug, dto, request),
+    );
+  }
+
+  private async createForPublicListingCore(
     slug: string,
     dto: CreatePublicLeadDto,
     request: Request,
@@ -349,6 +373,28 @@ export class PublicLeadsService {
   }
 
   async createForPublicAgentProfile(
+    agentId: string,
+    dto: CreatePublicLeadDto,
+    request: Request,
+  ): Promise<PublicLeadSubmitResult> {
+    return this.monitoringService.monitor(
+      {
+        flow: 'public_lead_profile',
+        failureEvent: 'lead_capture_failed',
+        successEvent: 'lead_captured',
+        context: { agentId, source: dto.source },
+        successContext: (result) => ({
+          leadId: result.id,
+          status: result.status,
+          convertedClientId: result.convertedClientId,
+          conversion: result.conversion,
+        }),
+      },
+      () => this.createForPublicAgentProfileCore(agentId, dto, request),
+    );
+  }
+
+  private async createForPublicAgentProfileCore(
     agentId: string,
     dto: CreatePublicLeadDto,
     request: Request,
