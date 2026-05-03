@@ -1303,17 +1303,32 @@ Wersja freemium jest gotowa do kontrolowanego udostępnienia użytkownikom.
     - alerty są logowe i per-process, więc produkcyjny rollout powinien podpiąć te zdarzenia do APM / observability stack,
     - frontowe drop-offy onboardingowe wymagają docelowo osobnego funnel analytics w `F7.6`.
 
-- [ ] `F7.4` Przygotować test plan i przejść krytyczne scenariusze E2E
+- [x] `F7.4` Przygotować test plan i przejść krytyczne scenariusze E2E
   - Zakres: rejestracja, onboarding, publish listing, lead submit, limit reached, claim listing.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-03
   - Wykonano:
+    - przygotowano osobny test plan `docs/FREEMIUM_SPRINT_7_E2E_TEST_PLAN.md`,
+    - rozpisano krytyczne scenariusze E2E: rejestracja, onboarding, publikacja oferty, publiczny lead, limit freemium, publiczny wizard, verify/claim oraz abuse/legal,
+    - dodano negatywne testy bezpieczeństwa dla publicznych slugów, zgód, uploadów, antyspamu, wygasłych tokenów i auth boundary claim flow,
+    - wykonano dostępne lokalnie automatyczne bramki: unit smoke API, type-check API, type-check web i diff check.
   - Uwagi / follow-up:
+    - repo nie ma jeszcze Playwright/Cypress ani gotowego harnessu E2E, więc pełne przejście przeglądarkowe wymaga uruchomionego stacka lokalnego lub staging,
+    - automatyzacja E2E, seed danych testowych i testowy email sink powinny wejść przed szerszym publicznym rolloutem.
 
-- [ ] `F7.5` Przygotować release checklist i rollout plan
+- [x] `F7.5` Przygotować release checklist i rollout plan
   - Zakres: beta rollout, feature flags, support readiness, rollback plan.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-03
   - Wykonano:
+    - przygotowano osobny dokument `docs/FREEMIUM_SPRINT_7_RELEASE_ROLLOUT_PLAN.md`,
+    - zdefiniowano zakres release freemium MVP oraz funkcje poza release,
+    - dodano go/no-go checklist dla produktu, bezpieczeństwa, legal/privacy, monitoringu, supportu i technicznych bramek,
+    - opisano rollout fazami: freeze/smoke, internal beta, closed beta i public MVP launch,
+    - opisano rollback przez release flags bez cofania migracji,
+    - dodano abuse playbook i minimalne makra supportowe.
   - Uwagi / follow-up:
+    - kontrolowana beta może ruszyć z lokalnym storage po świadomej akceptacji ryzyka,
+    - publiczny launch wymaga formalnego legal review, finalnych danych operatora, potwierdzonych skrzynek kontaktowych oraz decyzji storage/retencja,
+    - automatyczny Playwright E2E, seeder i email sink pozostają rekomendacją przed szerszym rolloutem.
 
 - [ ] `F7.6` Przygotować dashboard metryk po starcie
   - Zakres: aktywacja, publikacja ofert, lead capture, claim flow, upgrade intent.
