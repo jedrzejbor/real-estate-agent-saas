@@ -221,6 +221,23 @@ export interface FreemiumMetricsSummary {
   claimCompletionRate: number;
 }
 
+export type FreemiumPostLaunchMetricStatus = 'healthy' | 'watch' | 'critical';
+
+export interface FreemiumPostLaunchHealthItem {
+  key:
+    | 'activation'
+    | 'publishing'
+    | 'lead_capture'
+    | 'claim_flow'
+    | 'limit_friction'
+    | 'upgrade_intent';
+  label: string;
+  status: FreemiumPostLaunchMetricStatus;
+  value: string;
+  target: string;
+  action: string;
+}
+
 export interface FreemiumMetricCount {
   key: FreemiumMetricKey;
   label: string;
@@ -259,6 +276,7 @@ export interface FreemiumMetricsReportResponse {
     byUpsell: FreemiumUpgradeIntentItem[];
     bySource: FreemiumUpgradeIntentItem[];
   };
+  postLaunchHealth: FreemiumPostLaunchHealthItem[];
   notes: string[];
 }
 
@@ -553,6 +571,21 @@ export class ReportsService {
     const claimStarts = eventMap.get('public_listing_claim_started') ?? 0;
     const claimCompletions =
       eventMap.get('public_listing_claim_completed') ?? 0;
+    const summary: FreemiumMetricsSummary = {
+      firstListings,
+      publishedListings,
+      publicViews,
+      publicShares,
+      publicLeads,
+      claimStarts,
+      claimCompletions,
+      limitWarnings: eventMap.get('limit_warning_shown') ?? 0,
+      limitsReached: eventMap.get('limit_reached') ?? 0,
+      upgradeClicks: eventMap.get('upgrade_cta_clicked') ?? 0,
+      publishRate: this.percentage(publishedListings, firstListings),
+      leadCaptureRate: this.percentage(publicLeads, publicViews),
+      claimCompletionRate: this.percentage(claimCompletions, claimStarts),
+    };
 
     return {
       generatedAt: new Date().toISOString(),
@@ -563,30 +596,119 @@ export class ReportsService {
         requestedAgentId: normalizedFilters.requestedAgentId,
         effectiveAgentIds: scope.effectiveAgentIds,
       },
-      summary: {
-        firstListings,
-        publishedListings,
-        publicViews,
-        publicShares,
-        publicLeads,
-        claimStarts,
-        claimCompletions,
-        limitWarnings: eventMap.get('limit_warning_shown') ?? 0,
-        limitsReached: eventMap.get('limit_reached') ?? 0,
-        upgradeClicks: eventMap.get('upgrade_cta_clicked') ?? 0,
-        publishRate: this.percentage(publishedListings, firstListings),
-        leadCaptureRate: this.percentage(publicLeads, publicViews),
-        claimCompletionRate: this.percentage(claimCompletions, claimStarts),
-      },
+      summary,
       events,
       timeline,
       upgradeIntent,
+      postLaunchHealth: this.buildFreemiumPostLaunchHealth(summary),
       notes: [
         'Raport Freemium agreguje wyłącznie eventy zapisane w `analytics_events` dla dostępnego zakresu agentów.',
         'Współczynniki są liczone jako proste relacje eventów w wybranym okresie, dlatego pokazują trend produktu, a nie pełną kohortową analitykę atrybucji.',
         'Upgrade intent bazuje na kliknięciach `upgrade_cta_clicked` i właściwościach `upsellId` oraz `source` przesyłanych z kart upsell.',
+        'Post-launch health używa progów operacyjnych MVP. Ma wskazywać, gdzie zespół powinien reagować po starcie, a nie zastępować analizę kohortową.',
       ],
     };
+  }
+
+  private buildFreemiumPostLaunchHealth(
+    summary: FreemiumMetricsSummary,
+  ): FreemiumPostLaunchHealthItem[] {
+    return [
+      {
+        key: 'activation',
+        label: 'Aktywacja',
+        status: this.rateStatus(summary.firstListings, 1, 3),
+        value: `${summary.firstListings} pierwszych ofert`,
+        target: 'min. 3 pierwsze oferty w okresie',
+        action:
+          summary.firstListings === 0
+            ? 'Sprawdź onboarding i CTA tworzenia pierwszej oferty.'
+            : 'Monitoruj, czy nowe konta dochodzą do pierwszej oferty.',
+      },
+      {
+        key: 'publishing',
+        label: 'Publikacja ofert',
+        status: this.rateStatus(summary.publishRate, 30, 60),
+        value: `${summary.publishRate}%`,
+        target: 'cel MVP >= 60%',
+        action:
+          summary.publishRate < 30
+            ? 'Przejrzyj walidację publikacji, zdjęcia i copy panelu publikacji.'
+            : 'Porównaj jakość ofert nieopublikowanych z wymaganiami publikacji.',
+      },
+      {
+        key: 'lead_capture',
+        label: 'Lead capture',
+        status:
+          summary.publicViews === 0
+            ? 'watch'
+            : this.rateStatus(summary.leadCaptureRate, 1, 3),
+        value: `${summary.leadCaptureRate}%`,
+        target: 'cel MVP >= 3%',
+        action:
+          summary.publicViews === 0
+            ? 'Najpierw zwiększ liczbę publicznych odsłon ofert.'
+            : 'Sprawdź widoczność formularza, zgody i źródła ruchu.',
+      },
+      {
+        key: 'claim_flow',
+        label: 'Claim flow',
+        status:
+          summary.claimStarts === 0
+            ? 'watch'
+            : this.rateStatus(summary.claimCompletionRate, 40, 70),
+        value: `${summary.claimCompletionRate}%`,
+        target: 'cel MVP >= 70%',
+        action:
+          summary.claimStarts === 0
+            ? 'Brak próby claim w okresie. Wykonaj test kontrolny z publicznego wizardu.'
+            : 'Sprawdź email verification, auth redirect i ekran claim listing.',
+      },
+      {
+        key: 'limit_friction',
+        label: 'Limit friction',
+        status:
+          summary.limitsReached > 0 && summary.upgradeClicks === 0
+            ? 'critical'
+            : summary.limitsReached > summary.upgradeClicks * 3
+              ? 'watch'
+              : 'healthy',
+        value: `${summary.limitsReached} limit / ${summary.upgradeClicks} upgrade`,
+        target: 'limit reached powinien prowadzić do upgrade intent',
+        action:
+          summary.limitsReached > 0 && summary.upgradeClicks === 0
+            ? 'Sprawdź CTA upgrade przy limitach i komunikaty błędu.'
+            : 'Monitoruj, czy ograniczenia free są zrozumiałe dla użytkowników.',
+      },
+      {
+        key: 'upgrade_intent',
+        label: 'Upgrade intent',
+        status:
+          summary.upgradeClicks === 0
+            ? 'watch'
+            : summary.upgradeClicks >= 3
+              ? 'healthy'
+              : 'watch',
+        value: `${summary.upgradeClicks} kliknięć`,
+        target: 'pierwsze kliknięcia upgrade w okresie',
+        action:
+          summary.upgradeClicks === 0
+            ? 'Sprawdź widoczność upselli i destination `/dashboard/upgrade`.'
+            : 'Przejrzyj najskuteczniejsze źródła intencji upgrade.',
+      },
+    ];
+  }
+
+  private rateStatus(
+    value: number,
+    watchThreshold: number,
+    healthyThreshold: number,
+  ): FreemiumPostLaunchMetricStatus {
+    if (value >= healthyThreshold) {
+      return 'healthy';
+    }
+
+    return value >= watchThreshold ? 'watch' : 'critical';
   }
 
   private getPreviousPeriod(filters: NormalizedFilters): NormalizedFilters {

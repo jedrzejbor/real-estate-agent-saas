@@ -205,6 +205,23 @@ export interface FreemiumMetricsSummary {
   claimCompletionRate: number;
 }
 
+export type FreemiumPostLaunchMetricStatus = 'healthy' | 'watch' | 'critical';
+
+export interface FreemiumPostLaunchHealthItem {
+  key:
+    | 'activation'
+    | 'publishing'
+    | 'lead_capture'
+    | 'claim_flow'
+    | 'limit_friction'
+    | 'upgrade_intent';
+  label: string;
+  status: FreemiumPostLaunchMetricStatus;
+  value: string;
+  target: string;
+  action: string;
+}
+
 export interface FreemiumMetricCount {
   key: FreemiumMetricKey;
   label: string;
@@ -243,6 +260,7 @@ export interface FreemiumMetricsReportResponse {
     byUpsell: FreemiumUpgradeIntentItem[];
     bySource: FreemiumUpgradeIntentItem[];
   };
+  postLaunchHealth: FreemiumPostLaunchHealthItem[];
   notes: string[];
 }
 

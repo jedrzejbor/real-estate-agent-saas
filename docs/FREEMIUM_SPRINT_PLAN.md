@@ -1330,11 +1330,17 @@ Wersja freemium jest gotowa do kontrolowanego udostępnienia użytkownikom.
     - publiczny launch wymaga formalnego legal review, finalnych danych operatora, potwierdzonych skrzynek kontaktowych oraz decyzji storage/retencja,
     - automatyczny Playwright E2E, seeder i email sink pozostają rekomendacją przed szerszym rolloutem.
 
-- [ ] `F7.6` Przygotować dashboard metryk po starcie
+- [x] `F7.6` Przygotować dashboard metryk po starcie
   - Zakres: aktywacja, publikacja ofert, lead capture, claim flow, upgrade intent.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-03
   - Wykonano:
+    - rozszerzono endpoint `GET /api/reports/freemium-metrics` o `postLaunchHealth`,
+    - dodano operacyjne statusy KPI dla aktywacji, publikacji ofert, lead capture, claim flow, limit friction i upgrade intent,
+    - rozszerzono sekcję `Freemium growth` na `/dashboard/reports` o panel `Post-launch health` z akcjami rekomendowanymi dla zespołu,
+    - przygotowano osobny opis operacyjny `docs/FREEMIUM_SPRINT_7_POST_LAUNCH_METRICS_DASHBOARD.md`.
   - Uwagi / follow-up:
+    - progi są MVP i powinny zostać skalibrowane po pierwszych danych z bety,
+    - globalny widok admina, kohorty, eksport i alerty APM pozostają follow-upem po starcie.
 
 #### Definition of Done
 

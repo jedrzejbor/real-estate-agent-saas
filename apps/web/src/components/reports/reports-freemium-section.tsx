@@ -2,7 +2,10 @@ import type { ElementType } from 'react';
 import { MousePointerClick, RadioTower, TrendingUp, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ReportSectionCard } from './report-section-card';
-import type { FreemiumMetricsReportResponse } from '@/lib/reports';
+import type {
+  FreemiumMetricsReportResponse,
+  FreemiumPostLaunchMetricStatus,
+} from '@/lib/reports';
 
 interface ReportsFreemiumSectionProps {
   data: FreemiumMetricsReportResponse;
@@ -123,6 +126,38 @@ export function ReportsFreemiumSection({ data }: ReportsFreemiumSectionProps) {
       </div>
 
       <ReportSectionCard
+        title="Post-launch health"
+        description="Operacyjna lista KPI do sprawdzania po starcie bety i publicznego MVP."
+      >
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {data.postLaunchHealth.map((item) => (
+            <div
+              key={item.key}
+              className="rounded-xl border border-border/70 bg-white p-3 text-sm shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium text-foreground">{item.label}</p>
+                  <p className="mt-1 text-lg font-semibold text-foreground">
+                    {item.value}
+                  </p>
+                </div>
+                <Badge variant={POST_LAUNCH_STATUS_VARIANT[item.status]}>
+                  {POST_LAUNCH_STATUS_LABEL[item.status]}
+                </Badge>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Cel: {item.target}
+              </p>
+              <p className="mt-2 rounded-lg bg-muted/40 px-2.5 py-2 text-xs leading-5 text-muted-foreground">
+                {item.action}
+              </p>
+            </div>
+          ))}
+        </div>
+      </ReportSectionCard>
+
+      <ReportSectionCard
         title="Eventy freemium"
         description="Surowe liczniki najważniejszych zdarzeń aktywacji i monetyzacji."
       >
@@ -153,6 +188,22 @@ export function ReportsFreemiumSection({ data }: ReportsFreemiumSectionProps) {
     </section>
   );
 }
+
+const POST_LAUNCH_STATUS_LABEL: Record<FreemiumPostLaunchMetricStatus, string> =
+  {
+    healthy: 'OK',
+    watch: 'Obserwuj',
+    critical: 'Reaguj',
+  };
+
+const POST_LAUNCH_STATUS_VARIANT: Record<
+  FreemiumPostLaunchMetricStatus,
+  'success' | 'warning' | 'destructive'
+> = {
+  healthy: 'success',
+  watch: 'warning',
+  critical: 'destructive',
+};
 
 function MetricCard({
   icon: Icon,
