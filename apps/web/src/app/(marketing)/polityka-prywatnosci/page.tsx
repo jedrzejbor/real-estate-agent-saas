@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Container } from '@/components/layout';
+import { LEGAL_COPY, LEGAL_META, LEGAL_RETENTION } from '@/lib/legal';
 
 export const metadata: Metadata = {
   title: 'Polityka prywatności | EstateFlow',
@@ -23,6 +24,17 @@ export default function PrivacyPolicyPage() {
           Wersja robocza produktu MVP. Przed publicznym launch’em dokument
           powinien zostać zweryfikowany prawnie.
         </p>
+        <p className="mt-2 text-xs leading-6 text-muted-foreground">
+          Wersja: {LEGAL_META.version}. Data obowiązywania:{' '}
+          {LEGAL_META.effectiveDate}. Kontakt:{' '}
+          <a
+            href={`mailto:${LEGAL_META.contactEmail}`}
+            className="font-medium text-primary hover:underline"
+          >
+            {LEGAL_META.contactEmail}
+          </a>
+          .
+        </p>
 
         <div className="mt-8 space-y-8">
           <Section title="Administrator i role">
@@ -31,6 +43,11 @@ export default function PrivacyPolicyPage() {
               administratorem danych jest agent lub biuro obsługujące ofertę
               albo profil. EstateFlow działa jako dostawca narzędzia do obsługi
               formularzy, leadów i zgłoszeń.
+            </p>
+            <p>
+              Jeżeli EstateFlow przetwarza dane na zlecenie biura lub agenta,
+              docelowo relacja powinna zostać opisana w umowie powierzenia
+              przetwarzania danych albo równoważnym załączniku DPA.
             </p>
           </Section>
 
@@ -68,6 +85,47 @@ export default function PrivacyPolicyPage() {
               zgody, jeżeli właściwe przepisy dają takie uprawnienia. Wnioski
               powinny być kierowane do agenta lub biura obsługującego ofertę
               albo profil.
+            </p>
+            <p>
+              {LEGAL_COPY.rightsContact} Kontakt pomocniczy EstateFlow:{' '}
+              <a
+                href={`mailto:${LEGAL_META.contactEmail}`}
+                className="font-medium text-primary hover:underline"
+              >
+                {LEGAL_META.contactEmail}
+              </a>
+              .
+            </p>
+          </Section>
+
+          <Section title="Retencja i usuwanie danych">
+            <p>{LEGAL_RETENTION.publicLeads}</p>
+            <p>{LEGAL_RETENTION.publicSubmissions}</p>
+            <p>{LEGAL_RETENTION.analytics}</p>
+            <p>
+              Wniosek o usunięcie publicznej oferty, danych kontaktowych lub
+              tymczasowych materiałów powinien zawierać adres URL oferty albo
+              identyfikator zgłoszenia, aby zespół mógł odnaleźć właściwy
+              rekord.
+            </p>
+          </Section>
+
+          <Section title="Bezpieczeństwo i nadużycia">
+            <p>
+              Publiczne formularze mogą zapisywać dane techniczne potrzebne do
+              ochrony przed spamem, nadużyciami i próbami podszywania się pod
+              inne osoby.
+            </p>
+            <p>
+              Zgłoszenia nadużyć można wysłać z publicznej strony oferty lub
+              mailowo na adres{' '}
+              <a
+                href={`mailto:${LEGAL_META.abuseEmail}`}
+                className="font-medium text-primary hover:underline"
+              >
+                {LEGAL_META.abuseEmail}
+              </a>
+              .
             </p>
           </Section>
         </div>

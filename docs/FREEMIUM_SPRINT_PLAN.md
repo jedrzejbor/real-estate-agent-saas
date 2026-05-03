@@ -1273,11 +1273,22 @@ Wersja freemium jest gotowa do kontrolowanego udostępnienia użytkownikom.
     - abuse moderation pozostaje ręczna i wymaga procedury operacyjnej w rollout checklist,
     - legal copy nadal wymaga review w `F7.2`.
 
-- [ ] `F7.2` Domknąć kwestie regulaminowe i prywatności
+- [x] `F7.2` Domknąć kwestie regulaminowe i prywatności
   - Zakres: zgody, polityka prywatności, zasady publikacji, abuse workflow.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-03
   - Wykonano:
+    - przygotowano osobny closeout `docs/FREEMIUM_SPRINT_7_LEGAL_PRIVACY_CLOSEOUT.md`,
+    - dodano centralne `LEGAL_META` z wersją dokumentów, datą obowiązywania i kanałami kontaktu legal/support/abuse,
+    - dodano centralne opisy retencji `LEGAL_RETENTION`,
+    - zaktualizowano politykę prywatności o role administrator/procesor, retencję, usuwanie danych, DPA i kanał kontaktu,
+    - zaktualizowano regulamin o kontakt, zgłoszenia, usunięcie danych/oferty i ręczną reakcję na naruszenia,
+    - zaktualizowano zasady publikacji o procedurę weryfikacji abuse i usunięcie oferty/danych,
+    - widoczny abuse report pokazuje dodatkowy kanał `abuse@estateflow.pl` dla pilnych zgłoszeń.
   - Uwagi / follow-up:
+    - dokumenty są produktowo domknięte dla MVP, ale publiczny launch wymaga review prawnika,
+    - przed rolloutem trzeba potwierdzić finalnego operatora danych i działające skrzynki legal/support/abuse,
+    - jeśli EstateFlow działa jako procesor dla biur, trzeba przygotować DPA / umowę powierzenia,
+    - decyzje o retencji i cleanupie tymczasowych zdjęć powinny wejść do release checklist.
 
 - [ ] `F7.3` Dodać monitoring i alerty dla kluczowych flow
   - Zakres: błędy publikacji, formularze leadowe, claim flow, onboarding drop-offs.

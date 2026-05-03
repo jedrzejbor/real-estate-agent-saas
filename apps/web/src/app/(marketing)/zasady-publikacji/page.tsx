@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Container } from '@/components/layout';
+import { LEGAL_COPY, LEGAL_META } from '@/lib/legal';
 
 export const metadata: Metadata = {
   title: 'Zasady publikacji ofert | EstateFlow',
@@ -22,6 +23,17 @@ export default function PublicationRulesPage() {
         <p className="mt-3 text-xs leading-6 text-muted-foreground">
           Wersja robocza produktu MVP. Przed publicznym launch’em dokument
           powinien zostać zweryfikowany prawnie.
+        </p>
+        <p className="mt-2 text-xs leading-6 text-muted-foreground">
+          Wersja: {LEGAL_META.version}. Data obowiązywania:{' '}
+          {LEGAL_META.effectiveDate}. Zgłoszenia:{' '}
+          <a
+            href={`mailto:${LEGAL_META.abuseEmail}`}
+            className="font-medium text-primary hover:underline"
+          >
+            {LEGAL_META.abuseEmail}
+          </a>
+          .
         </p>
 
         <div className="mt-8 space-y-8">
@@ -52,6 +64,20 @@ export default function PublicationRulesPage() {
             Publiczna strona oferty zawiera mechanizm zgłoszenia nadużycia.
             Zgłoszenia trafiają do logu operacyjnego i mogą skutkować ręczną
             weryfikacją albo wycofaniem oferty.
+          </Rule>
+
+          <Rule title="Procedura weryfikacji zgłoszeń">
+            {LEGAL_COPY.abuseProcedure} W pierwszej kolejności zespół powinien
+            sprawdzić powód zgłoszenia, URL oferty, dane kontaktowe właściciela
+            lub agenta oraz historię publikacji. W razie ryzyka oferta może
+            zostać ręcznie wycofana do czasu wyjaśnienia.
+          </Rule>
+
+          <Rule title="Usunięcie oferty lub danych">
+            Prośba o usunięcie publicznej oferty, zdjęć albo danych kontaktowych
+            powinna zawierać adres URL oferty lub dane pozwalające jednoznacznie
+            odnaleźć zgłoszenie. Wnioski można kierować do agenta, biura albo
+            pomocniczo na adres {LEGAL_META.contactEmail}.
           </Rule>
         </div>
       </article>

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Container } from '@/components/layout';
-import { LEGAL_LINKS } from '@/lib/legal';
+import { LEGAL_META, LEGAL_LINKS } from '@/lib/legal';
 
 export const metadata: Metadata = {
   title: 'Regulamin | EstateFlow',
@@ -41,6 +41,7 @@ export default function TermsPage() {
           body: [
             'Zasady przetwarzania danych osobowych opisuje Polityka prywatności.',
             'W przypadku formularzy publicznych dane są wykorzystywane przede wszystkim do obsługi zapytania, kontaktu zwrotnego i ochrony przed nadużyciami.',
+            'Użytkownik korzystający z EstateFlow jako biuro lub agent powinien upewnić się, że ma właściwą podstawę do przetwarzania danych klientów, leadów i osób kontaktowych.',
           ],
           links: [{ label: 'Polityka prywatności', href: LEGAL_LINKS.privacy }],
         },
@@ -48,12 +49,21 @@ export default function TermsPage() {
           title: 'Zasady publikacji ofert',
           body: [
             'Publiczne oferty muszą spełniać dodatkowe zasady dotyczące poprawności danych, praw do zdjęć, ochrony prywatności i zakazu spamu.',
+            'EstateFlow może ręcznie zweryfikować, ograniczyć widoczność lub wycofać publiczną ofertę po zgłoszeniu nadużycia albo wykryciu ryzyka naruszenia zasad.',
           ],
           links: [
             {
               label: 'Zasady publikacji ofert',
               href: LEGAL_LINKS.publicationRules,
             },
+          ],
+        },
+        {
+          title: 'Kontakt, zgłoszenia i usunięcie danych',
+          body: [
+            `Sprawy związane z kontem, publiczną ofertą lub zgłoszeniem można kierować na ${LEGAL_META.supportEmail}.`,
+            `Zgłoszenia nadużyć można wysyłać z publicznej strony oferty albo mailowo na ${LEGAL_META.abuseEmail}.`,
+            'Wniosek o usunięcie publicznej oferty lub danych powinien zawierać adres URL oferty, identyfikator zgłoszenia albo dane pozwalające odnaleźć rekord.',
           ],
         },
       ]}
@@ -83,6 +93,10 @@ function LegalDocument({ title, lead, sections }: LegalDocumentProps) {
         <p className="mt-3 text-xs leading-6 text-muted-foreground">
           Wersja robocza produktu MVP. Przed publicznym launch’em dokumenty
           powinny zostać zweryfikowane prawnie.
+        </p>
+        <p className="mt-2 text-xs leading-6 text-muted-foreground">
+          Wersja: {LEGAL_META.version}. Data obowiązywania:{' '}
+          {LEGAL_META.effectiveDate}.
         </p>
 
         <div className="mt-8 space-y-8">

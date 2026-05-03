@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage } from '@/lib/api-client';
+import { LEGAL_META } from '@/lib/legal';
 import { reportPublicListingAbuse } from '@/lib/listings';
 import { cn } from '@/lib/utils';
 
@@ -104,7 +105,14 @@ export function PublicListingAbuseReport({
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
               Zgłoszenie trafia do logu operacyjnego EstateFlow razem z
-              identyfikatorem oferty.
+              identyfikatorem oferty. Pilne sprawy można też zgłosić na{' '}
+              <a
+                href={`mailto:${LEGAL_META.abuseEmail}`}
+                className="font-medium text-primary hover:underline"
+              >
+                {LEGAL_META.abuseEmail}
+              </a>
+              .
             </p>
             <div className="grid gap-2">
               {ABUSE_REASONS.map((item) => (
