@@ -28,6 +28,7 @@ import { ApiError } from '@/lib/api-client';
 import { PublicListingAnalytics } from '@/components/listings/public-listing-analytics';
 import { PublicListingAbuseReport } from '@/components/listings/public-listing-abuse-report';
 import { PublicListingContactForm } from '@/components/listings/public-listing-contact-form';
+import { PublicListingGallery } from '@/components/listings/public-listing-gallery';
 
 interface PublicListingPageProps {
   params: Promise<{ slug: string }>;
@@ -258,19 +259,12 @@ export default async function PublicListingPage({
           </section>
 
           {galleryImages.length > 0 ? (
-            <section className="space-y-3">
-              <h2 className="font-heading text-2xl font-semibold">Galeria</h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {galleryImages.map((image) => (
-                  <img
-                    key={image.id}
-                    src={image.url}
-                    alt={image.altText || listing.title}
-                    className="aspect-[4/3] w-full rounded-2xl object-cover"
-                  />
-                ))}
-              </div>
-            </section>
+            <PublicListingGallery
+              slug={listing.slug}
+              listingId={listing.id}
+              listingTitle={listing.title}
+              images={galleryImages}
+            />
           ) : null}
         </div>
 
@@ -350,10 +344,10 @@ function getPrimaryImageUrl(listing: PublicListing): string | null {
 }
 
 function getGalleryImages(listing: PublicListing) {
-  const primaryImage = getPrimaryImageUrl(listing);
-  return listing.images
-    .filter((image) => image.url !== primaryImage)
-    .slice(0, 6);
+  return listing.images.slice().sort((a, b) => {
+    if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+    return a.order - b.order;
+  });
 }
 
 function getSeoImageUrl(listing: PublicListing): string {

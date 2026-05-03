@@ -1187,7 +1187,7 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
     - formularz zainteresowania nie zmienia planu użytkownika automatycznie, tylko zapisuje intencję do ręcznej obsługi,
     - przed produkcyjnym billingiem trzeba dodać backendowy model leadów upgrade albo integrację z płatnościami/CRM sprzedażowym.
 
-- [ ] `F6.5.7` Dodać wygodną publiczną galerię zdjęć oferty
+- [x] `F6.5.7` Dodać wygodną publiczną galerię zdjęć oferty
   - Zakres: poprawa UX przeglądania zdjęć na `/oferty/[slug]`.
   - Minimalny zakres MVP:
     - lightbox / pełnoekranowy viewer na publicznej stronie oferty,
@@ -1197,11 +1197,18 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
     - tap-friendly controls na mobile,
     - zachowanie alt text i kolejności zdjęć,
     - analytics event np. `public_listing_gallery_opened` oraz `public_listing_gallery_image_viewed`.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-02
   - Wykonano:
+    - dodano klientowy komponent `PublicListingGallery` na publicznej stronie `/oferty/[slug]`,
+    - galeria pokazuje pełną uporządkowaną listę zdjęć oferty, włącznie ze zdjęciem głównym,
+    - dodano lightbox / pełnoekranowy viewer z licznikiem zdjęć, paskiem miniatur i zamykaniem przez `Escape`,
+    - dodano nawigację poprzednie/następne przez przyciski oraz strzałki klawiatury,
+    - UI działa jako tap-friendly mosaic + miniatury na mobile i desktopie,
+    - dodano eventy `public_listing_gallery_opened` oraz `public_listing_gallery_image_viewed` w public analytics.
   - Uwagi / follow-up:
-    - nie wymaga zmiany backendu, jeśli obecny model `ListingImage` i kolejność są wystarczające,
-    - warto nie przeciążać pierwszego renderu: hero + lazy loading galerii.
+    - backendowy model zdjęć pozostał bez zmian; komponent bazuje na `ListingImage.url`, `order`, `isPrimary` i `altText`,
+    - hero nadal renderuje główne zdjęcie server-side dla SEO/OG, a galeria ładuje pozostałe miniatury leniwie,
+    - w przyszłości można dodać swipe gestures, jeśli testy mobilne pokażą taką potrzebę.
 
 #### Audit przed zamknięciem Sprintu 6.5 — publiczne odkrywanie ofert
 

@@ -19,6 +19,8 @@ export const ANALYTICS_EVENT_NAMES = [
   'public_listing_viewed',
   'public_listing_share_clicked',
   'public_listing_link_copied',
+  'public_listing_gallery_opened',
+  'public_listing_gallery_image_viewed',
   'public_listing_abuse_reported',
   'public_lead_submitted',
   'public_lead_accepted',
@@ -38,6 +40,8 @@ export const PUBLIC_LISTING_ANALYTICS_EVENT_NAMES = [
   'public_listing_viewed',
   'public_listing_share_clicked',
   'public_listing_link_copied',
+  'public_listing_gallery_opened',
+  'public_listing_gallery_image_viewed',
   'public_listing_abuse_reported',
   'public_lead_submitted',
 ] as const;
