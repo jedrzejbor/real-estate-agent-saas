@@ -9,6 +9,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { PublicSlugPipe } from '../common/public-param-security';
 import { AnalyticsService } from './analytics.service';
 import {
   CreateAnalyticsEventDto,
@@ -35,7 +36,7 @@ export class AnalyticsController {
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(HttpStatus.ACCEPTED)
   async trackPublicListing(
-    @Param('slug') slug: string,
+    @Param('slug', PublicSlugPipe) slug: string,
     @Body() dto: CreatePublicListingAnalyticsEventDto,
   ) {
     return this.analyticsService.trackPublicListing(slug, dto);

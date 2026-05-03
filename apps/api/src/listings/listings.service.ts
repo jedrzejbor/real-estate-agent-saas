@@ -25,6 +25,7 @@ import {
 } from '../common/enums';
 import { FeatureAccessDeniedException } from '../common/exceptions/feature-access-denied.exception';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
+import { assertSafeImageUpload } from '../common/image-upload-security';
 import { assertPublicListingModerationPassed } from '../common/public-listing-moderation';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingImageDto } from './dto/listing-image.dto';
@@ -995,6 +996,8 @@ export class ListingsService {
     const savedFiles: Array<{ filename: string; url: string }> = [];
 
     for (const file of files) {
+      assertSafeImageUpload(file);
+
       const filename = `${randomUUID()}${normalizeImageExtension(
         file.originalname,
         file.mimetype,

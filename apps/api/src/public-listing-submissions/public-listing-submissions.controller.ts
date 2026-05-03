@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Post,
   Req,
   UploadedFiles,
@@ -96,7 +97,10 @@ export class PublicListingSubmissionsController {
   @Post(':id/resend-verification')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.ACCEPTED)
-  async resendVerification(@Param('id') id: string, @Req() request: Request) {
+  async resendVerification(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ) {
     return this.submissionsService.resendVerification(id, request);
   }
 

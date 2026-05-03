@@ -14,6 +14,7 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { PublicSlugPipe } from '../common/public-param-security';
 import { CreatePublicLeadDto, PublicLeadQueryDto } from './dto';
 import { PublicLeadsService } from './public-leads.service';
 
@@ -36,7 +37,7 @@ export class PublicLeadsController {
   @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @HttpCode(HttpStatus.CREATED)
   async createForPublicListing(
-    @Param('slug') slug: string,
+    @Param('slug', PublicSlugPipe) slug: string,
     @Body() dto: CreatePublicLeadDto,
     @Req() request: Request,
   ) {

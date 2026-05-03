@@ -25,6 +25,7 @@ import {
 } from './dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { PublicSlugPipe } from '../common/public-param-security';
 
 interface UploadedImageFile {
   buffer: Buffer;
@@ -109,7 +110,7 @@ export class ListingsController {
   /** GET /api/listings/public/:slug — get public listing by slug. */
   @Public()
   @Get('public/:slug')
-  async findPublicBySlug(@Param('slug') slug: string) {
+  async findPublicBySlug(@Param('slug', PublicSlugPipe) slug: string) {
     return this.listingsService.findPublicBySlug(slug);
   }
 

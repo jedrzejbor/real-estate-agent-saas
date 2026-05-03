@@ -40,6 +40,7 @@ import {
   type PublicListingModerationResult,
 } from '../common/public-listing-moderation';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
+import { assertSafeImageUpload } from '../common/image-upload-security';
 import {
   ClaimPublicListingSubmissionDto,
   CreatePublicListingSubmissionDto,
@@ -207,6 +208,8 @@ export class PublicListingSubmissionsService {
     const images: PublicListingSubmissionUploadedImage[] = [];
 
     for (const [index, file] of files.entries()) {
+      assertSafeImageUpload(file);
+
       const filename = `${randomBytes(16).toString('hex')}${normalizeImageExtension(
         file.originalname,
         file.mimetype,

@@ -1257,11 +1257,21 @@ Wersja freemium jest gotowa do kontrolowanego udostępnienia użytkownikom.
 
 #### Zadania
 
-- [ ] `F7.1` Wykonać przegląd bezpieczeństwa dla funkcji publicznych
+- [x] `F7.1` Wykonać przegląd bezpieczeństwa dla funkcji publicznych
   - Zakres: auth boundaries, public endpoints, abuse cases, upload review, rate limit review.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-03
   - Wykonano:
+    - przygotowano osobny raport `docs/FREEMIUM_SPRINT_7_SECURITY_REVIEW.md`,
+    - przejrzano publiczne endpointy listingów, publicznych submissionów, public leads i public analytics,
+    - potwierdzono, że claim listing, listing CRUD, upload CRM i raporty pozostają za auth boundary,
+    - dodano `PublicSlugPipe` i podpięto walidację publicznych slugów w public listing, public lead i public analytics endpoints,
+    - dodano `ParseUUIDPipe` dla resend verification,
+    - dodano magic-bytes validation dla uploadów zdjęć CRM i publicznych submissionów.
   - Uwagi / follow-up:
+    - lokalny storage `uploads` jest akceptowalny dla kontrolowanego MVP, ale storage obiektowy powinien być decyzją release checklist,
+    - brakuje automatycznego cleanupu nieprzejętych zdjęć publicznych submissionów,
+    - abuse moderation pozostaje ręczna i wymaga procedury operacyjnej w rollout checklist,
+    - legal copy nadal wymaga review w `F7.2`.
 
 - [ ] `F7.2` Domknąć kwestie regulaminowe i prywatności
   - Zakres: zgody, polityka prywatności, zasady publikacji, abuse workflow.
