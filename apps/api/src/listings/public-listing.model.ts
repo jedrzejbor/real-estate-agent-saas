@@ -69,6 +69,59 @@ export interface PublicListingSitemapEntry {
   updatedAt: Date;
 }
 
+export interface PublicListingCatalogAddress {
+  city: string;
+  district?: string | null;
+  voivodeship?: string | null;
+}
+
+export interface PublicListingCatalogAgent {
+  id?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  agency?: {
+    id: string;
+    name: string;
+    logoUrl?: string | null;
+  } | null;
+}
+
+export interface PublicListingCatalogItem {
+  id: string;
+  slug: string;
+  title: string;
+  propertyType: PropertyType;
+  transactionType: TransactionType;
+  price?: number | string | null;
+  currency: string;
+  areaM2?: number | string | null;
+  plotAreaM2?: number | string | null;
+  rooms?: number | null;
+  address?: PublicListingCatalogAddress | null;
+  primaryImage?: {
+    id: string;
+    url: string;
+    altText?: string | null;
+  } | null;
+  imageCount: number;
+  agent?: PublicListingCatalogAgent | null;
+  publishedAt: Date;
+  updatedAt: Date;
+}
+
+export interface PublicListingCatalogMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  sort: string;
+}
+
+export interface PublicListingCatalogResponse {
+  data: PublicListingCatalogItem[];
+  meta: PublicListingCatalogMeta;
+}
+
 export interface PublicAgentProfileListing {
   id: string;
   slug: string;

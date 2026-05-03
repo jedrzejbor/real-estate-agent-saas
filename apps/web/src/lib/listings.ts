@@ -199,6 +199,78 @@ export interface PublicListingSitemapEntry {
   updatedAt: string;
 }
 
+export const PublicListingCatalogSort = {
+  NEWEST: 'newest',
+  PRICE_ASC: 'price_asc',
+  PRICE_DESC: 'price_desc',
+  AREA_ASC: 'area_asc',
+  AREA_DESC: 'area_desc',
+} as const;
+
+export type PublicListingCatalogSort =
+  (typeof PublicListingCatalogSort)[keyof typeof PublicListingCatalogSort];
+
+export interface PublicListingCatalogFilters {
+  city?: string;
+  district?: string;
+  voivodeship?: string;
+  propertyType?: PropertyType;
+  transactionType?: TransactionType;
+  priceMin?: number;
+  priceMax?: number;
+  areaMin?: number;
+  areaMax?: number;
+  roomsMin?: number;
+  roomsMax?: number;
+  q?: string;
+  sort?: PublicListingCatalogSort;
+  page?: number;
+  limit?: number;
+}
+
+export interface PublicListingCatalogItem {
+  id: string;
+  slug: string;
+  title: string;
+  propertyType: PropertyType;
+  transactionType: TransactionType;
+  price?: number | string | null;
+  currency: string;
+  areaM2?: number | string | null;
+  plotAreaM2?: number | string | null;
+  rooms?: number | null;
+  address?: {
+    city: string;
+    district?: string | null;
+    voivodeship?: string | null;
+  } | null;
+  primaryImage?: {
+    id: string;
+    url: string;
+    altText?: string | null;
+  } | null;
+  imageCount: number;
+  agent?: {
+    id?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    agency?: {
+      id: string;
+      name: string;
+      logoUrl?: string | null;
+    } | null;
+  } | null;
+  publishedAt: string;
+  updatedAt: string;
+}
+
+export interface PublicListingCatalogResponse {
+  data: PublicListingCatalogItem[];
+  meta: PaginationMeta & {
+    sort: PublicListingCatalogSort;
+  };
+}
+
 export interface PublicAgentProfileListing {
   id: string;
   slug: string;

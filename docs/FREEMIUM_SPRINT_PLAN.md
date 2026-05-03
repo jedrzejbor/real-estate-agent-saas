@@ -1368,15 +1368,22 @@ Użytkownik końcowy może wejść na `/oferty`, wyszukać nieruchomości, filtr
 
 #### Zadania
 
-- [ ] `F8.1` Zaprojektować kontrakt publicznego katalogu ofert
+- [x] `F8.1` Zaprojektować kontrakt publicznego katalogu ofert
   - Zakres: DTO, query params, response model, pola publiczne, limity i zasady prywatności.
   - Uwagi:
     - endpoint musi zwracać wyłącznie `publicationStatus = published`,
     - nie używać prywatnego endpointu `/api/listings`, bo respektuje scope zalogowanego agenta,
     - endpoint sitemap powinien pozostać lekki i osobny.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-03
   - Wykonano:
+    - przygotowano dokument kontraktu `docs/FREEMIUM_SPRINT_8_PUBLIC_CATALOG_CONTRACT.md`,
+    - dodano backendowy `PublicListingCatalogQueryDto` z bezpiecznymi limitami filtrów, sortowania i paginacji,
+    - dodano publiczny model odpowiedzi katalogu w `public-listing.model.ts`,
+    - dodano zgodne typy webowe dla filtrów, sortowania, karty katalogowej i odpowiedzi katalogu,
+    - ustalono separację endpointów: sitemap, szczegół oferty, katalog i prywatny CRM listing API.
   - Uwagi / follow-up:
+    - implementacja endpointu w `F8.2` powinna użyć osobnej trasy `GET /api/listings/public/catalog`,
+    - katalog nie może zwracać dokładnego adresu ani współrzędnych; mapa w Sprincie 9 wymaga osobnej decyzji prywatności.
 
 - [ ] `F8.2` Dodać publiczny endpoint wyszukiwania ofert
   - Zakres: lista wyników, filtry, sortowanie, paginacja i bezpieczne limity.
