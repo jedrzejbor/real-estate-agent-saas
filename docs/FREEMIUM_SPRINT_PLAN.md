@@ -1477,21 +1477,31 @@ Użytkownik może przeglądać oferty na mapie, zaznaczyć obszar i zawęzić wy
 
 #### Zadania
 
-- [ ] `F9.1` Podjąć decyzje techniczne i prywatnościowe dla mapy
+- [x] `F9.1` Podjąć decyzje techniczne i prywatnościowe dla mapy
   - Zakres: biblioteka mapy, dostawca kafelków/geokodowania, dokładność lokalizacji, koszty i limity.
   - Minimalny zakres MVP:
     - decyzja, czy pokazujemy dokładny punkt, przybliżony punkt, czy tylko obszar,
     - reguły dla ofert z `showExactAddressOnPublicPage = false`,
     - fallback dla ofert bez `lat/lng`,
     - decyzja, czy MVP używa prostego `BETWEEN`, czy od razu PostGIS.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-05
   - Wykonano:
+    - dodano dokument decyzyjny `docs/FREEMIUM_SPRINT_9_MAP_DECISIONS.md`,
+    - wybrano `Leaflet` jako bibliotekę mapy dla MVP, z `MapLibre GL JS` zostawionym jako późniejsza ścieżka dla map wektorowych / większej skali,
+    - ustalono, że URL kafelków, atrybucja i nazwa dostawcy mają być konfigurowalne przez zmienne `NEXT_PUBLIC_MAP_TILE_URL`, `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION` i opcjonalnie `NEXT_PUBLIC_MAP_PROVIDER_NAME`,
+    - zdecydowano, że publiczny rollout wymaga dostawcy kafelków z potwierdzonymi limitami/kosztami, a standardowe kafelki OpenStreetMap mogą być tylko bezpiecznym ustawieniem developerskim albo niskoruchowym fallbackiem zgodnym z policy,
+    - wyłączono publiczne geokodowanie po stronie przeglądarki z MVP; późniejsze geokodowanie ofert powinno działać backendowo z cache, limitem i dostawcą dopuszczającym taki use case,
+    - zdefiniowano rozdział między prywatnymi `address.lat/lng` a publicznym `mapPoint`, aby `bbox` nie ujawniał dokładnej lokalizacji ofert z `showExactAddressOnPublicPage = false`,
+    - zdecydowano, że MVP używa prostego filtrowania `bbox` po publicznym punkcie mapy, a PostGIS zostaje follow-upem dla wielokątów, promieni i większej skali.
   - Uwagi / follow-up:
+    - `F9.2` powinno dodać `mapPoint` z `precision: exact | approximate`, walidację `bbox`, osobny limit markerów i testy prywatności dla ukrytych dokładnych adresów,
+    - oferty bez bezpiecznego publicznego punktu mapy pozostają w liście, ale nie dostają markera i nie trafiają do wyników aktywnego `bbox`,
+    - przed produkcyjnym włączeniem mapy trzeba potwierdzić dostawcę kafelków, limity, koszty, atrybucję i monitoring usage albo schować mapę za feature flagą.
 
 - [ ] `F9.2` Rozszerzyć publiczny endpoint katalogu o filtrowanie przestrzenne
   - Zakres: query `bbox` albo `bounds`, walidacja zakresu i limity wyników mapy.
   - Minimalny zakres MVP:
-    - filtrowanie po `address.lat`/`address.lng`,
+    - filtrowanie po publicznym `mapPoint`, a nie bezpośrednio po prywatnych `address.lat`/`address.lng`,
     - odrzucanie niepoprawnych lub zbyt szerokich zakresów,
     - osobny limit liczby markerów,
     - odpowiedź zawierająca dane potrzebne do markerów i kart wyników.
