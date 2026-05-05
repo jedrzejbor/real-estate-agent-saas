@@ -1411,7 +1411,7 @@ Użytkownik końcowy może wejść na `/oferty`, wyszukać nieruchomości, filtr
     - UI `/oferty` w `F8.3` powinno użyć `fetchPublicListingCatalog()` i utrzymywać filtry w URL,
     - katalog nadal nie zwraca dokładnego adresu ani współrzędnych; to zostaje decyzją Sprintu 9 dla mapy.
 
-- [ ] `F8.3` Zbudować publiczny ekran `/oferty`
+- [x] `F8.3` Zbudować publiczny ekran `/oferty`
   - Zakres: UI katalogu, filtry, karty wyników, query params w URL.
   - Minimalny zakres MVP:
     - responsywna lista/karty ofert,
@@ -1419,9 +1419,17 @@ Użytkownik końcowy może wejść na `/oferty`, wyszukać nieruchomości, filtr
     - stany loading/error/empty,
     - zachowanie filtrów w URL,
     - podstawowe eventy analityczne wyszukiwania i kliknięcia oferty.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-03
   - Wykonano:
+    - zastąpiono placeholder `/oferty` realnym publicznym katalogiem ofert,
+    - dodano serwerowe pobieranie wyników przez `fetchPublicListingCatalog()`,
+    - dodano formularz filtrów GET z frazą, miastem, typem nieruchomości, typem transakcji, ceną, metrażem, pokojami i sortowaniem,
+    - dodano responsywne karty wyników z primary image, ceną, lokalizacją, metrażem, liczbą zdjęć, agencją i CTA do szczegółów,
+    - dodano paginację, empty state, error state oraz `loading.tsx`,
+    - dodano event `public_listing_catalog_result_clicked` dla kliknięć wyników katalogu.
   - Uwagi / follow-up:
+    - globalny event wyszukiwania katalogu wymaga osobnego publicznego endpointu analytics bez sluga albo decyzji o innym miejscu zapisu,
+    - SEO katalogu, canonical/noindex dla filtrów i duplicate content pozostają w `F8.4`.
 
 - [ ] `F8.4` Doprecyzować SEO katalogu ofert
   - Zakres: metadata, canonical, robots, indeksowanie wybranych widoków.
