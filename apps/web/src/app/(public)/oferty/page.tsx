@@ -40,19 +40,46 @@ const DEFAULT_LIMIT = 24;
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  metadataBase: getSiteUrl(),
-  title: 'Oferty nieruchomości | EstateFlow',
-  description:
-    'Przeglądaj publiczne oferty nieruchomości opublikowane w EstateFlow.',
-  alternates: {
-    canonical: absoluteUrl('/oferty'),
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
+export async function generateMetadata({
+  searchParams,
+}: PublicListingsIndexPageProps): Promise<Metadata> {
+  const resolvedSearchParams = await searchParams;
+  const isBaseCatalog = isIndexableBaseCatalogView(resolvedSearchParams);
+  const title = isBaseCatalog
+    ? 'Oferty nieruchomości | EstateFlow'
+    : 'Wyniki wyszukiwania ofert | EstateFlow';
+  const description = isBaseCatalog
+    ? 'Przeglądaj publiczne oferty nieruchomości opublikowane w EstateFlow.'
+    : 'Przefiltrowane wyniki publicznego katalogu ofert EstateFlow.';
+
+  return {
+    metadataBase: getSiteUrl(),
+    title,
+    description,
+    alternates: {
+      canonical: absoluteUrl('/oferty'),
+    },
+    robots: {
+      index: isBaseCatalog,
+      follow: true,
+      googleBot: {
+        index: isBaseCatalog,
+        follow: true,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+        'max-video-preview': -1,
+      },
+    },
+    openGraph: {
+      title,
+      description,
+      url: absoluteUrl('/oferty'),
+      siteName: 'EstateFlow',
+      type: 'website',
+      locale: 'pl_PL',
+    },
+  };
+}
 
 export default async function PublicListingsIndexPage({
   searchParams,
@@ -643,4 +670,46 @@ function buildSearchAnalyticsProperties(
     sort: filters.sort,
     page: filters.page,
   };
+}
+
+function isIndexableBaseCatalogView(searchParams: SearchParams): boolean {
+  const indexableKeys = new Set([
+    'city',
+    'propertyType',
+    'transactionType',
+    'priceMin',
+    'priceMax',
+    'areaMin',
+    'areaMax',
+    'roomsMin',
+    'roomsMax',
+    'q',
+    'sort',
+    'page',
+  ]);
+
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (!indexableKeys.has(key)) {
+      continue;
+    }
+
+    const normalized = Array.isArray(value) ? value[0] : value;
+    const trimmed = normalized?.trim();
+
+    if (!trimmed) {
+      continue;
+    }
+
+    if (key === 'page' && trimmed === '1') {
+      continue;
+    }
+
+    if (key === 'sort' && trimmed === PublicListingCatalogSort.NEWEST) {
+      continue;
+    }
+
+    return false;
+  }
+
+  return true;
 }

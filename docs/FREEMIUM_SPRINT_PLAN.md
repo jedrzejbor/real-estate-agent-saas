@@ -1431,16 +1431,24 @@ Użytkownik końcowy może wejść na `/oferty`, wyszukać nieruchomości, filtr
     - globalny event wyszukiwania katalogu wymaga osobnego publicznego endpointu analytics bez sluga albo decyzji o innym miejscu zapisu,
     - SEO katalogu, canonical/noindex dla filtrów i duplicate content pozostają w `F8.4`.
 
-- [ ] `F8.4` Doprecyzować SEO katalogu ofert
+- [x] `F8.4` Doprecyzować SEO katalogu ofert
   - Zakres: metadata, canonical, robots, indeksowanie wybranych widoków.
   - Minimalny zakres MVP:
     - decyzja, które filtry są indeksowalne,
     - `noindex` dla kombinacji filtrów niskiej jakości,
     - canonical dla bazowego katalogu,
     - kontrola duplicate content względem `/oferty/[slug]`.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-05
   - Wykonano:
+    - przygotowano osobną decyzję SEO `docs/FREEMIUM_SPRINT_8_CATALOG_SEO.md`,
+    - dodano dynamiczne metadata dla `/oferty`,
+    - bazowy katalog `/oferty` jest indeksowalny i ma canonical do `/oferty`,
+    - filtrowane, sortowane i paginowane widoki katalogu dostają `noindex, follow` oraz canonical do `/oferty`,
+    - dodano `/oferty` do sitemap obok strony głównej i szczegółów ofert,
+    - utrzymano szczegóły ofert `/oferty/[slug]` jako osobne indeksowalne canonicale.
   - Uwagi / follow-up:
+    - SEO landing pages dla wybranych lokalizacji/typów ofert powinny powstać dopiero po zebraniu danych i jako osobne ścieżki bez query params,
+    - sitemap nie powinna zawierać kombinacji filtrów katalogu.
 
 #### Definition of Done
 
