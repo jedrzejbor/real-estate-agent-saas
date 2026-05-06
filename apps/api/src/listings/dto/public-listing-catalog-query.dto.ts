@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsEnum,
   IsInt,
@@ -10,6 +10,18 @@ import {
   Min,
 } from 'class-validator';
 import { PropertyType, TransactionType } from '../../common/enums';
+
+function emptyStringToUndefined(value: unknown): unknown {
+  return value === '' ? undefined : value;
+}
+
+function numberQueryParam(value: unknown): number | undefined {
+  if (value === '' || value === undefined || value === null) {
+    return undefined;
+  }
+
+  return Number(value);
+}
 
 export enum PublicListingCatalogSort {
   NEWEST = 'newest',
@@ -36,46 +48,48 @@ export class PublicListingCatalogQueryDto {
   voivodeship?: string;
 
   @IsOptional()
+  @Transform(({ value }) => emptyStringToUndefined(value))
   @IsEnum(PropertyType)
   propertyType?: PropertyType;
 
   @IsOptional()
+  @Transform(({ value }) => emptyStringToUndefined(value))
   @IsEnum(TransactionType)
   transactionType?: TransactionType;
 
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => numberQueryParam(value))
   @IsNumber()
   @Min(0)
   priceMin?: number;
 
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => numberQueryParam(value))
   @IsNumber()
   @Min(0)
   priceMax?: number;
 
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => numberQueryParam(value))
   @IsNumber()
   @Min(0)
   areaMin?: number;
 
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => numberQueryParam(value))
   @IsNumber()
   @Min(0)
   areaMax?: number;
 
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => numberQueryParam(value))
   @IsInt()
   @Min(1)
   @Max(20)
   roomsMin?: number;
 
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => numberQueryParam(value))
   @IsInt()
   @Min(1)
   @Max(20)
@@ -87,29 +101,31 @@ export class PublicListingCatalogQueryDto {
   q?: string;
 
   @IsOptional()
+  @Transform(({ value }) => emptyStringToUndefined(value))
   @IsEnum(PublicListingCatalogSort)
   sort?: PublicListingCatalogSort = PublicListingCatalogSort.NEWEST;
 
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => numberQueryParam(value))
   @IsInt()
   @Min(1)
   page?: number = 1;
 
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => numberQueryParam(value))
   @IsInt()
   @Min(1)
   @Max(48)
   limit?: number = 24;
 
   @IsOptional()
+  @Transform(({ value }) => emptyStringToUndefined(value))
   @IsString()
   @MaxLength(80)
   bbox?: string;
 
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => numberQueryParam(value))
   @IsInt()
   @Min(1)
   @Max(300)

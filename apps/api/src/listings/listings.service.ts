@@ -1524,35 +1524,27 @@ export class ListingsService {
   ): void {
     switch (sort) {
       case PublicListingCatalogSort.PRICE_ASC:
-        qb.orderBy(
-          'CASE WHEN listing.showPriceOnPublicPage = true AND listing.price IS NOT NULL THEN 0 ELSE 1 END',
-          'ASC',
-        )
-          .addOrderBy('listing.price', 'ASC')
+        this.addPublicPriceSortSelects(qb);
+        qb.orderBy('public_price_sort_missing', 'ASC')
+          .addOrderBy('public_price_sort_value', 'ASC')
           .addOrderBy('listing.publishedAt', 'DESC');
         break;
       case PublicListingCatalogSort.PRICE_DESC:
-        qb.orderBy(
-          'CASE WHEN listing.showPriceOnPublicPage = true AND listing.price IS NOT NULL THEN 0 ELSE 1 END',
-          'ASC',
-        )
-          .addOrderBy('listing.price', 'DESC')
+        this.addPublicPriceSortSelects(qb);
+        qb.orderBy('public_price_sort_missing', 'ASC')
+          .addOrderBy('public_price_sort_value', 'DESC')
           .addOrderBy('listing.publishedAt', 'DESC');
         break;
       case PublicListingCatalogSort.AREA_ASC:
-        qb.orderBy(
-          'CASE WHEN listing.areaM2 IS NOT NULL THEN 0 ELSE 1 END',
-          'ASC',
-        )
-          .addOrderBy('listing.areaM2', 'ASC')
+        this.addDisplayedAreaSortSelects(qb);
+        qb.orderBy('displayed_area_sort_missing', 'ASC')
+          .addOrderBy('displayed_area_sort_value', 'ASC')
           .addOrderBy('listing.publishedAt', 'DESC');
         break;
       case PublicListingCatalogSort.AREA_DESC:
-        qb.orderBy(
-          'CASE WHEN listing.areaM2 IS NOT NULL THEN 0 ELSE 1 END',
-          'ASC',
-        )
-          .addOrderBy('listing.areaM2', 'DESC')
+        this.addDisplayedAreaSortSelects(qb);
+        qb.orderBy('displayed_area_sort_missing', 'ASC')
+          .addOrderBy('displayed_area_sort_value', 'DESC')
           .addOrderBy('listing.publishedAt', 'DESC');
         break;
       case PublicListingCatalogSort.NEWEST:
@@ -1562,6 +1554,26 @@ export class ListingsService {
     }
 
     qb.addOrderBy('listing.id', 'DESC');
+  }
+
+  private addPublicPriceSortSelects(qb: SelectQueryBuilder<Listing>): void {
+    qb.addSelect(
+      'CASE WHEN listing.showPriceOnPublicPage = true AND listing.price IS NOT NULL THEN 0 ELSE 1 END',
+      'public_price_sort_missing',
+    ).addSelect(
+      'CASE WHEN listing.showPriceOnPublicPage = true AND listing.price IS NOT NULL THEN listing.price ELSE NULL END',
+      'public_price_sort_value',
+    );
+  }
+
+  private addDisplayedAreaSortSelects(qb: SelectQueryBuilder<Listing>): void {
+    qb.addSelect(
+      'CASE WHEN COALESCE(listing.areaM2, listing.plotAreaM2) IS NOT NULL THEN 0 ELSE 1 END',
+      'displayed_area_sort_missing',
+    ).addSelect(
+      'COALESCE(listing.areaM2, listing.plotAreaM2)',
+      'displayed_area_sort_value',
+    );
   }
 
   /** Find listing by id with relations, or throw. */
