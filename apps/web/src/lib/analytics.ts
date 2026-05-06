@@ -18,6 +18,7 @@ export const AnalyticsEventName = {
   PUBLIC_LISTING_GALLERY_IMAGE_VIEWED: 'public_listing_gallery_image_viewed',
   PUBLIC_LISTING_CATALOG_RESULT_CLICKED:
     'public_listing_catalog_result_clicked',
+  PUBLIC_LISTING_MAP_SEARCH_USED: 'public_listing_map_search_used',
   PUBLIC_LISTING_ABUSE_REPORTED: 'public_listing_abuse_reported',
   PUBLIC_LEAD_SUBMITTED: 'public_lead_submitted',
   PUBLIC_LEAD_ACCEPTED: 'public_lead_accepted',

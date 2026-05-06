@@ -1521,7 +1521,7 @@ Użytkownik może przeglądać oferty na mapie, zaznaczyć obszar i zawęzić wy
     - `F9.3` powinno używać `mapMarkers` do markerów mapy i `data` do paginowanej listy wyników,
     - `F9.4` może oprzeć zaznaczanie obszaru bezpośrednio o parametr `bbox`.
 
-- [ ] `F9.3` Dodać widok mapy zsynchronizowany z katalogiem
+- [x] `F9.3` Dodać widok mapy zsynchronizowany z katalogiem
   - Zakres: mapa, markery/cluster, lista wyników i URL state.
   - Minimalny zakres MVP:
     - przełącznik lista / mapa albo layout split view,
@@ -1529,20 +1529,44 @@ Użytkownik może przeglądać oferty na mapie, zaznaczyć obszar i zawęzić wy
     - popup/karta miniatury oferty na markerze,
     - synchronizacja filtrów mapy z listą wyników,
     - loading/error/empty states dla mapy.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-06
   - Wykonano:
+    - dodano zależność `leaflet` oraz typy `@types/leaflet` dla aplikacji web,
+    - dodano klientowy komponent `PublicListingCatalogMap` z kafelkami konfigurowanymi przez `NEXT_PUBLIC_MAP_TILE_URL` i `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION`,
+    - publiczny katalog `/oferty` pokazuje mapę jako zsynchronizowany widok nad listą wyników,
+    - mapa korzysta z `mapMarkers` z endpointu katalogu, a lista nadal korzysta z paginowanego `data`,
+    - dodano markery dla `exact` i `approximate` z odróżnieniem wizualnym oraz legendą,
+    - popup markera pokazuje mini kartę oferty: zdjęcie, cenę, tytuł, lokalizację, precyzję punktu i link do szczegółów,
+    - dodano fundament synchronizacji obszaru mapy z URL przez `bbox`, rozbudowany w `F9.4` do jawnego rysowania prostokąta,
+    - dodano akcję czyszczenia obszaru mapy oraz zachowanie `bbox` podczas submitu filtrów,
+    - dodano empty state dla mapy bez punktów i komunikat `truncated`, gdy API ogranicza liczbę markerów,
+    - rozszerzono parser filtrów, typy frontendowe i SEO/noindex logic o parametry mapowe `bbox` oraz `mapLimit`.
   - Uwagi / follow-up:
+    - `F9.4` domknęło jawny tryb zaznaczania prostokąta na tym samym parametrze `bbox`,
+    - pełny lint web nadal ma istniejące błędy poza zakresem mapy w dashboardowych efektach React; lint dla zmienionych plików katalogu/mapy przechodzi,
+    - przed produkcją trzeba ustawić produkcyjny provider kafelków i atrybucję w env zgodnie z decyzjami `F9.1`.
 
-- [ ] `F9.4` Dodać zaznaczanie obszaru na mapie
+- [x] `F9.4` Dodać zaznaczanie obszaru na mapie
   - Zakres: rysowanie prostokąta albo wielokąta i filtrowanie wyników po zaznaczeniu.
   - Minimalny zakres MVP:
     - tryb zaznaczania obszaru,
     - możliwość wyczyszczenia zaznaczenia,
     - zapis zakresu w URL,
     - analytics event dla użycia map search.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-06
   - Wykonano:
+    - dodano jawny tryb zaznaczania prostokąta w komponencie `PublicListingCatalogMap`,
+    - tryb rysowania używa natywnych eventów Leaflet i `L.rectangle`, bez dokładania ciężkiej biblioteki `leaflet-draw`,
+    - podczas zaznaczania mapa przełącza kursor na crosshair i tymczasowo blokuje przeciąganie mapy, aby drag tworzył obszar,
+    - po narysowaniu prostokąta użytkownik może zastosować obszar, co zapisuje `bbox` w URL, resetuje `page=1` i odświeża katalog,
+    - dodano cofnięcie bieżącego zaznaczenia oraz czyszczenie aktywnego `bbox`,
+    - zbyt małe przypadkowe zaznaczenia są ignorowane, żeby kliknięcie mapy nie uruchamiało filtra,
+    - dodano event analityczny `public_listing_map_search_used` z `bbox`, liczbą markerów i metadanymi punktów mapy,
+    - backendowy whitelist eventów analytics akceptuje `public_listing_map_search_used`.
   - Uwagi / follow-up:
+    - MVP obsługuje prostokąt; wielokąty i bardziej zaawansowane narzędzia rysowania zostają na później albo pod PostGIS,
+    - publiczny katalog nadal używa pojedynczego parametru `bbox`, więc zaznaczanie obszaru jest kompatybilne z kontraktem `F9.2`,
+    - event analityczny idzie przez standardowe `trackAnalyticsEvent`, więc jest zapisywany dla zalogowanych sesji; publiczny anonimowy event katalogowy można dodać osobno, jeśli będzie potrzebny do pełnej akwizycji.
 
 #### Definition of Done
 

@@ -3,7 +3,6 @@ import { apiFetch, apiFormDataFetch } from './api-client';
 import {
   AnalyticsEventName,
   trackAnalyticsEvent,
-  trackPublicListingEvent,
 } from './analytics';
 
 // ── Enums (mirroring backend) ──

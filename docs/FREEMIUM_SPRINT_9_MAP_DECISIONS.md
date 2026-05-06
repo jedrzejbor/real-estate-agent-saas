@@ -175,6 +175,10 @@ Wymagania:
 - po użyciu mapy URL zachowuje `bbox` i pozostałe filtry,
 - brak punktów mapowych nie usuwa ofert z listy, dopóki użytkownik nie aktywuje filtrowania `bbox`.
 
+Implementacja `F9.3` dodaje mapę Leaflet do publicznego katalogu `/oferty` jako zsynchronizowany widok nad listą wyników. Mapa korzysta z `mapMarkers`, lista z paginowanego `data`, a akcja `Szukaj w obszarze` zapisuje aktualny viewport mapy jako `bbox` w URL.
+
+Implementacja `F9.4` zastępuje wyszukiwanie po samym viewporcie jawnym trybem rysowania prostokąta. Użytkownik zaznacza obszar na mapie, zatwierdza go, a frontend zapisuje wynik jako ten sam parametr `bbox`, dzięki czemu API i URL state pozostają zgodne z kontraktem `F9.2`.
+
 ## Koszty i rollout
 
 Przed publicznym rolloutem mapy trzeba wpisać do konfiguracji produkcyjnej realnego dostawcę kafelków i potwierdzić:

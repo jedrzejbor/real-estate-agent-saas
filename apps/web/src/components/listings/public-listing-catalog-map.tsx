@@ -1,0 +1,451 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Check, LocateFixed, MousePointer2, RotateCcw, Square } from 'lucide-react';
+import {
+  formatPrice,
+  type PublicListingCatalogMapMarker,
+  type PublicListingCatalogResponse,
+} from '@/lib/listings';
+import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
+import type * as Leaflet from 'leaflet';
+
+interface PublicListingCatalogMapProps {
+  markers: PublicListingCatalogMapMarker[];
+  mapMeta: PublicListingCatalogResponse['meta']['map'];
+}
+
+const DEFAULT_CENTER: [number, number] = [52.0693, 19.4803];
+const DEFAULT_ZOOM = 6;
+const TILE_URL =
+  process.env.NEXT_PUBLIC_MAP_TILE_URL ||
+  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+const TILE_ATTRIBUTION =
+  process.env.NEXT_PUBLIC_MAP_TILE_ATTRIBUTION ||
+  '&copy; OpenStreetMap contributors';
+
+export function PublicListingCatalogMap({
+  markers,
+  mapMeta,
+}: PublicListingCatalogMapProps) {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const leafletRef = useRef<typeof Leaflet | null>(null);
+  const mapRef = useRef<Leaflet.Map | null>(null);
+  const markerLayerRef = useRef<Leaflet.LayerGroup | null>(null);
+  const selectionLayerRef = useRef<Leaflet.Rectangle | null>(null);
+  const dragStartRef = useRef<Leaflet.LatLng | null>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
+  const [isDrawingArea, setIsDrawingArea] = useState(false);
+  const [selectedBbox, setSelectedBbox] = useState<string | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeBbox = searchParams.get('bbox');
+
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) {
+      return;
+    }
+
+    let isMounted = true;
+
+    void import('leaflet').then((leaflet) => {
+      if (!isMounted || !mapContainerRef.current || mapRef.current) {
+        return;
+      }
+
+      const map = leaflet.map(mapContainerRef.current, {
+        center: DEFAULT_CENTER,
+        zoom: DEFAULT_ZOOM,
+        scrollWheelZoom: false,
+      });
+
+      leaflet
+        .tileLayer(TILE_URL, {
+          attribution: TILE_ATTRIBUTION,
+          maxZoom: 19,
+        })
+        .addTo(map);
+
+      leafletRef.current = leaflet;
+      markerLayerRef.current = leaflet.layerGroup().addTo(map);
+      mapRef.current = map;
+      setIsMapReady(true);
+    });
+
+    return () => {
+      isMounted = false;
+      mapRef.current?.remove();
+      mapRef.current = null;
+      markerLayerRef.current = null;
+      leafletRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const leaflet = leafletRef.current;
+    const map = mapRef.current;
+    const markerLayer = markerLayerRef.current;
+
+    if (!leaflet || !map || !markerLayer || !isMapReady) {
+      return;
+    }
+
+    markerLayer.clearLayers();
+
+    for (const marker of markers) {
+      leaflet
+        .marker([marker.mapPoint.lat, marker.mapPoint.lng], {
+          icon: createMarkerIcon(leaflet, marker.mapPoint.precision),
+        keyboard: true,
+        title: marker.title,
+      })
+        .bindPopup(buildPopupHtml(marker), {
+          className: 'estateflow-map-popup',
+          maxWidth: 260,
+        })
+        .addTo(markerLayer);
+    }
+
+    const bounds = buildInitialBounds(leaflet, markers, mapMeta.bbox);
+
+    if (bounds?.isValid()) {
+      map.fitBounds(bounds, {
+        padding: [28, 28],
+        maxZoom: mapMeta.bbox ? 14 : 12,
+      });
+    } else {
+      map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+    }
+  }, [isMapReady, mapMeta.bbox, markers]);
+
+  useEffect(() => {
+    const leaflet = leafletRef.current;
+    const map = mapRef.current;
+
+    if (!leaflet || !map || !isMapReady || !isDrawingArea) {
+      return;
+    }
+
+    map.dragging.disable();
+    map.doubleClickZoom.disable();
+    map.getContainer().classList.add('estateflow-map-is-drawing');
+
+    const handleMouseDown = (event: Leaflet.LeafletMouseEvent) => {
+      dragStartRef.current = event.latlng;
+      selectionLayerRef.current?.remove();
+      selectionLayerRef.current = leaflet
+        .rectangle(leaflet.latLngBounds(event.latlng, event.latlng), {
+          color: '#059669',
+          fillColor: '#059669',
+          fillOpacity: 0.12,
+          interactive: false,
+          weight: 2,
+        })
+        .addTo(map);
+    };
+
+    const handleMouseMove = (event: Leaflet.LeafletMouseEvent) => {
+      if (!dragStartRef.current || !selectionLayerRef.current) {
+        return;
+      }
+
+      selectionLayerRef.current.setBounds(
+        leaflet.latLngBounds(dragStartRef.current, event.latlng),
+      );
+    };
+
+    const handleMouseUp = (event: Leaflet.LeafletMouseEvent) => {
+      if (!dragStartRef.current || !selectionLayerRef.current) {
+        return;
+      }
+
+      const bounds = leaflet.latLngBounds(dragStartRef.current, event.latlng);
+      dragStartRef.current = null;
+
+      if (!isUsableSelection(bounds)) {
+        selectionLayerRef.current.remove();
+        selectionLayerRef.current = null;
+        setSelectedBbox(null);
+        return;
+      }
+
+      selectionLayerRef.current.setBounds(bounds);
+      setSelectedBbox(formatBoundsAsBbox(bounds));
+      setIsDrawingArea(false);
+    };
+
+    map.on('mousedown', handleMouseDown);
+    map.on('mousemove', handleMouseMove);
+    map.on('mouseup', handleMouseUp);
+
+    return () => {
+      map.off('mousedown', handleMouseDown);
+      map.off('mousemove', handleMouseMove);
+      map.off('mouseup', handleMouseUp);
+      map.dragging.enable();
+      map.doubleClickZoom.enable();
+      map.getContainer().classList.remove('estateflow-map-is-drawing');
+      dragStartRef.current = null;
+    };
+  }, [isDrawingArea, isMapReady]);
+
+  const startAreaSelection = () => {
+    selectionLayerRef.current?.remove();
+    selectionLayerRef.current = null;
+    setSelectedBbox(null);
+    setIsDrawingArea(true);
+  };
+
+  const applySelectedBounds = () => {
+    if (!selectedBbox) {
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('bbox', selectedBbox);
+    params.set('page', '1');
+
+    trackAnalyticsEvent({
+      name: AnalyticsEventName.PUBLIC_LISTING_MAP_SEARCH_USED,
+      properties: {
+        bbox: selectedBbox,
+        markersVisible: markers.length,
+        pointsTotal: mapMeta.pointsTotal,
+        pointsReturned: mapMeta.pointsReturned,
+      },
+    });
+
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const clearSelection = () => {
+    selectionLayerRef.current?.remove();
+    selectionLayerRef.current = null;
+    dragStartRef.current = null;
+    setSelectedBbox(null);
+    setIsDrawingArea(false);
+  };
+
+  const clearBounds = () => {
+    clearSelection();
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('bbox');
+    params.set('page', '1');
+
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname);
+  };
+
+  return (
+    <section
+      id="mapa"
+      className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm"
+      aria-label="Mapa ofert"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <div>
+          <h2 className="font-heading text-lg font-semibold">Mapa ofert</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {mapMeta.pointsReturned} z {mapMeta.pointsTotal} punktów na mapie
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {selectedBbox ? (
+            <button
+              type="button"
+              onClick={applySelectedBounds}
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <Check className="h-4 w-4" />
+              Zastosuj obszar
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={startAreaSelection}
+              aria-pressed={isDrawingArea}
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              {isDrawingArea ? (
+                <MousePointer2 className="h-4 w-4" />
+              ) : (
+                <Square className="h-4 w-4" />
+              )}
+              {isDrawingArea ? 'Zaznacz na mapie' : 'Zaznacz obszar'}
+            </button>
+          )}
+          {selectedBbox || isDrawingArea ? (
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border px-3 text-sm font-semibold transition-colors hover:bg-muted"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Cofnij zaznaczenie
+            </button>
+          ) : null}
+          {activeBbox ? (
+            <button
+              type="button"
+              onClick={clearBounds}
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border px-3 text-sm font-semibold transition-colors hover:bg-muted"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Wyczyść obszar
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {mapMeta.truncated ? (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+          Pokazujemy limit punktów mapy. Zawęź filtry albo obszar, żeby zobaczyć
+          dokładniejszy wynik.
+        </div>
+      ) : null}
+
+      {isDrawingArea ? (
+        <div className="border-b border-primary/20 bg-primary/5 px-4 py-2 text-sm font-medium text-primary">
+          Przeciągnij po mapie, żeby zaznaczyć prostokąt wyszukiwania.
+        </div>
+      ) : null}
+
+      <div className="relative">
+        <div
+          ref={mapContainerRef}
+          className="h-[420px] w-full bg-muted sm:h-[520px]"
+        />
+
+        {markers.length === 0 ? (
+          <div className="absolute inset-x-4 top-4 rounded-xl border border-border bg-white/95 p-4 shadow-sm backdrop-blur">
+            <div className="flex gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <LocateFixed className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">
+                  Brak punktów do pokazania
+                </p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Część ofert może nadal być widoczna na liście, jeśli nie ma
+                  bezpiecznej lokalizacji mapowej.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 border-t border-border px-4 py-3 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+          Dokładny punkt
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#D4A853]" />
+          Lokalizacja przybliżona
+        </span>
+      </div>
+    </section>
+  );
+}
+
+function buildInitialBounds(
+  leaflet: typeof Leaflet,
+  markers: PublicListingCatalogMapMarker[],
+  bbox: PublicListingCatalogResponse['meta']['map']['bbox'],
+) {
+  if (bbox) {
+    return leaflet.latLngBounds([bbox.south, bbox.west], [bbox.north, bbox.east]);
+  }
+
+  if (markers.length > 0) {
+    return leaflet.latLngBounds(
+      markers.map((marker) => [marker.mapPoint.lat, marker.mapPoint.lng]),
+    );
+  }
+
+  return null;
+}
+
+function isUsableSelection(bounds: Leaflet.LatLngBounds): boolean {
+  const width = Math.abs(bounds.getEast() - bounds.getWest());
+  const height = Math.abs(bounds.getNorth() - bounds.getSouth());
+
+  return width >= 0.005 && height >= 0.005;
+}
+
+function formatBoundsAsBbox(bounds: Leaflet.LatLngBounds): string {
+  return [
+    bounds.getWest(),
+    bounds.getSouth(),
+    bounds.getEast(),
+    bounds.getNorth(),
+  ]
+    .map((value) => value.toFixed(6))
+    .join(',');
+}
+
+function createMarkerIcon(
+  leaflet: typeof Leaflet,
+  precision: 'exact' | 'approximate',
+) {
+  const isExact = precision === 'exact';
+
+  return leaflet.divIcon({
+    className: '',
+    html: `<span class="estateflow-map-marker ${isExact ? 'is-exact' : 'is-approximate'}"><span></span></span>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -18],
+  });
+}
+
+function buildPopupHtml(marker: PublicListingCatalogMapMarker): string {
+  const location = [marker.address?.district, marker.address?.city]
+    .filter(Boolean)
+    .join(', ');
+  const price = marker.price
+    ? formatPrice(marker.price, marker.currency)
+    : 'Zapytaj o cenę';
+  const precisionLabel =
+    marker.mapPoint.precision === 'exact'
+      ? 'Dokładna lokalizacja'
+      : 'Lokalizacja przybliżona';
+
+  return `
+    <article class="estateflow-map-popup-card">
+      ${
+        marker.primaryImage?.url
+          ? `<img src="${escapeHtml(marker.primaryImage.url)}" alt="${escapeHtml(marker.primaryImage.altText || marker.title)}" />`
+          : ''
+      }
+      <div>
+        <p class="estateflow-map-popup-price">${escapeHtml(price)}</p>
+        <h3>${escapeHtml(marker.title)}</h3>
+        ${
+          location
+            ? `<p class="estateflow-map-popup-location">${escapeHtml(location)}</p>`
+            : ''
+        }
+        <p class="estateflow-map-popup-precision">${precisionLabel}</p>
+        <a href="/oferty/${encodeURIComponent(marker.slug)}">
+          Zobacz ofertę
+        </a>
+      </div>
+    </article>
+  `;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}

@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Building2,
   Home,
+  Map as MapIcon,
   MapPin,
   Search,
   SlidersHorizontal,
@@ -27,6 +28,7 @@ import {
   type PublicListingCatalogResponse,
 } from '@/lib/listings';
 import { PublicListingCatalogResultLink } from '@/components/listings/public-listing-catalog-result-link';
+import { PublicListingCatalogMap } from '@/components/listings/public-listing-catalog-map';
 import type { AnalyticsProperties } from '@/lib/analytics';
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -281,6 +283,9 @@ export default async function PublicListingsIndexPage({
               </Field>
 
               <input type="hidden" name="page" value="1" />
+              {filters.bbox ? (
+                <input type="hidden" name="bbox" value={filters.bbox} />
+              ) : null}
 
               <div className="flex gap-2 pt-2">
                 <button
@@ -304,33 +309,65 @@ export default async function PublicListingsIndexPage({
         <div className="min-w-0">
           {result.error ? (
             <ErrorState message={result.error} />
-          ) : catalog && catalog.data.length > 0 ? (
+          ) : catalog ? (
             <>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground">
                   Strona {catalog.meta.page} z {catalog.meta.totalPages} •{' '}
                   {catalog.meta.total} wyników
                 </p>
+                <div className="flex flex-wrap gap-2">
+                  {filters.bbox ? (
+                    <Link
+                      href={`/oferty${buildCatalogQueryString({ ...filters, bbox: undefined, page: 1 })}`}
+                      className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold transition-colors hover:bg-muted"
+                    >
+                      Wyczyść obszar
+                    </Link>
+                  ) : null}
+                  <a
+                    href="#mapa"
+                    className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold transition-colors hover:bg-muted"
+                  >
+                    <MapIcon className="h-4 w-4" />
+                    Mapa
+                  </a>
+                </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {catalog.data.map((listing, index) => (
-                  <ListingCard
-                    key={listing.id}
-                    listing={listing}
-                    position={
-                      (catalog.meta.page - 1) * catalog.meta.limit + index + 1
-                    }
-                    searchProperties={searchProperties}
+              <div className="mb-6">
+                <PublicListingCatalogMap
+                  markers={catalog.mapMarkers}
+                  mapMeta={catalog.meta.map}
+                />
+              </div>
+
+              {catalog.data.length > 0 ? (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {catalog.data.map((listing, index) => (
+                      <ListingCard
+                        key={listing.id}
+                        listing={listing}
+                        position={
+                          (catalog.meta.page - 1) * catalog.meta.limit +
+                          index +
+                          1
+                        }
+                        searchProperties={searchProperties}
+                      />
+                    ))}
+                  </div>
+
+                  <Pagination
+                    filters={filters}
+                    page={catalog.meta.page}
+                    totalPages={catalog.meta.totalPages}
                   />
-                ))}
-              </div>
-
-              <Pagination
-                filters={filters}
-                page={catalog.meta.page}
-                totalPages={catalog.meta.totalPages}
-              />
+                </>
+              ) : (
+                <EmptyState />
+              )}
             </>
           ) : (
             <EmptyState />
@@ -602,6 +639,8 @@ function parseCatalogFilters(
     roomsMin: getNumberParam(searchParams.roomsMin),
     roomsMax: getNumberParam(searchParams.roomsMax),
     q: getStringParam(searchParams.q),
+    bbox: getStringParam(searchParams.bbox),
+    mapLimit: getNumberParam(searchParams.mapLimit, { min: 1 }),
     sort:
       getEnumParam(searchParams.sort, PublicListingCatalogSort) ??
       PublicListingCatalogSort.NEWEST,
@@ -669,6 +708,7 @@ function buildSearchAnalyticsProperties(
     q: filters.q,
     sort: filters.sort,
     page: filters.page,
+    bbox: filters.bbox,
   };
 }
 
@@ -684,6 +724,8 @@ function isIndexableBaseCatalogView(searchParams: SearchParams): boolean {
     'roomsMin',
     'roomsMax',
     'q',
+    'bbox',
+    'mapLimit',
     'sort',
     'page',
   ]);

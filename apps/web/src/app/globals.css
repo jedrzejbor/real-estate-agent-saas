@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "leaflet/dist/leaflet.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -154,4 +155,98 @@
     @apply font-sans;
     scroll-behavior: smooth;
   }
+}
+
+.estateflow-map-marker {
+  display: flex;
+  height: 34px;
+  width: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 2px solid #ffffff;
+  box-shadow: 0 10px 24px rgb(28 25 23 / 0.22);
+}
+
+.estateflow-map-marker span {
+  display: block;
+  height: 12px;
+  width: 12px;
+  border-radius: 9999px;
+  background: #ffffff;
+}
+
+.estateflow-map-marker.is-exact {
+  background: #059669;
+}
+
+.estateflow-map-marker.is-approximate {
+  background: #d4a853;
+}
+
+.estateflow-map-is-drawing,
+.estateflow-map-is-drawing .leaflet-interactive {
+  cursor: crosshair;
+}
+
+.estateflow-map-popup .leaflet-popup-content-wrapper {
+  overflow: hidden;
+  border-radius: 14px;
+  padding: 0;
+}
+
+.estateflow-map-popup .leaflet-popup-content {
+  width: 240px;
+  margin: 0;
+}
+
+.estateflow-map-popup-card {
+  background: #ffffff;
+  color: #1c1917;
+}
+
+.estateflow-map-popup-card img {
+  display: block;
+  height: 112px;
+  width: 100%;
+  object-fit: cover;
+}
+
+.estateflow-map-popup-card > div {
+  padding: 12px;
+}
+
+.estateflow-map-popup-card h3 {
+  margin-top: 4px;
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.estateflow-map-popup-price {
+  color: #059669;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.estateflow-map-popup-location,
+.estateflow-map-popup-precision {
+  margin-top: 6px;
+  color: #78716c;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.estateflow-map-popup-card a {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  color: #059669;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
 }
