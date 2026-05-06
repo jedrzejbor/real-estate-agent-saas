@@ -29,14 +29,14 @@ export function PricingCard({
   return (
     <Card
       className={cn(
-        'relative border-[#E7E5E4] bg-white transition-all duration-200',
+        'relative overflow-visible border-[#E7E5E4] bg-white transition-all duration-200',
         isPopular &&
-          'border-primary shadow-[0_10px_25px_-5px_rgba(28,25,23,0.1),0_4px_6px_-2px_rgba(28,25,23,0.05)]',
+          '-mt-4 pb-4 border-primary shadow-[0_10px_25px_-5px_rgba(28,25,23,0.1),0_4px_6px_-2px_rgba(28,25,23,0.05)]',
         className,
       )}
     >
       {isPopular && (
-        <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white">
+        <Badge className="absolute -top-[14px] left-1/2 -translate-x-1/2 whitespace-nowrap bg-primary px-3 py-1 text-white shadow-sm">
           Najpopularniejszy
         </Badge>
       )}

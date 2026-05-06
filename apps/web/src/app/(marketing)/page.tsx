@@ -262,7 +262,7 @@ export default function Home() {
               title="Prosty i przejrzysty cennik"
               description="Bez ukrytych opłat. Zmień plan lub anuluj w dowolnym momencie."
             />
-            <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-3">
+            <div className="mx-auto grid max-w-5xl items-start gap-6 pt-8 md:grid-cols-3">
               {pricingPlans.map((plan) => (
                 <PricingCard key={plan.name} {...plan} />
               ))}
