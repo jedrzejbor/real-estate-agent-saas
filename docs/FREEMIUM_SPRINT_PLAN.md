@@ -1498,16 +1498,28 @@ Użytkownik może przeglądać oferty na mapie, zaznaczyć obszar i zawęzić wy
     - oferty bez bezpiecznego publicznego punktu mapy pozostają w liście, ale nie dostają markera i nie trafiają do wyników aktywnego `bbox`,
     - przed produkcyjnym włączeniem mapy trzeba potwierdzić dostawcę kafelków, limity, koszty, atrybucję i monitoring usage albo schować mapę za feature flagą.
 
-- [ ] `F9.2` Rozszerzyć publiczny endpoint katalogu o filtrowanie przestrzenne
+- [x] `F9.2` Rozszerzyć publiczny endpoint katalogu o filtrowanie przestrzenne
   - Zakres: query `bbox` albo `bounds`, walidacja zakresu i limity wyników mapy.
   - Minimalny zakres MVP:
     - filtrowanie po publicznym `mapPoint`, a nie bezpośrednio po prywatnych `address.lat`/`address.lng`,
     - odrzucanie niepoprawnych lub zbyt szerokich zakresów,
     - osobny limit liczby markerów,
     - odpowiedź zawierająca dane potrzebne do markerów i kart wyników.
-  - Data zakończenia:
+  - Data zakończenia: 2026-05-06
   - Wykonano:
+    - rozszerzono `PublicListingCatalogQueryDto` o `bbox=west,south,east,north` oraz `mapLimit` z limitem `1-300` i domyślną wartością `150`,
+    - dodano walidację `bbox`: poprawny format, zakres GPS, kolejność granic oraz odrzucanie zbyt szerokiego obszaru,
+    - publiczny katalog zwraca `mapPoint` per oferta oraz osobne `mapMarkers` niezależne od paginacji listy,
+    - dodano `meta.map` z limitem, liczbą dostępnych punktów, liczbą zwróconych markerów, flagą `truncated` i sparsowanym `bbox`,
+    - filtrowanie `bbox` działa po publicznym punkcie mapy wyliczanym przez backend, a nie po prywatnych współrzędnych ukrytego adresu,
+    - oferty z `showExactAddressOnPublicPage = true` i poprawnym `address.lat/lng` dostają punkt `precision = exact`,
+    - oferty z ukrytym dokładnym adresem albo bez dokładnych współrzędnych mogą dostać tylko punkt `precision = approximate` z bezpiecznej publicznej lokalizacji miasta/województwa,
+    - oferty bez bezpiecznego punktu publicznego nadal pozostają w zwykłej liście katalogu, ale nie dostają markera i nie przechodzą aktywnego filtra `bbox`,
+    - zaktualizowano typy frontendowe publicznego katalogu pod `bbox`, `mapLimit`, `mapPoint`, `mapMarkers` i `meta.map`.
   - Uwagi / follow-up:
+    - obecny MVP ma statyczny zestaw centroidów największych polskich miast i województw; przed większym rolloutem warto przenieść publiczne punkty przybliżone do jawnej tabeli/cache geokodowania,
+    - `F9.3` powinno używać `mapMarkers` do markerów mapy i `data` do paginowanej listy wyników,
+    - `F9.4` może oprzeć zaznaczanie obszaru bezpośrednio o parametr `bbox`.
 
 - [ ] `F9.3` Dodać widok mapy zsynchronizowany z katalogiem
   - Zakres: mapa, markery/cluster, lista wyników i URL state.

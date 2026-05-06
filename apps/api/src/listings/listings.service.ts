@@ -39,7 +39,9 @@ import {
 import {
   PublicAgentProfileView,
   PublicListingCatalogItem,
+  PublicListingCatalogMapMarker,
   PublicListingCatalogResponse,
+  PublicListingMapPoint,
   PublicListingSitemapEntry,
   PublicListingView,
 } from './public-listing.model';
@@ -60,6 +62,67 @@ interface UploadedListingImageFile {
   mimetype: string;
   originalname: string;
 }
+
+interface PublicCatalogBbox {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}
+
+interface PublicLocationPoint {
+  lat: number;
+  lng: number;
+}
+
+const PUBLIC_CATALOG_DEFAULT_MAP_LIMIT = 150;
+const PUBLIC_CATALOG_MAX_BBOX_WIDTH_DEGREES = 9;
+const PUBLIC_CATALOG_MAX_BBOX_HEIGHT_DEGREES = 7;
+const PUBLIC_CATALOG_MAX_BBOX_AREA_DEGREES = 36;
+
+const PUBLIC_LOCATION_CENTROIDS: Record<string, PublicLocationPoint> = {
+  warszawa: { lat: 52.2297, lng: 21.0122 },
+  krakow: { lat: 50.0647, lng: 19.945 },
+  lodz: { lat: 51.7592, lng: 19.456 },
+  wroclaw: { lat: 51.1079, lng: 17.0385 },
+  poznan: { lat: 52.4064, lng: 16.9252 },
+  gdansk: { lat: 54.352, lng: 18.6466 },
+  szczecin: { lat: 53.4285, lng: 14.5528 },
+  bydgoszcz: { lat: 53.1235, lng: 18.0084 },
+  lublin: { lat: 51.2465, lng: 22.5684 },
+  bialystok: { lat: 53.1325, lng: 23.1688 },
+  katowice: { lat: 50.2649, lng: 19.0238 },
+  gdynia: { lat: 54.5189, lng: 18.5305 },
+  czestochowa: { lat: 50.8118, lng: 19.1203 },
+  radom: { lat: 51.4027, lng: 21.1471 },
+  torun: { lat: 53.0138, lng: 18.5984 },
+  kielce: { lat: 50.8661, lng: 20.6286 },
+  rzeszow: { lat: 50.0413, lng: 21.999 },
+  gliwice: { lat: 50.2945, lng: 18.6714 },
+  zabrze: { lat: 50.3249, lng: 18.7857 },
+  olsztyn: { lat: 53.7784, lng: 20.4801 },
+  'bielsko-biala': { lat: 49.8224, lng: 19.0584 },
+  bytom: { lat: 50.348, lng: 18.9328 },
+  'zielona-gora': { lat: 51.9356, lng: 15.5062 },
+  opole: { lat: 50.6751, lng: 17.9213 },
+  'gorzow-wielkopolski': { lat: 52.7368, lng: 15.2288 },
+  dolnoslaskie: { lat: 51.133, lng: 16.884 },
+  'kujawsko-pomorskie': { lat: 53.121, lng: 18.006 },
+  lubelskie: { lat: 51.249, lng: 22.572 },
+  lubuskie: { lat: 52.228, lng: 15.256 },
+  lodzkie: { lat: 51.618, lng: 19.362 },
+  malopolskie: { lat: 49.722, lng: 20.25 },
+  mazowieckie: { lat: 52.247, lng: 21.014 },
+  opolskie: { lat: 50.633, lng: 17.926 },
+  podkarpackie: { lat: 49.958, lng: 22.056 },
+  podlaskie: { lat: 53.135, lng: 23.145 },
+  pomorskie: { lat: 54.294, lng: 18.153 },
+  slaskie: { lat: 50.297, lng: 19.023 },
+  swietokrzyskie: { lat: 50.79, lng: 20.722 },
+  'warminsko-mazurskie': { lat: 53.867, lng: 20.702 },
+  wielkopolskie: { lat: 52.279, lng: 17.353 },
+  zachodniopomorskie: { lat: 53.569, lng: 15.347 },
+};
 
 @Injectable()
 export class ListingsService {
@@ -639,6 +702,8 @@ export class ListingsService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 24;
     const sort = query.sort ?? PublicListingCatalogSort.NEWEST;
+    const mapLimit = query.mapLimit ?? PUBLIC_CATALOG_DEFAULT_MAP_LIMIT;
+    const bbox = this.parsePublicCatalogBbox(query.bbox);
 
     const qb = this.listingRepo
       .createQueryBuilder('listing')
@@ -655,20 +720,70 @@ export class ListingsService {
     this.applyPublicCatalogFilters(qb, query);
     this.applyPublicCatalogSort(qb, sort);
 
+    if (bbox) {
+      const listingsInSortOrder = await qb.getMany();
+      const listingsInsideBbox = listingsInSortOrder.filter((listing) => {
+        const mapPoint = this.getPublicListingMapPoint(listing);
+        return mapPoint ? this.isMapPointInsideBbox(mapPoint, bbox) : false;
+      });
+      const total = listingsInsideBbox.length;
+      const paginatedListings = listingsInsideBbox.slice(
+        (page - 1) * limit,
+        page * limit,
+      );
+      const mapMarkers = this.buildPublicCatalogMapMarkers(
+        listingsInsideBbox,
+        mapLimit,
+      );
+
+      return {
+        data: paginatedListings.map((listing) =>
+          this.toPublicCatalogItem(listing),
+        ),
+        mapMarkers,
+        meta: this.buildPublicCatalogMeta({
+          total,
+          page,
+          limit,
+          sort,
+          bbox,
+          mapLimit,
+          pointsTotal: listingsInsideBbox.filter((listing) =>
+            Boolean(this.getPublicListingMapPoint(listing)),
+          ).length,
+          pointsReturned: mapMarkers.length,
+        }),
+      };
+    }
+
     const [listings, total] = await qb
+      .clone()
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
 
+    const mapCandidateListings = await qb.clone().getMany();
+    const mapMarkers = this.buildPublicCatalogMapMarkers(
+      mapCandidateListings,
+      mapLimit,
+    );
+    const pointsTotal = mapCandidateListings.filter((listing) =>
+      Boolean(this.getPublicListingMapPoint(listing)),
+    ).length;
+
     return {
       data: listings.map((listing) => this.toPublicCatalogItem(listing)),
-      meta: {
+      mapMarkers,
+      meta: this.buildPublicCatalogMeta({
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
         sort,
-      },
+        bbox: null,
+        mapLimit,
+        pointsTotal,
+        pointsReturned: mapMarkers.length,
+      }),
     };
   }
 
@@ -1052,6 +1167,7 @@ export class ListingsService {
             altText: primaryImage.altText ?? null,
           }
         : null,
+      mapPoint: this.getPublicListingMapPoint(listing),
       imageCount: listing.images?.length ?? 0,
       agent: listing.agent
         ? {
@@ -1069,6 +1185,243 @@ export class ListingsService {
         : null,
       publishedAt: listing.publishedAt,
       updatedAt: listing.updatedAt,
+    };
+  }
+
+  private buildPublicCatalogMapMarkers(
+    listings: Listing[],
+    mapLimit: number,
+  ): PublicListingCatalogMapMarker[] {
+    const markers: PublicListingCatalogMapMarker[] = [];
+
+    for (const listing of listings) {
+      if (markers.length >= mapLimit) {
+        break;
+      }
+
+      if (!listing.publicSlug || !listing.publishedAt) {
+        continue;
+      }
+
+      const mapPoint = this.getPublicListingMapPoint(listing);
+
+      if (!mapPoint) {
+        continue;
+      }
+
+      const primaryImage = this.getOrderedImages(listing)[0] ?? null;
+
+      markers.push({
+        id: listing.id,
+        slug: listing.publicSlug,
+        title: listing.publicTitle || listing.title,
+        price: listing.showPriceOnPublicPage ? listing.price : null,
+        currency: listing.currency,
+        address: listing.address
+          ? {
+              city: listing.address.city,
+              district: listing.address.district ?? null,
+              voivodeship: listing.address.voivodeship ?? null,
+            }
+          : null,
+        primaryImage: primaryImage
+          ? {
+              id: primaryImage.id,
+              url: primaryImage.url,
+              altText: primaryImage.altText ?? null,
+            }
+          : null,
+        mapPoint,
+      });
+    }
+
+    return markers;
+  }
+
+  private getPublicListingMapPoint(
+    listing: Listing,
+  ): PublicListingMapPoint | null {
+    if (listing.showExactAddressOnPublicPage) {
+      const lat = this.toValidLatitude(listing.address?.lat);
+      const lng = this.toValidLongitude(listing.address?.lng);
+
+      if (lat !== null && lng !== null) {
+        return {
+          lat,
+          lng,
+          precision: 'exact',
+        };
+      }
+    }
+
+    const approximatePoint = this.getApproximatePublicLocationPoint(
+      listing.address,
+    );
+
+    return approximatePoint
+      ? {
+          ...approximatePoint,
+          precision: 'approximate',
+        }
+      : null;
+  }
+
+  private getApproximatePublicLocationPoint(
+    address?: Address | null,
+  ): PublicLocationPoint | null {
+    if (!address) {
+      return null;
+    }
+
+    const lookupKeys = [
+      address.city,
+      address.voivodeship,
+      this.normalizePublicLocationKey(
+        address.voivodeship?.replace(/^wojew[oó]dztwo\s+/i, ''),
+      ),
+    ]
+      .map((value) => this.normalizePublicLocationKey(value))
+      .filter((value): value is string => Boolean(value));
+
+    for (const key of lookupKeys) {
+      const point = PUBLIC_LOCATION_CENTROIDS[key];
+
+      if (point) {
+        return point;
+      }
+    }
+
+    return null;
+  }
+
+  private normalizePublicLocationKey(value?: string | null): string | null {
+    const normalized = value
+      ?.trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/ł/g, 'l')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    return normalized || null;
+  }
+
+  private toValidLatitude(value?: number | string | null): number | null {
+    const numberValue = Number(value);
+
+    return Number.isFinite(numberValue) &&
+      numberValue >= -90 &&
+      numberValue <= 90
+      ? numberValue
+      : null;
+  }
+
+  private toValidLongitude(value?: number | string | null): number | null {
+    const numberValue = Number(value);
+
+    return Number.isFinite(numberValue) &&
+      numberValue >= -180 &&
+      numberValue <= 180
+      ? numberValue
+      : null;
+  }
+
+  private parsePublicCatalogBbox(
+    value?: string,
+  ): PublicCatalogBbox | null {
+    if (!value?.trim()) {
+      return null;
+    }
+
+    const parts = value.split(',').map((part) => Number(part.trim()));
+
+    if (parts.length !== 4 || parts.some((part) => !Number.isFinite(part))) {
+      throw new BadRequestException(
+        'Parametr bbox musi mieć format west,south,east,north',
+      );
+    }
+
+    const [west, south, east, north] = parts;
+
+    if (
+      west < -180 ||
+      west > 180 ||
+      east < -180 ||
+      east > 180 ||
+      south < -90 ||
+      south > 90 ||
+      north < -90 ||
+      north > 90 ||
+      west >= east ||
+      south >= north
+    ) {
+      throw new BadRequestException(
+        'Parametr bbox zawiera niepoprawny zakres współrzędnych',
+      );
+    }
+
+    const width = east - west;
+    const height = north - south;
+    const area = width * height;
+
+    if (
+      width > PUBLIC_CATALOG_MAX_BBOX_WIDTH_DEGREES ||
+      height > PUBLIC_CATALOG_MAX_BBOX_HEIGHT_DEGREES ||
+      area > PUBLIC_CATALOG_MAX_BBOX_AREA_DEGREES
+    ) {
+      throw new BadRequestException(
+        'Zaznaczony obszar mapy jest zbyt szeroki. Zawęź zakres wyszukiwania.',
+      );
+    }
+
+    return { west, south, east, north };
+  }
+
+  private isMapPointInsideBbox(
+    mapPoint: PublicListingMapPoint,
+    bbox: PublicCatalogBbox,
+  ): boolean {
+    return (
+      mapPoint.lng >= bbox.west &&
+      mapPoint.lng <= bbox.east &&
+      mapPoint.lat >= bbox.south &&
+      mapPoint.lat <= bbox.north
+    );
+  }
+
+  private buildPublicCatalogMeta({
+    total,
+    page,
+    limit,
+    sort,
+    bbox,
+    mapLimit,
+    pointsTotal,
+    pointsReturned,
+  }: {
+    total: number;
+    page: number;
+    limit: number;
+    sort: PublicListingCatalogSort;
+    bbox: PublicCatalogBbox | null;
+    mapLimit: number;
+    pointsTotal: number;
+    pointsReturned: number;
+  }): PublicListingCatalogResponse['meta'] {
+    return {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      sort,
+      map: {
+        limit: mapLimit,
+        pointsTotal,
+        pointsReturned,
+        truncated: pointsReturned < pointsTotal,
+        bbox,
+      },
     };
   }
 

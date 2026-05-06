@@ -226,6 +226,14 @@ export interface PublicListingCatalogFilters {
   sort?: PublicListingCatalogSort;
   page?: number;
   limit?: number;
+  bbox?: string;
+  mapLimit?: number;
+}
+
+export interface PublicListingMapPoint {
+  lat: number;
+  lng: number;
+  precision: 'exact' | 'approximate';
 }
 
 export interface PublicListingCatalogItem {
@@ -249,6 +257,7 @@ export interface PublicListingCatalogItem {
     url: string;
     altText?: string | null;
   } | null;
+  mapPoint?: PublicListingMapPoint | null;
   imageCount: number;
   agent?: {
     id?: string | null;
@@ -264,10 +273,34 @@ export interface PublicListingCatalogItem {
   updatedAt: string;
 }
 
+export interface PublicListingCatalogMapMarker {
+  id: string;
+  slug: string;
+  title: string;
+  price?: number | string | null;
+  currency: string;
+  address?: PublicListingCatalogItem['address'];
+  primaryImage?: PublicListingCatalogItem['primaryImage'];
+  mapPoint: PublicListingMapPoint;
+}
+
 export interface PublicListingCatalogResponse {
   data: PublicListingCatalogItem[];
+  mapMarkers: PublicListingCatalogMapMarker[];
   meta: PaginationMeta & {
     sort: PublicListingCatalogSort;
+    map: {
+      limit: number;
+      pointsTotal: number;
+      pointsReturned: number;
+      truncated: boolean;
+      bbox?: {
+        west: number;
+        south: number;
+        east: number;
+        north: number;
+      } | null;
+    };
   };
 }
 

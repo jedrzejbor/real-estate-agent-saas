@@ -86,6 +86,12 @@ export interface PublicListingCatalogAgent {
   } | null;
 }
 
+export interface PublicListingMapPoint {
+  lat: number;
+  lng: number;
+  precision: 'exact' | 'approximate';
+}
+
 export interface PublicListingCatalogItem {
   id: string;
   slug: string;
@@ -103,10 +109,26 @@ export interface PublicListingCatalogItem {
     url: string;
     altText?: string | null;
   } | null;
+  mapPoint?: PublicListingMapPoint | null;
   imageCount: number;
   agent?: PublicListingCatalogAgent | null;
   publishedAt: Date;
   updatedAt: Date;
+}
+
+export interface PublicListingCatalogMapMarker {
+  id: string;
+  slug: string;
+  title: string;
+  price?: number | string | null;
+  currency: string;
+  address?: PublicListingCatalogAddress | null;
+  primaryImage?: {
+    id: string;
+    url: string;
+    altText?: string | null;
+  } | null;
+  mapPoint: PublicListingMapPoint;
 }
 
 export interface PublicListingCatalogMeta {
@@ -115,10 +137,23 @@ export interface PublicListingCatalogMeta {
   limit: number;
   totalPages: number;
   sort: string;
+  map: {
+    limit: number;
+    pointsTotal: number;
+    pointsReturned: number;
+    truncated: boolean;
+    bbox?: {
+      west: number;
+      south: number;
+      east: number;
+      north: number;
+    } | null;
+  };
 }
 
 export interface PublicListingCatalogResponse {
   data: PublicListingCatalogItem[];
+  mapMarkers: PublicListingCatalogMapMarker[];
   meta: PublicListingCatalogMeta;
 }
 

@@ -136,7 +136,30 @@ interface PublicListingCatalogItem {
 }
 ```
 
-Jeśli liczba punktów przekracza `mapLimit`, API powinno zwrócić metadane pozwalające UI pokazać komunikat o zawężeniu obszaru.
+Implementacja `F9.2` rozszerza odpowiedź także o osobną tablicę markerów, aby mapa mogła pokazać punkty niezależnie od paginacji listy:
+
+```ts
+interface PublicListingCatalogResponse {
+  data: PublicListingCatalogItem[];
+  mapMarkers: PublicListingCatalogMapMarker[];
+  meta: {
+    map: {
+      limit: number;
+      pointsTotal: number;
+      pointsReturned: number;
+      truncated: boolean;
+      bbox?: {
+        west: number;
+        south: number;
+        east: number;
+        north: number;
+      } | null;
+    };
+  };
+}
+```
+
+Jeśli liczba punktów przekracza `mapLimit`, API zwraca `meta.map.truncated = true`, aby UI mogło pokazać komunikat o zawężeniu obszaru.
 
 ## UI i UX
 

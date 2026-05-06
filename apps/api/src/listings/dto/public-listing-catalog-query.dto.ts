@@ -102,4 +102,16 @@ export class PublicListingCatalogQueryDto {
   @Min(1)
   @Max(48)
   limit?: number = 24;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  bbox?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(300)
+  mapLimit?: number = 150;
 }
