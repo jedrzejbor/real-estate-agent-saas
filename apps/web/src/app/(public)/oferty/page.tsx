@@ -30,6 +30,7 @@ import {
 } from '@/lib/listings';
 import { PublicListingCatalogResultLink } from '@/components/listings/public-listing-catalog-result-link';
 import { PublicListingCatalogMap } from '@/components/listings/public-listing-catalog-map';
+import { PublicListingCityFilterField } from '@/components/listings/public-listing-city-filter-field';
 import type { AnalyticsProperties } from '@/lib/analytics';
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -169,11 +170,8 @@ export default async function PublicListingsIndexPage({
               </Field>
 
               <Field label="Miasto">
-                <input
-                  name="city"
-                  defaultValue={filters.city ?? ''}
-                  placeholder="Warszawa"
-                  className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+                <PublicListingCityFilterField
+                  initialValue={filters.city ?? ''}
                 />
               </Field>
 
