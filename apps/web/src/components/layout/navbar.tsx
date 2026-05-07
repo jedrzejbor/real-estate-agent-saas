@@ -5,9 +5,9 @@ import { Container } from '@/components/layout/container';
 
 const navLinks = [
   { label: 'Home', href: '/' },
+  { label: 'Oferty', href: '/oferty' },
   { label: 'Cechy', href: '#features' },
   { label: 'Cennik', href: '#pricing' },
-  { label: 'Dodaj ofertę', href: '/dodaj-oferte' },
   { label: 'Blog', href: '#' },
   { label: 'Logowanie', href: '/login' },
 ] as const;
@@ -50,13 +50,22 @@ export function Navbar() {
           </Link>
         </div>
 
-        {/* Mobile hamburger — placeholder for future client component */}
-        <button
-          className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[#44403C] md:hidden"
-          aria-label="Menu"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-2 md:hidden">
+          <Link
+            href="/oferty"
+            className="inline-flex h-9 items-center justify-center rounded-full border border-border px-3 text-sm font-semibold text-[#44403C] transition-colors hover:border-primary hover:text-primary"
+          >
+            Oferty
+          </Link>
+
+          {/* Mobile hamburger — placeholder for future client component */}
+          <button
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[#44403C]"
+            aria-label="Menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </Container>
     </header>
   );
