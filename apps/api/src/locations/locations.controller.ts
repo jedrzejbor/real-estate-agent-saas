@@ -10,9 +10,9 @@ export class LocationsController {
   /** GET /api/locations — public Polish locality autocomplete. */
   @Public()
   @Get()
-  search(@Query() query: SearchLocationsQueryDto) {
+  async search(@Query() query: SearchLocationsQueryDto) {
     return {
-      data: this.locationsService.search(query),
+      data: await this.locationsService.search(query),
     };
   }
 }

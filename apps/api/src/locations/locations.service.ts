@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Location } from './entities';
 import { LOCATION_CATALOG, LocationCatalogEntry } from './location-catalog';
 import { SearchLocationsQueryDto } from './dto/search-locations-query.dto';
+import { normalizeLocationSearch } from './locations-normalization';
 
 export interface PublicLocationSuggestion {
   id: string;
@@ -15,11 +19,64 @@ export interface PublicLocationSuggestion {
 
 @Injectable()
 export class LocationsService {
-  search(query: SearchLocationsQueryDto): PublicLocationSuggestion[] {
+  constructor(
+    @InjectRepository(Location)
+    private readonly locationRepo: Repository<Location>,
+  ) {}
+
+  async search(
+    query: SearchLocationsQueryDto,
+  ): Promise<PublicLocationSuggestion[]> {
     const limit = query.limit ?? 10;
     const normalizedQuery = normalizeLocationSearch(query.query);
+    const databaseResults = await this.searchDatabase(normalizedQuery, limit);
 
-    return LOCATION_CATALOG.map((entry) => ({
+    if (databaseResults.length > 0) {
+      return databaseResults;
+    }
+
+    return this.searchFallbackCatalog(normalizedQuery, limit);
+  }
+
+  private async searchDatabase(
+    normalizedQuery: string | null,
+    limit: number,
+  ): Promise<PublicLocationSuggestion[]> {
+    const qb = this.locationRepo
+      .createQueryBuilder('location')
+      .where('location.active = :active', { active: true })
+      .orderBy('location.priority', 'DESC')
+      .addOrderBy('location.name', 'ASC')
+      .take(limit);
+
+    if (normalizedQuery) {
+      qb.andWhere(
+        `(location.normalizedName LIKE :prefix OR location.searchText LIKE :contains)`,
+        {
+          prefix: `${normalizedQuery}%`,
+          contains: `%${normalizedQuery}%`,
+        },
+      ).addOrderBy(
+        `CASE
+          WHEN location.normalizedName = :exact THEN 0
+          WHEN location.normalizedName LIKE :prefix THEN 1
+          ELSE 2
+        END`,
+        'ASC',
+      );
+      qb.setParameter('exact', normalizedQuery);
+    }
+
+    const locations = await qb.getMany();
+
+    return locations.map(toPublicDatabaseLocationSuggestion);
+  }
+
+  private searchFallbackCatalog(
+    normalizedQuery: string | null,
+    limit: number,
+  ): PublicLocationSuggestion[] {
+    const catalogResults = LOCATION_CATALOG.map((entry) => ({
       entry,
       score: scoreLocation(entry, normalizedQuery),
     }))
@@ -29,8 +86,27 @@ export class LocationsService {
           b.score - a.score || a.entry.name.localeCompare(b.entry.name, 'pl'),
       )
       .slice(0, limit)
-      .map(({ entry }) => toPublicLocationSuggestion(entry));
+      .map(({ entry }) => toPublicCatalogLocationSuggestion(entry));
+
+    return catalogResults;
   }
+}
+
+function toPublicDatabaseLocationSuggestion(
+  location: Location,
+): PublicLocationSuggestion {
+  return {
+    id: location.id,
+    name: location.name,
+    municipality: location.municipality ?? undefined,
+    county: location.county ?? '',
+    voivodeship: location.voivodeship,
+    lat: Number(location.lat),
+    lng: Number(location.lng),
+    label: [location.name, location.county, location.voivodeship]
+      .filter(Boolean)
+      .join(', '),
+  };
 }
 
 function scoreLocation(
@@ -72,7 +148,7 @@ function scoreLocation(
   return bestScore > 0 ? bestScore + entry.priority : 0;
 }
 
-function toPublicLocationSuggestion(
+function toPublicCatalogLocationSuggestion(
   entry: LocationCatalogEntry,
 ): PublicLocationSuggestion {
   return {
@@ -85,17 +161,4 @@ function toPublicLocationSuggestion(
     lng: entry.lng,
     label: [entry.name, entry.county, entry.voivodeship].join(', '),
   };
-}
-
-function normalizeLocationSearch(value?: string | null): string | null {
-  const normalized = value
-    ?.trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/ł/g, 'l')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-
-  return normalized || null;
 }
