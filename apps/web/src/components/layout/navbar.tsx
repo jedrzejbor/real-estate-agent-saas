@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Menu, X } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { Logo } from '@/components/common/logo';
 import { Container } from '@/components/layout/container';
 
@@ -7,6 +7,7 @@ const navLinks = [
   { label: 'Home', href: '/' },
   { label: 'Cechy', href: '#features' },
   { label: 'Cennik', href: '#pricing' },
+  { label: 'Dodaj ofertę', href: '/dodaj-oferte' },
   { label: 'Blog', href: '#' },
   { label: 'Logowanie', href: '/login' },
 ] as const;
@@ -34,12 +35,20 @@ export function Navbar() {
         </nav>
 
         {/* CTA */}
-        <Link
-          href="/register"
-          className="hidden rounded-full border-2 border-primary bg-transparent px-5 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white md:inline-flex"
-        >
-          Rozpocznij darmowy test
-        </Link>
+        <div className="hidden items-center gap-2 md:flex">
+          <Link
+            href="/dodaj-oferte"
+            className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#047857]"
+          >
+            Dodaj ofertę
+          </Link>
+          <Link
+            href="/register"
+            className="rounded-full border-2 border-primary bg-transparent px-5 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+          >
+            Darmowe konto
+          </Link>
+        </div>
 
         {/* Mobile hamburger — placeholder for future client component */}
         <button

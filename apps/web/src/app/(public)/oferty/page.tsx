@@ -9,6 +9,7 @@ import {
   Home,
   Map as MapIcon,
   MapPin,
+  PlusCircle,
   Search,
   SlidersHorizontal,
 } from 'lucide-react';
@@ -117,6 +118,21 @@ export default async function PublicListingsIndexPage({
                 parametrach i cenie, a potem przejdź do szczegółów wybranej
                 nieruchomości.
               </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  href="/dodaj-oferte"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Dodaj ofertę bez konta
+                </Link>
+                <Link
+                  href="/register"
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-border px-5 text-sm font-semibold transition-colors hover:bg-muted"
+                >
+                  Załóż konto agenta
+                </Link>
+              </div>
             </div>
 
             <div className="rounded-2xl border border-border bg-muted/30 p-4">
@@ -317,6 +333,13 @@ export default async function PublicListingsIndexPage({
                   {catalog.meta.total} wyników
                 </p>
                 <div className="flex flex-wrap gap-2">
+                  <Link
+                    href="/dodaj-oferte"
+                    className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    Dodaj ofertę
+                  </Link>
                   {filters.bbox ? (
                     <Link
                       href={`/oferty${buildCatalogQueryString({ ...filters, bbox: undefined, page: 1 })}`}
@@ -511,12 +534,21 @@ function EmptyState() {
         Zmień lokalizację, zakres ceny lub parametry nieruchomości, żeby
         zobaczyć więcej publicznych ofert.
       </p>
-      <Link
-        href="/oferty"
-        className="mt-5 inline-flex h-10 items-center justify-center rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted"
-      >
-        Wyczyść filtry
-      </Link>
+      <div className="mt-5 flex flex-wrap justify-center gap-3">
+        <Link
+          href="/dodaj-oferte"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <PlusCircle className="h-4 w-4" />
+          Dodaj własną ofertę
+        </Link>
+        <Link
+          href="/oferty"
+          className="inline-flex h-10 items-center justify-center rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted"
+        >
+          Wyczyść filtry
+        </Link>
+      </div>
     </section>
   );
 }

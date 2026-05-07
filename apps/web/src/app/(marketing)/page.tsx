@@ -4,16 +4,18 @@ import {
   TrendingUp,
   Users,
   CalendarCheck,
-  BarChart3,
   Globe,
   Shield,
-  Zap,
   ArrowRight,
+  PlusCircle,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Container, Section, SectionHeader } from '@/components/layout';
-import { FeatureCard, HowItWorksStep, TestimonialCard, PricingCard } from '@/components/marketing';
+import {
+  FeatureCard,
+  HowItWorksStep,
+  TestimonialCard,
+  PricingCard,
+} from '@/components/marketing';
 import { HeroPhotoGrid } from '@/components/marketing/hero-photo-grid';
 import type { HeroImage } from '@/components/marketing/hero-photo-grid';
 import { ScrollLink } from '@/components/common/scroll-link';
@@ -184,6 +186,13 @@ export default function Home() {
                     className="inline-flex items-center justify-center rounded-full bg-primary px-7 py-3 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(5,150,105,0.3)] transition-all hover:bg-[#047857] hover:shadow-[0_6px_16px_rgba(5,150,105,0.4)]"
                   >
                     Rozpocznij dzisiaj
+                  </Link>
+                  <Link
+                    href="/dodaj-oferte"
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-primary bg-white px-7 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    Dodaj ofertę bez konta
                   </Link>
                   <ScrollLink
                     href="#features"
