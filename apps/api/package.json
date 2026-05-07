@@ -14,7 +14,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "import:locations": "ts-node -r tsconfig-paths/register src/locations/import-locations.ts"
+    "import:locations": "ts-node -r tsconfig-paths/register src/locations/import-locations.ts",
+    "import:locations:prng": "ts-node -r tsconfig-paths/register src/locations/import-prng-locations.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",

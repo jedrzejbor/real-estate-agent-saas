@@ -228,7 +228,16 @@ export function CityAutocomplete({
                       {location.name}
                     </span>
                     <span className="block truncate text-[11px] leading-tight text-muted-foreground">
-                      {location.county}, {location.voivodeship}
+                      {[
+                        location.kind,
+                        location.parentName
+                          ? `przy ${location.parentName}`
+                          : null,
+                        location.county,
+                        location.voivodeship,
+                      ]
+                        .filter(Boolean)
+                        .join(', ')}
                     </span>
                   </span>
                 </li>

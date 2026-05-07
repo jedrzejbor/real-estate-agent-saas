@@ -4,8 +4,11 @@ export interface LocationSuggestion {
   id: string;
   name: string;
   municipality?: string;
+  parentName?: string | null;
   county: string;
   voivodeship: string;
+  kind: string;
+  kindCode?: string | null;
   lat: number;
   lng: number;
   label: string;

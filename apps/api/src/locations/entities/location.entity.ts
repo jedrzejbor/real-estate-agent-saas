@@ -31,11 +31,20 @@ export class Location {
   @Column({ type: 'varchar', length: 255, nullable: true })
   municipality?: string | null;
 
+  @Column({ type: 'varchar', length: 255, name: 'parent_name', nullable: true })
+  parentName?: string | null;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   county?: string | null;
 
   @Column({ type: 'varchar', length: 255 })
   voivodeship: string;
+
+  @Column({ type: 'varchar', length: 80, default: 'locality' })
+  kind: string;
+
+  @Column({ type: 'varchar', length: 40, name: 'kind_code', nullable: true })
+  kindCode?: string | null;
 
   @Column({ type: 'varchar', length: 20, name: 'simc_code', nullable: true })
   simcCode?: string | null;

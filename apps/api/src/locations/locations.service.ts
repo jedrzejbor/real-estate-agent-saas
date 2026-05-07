@@ -10,8 +10,11 @@ export interface PublicLocationSuggestion {
   id: string;
   name: string;
   municipality?: string;
+  parentName?: string | null;
   county: string;
   voivodeship: string;
+  kind: string;
+  kindCode?: string | null;
   lat: number;
   lng: number;
   label: string;
@@ -99,8 +102,11 @@ function toPublicDatabaseLocationSuggestion(
     id: location.id,
     name: location.name,
     municipality: location.municipality ?? undefined,
+    parentName: location.parentName ?? null,
     county: location.county ?? '',
     voivodeship: location.voivodeship,
+    kind: location.kind,
+    kindCode: location.kindCode ?? null,
     lat: Number(location.lat),
     lng: Number(location.lng),
     label: [location.name, location.county, location.voivodeship]
@@ -155,8 +161,11 @@ function toPublicCatalogLocationSuggestion(
     id: entry.id,
     name: entry.name,
     municipality: entry.municipality,
+    parentName: null,
     county: entry.county,
     voivodeship: entry.voivodeship,
+    kind: 'miejscowość',
+    kindCode: null,
     lat: entry.lat,
     lng: entry.lng,
     label: [entry.name, entry.county, entry.voivodeship].join(', '),
