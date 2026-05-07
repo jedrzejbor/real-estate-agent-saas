@@ -128,16 +128,32 @@ Potrzebuje:
     - po dodaniu realnych liczników katalogu można zastąpić statyczny podgląd
       danymi z API.
 
-- [ ] Stopka
+- [x] Stopka
   - Dodać linki:
     - `Oferty nieruchomości` -> `/oferty`
     - `Dodaj ofertę` -> `/dodaj-oferte`
     - `Zasady publikacji ofert` -> `/zasady-publikacji`
+  - Data zakończenia: 2026-05-07
+  - Wykonano:
+    - dodano `Oferty nieruchomości` i `Dodaj ofertę` do kolumny produktowej
+      stopki,
+    - doprecyzowano link prawny jako `Zasady publikacji ofert`.
 
-- [ ] Ekran sukcesu po dodaniu oferty
+- [x] Ekran sukcesu po dodaniu oferty
   - Dodać link `Przejdź do katalogu ofert`.
   - Pokazać status: `Oferta trafiła do weryfikacji`.
   - Wyjaśnić, kiedy pojawi się publicznie.
+  - Data zakończenia: 2026-05-07
+  - Wykonano:
+    - na ekranie `sprawdz-email` dodano status zgłoszenia i link do katalogu
+      `/oferty`,
+    - doprecyzowano, że po potwierdzeniu emaila oferta może trafić publicznie do
+      katalogu po przejęciu i automatycznej kontroli albo po sprawdzeniu,
+    - na ekranie `potwierdzono` dodano link do katalogu oraz komunikat o dalszym
+      przejęciu/weryfikacji.
+  - Uwagi / follow-up:
+    - po dodaniu konta `PRIVATE_SELLER` zaktualizować copy, żeby nie mówiło
+      wyłącznie o przejęciu do CRM.
 
 ### Priorytet późniejszy
 

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, MailCheck } from 'lucide-react';
+import { ArrowRight, MailCheck, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface CheckEmailPageProps {
@@ -36,7 +36,24 @@ export default async function PublicListingSubmissionCheckEmailPage({
             możliwość założenia konta albo zalogowania się i przejęcia oferty do
             CRM.
           </p>
+          <div className="mx-auto mt-5 max-w-xl rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-left">
+            <p className="text-sm font-semibold text-foreground">
+              Status: oferta trafiła do weryfikacji emaila
+            </p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              Gdy potwierdzisz adres email, oferta będzie gotowa do przejęcia.
+              Jeżeli przejdzie automatyczną kontrolę treści, po przejęciu może
+              pojawić się publicznie w katalogu; w przeciwnym razie zostanie
+              sprawdzona przed publikacją.
+            </p>
+          </div>
           <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link href="/oferty">
+              <Button variant="outline" className="h-10 gap-2 rounded-xl">
+                <Search className="h-4 w-4" />
+                Przejdź do katalogu ofert
+              </Button>
+            </Link>
             <Link href="/dodaj-oferte">
               <Button variant="outline" className="h-10 rounded-xl">
                 Dodaj kolejną ofertę

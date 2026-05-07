@@ -6,6 +6,8 @@ const footerSections = [
   {
     title: 'Produkt',
     links: [
+      { label: 'Oferty nieruchomości', href: '/oferty' },
+      { label: 'Dodaj ofertę', href: '/dodaj-oferte' },
       { label: 'Funkcje', href: '#features' },
       { label: 'Cennik', href: '#pricing' },
       { label: 'Integracje', href: '#' },
@@ -34,7 +36,7 @@ const footerSections = [
     links: [
       { label: 'Regulamin', href: '/regulamin' },
       { label: 'Polityka prywatności', href: '/polityka-prywatnosci' },
-      { label: 'Zasady publikacji', href: '/zasady-publikacji' },
+      { label: 'Zasady publikacji ofert', href: '/zasady-publikacji' },
     ],
   },
 ] as const;

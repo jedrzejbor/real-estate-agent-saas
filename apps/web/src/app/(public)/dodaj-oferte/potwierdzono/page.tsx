@@ -9,6 +9,7 @@ import {
   CircleAlert,
   Loader2,
   LogIn,
+  Search,
   UserPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -131,19 +132,34 @@ function VerificationShell({ state }: { state: VerificationState }) {
               </h1>
               <p className="mt-2 max-w-xl text-sm text-muted-foreground">
                 Załóż konto albo zaloguj się, a przypniemy ofertę do Twojego
-                workspace i otworzymy ją w panelu CRM.
+                workspace i otworzymy ją w panelu CRM. Jeśli oferta przejdzie
+                automatyczną kontrolę, po przejęciu będzie mogła pojawić się w
+                publicznym katalogu; w przeciwnym razie poczeka na sprawdzenie
+                przed publikacją.
               </p>
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
                 <Link href={buildClaimAuthPath('/register', state.claimToken)}>
-                  <Button className="h-10 gap-2 rounded-xl">
+                  <Button className="h-10 w-full gap-2 rounded-xl">
                     <UserPlus className="h-4 w-4" />
                     Utwórz konto i przejmij
                   </Button>
                 </Link>
                 <Link href={buildClaimAuthPath('/login', state.claimToken)}>
-                  <Button variant="outline" className="h-10 gap-2 rounded-xl">
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full gap-2 rounded-xl"
+                  >
                     <LogIn className="h-4 w-4" />
                     Mam już konto
+                  </Button>
+                </Link>
+                <Link href="/oferty">
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full gap-2 rounded-xl"
+                  >
+                    <Search className="h-4 w-4" />
+                    Katalog ofert
                   </Button>
                 </Link>
               </div>
