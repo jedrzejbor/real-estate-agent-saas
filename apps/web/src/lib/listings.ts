@@ -1,9 +1,6 @@
 import { z } from 'zod';
 import { apiFetch, apiFormDataFetch } from './api-client';
-import {
-  AnalyticsEventName,
-  trackAnalyticsEvent,
-} from './analytics';
+import { AnalyticsEventName, trackAnalyticsEvent } from './analytics';
 
 // ── Enums (mirroring backend) ──
 
@@ -419,6 +416,8 @@ export const addressSchema = z.object({
   postalCode: z.string().max(10).optional().or(z.literal('')),
   district: z.string().max(255).optional().or(z.literal('')),
   voivodeship: z.string().max(255).optional().or(z.literal('')),
+  lat: z.literal('').or(z.coerce.number().min(-90).max(90)).optional(),
+  lng: z.literal('').or(z.coerce.number().min(-180).max(180)).optional(),
 });
 
 export const createListingSchema = z

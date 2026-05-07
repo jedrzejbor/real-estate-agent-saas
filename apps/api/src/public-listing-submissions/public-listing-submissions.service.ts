@@ -819,6 +819,8 @@ function buildAddressDataFromPayload(
     postalCode: getOptionalString(address.postalCode),
     district: getOptionalString(address.district),
     voivodeship: getOptionalString(address.voivodeship),
+    lat: getNullableNumber(address.lat) ?? undefined,
+    lng: getNullableNumber(address.lng) ?? undefined,
   };
 }
 

@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, Clock3, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { InlineSelect } from '@/components/ui/inline-select';
+import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { LimitUpgradeBanner } from '@/components/growth/limit-upgrade-banner';
 import { useListingForm } from '@/hooks/use-listing-form';
 import { ListingDescriptionAssistant } from '@/components/listings/listing-description-assistant';
@@ -53,6 +54,17 @@ export function ListingForm({
   const [propertyType, setPropertyType] = useState<PropertyType | ''>(
     listing?.propertyType ?? '',
   );
+  const [city, setCity] = useState(listing?.address?.city ?? '');
+  const [voivodeship, setVoivodeship] = useState(
+    listing?.address?.voivodeship ?? '',
+  );
+  const [locationPoint, setLocationPoint] = useState<{
+    lat: number | string;
+    lng: number | string;
+  }>({
+    lat: listing?.address?.lat ?? '',
+    lng: listing?.address?.lng ?? '',
+  });
   const [showDetails, setShowDetails] = useState(!isGuidedCreate);
   const [assistantInput, setAssistantInput] =
     useState<ListingDescriptionAssistantInput>(() =>
@@ -231,12 +243,23 @@ export function ListingForm({
             required
             error={getFieldError('address.city')}
           >
-            <Input
+            <input type="hidden" name="address.lat" value={locationPoint.lat} />
+            <input type="hidden" name="address.lng" value={locationPoint.lng} />
+            <CityAutocomplete
               name="address.city"
-              defaultValue={listing?.address?.city}
+              value={city}
               placeholder="np. Warszawa"
-              className="h-10 rounded-xl"
-              aria-invalid={!!getFieldError('address.city')}
+              error={getFieldError('address.city') ?? undefined}
+              inputClassName="h-10 rounded-xl"
+              onValueChange={(value) => {
+                setCity(value);
+                setLocationPoint({ lat: '', lng: '' });
+              }}
+              onLocationSelect={(location) => {
+                setCity(location.name);
+                setVoivodeship(location.voivodeship);
+                setLocationPoint({ lat: location.lat, lng: location.lng });
+              }}
             />
           </FormField>
 
@@ -518,7 +541,8 @@ export function ListingForm({
               >
                 <Input
                   name="address.voivodeship"
-                  defaultValue={listing?.address?.voivodeship ?? ''}
+                  value={voivodeship}
+                  onChange={(event) => setVoivodeship(event.target.value)}
                   placeholder="np. mazowieckie"
                   className="h-10 rounded-xl"
                 />

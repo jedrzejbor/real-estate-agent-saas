@@ -18,6 +18,7 @@ import {
 import { z } from 'zod';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage } from '@/lib/api-client';
@@ -49,6 +50,8 @@ interface PublicListingWizardDraft {
   street: string;
   postalCode: string;
   voivodeship: string;
+  lat: string;
+  lng: string;
   showExactAddressOnPublicPage: boolean;
   areaM2: string;
   plotAreaM2: string;
@@ -84,6 +87,8 @@ const INITIAL_DRAFT: PublicListingWizardDraft = {
   street: '',
   postalCode: '',
   voivodeship: '',
+  lat: '',
+  lng: '',
   showExactAddressOnPublicPage: false,
   areaM2: '',
   plotAreaM2: '',
@@ -404,7 +409,16 @@ function StepBasics({
   draft,
   errors,
   updateDraft,
-}: StepProps<'transactionType' | 'propertyType' | 'title' | 'price' | 'city'>) {
+}: StepProps<
+  | 'transactionType'
+  | 'propertyType'
+  | 'title'
+  | 'price'
+  | 'city'
+  | 'voivodeship'
+  | 'lat'
+  | 'lng'
+>) {
   return (
     <div className="space-y-6">
       <SectionHeader
@@ -452,13 +466,25 @@ function StepBasics({
           placeholder="np. 650000"
           onChange={(value) => updateDraft('price', value)}
         />
-        <TextField
-          label="Miasto"
-          value={draft.city}
-          error={errors.city}
-          placeholder="np. Warszawa"
-          onChange={(value) => updateDraft('city', value)}
-        />
+        <FieldShell label="Miasto" error={errors.city}>
+          <CityAutocomplete
+            value={draft.city}
+            error={errors.city}
+            placeholder="np. Warszawa"
+            onValueChange={(value) => {
+              updateDraft('city', value);
+              updateDraft('voivodeship', '');
+              updateDraft('lat', '');
+              updateDraft('lng', '');
+            }}
+            onLocationSelect={(location) => {
+              updateDraft('city', location.name);
+              updateDraft('voivodeship', location.voivodeship);
+              updateDraft('lat', String(location.lat));
+              updateDraft('lng', String(location.lng));
+            }}
+          />
+        </FieldShell>
         <TextField
           label="Dzielnica"
           value={draft.district}
@@ -907,6 +933,26 @@ function TextField({
   );
 }
 
+function FieldShell({
+  label,
+  error,
+  children,
+  className,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={cn('block space-y-1.5', className)}>
+      <span className="text-sm font-medium text-foreground">{label}</span>
+      {children}
+      {error ? <FieldError>{error}</FieldError> : null}
+    </label>
+  );
+}
+
 function TextAreaField({
   label,
   value,
@@ -1208,6 +1254,8 @@ function buildSubmissionPayload(
       postalCode: optionalString(draft.postalCode),
       district: optionalString(draft.district),
       voivodeship: optionalString(draft.voivodeship),
+      lat: optionalNumber(draft.lat),
+      lng: optionalNumber(draft.lng),
     },
     publicSettings: {
       publicTitle: draft.title.trim(),

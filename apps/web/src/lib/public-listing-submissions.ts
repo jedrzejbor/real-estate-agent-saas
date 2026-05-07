@@ -30,6 +30,8 @@ export interface CreatePublicListingSubmissionInput {
     postalCode?: string;
     district?: string;
     voivodeship?: string;
+    lat?: number;
+    lng?: number;
   };
   publicSettings?: {
     publicTitle?: string;

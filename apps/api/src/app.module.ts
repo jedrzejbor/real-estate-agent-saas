@@ -17,6 +17,7 @@ import { NotificationsModule } from './notifications';
 import { AnalyticsModule } from './analytics';
 import { PublicLeadsModule } from './public-leads';
 import { PublicListingSubmissionsModule } from './public-listing-submissions';
+import { LocationsModule } from './locations';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { PublicListingSubmissionsModule } from './public-listing-submissions';
     SearchModule,
     NotificationsModule,
     AnalyticsModule,
+    LocationsModule,
     PublicLeadsModule,
     PublicListingSubmissionsModule,
   ],

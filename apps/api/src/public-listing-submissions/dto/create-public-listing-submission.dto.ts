@@ -45,6 +45,20 @@ export class PublicSubmissionAddressDto {
   @IsString()
   @MaxLength(255)
   voivodeship?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  lat?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  lng?: number;
 }
 
 export class PublicSubmissionListingDto {

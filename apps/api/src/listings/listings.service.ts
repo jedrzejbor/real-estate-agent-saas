@@ -45,6 +45,7 @@ import {
   PublicListingSitemapEntry,
   PublicListingView,
 } from './public-listing.model';
+import { LOCATION_CATALOG } from '../locations/location-catalog';
 
 /** Paginated result wrapper. */
 export interface PaginatedResult<T> {
@@ -81,6 +82,16 @@ const PUBLIC_CATALOG_MAX_BBOX_HEIGHT_DEGREES = 7;
 const PUBLIC_CATALOG_MAX_BBOX_AREA_DEGREES = 36;
 
 const PUBLIC_LOCATION_CENTROIDS: Record<string, PublicLocationPoint> = {
+  ...LOCATION_CATALOG.reduce<Record<string, PublicLocationPoint>>(
+    (centroids, location) => {
+      const key = normalizePublicLocationKey(location.name);
+      if (key) {
+        centroids[key] = { lat: location.lat, lng: location.lng };
+      }
+      return centroids;
+    },
+    {},
+  ),
   warszawa: { lat: 52.2297, lng: 21.0122 },
   krakow: { lat: 50.0647, lng: 19.945 },
   lodz: { lat: 51.7592, lng: 19.456 },
@@ -123,6 +134,19 @@ const PUBLIC_LOCATION_CENTROIDS: Record<string, PublicLocationPoint> = {
   wielkopolskie: { lat: 52.279, lng: 17.353 },
   zachodniopomorskie: { lat: 53.569, lng: 15.347 },
 };
+
+function normalizePublicLocationKey(value?: string | null): string | null {
+  const normalized = value
+    ?.trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/ł/g, 'l')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return normalized || null;
+}
 
 @Injectable()
 export class ListingsService {
@@ -1295,16 +1319,7 @@ export class ListingsService {
   }
 
   private normalizePublicLocationKey(value?: string | null): string | null {
-    const normalized = value
-      ?.trim()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/ł/g, 'l')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-
-    return normalized || null;
+    return normalizePublicLocationKey(value);
   }
 
   private toValidLatitude(value?: number | string | null): number | null {
@@ -1327,9 +1342,7 @@ export class ListingsService {
       : null;
   }
 
-  private parsePublicCatalogBbox(
-    value?: string,
-  ): PublicCatalogBbox | null {
+  private parsePublicCatalogBbox(value?: string): PublicCatalogBbox | null {
     if (!value?.trim()) {
       return null;
     }
