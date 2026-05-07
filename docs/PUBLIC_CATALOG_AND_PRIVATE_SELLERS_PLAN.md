@@ -95,15 +95,38 @@ Potrzebuje:
     - po wdrożeniu pełnego mobilnego menu przenieść link `Oferty` również do
       listy rozwijanej.
 
-- [ ] Hero strony głównej
+- [x] Hero strony głównej
   - Dodać drugie CTA: `Szukaj nieruchomości` -> `/oferty`.
   - Obok powinno być CTA: `Dodaj ofertę` -> `/dodaj-oferte`.
   - Copy ma mówić o realnej akcji, nie o funkcjach systemu.
+  - Data zakończenia: 2026-05-07
+  - Wykonano:
+    - zmieniono główne CTA hero na `Szukaj nieruchomości` prowadzące do
+      `/oferty`,
+    - pozostawiono obok CTA `Dodaj ofertę bez konta` prowadzące do
+      `/dodaj-oferte`,
+    - przeniesiono rejestrację agenta do trzeciego, mniej dominującego CTA,
+    - dopasowano headline i opis hero do realnych akcji: szukania, dodawania i
+      zarządzania ofertami.
+  - Uwagi / follow-up:
+    - po dodaniu sekcji `Dla właścicieli nieruchomości` sprawdzić, czy hero nie
+      komunikuje zbyt wielu ścieżek naraz.
 
-- [ ] Sekcja na stronie głównej
+- [x] Sekcja na stronie głównej
   - Dodać moduł `Publiczny katalog ofert`.
   - Pokazać, że oferty można przeglądać na liście i mapie.
   - Dodać link do `/oferty`.
+  - Data zakończenia: 2026-05-07
+  - Wykonano:
+    - dodano sekcję `Publiczny katalog ofert` bezpośrednio pod hero,
+    - pokazano trzy konkretne wartości: szybkie wyszukiwanie, widok mapy i
+      publiczne wyniki,
+    - dodano CTA `Otwórz katalog ofert` prowadzące do `/oferty`,
+    - dodano drugie CTA `Dodaj swoją ofertę` prowadzące do `/dodaj-oferte`,
+    - dodano wizualny podgląd oferty z sygnałem listy i mapy.
+  - Uwagi / follow-up:
+    - po dodaniu realnych liczników katalogu można zastąpić statyczny podgląd
+      danymi z API.
 
 - [ ] Stopka
   - Dodać linki:
