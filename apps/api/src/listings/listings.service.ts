@@ -17,6 +17,7 @@ import { Listing } from './entities/listing.entity';
 import { Address } from './entities/address.entity';
 import { ListingImage } from './entities/listing-image.entity';
 import { Agent } from '../users/entities/agent.entity';
+import { Location } from '../locations/entities';
 import { UsersService } from '../users';
 import {
   ActivityAction,
@@ -46,6 +47,7 @@ import {
   PublicListingView,
 } from './public-listing.model';
 import { LOCATION_CATALOG } from '../locations/location-catalog';
+import { normalizeLocationSearch } from '../locations/locations-normalization';
 
 /** Paginated result wrapper. */
 export interface PaginatedResult<T> {
@@ -151,6 +153,10 @@ function normalizePublicLocationKey(value?: string | null): string | null {
 @Injectable()
 export class ListingsService {
   private readonly logger = new Logger(ListingsService.name);
+  private readonly publicLocationCentroidCache = new Map<
+    string,
+    PublicLocationPoint
+  >();
 
   constructor(
     @InjectRepository(Listing)
@@ -161,6 +167,8 @@ export class ListingsService {
     private readonly listingImageRepo: Repository<ListingImage>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    @InjectRepository(Location)
+    private readonly locationRepo: Repository<Location>,
     private readonly usersService: UsersService,
     private readonly activityService: ActivityService,
     private readonly configService: ConfigService,
@@ -746,6 +754,7 @@ export class ListingsService {
 
     if (bbox) {
       const listingsInSortOrder = await qb.getMany();
+      await this.hydrateApproximatePublicLocationPoints(listingsInSortOrder);
       const listingsInsideBbox = listingsInSortOrder.filter((listing) => {
         const mapPoint = this.getPublicListingMapPoint(listing);
         return mapPoint ? this.isMapPointInsideBbox(mapPoint, bbox) : false;
@@ -787,6 +796,7 @@ export class ListingsService {
       .getManyAndCount();
 
     const mapCandidateListings = await qb.clone().getMany();
+    await this.hydrateApproximatePublicLocationPoints(mapCandidateListings);
     const mapMarkers = this.buildPublicCatalogMapMarkers(
       mapCandidateListings,
       mapLimit,
@@ -1262,6 +1272,91 @@ export class ListingsService {
     return markers;
   }
 
+  private async hydrateApproximatePublicLocationPoints(
+    listings: Listing[],
+  ): Promise<void> {
+    const requested = new Map<
+      string,
+      {
+        citySearchKey: string;
+        voivodeshipSearchKey: string | null;
+      }
+    >();
+
+    for (const listing of listings) {
+      const address = listing.address;
+
+      if (!address || listing.showExactAddressOnPublicPage) {
+        continue;
+      }
+
+      const cacheKey = this.buildAddressLocationCacheKey(address);
+      const citySearchKey = normalizeLocationSearch(address.city);
+
+      if (
+        !cacheKey ||
+        !citySearchKey ||
+        this.publicLocationCentroidCache.has(cacheKey)
+      ) {
+        continue;
+      }
+
+      requested.set(cacheKey, {
+        citySearchKey,
+        voivodeshipSearchKey: normalizeLocationSearch(address.voivodeship),
+      });
+    }
+
+    if (requested.size === 0) {
+      return;
+    }
+
+    const citySearchKeys = [
+      ...new Set([...requested.values()].map((item) => item.citySearchKey)),
+    ];
+    const locations = await this.locationRepo.find({
+      where: {
+        active: true,
+        normalizedName: In(citySearchKeys),
+      },
+      select: [
+        'name',
+        'normalizedName',
+        'voivodeship',
+        'lat',
+        'lng',
+        'priority',
+      ],
+      order: {
+        priority: 'DESC',
+      },
+    });
+
+    for (const [cacheKey, request] of requested) {
+      const candidates = locations.filter(
+        (location) =>
+          location.normalizedName === request.citySearchKey &&
+          (!request.voivodeshipSearchKey ||
+            normalizeLocationSearch(location.voivodeship) ===
+              request.voivodeshipSearchKey),
+      );
+      const bestLocation = candidates[0];
+
+      if (!bestLocation) {
+        continue;
+      }
+
+      const lat = this.toValidLatitude(bestLocation.lat);
+      const lng = this.toValidLongitude(bestLocation.lng);
+
+      if (lat === null || lng === null) {
+        continue;
+      }
+
+      this.publicLocationCentroidCache.set(cacheKey, { lat, lng });
+    }
+  }
+
   private getPublicListingMapPoint(
     listing: Listing,
   ): PublicListingMapPoint | null {
@@ -1297,6 +1392,15 @@ export class ListingsService {
       return null;
     }
 
+    const cacheKey = this.buildAddressLocationCacheKey(address);
+    const cachedPoint = cacheKey
+      ? this.publicLocationCentroidCache.get(cacheKey)
+      : null;
+
+    if (cachedPoint) {
+      return cachedPoint;
+    }
+
     const lookupKeys = [
       address.city,
       address.voivodeship,
@@ -1316,6 +1420,19 @@ export class ListingsService {
     }
 
     return null;
+  }
+
+  private buildAddressLocationCacheKey(address: Address): string | null {
+    const cityKey = normalizePublicLocationKey(address.city);
+
+    if (!cityKey) {
+      return null;
+    }
+
+    return [
+      cityKey,
+      normalizePublicLocationKey(address.voivodeship) ?? '',
+    ].join('|');
   }
 
   private normalizePublicLocationKey(value?: string | null): string | null {
