@@ -606,7 +606,7 @@ export function ListingPublicationPanel({
             </div>
             <Badge variant="gold">Upgrade paths</Badge>
           </div>
-          <div className="mt-4 grid gap-3 lg:grid-cols-3">
+          <div className="mt-4 grid gap-3">
             {publicationUpsells.map((upsell) => (
               <GrowthUpsellCard
                 key={upsell.id}

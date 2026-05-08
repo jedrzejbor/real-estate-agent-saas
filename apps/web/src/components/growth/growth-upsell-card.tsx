@@ -42,17 +42,30 @@ export function GrowthUpsellCard({
   return (
     <article
       className={cn(
-        'rounded-xl border border-[#D4A853]/25 bg-[#FFF9E6]/40 p-4',
+        'flex min-w-0 flex-col rounded-xl border border-[#D4A853]/25 bg-[#FFF9E6]/40',
+        compact ? 'p-3 sm:p-4' : 'p-4',
         className,
       )}
     >
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#B8922F] ring-1 ring-[#D4A853]/25">
+      <div className="flex min-w-0 items-start gap-3">
+        <div
+          className={cn(
+            'flex shrink-0 items-center justify-center rounded-xl bg-white text-[#B8922F] ring-1 ring-[#D4A853]/25',
+            compact ? 'h-9 w-9' : 'h-10 w-10',
+          )}
+        >
           <Crown className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold text-foreground">
+          <div
+            className={cn(
+              'flex min-w-0 gap-2',
+              compact
+                ? 'flex-col items-start sm:flex-row sm:flex-wrap sm:items-center'
+                : 'flex-wrap items-center',
+            )}
+          >
+            <h3 className="min-w-0 text-sm font-semibold leading-5 text-foreground">
               {upsell.title}
             </h3>
             <Badge variant="gold">Premium</Badge>
@@ -68,7 +81,14 @@ export function GrowthUpsellCard({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-3">
+      <div
+        className={cn(
+          'mt-4 flex gap-3',
+          compact
+            ? 'flex-col items-stretch sm:flex-row sm:items-center sm:justify-between'
+            : 'items-center justify-between',
+        )}
+      >
         <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
           <LockKeyhole className="h-3.5 w-3.5 text-[#B8922F]" />
           Plan płatny
@@ -77,7 +97,10 @@ export function GrowthUpsellCard({
           type="button"
           variant="outline"
           size="sm"
-          className="h-9 rounded-xl"
+          className={cn(
+            'min-h-9 rounded-xl whitespace-normal text-center leading-4',
+            compact ? 'w-full sm:w-auto' : '',
+          )}
           onClick={handleClick}
           render={<Link href={href} />}
         >
