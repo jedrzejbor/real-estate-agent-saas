@@ -31,6 +31,8 @@ import { cn } from '@/lib/utils';
 import { ListingQrAsset } from './listing-qr-asset';
 import {
   LISTING_PUBLICATION_STATUS_LABELS,
+  LISTING_STATUS_LABELS,
+  ListingStatus,
   ListingPublicationStatus,
   publicListingSettingsSchema,
   publishListing,
@@ -77,6 +79,8 @@ export function ListingPublicationPanel({
 
   const isPublished =
     listing.publicationStatus === ListingPublicationStatus.PUBLISHED;
+  const willActivateDraftOnPublish =
+    !isPublished && listing.status === ListingStatus.DRAFT;
   const isCompact = density === 'compact';
   const releaseFlags = getResolvedReleaseFlags(user?.releaseFlags);
   const showGrowthUpsells =
@@ -292,6 +296,13 @@ export function ListingPublicationPanel({
             Zarządzaj publiczną kartą oferty, linkiem do udostępniania i
             widocznością danych dla klientów.
           </p>
+          {willActivateDraftOnPublish ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Opublikowanie zmieni status z „
+              {LISTING_STATUS_LABELS[ListingStatus.DRAFT]}” na „
+              {LISTING_STATUS_LABELS[ListingStatus.ACTIVE]}”.
+            </p>
+          ) : null}
         </div>
         <Button
           type="button"

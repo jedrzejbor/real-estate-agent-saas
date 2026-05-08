@@ -312,6 +312,7 @@ export class ListingsService {
 
     const previousState = this.createListingSnapshot(listing);
     listing.status = statusChange.oldValue as ListingStatus;
+    this.syncPublicationWithListingStatus(listing);
     await this.listingRepo.save(listing);
 
     const updatedListing = await this.findOneOrFail(id);
@@ -347,6 +348,7 @@ export class ListingsService {
 
     // Merge listing fields
     Object.assign(listing, listingData);
+    this.syncPublicationWithListingStatus(listing);
 
     await this.listingRepo.save(listing);
 
@@ -363,17 +365,18 @@ export class ListingsService {
     const changes = this.activityService.buildChanges(previousState, nextState);
 
     if (changes.length > 0) {
-      const isStatusOnlyChange =
-        changes.length === 1 && changes[0].field === 'status';
+      const isStatusChange = changes.some(
+        (change) => change.field === 'status',
+      );
 
       await this.activityService.log({
         userId,
         entityType: ActivityEntityType.LISTING,
         entityId: updatedListing.id,
-        action: isStatusOnlyChange
+        action: isStatusChange
           ? ActivityAction.STATUS_CHANGED
           : ActivityAction.UPDATED,
-        description: isStatusOnlyChange
+        description: isStatusChange
           ? 'Zmieniono status oferty'
           : 'Zaktualizowano ofertę',
         changes,
@@ -590,6 +593,7 @@ export class ListingsService {
         successContext: (listing) => ({
           listingId: listing.id,
           agentId: listing.agentId,
+          status: listing.status,
           publicSlug: listing.publicSlug,
           publicationStatus: listing.publicationStatus,
         }),
@@ -637,6 +641,9 @@ export class ListingsService {
       .customBranding
       ? listing.estateflowBrandingEnabled
       : true;
+    if (listing.status === ListingStatus.DRAFT) {
+      listing.status = ListingStatus.ACTIVE;
+    }
     listing.publicationStatus = ListingPublicationStatus.PUBLISHED;
     listing.publishedAt = listing.publishedAt ?? new Date();
     listing.unpublishedAt = null;
@@ -654,7 +661,10 @@ export class ListingsService {
       entityType: ActivityEntityType.LISTING,
       entityId: publishedListing.id,
       action: ActivityAction.PUBLISHED,
-      description: 'Opublikowano publiczną stronę oferty',
+      description:
+        previousState.status === ListingStatus.DRAFT
+          ? 'Opublikowano ofertę i oznaczono ją jako aktywną'
+          : 'Opublikowano publiczną stronę oferty',
       changes,
     });
 
@@ -716,6 +726,7 @@ export class ListingsService {
     const listing = await this.listingRepo.findOne({
       where: {
         publicSlug: slug,
+        status: ListingStatus.ACTIVE,
         publicationStatus: ListingPublicationStatus.PUBLISHED,
       },
       relations: ['address', 'images', 'agent', 'agent.agency'],
@@ -746,6 +757,7 @@ export class ListingsService {
       .where('listing.publicationStatus = :publicationStatus', {
         publicationStatus: ListingPublicationStatus.PUBLISHED,
       })
+      .andWhere('listing.status = :status', { status: ListingStatus.ACTIVE })
       .andWhere('listing.publicSlug IS NOT NULL')
       .andWhere('listing.publishedAt IS NOT NULL');
 
@@ -836,6 +848,7 @@ export class ListingsService {
     const listings = await this.listingRepo.find({
       where: {
         agentId,
+        status: ListingStatus.ACTIVE,
         publicationStatus: ListingPublicationStatus.PUBLISHED,
       },
       relations: ['address', 'images'],
@@ -920,6 +933,7 @@ export class ListingsService {
           updatedAt: true,
         },
         where: {
+          status: ListingStatus.ACTIVE,
           publicationStatus: ListingPublicationStatus.PUBLISHED,
         },
         order: {
@@ -958,6 +972,7 @@ export class ListingsService {
       this.logger.log(`Draft listing hard-deleted: ${id}`);
     } else {
       listing.status = ListingStatus.ARCHIVED;
+      this.syncPublicationWithListingStatus(listing);
       await this.listingRepo.save(listing);
 
       const archivedListing = await this.findOneOrFail(id);
@@ -1016,9 +1031,12 @@ export class ListingsService {
   }
 
   private assertListingCanBePublished(listing: Listing): void {
-    if (listing.status === ListingStatus.ARCHIVED) {
+    if (
+      listing.status !== ListingStatus.DRAFT &&
+      listing.status !== ListingStatus.ACTIVE
+    ) {
       throw new BadRequestException(
-        'Nie można opublikować zarchiwizowanej oferty',
+        'Opublikować można tylko szkic albo aktywną ofertę',
       );
     }
 
@@ -1033,6 +1051,18 @@ export class ListingsService {
     if (!listing.price || Number(listing.price) <= 0) {
       throw new BadRequestException('Cena jest wymagana do publikacji');
     }
+  }
+
+  private syncPublicationWithListingStatus(listing: Listing): void {
+    if (
+      listing.status === ListingStatus.ACTIVE ||
+      listing.publicationStatus !== ListingPublicationStatus.PUBLISHED
+    ) {
+      return;
+    }
+
+    listing.publicationStatus = ListingPublicationStatus.UNPUBLISHED;
+    listing.unpublishedAt = new Date();
   }
 
   private async generateUniquePublicSlug(listing: Listing): Promise<string> {

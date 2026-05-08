@@ -35,6 +35,7 @@ import {
   type Listing,
   type ListingStatus,
   ListingStatus as LS,
+  ListingPublicationStatus,
   PROPERTY_TYPE_LABELS,
   TRANSACTION_TYPE_LABELS,
   LISTING_STATUS_LABELS,
@@ -102,7 +103,7 @@ export default function ListingDetailPage() {
 
       const confirmed = await confirm({
         title: 'Zmienić status oferty?',
-        description: `Status zostanie zmieniony z „${LISTING_STATUS_LABELS[listing.status]}” na „${LISTING_STATUS_LABELS[newStatus]}”.`,
+        description: getStatusChangeConfirmationDescription(listing, newStatus),
         confirmLabel: 'Zmień status',
         cancelLabel: 'Anuluj',
       });
@@ -127,7 +128,11 @@ export default function ListingDetailPage() {
   );
 
   const handleStatusRollback = useCallback(async () => {
-    if (!listing || !rollbackChange || typeof rollbackChange.oldValue !== 'string') {
+    if (
+      !listing ||
+      !rollbackChange ||
+      typeof rollbackChange.oldValue !== 'string'
+    ) {
       return;
     }
 
@@ -310,13 +315,14 @@ export default function ListingDetailPage() {
                   value={String(listing.rooms)}
                 />
               )}
-              {listing.bathrooms !== undefined && listing.bathrooms !== null && (
-                <DetailItem
-                  icon={<Bath className="h-4 w-4" />}
-                  label="Łazienki"
-                  value={String(listing.bathrooms)}
-                />
-              )}
+              {listing.bathrooms !== undefined &&
+                listing.bathrooms !== null && (
+                  <DetailItem
+                    icon={<Bath className="h-4 w-4" />}
+                    label="Łazienki"
+                    value={String(listing.bathrooms)}
+                  />
+                )}
               {listing.floor !== undefined && listing.floor !== null && (
                 <DetailItem
                   icon={<Building className="h-4 w-4" />}
@@ -365,19 +371,20 @@ export default function ListingDetailPage() {
               Zarządzanie statusem
             </h2>
             <div className="mt-4 space-y-2">
-              {rollbackChange && typeof rollbackChange.oldValue === 'string' && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="w-full justify-start gap-2 rounded-xl"
-                  onClick={handleStatusRollback}
-                  disabled={isRollingBackStatus}
-                >
-                  {isRollingBackStatus
-                    ? 'Cofanie statusu...'
-                    : `Cofnij do: ${LISTING_STATUS_LABELS[rollbackChange.oldValue as ListingStatus]}`}
-                </Button>
-              )}
+              {rollbackChange &&
+                typeof rollbackChange.oldValue === 'string' && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full justify-start gap-2 rounded-xl"
+                    onClick={handleStatusRollback}
+                    disabled={isRollingBackStatus}
+                  >
+                    {isRollingBackStatus
+                      ? 'Cofanie statusu...'
+                      : `Cofnij do: ${LISTING_STATUS_LABELS[rollbackChange.oldValue as ListingStatus]}`}
+                  </Button>
+                )}
               {statusActions.map((action) => (
                 <Button
                   key={action.status}
@@ -441,9 +448,7 @@ export default function ListingDetailPage() {
               <div className="mt-3 space-y-1 text-sm text-muted-foreground">
                 {address.street && <p>{address.street}</p>}
                 <p>
-                  {[address.postalCode, address.city]
-                    .filter(Boolean)
-                    .join(' ')}
+                  {[address.postalCode, address.city].filter(Boolean).join(' ')}
                 </p>
                 {address.district && <p>{address.district}</p>}
                 {address.voivodeship && <p>{address.voivodeship}</p>}
@@ -520,4 +525,20 @@ function getStatusActions(current: ListingStatus): StatusAction[] {
     // archived — no actions
   }
   return actions;
+}
+
+function getStatusChangeConfirmationDescription(
+  listing: Listing,
+  nextStatus: ListingStatus,
+): string {
+  const baseDescription = `Status zostanie zmieniony z „${LISTING_STATUS_LABELS[listing.status]}” na „${LISTING_STATUS_LABELS[nextStatus]}”.`;
+
+  if (
+    listing.publicationStatus === ListingPublicationStatus.PUBLISHED &&
+    nextStatus !== LS.ACTIVE
+  ) {
+    return `${baseDescription} Publiczna strona oferty zostanie automatycznie wyłączona.`;
+  }
+
+  return baseDescription;
 }
