@@ -4,8 +4,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
   ArrowLeft,
+  ArrowRight,
   Building2,
   Home,
+  ListFilter,
   MapPin,
   Phone,
   Ruler,
@@ -99,6 +101,7 @@ export default async function PublicAgentProfilePage({
   const profileName = getProfileName(profile);
   const canonicalUrl = absoluteUrl(`/agenci/${profile.id}`);
   const jsonLd = buildProfileJsonLd(profile, canonicalUrl);
+  const profileCatalogUrl = getProfileCatalogUrl(profile.id);
 
   return (
     <main className="min-h-screen bg-[#FAFAF9] text-[#1C1917]">
@@ -169,8 +172,34 @@ export default async function PublicAgentProfilePage({
                   Zadzwoń
                 </a>
               ) : null}
+              <Link
+                href={profileCatalogUrl}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-semibold transition-colors hover:bg-muted"
+              >
+                <ListFilter className="h-4 w-4" />
+                Oferty w katalogu
+              </Link>
             </div>
           </div>
+
+          <nav
+            aria-label="Linki katalogu ofert"
+            className="flex flex-wrap gap-3 border-t border-border pt-5"
+          >
+            <Link
+              href={profileCatalogUrl}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Zobacz oferty tego profilu
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/oferty"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-5 py-2 text-sm font-semibold transition-colors hover:bg-muted"
+            >
+              Przejdź do całego katalogu
+            </Link>
+          </nav>
         </div>
       </section>
 
@@ -276,6 +305,12 @@ function getProfileName(profile: PublicAgentProfile): string {
     profile.agency?.name ||
     'Agent nieruchomości'
   );
+}
+
+function getProfileCatalogUrl(agentId: string): string {
+  const params = new URLSearchParams({ agentId });
+
+  return `/oferty?${params.toString()}`;
 }
 
 function getLocationLabel(listing: PublicAgentProfileListing): string {

@@ -174,8 +174,18 @@ Potrzebuje:
     - listę miast można rozszerzać po analizie realnych zapytań i podaży ofert,
       ale indeksować tylko wybrane, kontrolowane widoki bez dodatkowych filtrów.
 
-- [ ] Linki z publicznych profili agentów
+- [x] Linki z publicznych profili agentów
   - Z profilu agenta linkować do jego ofert oraz do całego katalogu.
+  - Data zakończenia: 2026-05-09
+  - Wykonano:
+    - dodano publiczny filtr katalogu po `agentId`,
+    - dodano link `Zobacz oferty tego profilu` z profilu agenta do
+      `/oferty?agentId=...`,
+    - dodano link `Przejdź do całego katalogu`,
+    - zachowano filtr `agentId` podczas dalszego filtrowania wyników w
+      katalogu,
+    - zabezpieczono metadata katalogu, żeby widoki z `agentId` nie były
+      indeksowane jako duplikaty SEO.
 
 - [ ] Empty state katalogu
   - Gdy nie ma wyników, pokazać:

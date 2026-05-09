@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -32,6 +33,11 @@ export enum PublicListingCatalogSort {
 }
 
 export class PublicListingCatalogQueryDto {
+  @IsOptional()
+  @Transform(({ value }) => emptyStringToUndefined(value))
+  @IsUUID()
+  agentId?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(80)

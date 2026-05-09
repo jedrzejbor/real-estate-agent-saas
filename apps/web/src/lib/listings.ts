@@ -207,6 +207,7 @@ export type PublicListingCatalogSort =
   (typeof PublicListingCatalogSort)[keyof typeof PublicListingCatalogSort];
 
 export interface PublicListingCatalogFilters {
+  agentId?: string;
   city?: string;
   district?: string;
   voivodeship?: string;

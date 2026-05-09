@@ -1589,6 +1589,10 @@ export class ListingsService {
     qb: SelectQueryBuilder<Listing>,
     query: PublicListingCatalogQueryDto,
   ): void {
+    if (query.agentId) {
+      qb.andWhere('listing.agentId = :agentId', { agentId: query.agentId });
+    }
+
     const city = query.city?.trim();
     const district = query.district?.trim();
     const voivodeship = query.voivodeship?.trim();

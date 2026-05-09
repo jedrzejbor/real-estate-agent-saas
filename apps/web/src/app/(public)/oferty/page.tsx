@@ -47,6 +47,23 @@ interface PublicListingsIndexPageProps {
 
 const FALLBACK_LISTING_IMAGE = '/images/hero/house-2.jpg';
 const DEFAULT_LIMIT = 24;
+const CATALOG_FILTER_QUERY_KEYS = new Set([
+  'agentId',
+  'city',
+  'propertyType',
+  'transactionType',
+  'priceMin',
+  'priceMax',
+  'areaMin',
+  'areaMax',
+  'roomsMin',
+  'roomsMax',
+  'q',
+  'bbox',
+  'mapLimit',
+  'sort',
+  'page',
+]);
 
 export const dynamic = 'force-dynamic';
 
@@ -133,9 +150,11 @@ export default async function PublicListingsIndexPage({
                   : 'Znajdź ofertę nieruchomości'}
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-                {filters.city
-                  ? `Przeglądaj opublikowane mieszkania, domy i działki w lokalizacji ${filters.city}. Zmieniaj filtry, sprawdzaj mapę i przechodź do szczegółów wybranej nieruchomości.`
-                  : 'Przeglądaj opublikowane oferty, filtruj po lokalizacji, parametrach i cenie, a potem przejdź do szczegółów wybranej nieruchomości.'}
+                {filters.agentId
+                  ? 'Przeglądasz oferty powiązane z wybranym profilem publicznym. Możesz zawęzić wyniki po lokalizacji, mapie, cenie i parametrach.'
+                  : filters.city
+                    ? `Przeglądaj opublikowane mieszkania, domy i działki w lokalizacji ${filters.city}. Zmieniaj filtry, sprawdzaj mapę i przechodź do szczegółów wybranej nieruchomości.`
+                    : 'Przeglądaj opublikowane oferty, filtruj po lokalizacji, parametrach i cenie, a potem przejdź do szczegółów wybranej nieruchomości.'}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
@@ -319,6 +338,9 @@ export default async function PublicListingsIndexPage({
               <input type="hidden" name="page" value="1" />
               {filters.bbox ? (
                 <input type="hidden" name="bbox" value={filters.bbox} />
+              ) : null}
+              {filters.agentId ? (
+                <input type="hidden" name="agentId" value={filters.agentId} />
               ) : null}
 
               <div className="flex gap-2 pt-2">
@@ -728,6 +750,7 @@ function parseCatalogFilters(
   searchParams: SearchParams,
 ): PublicListingCatalogFilters {
   return {
+    agentId: getStringParam(searchParams.agentId),
     city: getStringParam(searchParams.city),
     propertyType: getEnumParam(searchParams.propertyType, PropertyType),
     transactionType: getEnumParam(
@@ -811,37 +834,20 @@ function buildSearchAnalyticsProperties(
     sort: filters.sort,
     page: filters.page,
     bbox: filters.bbox,
+    agentId: filters.agentId,
   };
 }
 
 function isIndexableBaseCatalogView(searchParams: SearchParams): boolean {
-  const indexableKeys = new Set([
-    'city',
-    'propertyType',
-    'transactionType',
-    'priceMin',
-    'priceMax',
-    'areaMin',
-    'areaMax',
-    'roomsMin',
-    'roomsMax',
-    'q',
-    'bbox',
-    'mapLimit',
-    'sort',
-    'page',
-  ]);
-
   for (const [key, value] of Object.entries(searchParams)) {
-    if (!indexableKeys.has(key)) {
-      continue;
-    }
-
-    const normalized = Array.isArray(value) ? value[0] : value;
-    const trimmed = normalized?.trim();
+    const trimmed = getStringParam(value);
 
     if (!trimmed) {
       continue;
+    }
+
+    if (!CATALOG_FILTER_QUERY_KEYS.has(key)) {
+      return false;
     }
 
     if (key === 'page' && trimmed === '1') {
@@ -867,32 +873,15 @@ function getIndexableSeoCity(
     return null;
   }
 
-  const filterKeys = new Set([
-    'city',
-    'propertyType',
-    'transactionType',
-    'priceMin',
-    'priceMax',
-    'areaMin',
-    'areaMax',
-    'roomsMin',
-    'roomsMax',
-    'q',
-    'bbox',
-    'mapLimit',
-    'sort',
-    'page',
-  ]);
-
   for (const [key, value] of Object.entries(searchParams)) {
-    if (!filterKeys.has(key)) {
-      continue;
-    }
-
     const trimmed = getStringParam(value);
 
     if (!trimmed) {
       continue;
+    }
+
+    if (!CATALOG_FILTER_QUERY_KEYS.has(key)) {
+      return null;
     }
 
     if (key === 'city') {
