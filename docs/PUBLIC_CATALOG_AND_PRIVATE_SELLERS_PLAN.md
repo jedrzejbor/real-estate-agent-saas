@@ -157,12 +157,22 @@ Potrzebuje:
 
 ### Priorytet późniejszy
 
-- [ ] Linki SEO z popularnych miast
+- [x] Linki SEO z popularnych miast
   - Przygotować strony lub linki do katalogu z parametrem `city`.
   - Przykłady:
     - `/oferty?city=Warszawa`
     - `/oferty?city=Bydgoszcz`
     - `/oferty?city=Łabiszyn`
+  - Data zakończenia: 2026-05-09
+  - Wykonano:
+    - dodano współdzieloną listę popularnych lokalizacji SEO dla katalogu,
+    - dodano sekcję `Popularne lokalizacje` na stronie `/oferty`,
+    - dodano indeksowalne metadata i canonical dla zaplanowanych widoków
+      miejskich,
+    - dodano popularne widoki miejskie do sitemap.
+  - Uwagi / follow-up:
+    - listę miast można rozszerzać po analizie realnych zapytań i podaży ofert,
+      ale indeksować tylko wybrane, kontrolowane widoki bez dodatkowych filtrów.
 
 - [ ] Linki z publicznych profili agentów
   - Z profilu agenta linkować do jego ofert oraz do całego katalogu.

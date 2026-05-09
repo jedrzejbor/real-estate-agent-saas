@@ -1,5 +1,9 @@
 import type { MetadataRoute } from 'next';
 import { fetchPublicListingSitemapEntries } from '@/lib/listings';
+import {
+  getPublicCatalogCityHref,
+  PUBLIC_CATALOG_SEO_CITIES,
+} from '@/lib/public-catalog-seo';
 import { absoluteUrl } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +23,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily',
       priority: 0.6,
     },
+    ...PUBLIC_CATALOG_SEO_CITIES.map((city) => ({
+      url: absoluteUrl(getPublicCatalogCityHref(city.name)),
+      lastModified: now,
+      changeFrequency: 'daily' as const,
+      priority: 0.55,
+    })),
   ];
 
   try {

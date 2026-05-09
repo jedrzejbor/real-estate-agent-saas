@@ -16,6 +16,12 @@ import {
 import { ApiError } from '@/lib/api-client';
 import { absoluteUrl, getSiteUrl } from '@/lib/seo';
 import {
+  getPublicCatalogCityHref,
+  getPublicCatalogSeoCity,
+  PUBLIC_CATALOG_SEO_CITIES,
+  type PublicCatalogSeoCity,
+} from '@/lib/public-catalog-seo';
+import {
   fetchPublicListingCatalog,
   formatArea,
   formatPrice,
@@ -48,26 +54,35 @@ export async function generateMetadata({
   searchParams,
 }: PublicListingsIndexPageProps): Promise<Metadata> {
   const resolvedSearchParams = await searchParams;
+  const seoCity = getIndexableSeoCity(resolvedSearchParams);
   const isBaseCatalog = isIndexableBaseCatalogView(resolvedSearchParams);
-  const title = isBaseCatalog
-    ? 'Oferty nieruchomości | EstateFlow'
-    : 'Wyniki wyszukiwania ofert | EstateFlow';
-  const description = isBaseCatalog
-    ? 'Przeglądaj publiczne oferty nieruchomości opublikowane w EstateFlow.'
-    : 'Przefiltrowane wyniki publicznego katalogu ofert EstateFlow.';
+  const isIndexable = isBaseCatalog || Boolean(seoCity);
+  const canonicalPath = seoCity
+    ? getPublicCatalogCityHref(seoCity.name)
+    : '/oferty';
+  const title = seoCity
+    ? `Oferty nieruchomości ${seoCity.name} | EstateFlow`
+    : isBaseCatalog
+      ? 'Oferty nieruchomości | EstateFlow'
+      : 'Wyniki wyszukiwania ofert | EstateFlow';
+  const description = seoCity
+    ? `Przeglądaj oferty nieruchomości w lokalizacji ${seoCity.name}. Sprawdź mieszkania, domy i działki w publicznym katalogu EstateFlow.`
+    : isBaseCatalog
+      ? 'Przeglądaj publiczne oferty nieruchomości opublikowane w EstateFlow.'
+      : 'Przefiltrowane wyniki publicznego katalogu ofert EstateFlow.';
 
   return {
     metadataBase: getSiteUrl(),
     title,
     description,
     alternates: {
-      canonical: absoluteUrl('/oferty'),
+      canonical: absoluteUrl(canonicalPath),
     },
     robots: {
-      index: isBaseCatalog,
+      index: isIndexable,
       follow: true,
       googleBot: {
-        index: isBaseCatalog,
+        index: isIndexable,
         follow: true,
         'max-image-preview': 'large',
         'max-snippet': -1,
@@ -77,7 +92,7 @@ export async function generateMetadata({
     openGraph: {
       title,
       description,
-      url: absoluteUrl('/oferty'),
+      url: absoluteUrl(canonicalPath),
       siteName: 'EstateFlow',
       type: 'website',
       locale: 'pl_PL',
@@ -93,6 +108,7 @@ export default async function PublicListingsIndexPage({
   const result = await getPublicCatalog(filters);
   const catalog = result.data;
   const searchProperties = buildSearchAnalyticsProperties(filters);
+  const activeSeoCity = getPublicCatalogSeoCity(filters.city);
 
   return (
     <main className="min-h-screen bg-[#FAFAF9] text-[#1C1917]">
@@ -112,12 +128,14 @@ export default async function PublicListingsIndexPage({
                 Publiczny katalog
               </p>
               <h1 className="mt-2 max-w-3xl font-heading text-4xl font-bold leading-tight sm:text-5xl">
-                Znajdź ofertę nieruchomości
+                {filters.city
+                  ? `Oferty nieruchomości: ${filters.city}`
+                  : 'Znajdź ofertę nieruchomości'}
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-                Przeglądaj opublikowane oferty, filtruj po lokalizacji,
-                parametrach i cenie, a potem przejdź do szczegółów wybranej
-                nieruchomości.
+                {filters.city
+                  ? `Przeglądaj opublikowane mieszkania, domy i działki w lokalizacji ${filters.city}. Zmieniaj filtry, sprawdzaj mapę i przechodź do szczegółów wybranej nieruchomości.`
+                  : 'Przeglądaj opublikowane oferty, filtruj po lokalizacji, parametrach i cenie, a potem przejdź do szczegółów wybranej nieruchomości.'}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
@@ -145,6 +163,8 @@ export default async function PublicListingsIndexPage({
               </p>
             </div>
           </div>
+
+          <PopularCityLinks activeCity={activeSeoCity?.name ?? filters.city} />
         </div>
       </section>
 
@@ -396,6 +416,58 @@ export default async function PublicListingsIndexPage({
         </div>
       </section>
     </main>
+  );
+}
+
+function PopularCityLinks({ activeCity }: { activeCity?: string }) {
+  const activeSeoCity = getPublicCatalogSeoCity(activeCity);
+
+  return (
+    <nav
+      aria-label="Popularne miasta w katalogu ofert"
+      className="mt-8 border-t border-border pt-5"
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            Popularne lokalizacje
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Szybkie przejścia do ofert z najczęściej wyszukiwanych miast.
+          </p>
+        </div>
+        {activeSeoCity ? (
+          <Link
+            href="/oferty"
+            className="inline-flex h-9 w-fit items-center justify-center rounded-xl border border-border px-3 text-sm font-semibold transition-colors hover:bg-muted"
+          >
+            Wszystkie miasta
+          </Link>
+        ) : null}
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {PUBLIC_CATALOG_SEO_CITIES.map((city) => {
+          const isActive = activeSeoCity?.name === city.name;
+
+          return (
+            <Link
+              key={city.name}
+              href={getPublicCatalogCityHref(city.name)}
+              aria-current={isActive ? 'page' : undefined}
+              className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${
+                isActive
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border bg-white text-foreground hover:bg-muted'
+              }`}
+            >
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span>Oferty {city.name}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 
@@ -784,4 +856,63 @@ function isIndexableBaseCatalogView(searchParams: SearchParams): boolean {
   }
 
   return true;
+}
+
+function getIndexableSeoCity(
+  searchParams: SearchParams,
+): PublicCatalogSeoCity | null {
+  const seoCity = getPublicCatalogSeoCity(getStringParam(searchParams.city));
+
+  if (!seoCity) {
+    return null;
+  }
+
+  const filterKeys = new Set([
+    'city',
+    'propertyType',
+    'transactionType',
+    'priceMin',
+    'priceMax',
+    'areaMin',
+    'areaMax',
+    'roomsMin',
+    'roomsMax',
+    'q',
+    'bbox',
+    'mapLimit',
+    'sort',
+    'page',
+  ]);
+
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (!filterKeys.has(key)) {
+      continue;
+    }
+
+    const trimmed = getStringParam(value);
+
+    if (!trimmed) {
+      continue;
+    }
+
+    if (key === 'city') {
+      if (getPublicCatalogSeoCity(trimmed)?.name === seoCity.name) {
+        continue;
+      }
+
+      return null;
+    }
+
+    if (key === 'page' && trimmed === '1') {
+      continue;
+    }
+
+    if (key === 'sort' && trimmed === PublicListingCatalogSort.NEWEST) {
+      continue;
+    }
+
+    return null;
+  }
+
+  return seoCity;
 }
