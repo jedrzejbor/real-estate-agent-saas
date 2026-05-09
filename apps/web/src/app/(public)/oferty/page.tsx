@@ -10,6 +10,7 @@ import {
   Map as MapIcon,
   MapPin,
   PlusCircle,
+  RotateCcw,
   Search,
   SlidersHorizontal,
 } from 'lucide-react';
@@ -429,11 +430,11 @@ export default async function PublicListingsIndexPage({
                   />
                 </>
               ) : (
-                <EmptyState />
+                <EmptyState filters={filters} />
               )}
             </>
           ) : (
-            <EmptyState />
+            <EmptyState filters={filters} />
           )}
         </div>
       </section>
@@ -613,32 +614,47 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function EmptyState() {
+function EmptyState({ filters }: { filters: PublicListingCatalogFilters }) {
+  const hasLocationContext = Boolean(filters.city);
+  const relaxedCatalogHref = buildRelaxedCatalogHref(filters);
+  const addListingHref = buildAddListingHref(filters);
+  const title = hasLocationContext
+    ? `Brak ofert w lokalizacji ${filters.city}`
+    : 'Brak ofert dla tych filtrów';
+  const description = hasLocationContext
+    ? 'W tej lokalizacji nie znaleźliśmy jeszcze pasujących publicznych ofert. Możesz zdjąć część filtrów albo dodać własną ofertę dla tego miejsca.'
+    : 'Nie znaleźliśmy wyników dla wybranych parametrów. Zmień filtry albo dodaj ofertę, żeby pojawiła się w publicznym katalogu.';
+
   return (
-    <section className="rounded-2xl border border-border bg-white p-8 text-center shadow-sm">
+    <section className="rounded-2xl border border-border bg-white p-6 text-center shadow-sm sm:p-8">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
         <Search className="h-6 w-6" />
       </div>
-      <h2 className="mt-5 font-heading text-2xl font-semibold">
-        Brak ofert dla tych filtrów
-      </h2>
+      <h2 className="mt-5 font-heading text-2xl font-semibold">{title}</h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-        Zmień lokalizację, zakres ceny lub parametry nieruchomości, żeby
-        zobaczyć więcej publicznych ofert.
+        {description}
       </p>
+
+      {hasLocationContext ? (
+        <p className="mx-auto mt-3 max-w-md rounded-xl bg-muted/40 px-4 py-3 text-sm font-medium text-foreground">
+          Lokalizacja: {filters.city}
+        </p>
+      ) : null}
+
       <div className="mt-5 flex flex-wrap justify-center gap-3">
         <Link
-          href="/dodaj-oferte"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          href={relaxedCatalogHref}
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted"
         >
-          <PlusCircle className="h-4 w-4" />
-          Dodaj własną ofertę
+          <RotateCcw className="h-4 w-4" />
+          Zmień filtry
         </Link>
         <Link
-          href="/oferty"
-          className="inline-flex h-10 items-center justify-center rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted"
+          href={addListingHref}
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
         >
-          Wyczyść filtry
+          <PlusCircle className="h-4 w-4" />
+          Dodaj ofertę w tej lokalizacji
         </Link>
       </div>
     </section>
@@ -821,6 +837,49 @@ function buildCatalogQueryString(filters: PublicListingCatalogFilters): string {
 
   const qs = params.toString();
   return qs ? `?${qs}` : '';
+}
+
+function buildRelaxedCatalogHref(filters: PublicListingCatalogFilters): string {
+  if (!hasRestrictiveCatalogFilters(filters)) {
+    return '/oferty';
+  }
+
+  const relaxedFilters: PublicListingCatalogFilters = {
+    agentId: filters.agentId,
+    city: filters.city,
+    page: 1,
+  };
+
+  return `/oferty${buildCatalogQueryString(relaxedFilters)}`;
+}
+
+function buildAddListingHref(filters: PublicListingCatalogFilters): string {
+  if (!filters.city) {
+    return '/dodaj-oferte';
+  }
+
+  const params = new URLSearchParams({ city: filters.city });
+
+  return `/dodaj-oferte?${params.toString()}`;
+}
+
+function hasRestrictiveCatalogFilters(
+  filters: PublicListingCatalogFilters,
+): boolean {
+  return Boolean(
+    filters.district ||
+    filters.voivodeship ||
+    filters.propertyType ||
+    filters.transactionType ||
+    filters.priceMin !== undefined ||
+    filters.priceMax !== undefined ||
+    filters.areaMin !== undefined ||
+    filters.areaMax !== undefined ||
+    filters.roomsMin !== undefined ||
+    filters.roomsMax !== undefined ||
+    filters.q ||
+    filters.bbox,
+  );
 }
 
 function buildSearchAnalyticsProperties(

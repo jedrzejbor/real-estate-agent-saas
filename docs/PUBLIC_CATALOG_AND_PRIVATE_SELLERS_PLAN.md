@@ -187,10 +187,18 @@ Potrzebuje:
     - zabezpieczono metadata katalogu, żeby widoki z `agentId` nie były
       indeksowane jako duplikaty SEO.
 
-- [ ] Empty state katalogu
+- [x] Empty state katalogu
   - Gdy nie ma wyników, pokazać:
     - `Zmień filtry`
     - `Dodaj ofertę w tej lokalizacji`
+  - Data zakończenia: 2026-05-10
+  - Wykonano:
+    - pusty stan katalogu dopasowuje copy do aktywnej lokalizacji,
+    - dodano akcję `Zmień filtry`, która zdejmuje zawężające filtry i zachowuje
+      kontekst miasta/profilu, gdy ma to sens,
+    - dodano akcję `Dodaj ofertę w tej lokalizacji`, z przekazaniem parametru
+      `city` do formularza dodawania oferty,
+    - zachowano czytelny układ CTA na mobile i desktop.
 
 ---
 
