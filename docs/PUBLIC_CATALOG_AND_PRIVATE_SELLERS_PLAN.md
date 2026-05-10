@@ -245,13 +245,22 @@ Używamy prostych słów:
   - CTA w empty state.
   - Delikatny komunikat przy mapie: `Nie widzisz swojej lokalizacji? Dodaj ofertę`.
 
-- [ ] Strona `/dodaj-oferte`
+- [x] Strona `/dodaj-oferte`
   - Uprościć komunikację pod właściciela prywatnego.
   - Jasno opisać proces:
     1. uzupełnij dane,
     2. potwierdź kontakt,
     3. poczekaj na weryfikację,
     4. oferta pojawi się w katalogu.
+  - Data zakończenia: 2026-05-10
+  - Wykonano:
+    - zmieniono główne copy formularza z narracji CRM na prostą ścieżkę dla
+      właściciela prywatnego,
+    - dodano widoczny proces publikacji w 4 krokach,
+    - doprecyzowano komunikaty kroków `Parametry`, `Kontakt i zgody` oraz
+      `Podsumowanie`,
+    - dodano wstępne uzupełnienie miasta z parametru `city`, gdy formularz jest
+      otwierany z katalogu.
 
 - [ ] Stopka i regulaminy
   - Link do zasad publikacji.

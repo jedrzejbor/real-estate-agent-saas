@@ -12,7 +12,6 @@ import {
   ImagePlus,
   Loader2,
   Mail,
-  MapPin,
   Trash2,
 } from 'lucide-react';
 import { z } from 'zod';
@@ -117,6 +116,13 @@ const STEPS = [
   'Podsumowanie',
 ] as const;
 
+const SUBMISSION_PROCESS = [
+  'Uzupełnij dane',
+  'Potwierdź email',
+  'Poczekaj na weryfikację',
+  'Pokaż ofertę w katalogu',
+] as const;
+
 export default function PublicListingSubmissionWizardPage() {
   const router = useRouter();
   const { success: showSuccessToast, error: showErrorToast } = useToast();
@@ -134,13 +140,22 @@ export default function PublicListingSubmissionWizardPage() {
 
   React.useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
+    const cityFromUrl = getCityFromCurrentUrl();
+    let nextDraft = INITIAL_DRAFT;
+
     if (stored) {
       try {
-        setDraft({ ...INITIAL_DRAFT, ...JSON.parse(stored) });
+        nextDraft = { ...INITIAL_DRAFT, ...JSON.parse(stored) };
       } catch {
         localStorage.removeItem(STORAGE_KEY);
       }
     }
+
+    if (!nextDraft.city && cityFromUrl) {
+      nextDraft = { ...nextDraft, city: cityFromUrl };
+    }
+
+    setDraft(nextDraft);
     setIsHydrated(true);
   }, []);
 
@@ -297,17 +312,33 @@ export default function PublicListingSubmissionWizardPage() {
               <div>
                 <Badge variant="brand">Publiczne dodanie oferty</Badge>
                 <h1 className="mt-3 font-heading text-2xl font-bold sm:text-3xl">
-                  Dodaj ofertę i przejmij ją później do CRM
+                  Dodaj ogłoszenie nieruchomości
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Wypełnij krótki formularz, potwierdź email i zdecyduj, czy
-                  chcesz założyć konto albo zalogować się, żeby zarządzać ofertą
-                  w EstateFlow.
+                  Wypełnij krótki formularz, potwierdź email i poczekaj na
+                  weryfikację. Po akceptacji oferta może pojawić się w
+                  publicznym katalogu i na mapie.
                 </p>
               </div>
               <div className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
                 Krok {step + 1} z {STEPS.length}
               </div>
+            </div>
+
+            <div className="mt-5 grid gap-2 sm:grid-cols-4">
+              {SUBMISSION_PROCESS.map((label, index) => (
+                <div
+                  key={label}
+                  className="rounded-xl border border-border bg-muted/20 px-3 py-2"
+                >
+                  <p className="text-xs font-semibold text-primary">
+                    {index + 1}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    {label}
+                  </p>
+                </div>
+              ))}
             </div>
 
             <div className="mt-5 grid gap-2 sm:grid-cols-5">
@@ -537,7 +568,7 @@ function StepParameters({
       <SectionHeader
         icon={Building2}
         title="Parametry"
-        description="Te informacje mocno podnoszą jakość ogłoszenia i późniejszego leada."
+        description="Te informacje pomagają kupującym szybko ocenić, czy nieruchomość pasuje do ich potrzeb."
       />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {showArea ? (
@@ -735,7 +766,7 @@ function StepContact({
       <SectionHeader
         icon={Mail}
         title="Kontakt i zgody"
-        description="Na ten adres wyślemy link potwierdzający ofertę i przejęcie do konta."
+        description="Na ten adres wyślemy wiadomość potwierdzającą zgłoszenie oferty."
       />
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
@@ -758,7 +789,7 @@ function StepContact({
           onChange={(value) => updateDraft('phone', value)}
         />
         <TextField
-          label="Biuro / agencja"
+          label="Biuro / agencja (opcjonalnie)"
           value={draft.agencyName}
           onChange={(value) => updateDraft('agencyName', value)}
         />
@@ -821,7 +852,7 @@ function StepSummary({ draft }: { draft: PublicListingWizardDraft }) {
       <SectionHeader
         icon={Check}
         title="Podsumowanie"
-        description="Sprawdź dane przed wysłaniem. Po potwierdzeniu emaila będzie można przejąć ofertę do CRM."
+        description="Sprawdź dane przed wysłaniem. Po potwierdzeniu emaila oferta trafi do weryfikacji."
       />
       <div className="grid gap-4 md:grid-cols-2">
         <SummaryCard
@@ -1308,6 +1339,16 @@ function optionalNumber(value: string): number | undefined {
 function optionalString(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function getCityFromCurrentUrl(): string | undefined {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  const city = new URLSearchParams(window.location.search).get('city')?.trim();
+
+  return city ? city.slice(0, 255) : undefined;
 }
 
 function labelOrEmpty<T extends string>(
