@@ -29,7 +29,7 @@ export function PricingCard({
   return (
     <Card
       className={cn(
-        'relative overflow-visible border-[#E7E5E4] bg-white transition-all duration-200',
+        'relative flex h-full flex-col overflow-visible border-[#E7E5E4] bg-white transition-all duration-200',
         isPopular &&
           '-mt-4 pb-4 border-primary shadow-[0_10px_25px_-5px_rgba(28,25,23,0.1),0_4px_6px_-2px_rgba(28,25,23,0.05)]',
         className,
@@ -54,7 +54,7 @@ export function PricingCard({
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col">
         <ul className="mb-6 space-y-3">
           {features.map((feature) => (
             <li key={feature} className="flex items-start gap-3 text-sm">
@@ -66,7 +66,7 @@ export function PricingCard({
 
         <Button
           className={cn(
-            'w-full rounded-full',
+            'mt-auto w-full rounded-full',
             isPopular
               ? 'bg-primary text-white hover:bg-[#047857]'
               : 'border-[#E7E5E4] bg-white text-[#1C1917] hover:bg-[#F5F0EB]',
