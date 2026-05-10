@@ -627,6 +627,16 @@ Dlaczego:
 - Modal/panel boczny.
 - Automatyczny kontekst: URL, moduł, viewport.
 - Typ zgłoszenia i priorytet użytkownika.
+- Status: wykonane.
+- Data zakończenia: 2026-05-10.
+- Wykonano:
+  - dodano globalny przycisk `Feedback` w topbarze dashboardu,
+  - dodano modal zgłoszenia dla zalogowanego użytkownika,
+  - formularz obsługuje typ zgłoszenia, kategorię, priorytet, tytuł i opis,
+  - widget automatycznie wysyła kontekst: URL, moduł dashboardu, user agent i
+    viewport,
+  - formularz korzysta z endpointu `POST /api/product-feedback`,
+  - po wysyłce użytkownik dostaje toast sukcesu albo komunikat błędu.
 
 ### `FB.3` Dodać publiczną stronę `/feedback`
 

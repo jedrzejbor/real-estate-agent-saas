@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { Badge } from '@/components/ui/badge';
 import { GlobalSearch } from './global-search';
 import { NotificationsDropdown } from './notifications-dropdown';
+import { ProductFeedbackWidget } from './product-feedback-widget';
 
 export function DashboardTopbar() {
   const { user } = useAuth();
@@ -18,7 +19,7 @@ export function DashboardTopbar() {
 
   const initials = fullName
     ? `${firstName.charAt(0)}${lastName.charAt(0) || firstName.charAt(1) || ''}`.toUpperCase()
-    : user?.email?.charAt(0).toUpperCase() ?? '?';
+    : (user?.email?.charAt(0).toUpperCase() ?? '?');
 
   const planLabel = user?.entitlements?.plan.label;
 
@@ -45,6 +46,8 @@ export function DashboardTopbar() {
             </Badge>
           </Link>
         ) : null}
+
+        <ProductFeedbackWidget />
 
         <NotificationsDropdown />
 
