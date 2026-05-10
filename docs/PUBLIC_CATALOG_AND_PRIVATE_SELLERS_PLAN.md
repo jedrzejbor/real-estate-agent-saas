@@ -229,9 +229,16 @@ Używamy prostych słów:
 
 ### Miejsca promocji
 
-- [ ] Homepage
+- [x] Homepage
   - Sekcja `Dla właścicieli nieruchomości`.
   - CTA: `Dodaj ofertę bez konta`.
+  - Data zakończenia: 2026-05-10
+  - Wykonano:
+    - dodano sekcję `Dla właścicieli nieruchomości` na stronie głównej,
+    - pokazano prosty proces: uzupełnienie oferty, potwierdzenie kontaktu i
+      publikację po weryfikacji,
+    - dodano CTA `Dodaj ofertę bez konta` oraz drugorzędne CTA do katalogu,
+    - copy kieruje komunikację do właściciela prywatnego, bez języka CRM.
 
 - [ ] Publiczny katalog `/oferty`
   - CTA nad wynikami: `Dodaj ofertę`.
@@ -361,7 +368,7 @@ Cel: szybciej pokazać użytkownikom katalog i formularz dodania oferty.
 - [ ] Dodać link `Oferty` do navbaru.
 - [ ] Dodać CTA `Szukaj nieruchomości` na homepage.
 - [ ] Dodać CTA `Dodaj ofertę` na homepage.
-- [ ] Dodać sekcję `Dla właścicieli nieruchomości`.
+- [x] Dodać sekcję `Dla właścicieli nieruchomości`.
 - [ ] Dodać linki w stopce.
 - [ ] Doprecyzować ekran sukcesu po dodaniu oferty.
 

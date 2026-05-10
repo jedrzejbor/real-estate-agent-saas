@@ -5,7 +5,10 @@ import {
   TrendingUp,
   Users,
   CalendarCheck,
+  CheckCircle2,
+  ClipboardCheck,
   Globe,
+  Mail,
   Shield,
   ArrowRight,
   ListFilter,
@@ -104,6 +107,27 @@ const catalogHighlights = [
     icon: ListFilter,
     title: 'Publiczne wyniki',
     description: 'Katalog działa bez logowania i prowadzi prosto do kontaktu.',
+  },
+] as const;
+
+const ownerSellerSteps = [
+  {
+    icon: ClipboardCheck,
+    title: 'Uzupełnij ofertę',
+    description:
+      'Dodaj podstawowe informacje, lokalizację, cenę, parametry i zdjęcia nieruchomości.',
+  },
+  {
+    icon: Mail,
+    title: 'Potwierdź kontakt',
+    description:
+      'Wyślemy wiadomość na podany email, żeby potwierdzić zgłoszenie i ograniczyć spam.',
+  },
+  {
+    icon: CheckCircle2,
+    title: 'Pokaż ją kupującym',
+    description:
+      'Po weryfikacji oferta może pojawić się w katalogu, na mapie i w wynikach wyszukiwania.',
   },
 ] as const;
 
@@ -339,6 +363,99 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </Container>
+      </Section>
+
+      {/* ─── Private Owners ─── */}
+      <Section id="private-owners" variant="muted">
+        <Container>
+          <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+            <div className="order-2 lg:order-1">
+              <div className="relative overflow-hidden rounded-2xl border border-[#E7E5E4] bg-white shadow-[0_18px_45px_-30px_rgba(28,25,23,0.45)]">
+                <div className="relative aspect-[4/3] min-h-[320px]">
+                  <Image
+                    src="/images/hero/interior-1.jpg"
+                    alt="Właściciel przygotowuje mieszkanie do sprzedaży"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, 560px"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                  <div className="absolute left-4 right-4 top-4 flex flex-wrap gap-2 sm:left-6 sm:right-6 sm:top-6">
+                    <span className="rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#1C1917] shadow-sm">
+                      Bez konta na start
+                    </span>
+                    <span className="rounded-full bg-[#ECFDF5] px-3 py-1.5 text-xs font-semibold text-primary shadow-sm">
+                      Katalog i mapa
+                    </span>
+                  </div>
+                  <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6">
+                    <div className="max-w-md rounded-xl bg-white/95 p-4 shadow-lg backdrop-blur">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                        Dla właściciela
+                      </p>
+                      <p className="mt-1 font-heading text-xl font-semibold text-[#1C1917]">
+                        Sprzedajesz mieszkanie, dom albo działkę?
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-[#78716C]">
+                        Dodaj ogłoszenie w kilka minut i pokaż je osobom, które
+                        szukają nieruchomości w Twojej lokalizacji.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="order-1 lg:order-2">
+              <p className="text-sm font-semibold uppercase tracking-wide text-primary">
+                Dla właścicieli nieruchomości
+              </p>
+              <h2 className="mt-3 max-w-xl font-heading text-3xl font-bold leading-tight text-[#1C1917] sm:text-4xl">
+                Dodaj ofertę bez zakładania konta agenta
+              </h2>
+              <p className="mt-4 max-w-xl text-base leading-7 text-[#78716C]">
+                Wystarczy krótki formularz. Podajesz dane nieruchomości,
+                potwierdzasz kontakt i czekasz na weryfikację. Gdy oferta
+                spełnia zasady publikacji, może trafić do publicznego katalogu.
+              </p>
+
+              <div className="mt-7 grid gap-4">
+                {ownerSellerSteps.map((step, index) => (
+                  <div key={step.title} className="flex gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-[#E7E5E4]">
+                      <step.icon className="h-5 w-5 text-primary" />
+                    </span>
+                    <span>
+                      <span className="block font-heading text-base font-semibold text-[#1C1917]">
+                        {index + 1}. {step.title}
+                      </span>
+                      <span className="mt-1 block text-sm leading-6 text-[#78716C]">
+                        {step.description}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  href="/dodaj-oferte"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#047857]"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Dodaj ofertę bez konta
+                </Link>
+                <Link
+                  href="/oferty"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[#D6D3D1] bg-white px-6 py-3 text-sm font-semibold text-[#44403C] transition-colors hover:border-primary hover:text-primary"
+                >
+                  Zobacz katalog
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </div>
             </div>
           </div>
