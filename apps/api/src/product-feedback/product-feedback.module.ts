@@ -3,7 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AnalyticsModule } from '../analytics';
 import { UsersModule } from '../users';
 import { ProductFeedback } from './entities';
-import { ProductFeedbackController } from './product-feedback.controller';
+import {
+  AdminProductFeedbackController,
+  ProductFeedbackController,
+} from './product-feedback.controller';
 import { ProductFeedbackService } from './product-feedback.service';
 
 @Module({
@@ -12,7 +15,7 @@ import { ProductFeedbackService } from './product-feedback.service';
     AnalyticsModule,
     UsersModule,
   ],
-  controllers: [ProductFeedbackController],
+  controllers: [ProductFeedbackController, AdminProductFeedbackController],
   providers: [ProductFeedbackService],
   exports: [TypeOrmModule, ProductFeedbackService],
 })

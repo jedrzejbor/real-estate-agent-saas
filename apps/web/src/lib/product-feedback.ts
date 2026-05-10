@@ -11,6 +11,21 @@ export const ProductFeedbackType = {
 export type ProductFeedbackType =
   (typeof ProductFeedbackType)[keyof typeof ProductFeedbackType];
 
+export const ProductFeedbackStatus = {
+  NEW: 'new',
+  TRIAGED: 'triaged',
+  NEEDS_MORE_INFO: 'needs_more_info',
+  PLANNED: 'planned',
+  IN_PROGRESS: 'in_progress',
+  RELEASED: 'released',
+  DECLINED: 'declined',
+  DUPLICATE: 'duplicate',
+  ARCHIVED: 'archived',
+} as const;
+
+export type ProductFeedbackStatus =
+  (typeof ProductFeedbackStatus)[keyof typeof ProductFeedbackStatus];
+
 export const ProductFeedbackCategory = {
   LISTINGS: 'listings',
   CLIENTS: 'clients',
@@ -67,11 +82,74 @@ export interface CreateProductFeedbackInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface CreatePublicProductFeedbackInput extends CreateProductFeedbackInput {
+  email?: string;
+  website?: string;
+  formStartedAt?: number;
+}
+
 export interface ProductFeedbackSubmission {
   id: string;
   type: ProductFeedbackType;
   status: string;
   createdAt: string;
+}
+
+export interface ProductFeedbackAdminItem {
+  id: string;
+  type: ProductFeedbackType;
+  status: ProductFeedbackStatus;
+  category: ProductFeedbackCategory;
+  source: ProductFeedbackSource;
+  title: string;
+  description: string;
+  userPriority?: ProductFeedbackPriority | null;
+  internalPriority?: ProductFeedbackPriority | null;
+  userId?: string | null;
+  agentId?: string | null;
+  workspaceId?: string | null;
+  email?: string | null;
+  sourceUrl?: string | null;
+  module?: string | null;
+  browser?: string | null;
+  os?: string | null;
+  viewport?: string | null;
+  appVersion?: string | null;
+  screenshotUrl?: string | null;
+  duplicateOfId?: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductFeedbackAdminFilters {
+  status?: ProductFeedbackStatus;
+  type?: ProductFeedbackType;
+  category?: ProductFeedbackCategory;
+  source?: ProductFeedbackSource;
+  userPriority?: ProductFeedbackPriority;
+  internalPriority?: ProductFeedbackPriority;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface ProductFeedbackAdminResponse {
+  data: ProductFeedbackAdminItem[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface UpdateProductFeedbackInput {
+  status?: ProductFeedbackStatus;
+  internalPriority?: ProductFeedbackPriority | null;
+  duplicateOfId?: string | null;
+  internalNote?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export function submitProductFeedback(
@@ -81,4 +159,45 @@ export function submitProductFeedback(
     method: 'POST',
     body: input,
   });
+}
+
+export function submitPublicProductFeedback(
+  input: CreatePublicProductFeedbackInput,
+): Promise<ProductFeedbackSubmission> {
+  return apiFetch<ProductFeedbackSubmission>('/product-feedback/public', {
+    method: 'POST',
+    skipAuth: true,
+    body: input,
+  });
+}
+
+export function fetchProductFeedbackAdmin(
+  filters: ProductFeedbackAdminFilters = {},
+): Promise<ProductFeedbackAdminResponse> {
+  return apiFetch<ProductFeedbackAdminResponse>(
+    `/admin/product-feedback${buildQueryString(filters)}`,
+  );
+}
+
+export function updateProductFeedbackAdmin(
+  id: string,
+  input: UpdateProductFeedbackInput,
+): Promise<ProductFeedbackAdminItem> {
+  return apiFetch<ProductFeedbackAdminItem>(`/admin/product-feedback/${id}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+function buildQueryString(filters: object): string {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== '') {
+      params.set(key, String(value));
+    }
+  }
+
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
 }

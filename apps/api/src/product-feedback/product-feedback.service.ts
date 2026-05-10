@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Request } from 'express';
-import { MoreThan, Repository } from 'typeorm';
+import { Brackets, MoreThan, Repository } from 'typeorm';
 import { AnalyticsService } from '../analytics';
 import {
   assertPublicFormHoneypot,
@@ -16,6 +16,8 @@ import { UsersService } from '../users';
 import {
   CreateProductFeedbackDto,
   CreatePublicProductFeedbackDto,
+  ProductFeedbackAdminQueryDto,
+  UpdateProductFeedbackDto,
 } from './dto';
 import {
   ProductFeedback,
@@ -66,6 +68,128 @@ export class ProductFeedbackService {
     await this.trackFeedbackSubmitted(userId, savedFeedback);
 
     return this.toSubmissionResponse(savedFeedback);
+  }
+
+  async findAllForAdmin(query: ProductFeedbackAdminQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const qb = this.productFeedbackRepo
+      .createQueryBuilder('feedback')
+      .orderBy('feedback.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (query.status) {
+      qb.andWhere('feedback.status = :status', { status: query.status });
+    }
+
+    if (query.type) {
+      qb.andWhere('feedback.type = :type', { type: query.type });
+    }
+
+    if (query.category) {
+      qb.andWhere('feedback.category = :category', {
+        category: query.category,
+      });
+    }
+
+    if (query.source) {
+      qb.andWhere('feedback.source = :source', { source: query.source });
+    }
+
+    if (query.userPriority) {
+      qb.andWhere('feedback.userPriority = :userPriority', {
+        userPriority: query.userPriority,
+      });
+    }
+
+    if (query.internalPriority) {
+      qb.andWhere('feedback.internalPriority = :internalPriority', {
+        internalPriority: query.internalPriority,
+      });
+    }
+
+    const search = query.search?.trim();
+    if (search) {
+      qb.andWhere(
+        new Brackets((subQb) => {
+          subQb
+            .where('LOWER(feedback.title) LIKE LOWER(:search)', {
+              search: `%${search}%`,
+            })
+            .orWhere('LOWER(feedback.description) LIKE LOWER(:search)', {
+              search: `%${search}%`,
+            })
+            .orWhere('LOWER(feedback.email) LIKE LOWER(:search)', {
+              search: `%${search}%`,
+            });
+        }),
+      );
+    }
+
+    const [data, total] = await qb.getManyAndCount();
+
+    return {
+      data: data.map((feedback) => this.toAdminView(feedback)),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
+  }
+
+  async findOneForAdmin(id: string) {
+    const feedback = await this.productFeedbackRepo.findOne({ where: { id } });
+
+    if (!feedback) {
+      return null;
+    }
+
+    return this.toAdminView(feedback);
+  }
+
+  async updateForAdmin(id: string, dto: UpdateProductFeedbackDto) {
+    const feedback = await this.productFeedbackRepo.findOne({ where: { id } });
+
+    if (!feedback) {
+      throw new NotFoundException('Feedback nie znaleziony');
+    }
+
+    const nextMetadata = {
+      ...(feedback.metadata ?? {}),
+      ...(dto.metadata ?? {}),
+    };
+
+    if (dto.internalNote !== undefined) {
+      const internalNote = dto.internalNote.trim();
+
+      if (internalNote) {
+        nextMetadata.internalNote = internalNote;
+        nextMetadata.internalNoteUpdatedAt = new Date().toISOString();
+      } else {
+        delete nextMetadata.internalNote;
+        delete nextMetadata.internalNoteUpdatedAt;
+      }
+    }
+
+    if (dto.status !== undefined) {
+      feedback.status = dto.status;
+    }
+
+    if (dto.internalPriority !== undefined) {
+      feedback.internalPriority = dto.internalPriority;
+    }
+
+    if (dto.duplicateOfId !== undefined) {
+      feedback.duplicateOfId = dto.duplicateOfId || null;
+    }
+
+    feedback.metadata = nextMetadata;
+
+    const savedFeedback = await this.productFeedbackRepo.save(feedback);
+    return this.toAdminView(savedFeedback);
   }
 
   async createPublic(dto: CreatePublicProductFeedbackDto, request: Request) {
@@ -171,6 +295,35 @@ export class ProductFeedbackService {
       type: feedback.type,
       status: feedback.status,
       createdAt: feedback.createdAt,
+    };
+  }
+
+  private toAdminView(feedback: ProductFeedback) {
+    return {
+      id: feedback.id,
+      type: feedback.type,
+      status: feedback.status,
+      category: feedback.category,
+      source: feedback.source,
+      title: feedback.title,
+      description: feedback.description,
+      userPriority: feedback.userPriority,
+      internalPriority: feedback.internalPriority,
+      userId: feedback.userId,
+      agentId: feedback.agentId,
+      workspaceId: feedback.workspaceId,
+      email: feedback.email,
+      sourceUrl: feedback.sourceUrl,
+      module: feedback.module,
+      browser: feedback.browser,
+      os: feedback.os,
+      viewport: feedback.viewport,
+      appVersion: feedback.appVersion,
+      screenshotUrl: feedback.screenshotUrl,
+      duplicateOfId: feedback.duplicateOfId,
+      metadata: feedback.metadata ?? {},
+      createdAt: feedback.createdAt,
+      updatedAt: feedback.updatedAt,
     };
   }
 }

@@ -7,6 +7,7 @@ import {
   CalendarCheck,
   BarChart3,
   MessageSquareText,
+  ShieldCheck,
   Settings,
   LogOut,
 } from 'lucide-react';
@@ -31,7 +32,18 @@ const bottomItems = [
 
 export function DashboardSidebar() {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const visibleNavItems =
+    user?.role === 'admin'
+      ? [
+          ...navItems,
+          {
+            label: 'Feedback',
+            href: '/dashboard/admin/feedback',
+            icon: ShieldCheck,
+          },
+        ]
+      : navItems;
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-white lg:flex">
@@ -44,7 +56,7 @@ export function DashboardSidebar() {
 
       {/* Main nav */}
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const isActive =
             pathname === item.href ||
             (item.href !== '/dashboard' && pathname.startsWith(item.href));

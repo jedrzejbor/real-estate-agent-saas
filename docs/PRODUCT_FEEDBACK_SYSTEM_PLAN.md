@@ -644,6 +644,17 @@ Dlaczego:
 - Parametr `source`.
 - Odróżnienie feedbacku produktowego od abuse report.
 - Antyspam i rate limiting.
+- Status: wykonane.
+- Data zakończenia: 2026-05-10.
+- Wykonano:
+  - dodano publiczną stronę `/feedback`,
+  - dodano formularz feedbacku dla odwiedzających z typem, obszarem, tytułem,
+    opisem i opcjonalnym emailem,
+  - formularz wysyła do `POST /api/product-feedback/public`,
+  - dodano honeypot i `formStartedAt` dla publicznego endpointu,
+  - formularz obsługuje parametr `source`,
+  - dodano copy odróżniające feedback produktowy od zgłaszania naruszeń ofert,
+  - dodano link `Podziel się opinią` w stopce.
 
 ### `FB.4` Dodać panel administracyjny triage
 
@@ -652,6 +663,20 @@ Dlaczego:
 - Szczegóły.
 - Zmiana statusu.
 - Notatki wewnętrzne.
+- Status: wykonane.
+- Data zakończenia: 2026-05-10.
+- Wykonano:
+  - dodano adminowe endpointy `GET /api/admin/product-feedback`,
+    `GET /api/admin/product-feedback/:id` i
+    `PATCH /api/admin/product-feedback/:id`,
+  - zabezpieczono endpointy rolą `admin`,
+  - dodano paginację oraz filtry po statusie, typie, kategorii, źródle,
+    priorytecie użytkownika, priorytecie zespołu i frazie wyszukiwania,
+  - dodano ekran `/dashboard/admin/feedback` z listą zgłoszeń i kontekstem
+    źródłowym,
+  - dodano zmianę statusu, priorytetu zespołu, notatki wewnętrznej i oznaczenie
+    duplikatu,
+  - dodano link do panelu w sidebarze tylko dla użytkowników z rolą `admin`.
 
 ### `FB.5` Dodać ankiety produktowe
 

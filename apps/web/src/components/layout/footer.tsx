@@ -28,6 +28,7 @@ const footerSections = [
     links: [
       { label: 'Pomoc', href: '#' },
       { label: 'Dokumentacja', href: '#' },
+      { label: 'Podziel się opinią', href: '/feedback?source=homepage' },
       { label: 'Status', href: '#' },
     ],
   },
