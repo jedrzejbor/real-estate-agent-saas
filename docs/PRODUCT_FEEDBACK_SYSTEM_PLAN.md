@@ -608,6 +608,18 @@ Dlaczego:
 - Endpoint dla zalogowanych.
 - Publiczny endpoint z ochroną antyspamową.
 - Event analytics `product_feedback_submitted`.
+- Status: wykonane.
+- Data zakończenia: 2026-05-10.
+- Wykonano:
+  - dodano moduł API `ProductFeedbackModule`,
+  - dodano encję `ProductFeedback` z typem, statusem, kategorią, źródłem,
+    priorytetem, kontekstem użytkownika/workspace i metadanymi,
+  - dodano endpoint `POST /api/product-feedback` dla zalogowanych użytkowników,
+  - dodano endpoint `POST /api/product-feedback/public` dla odwiedzających,
+  - publiczny endpoint korzysta z honeypota, timing guard, rate limitów i
+    heurystyk tekstu,
+  - dodano event analytics `product_feedback_submitted` dla zgłoszeń
+    zalogowanych użytkowników.
 
 ### `FB.2` Dodać widget feedbacku w dashboardzie
 
