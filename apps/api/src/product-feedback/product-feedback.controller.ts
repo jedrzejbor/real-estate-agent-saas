@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -55,6 +56,34 @@ export class ProductFeedbackController {
     @Query() query: ProductFeedbackMyQueryDto,
   ) {
     return this.productFeedbackService.findMy(userId, query);
+  }
+
+  /** GET /api/product-feedback/votable — list selected ideas available for voting. */
+  @Get('votable')
+  async findVotable(
+    @CurrentUser('id') userId: string,
+    @Query() query: ProductFeedbackMyQueryDto,
+  ) {
+    return this.productFeedbackService.findVotableForUser(userId, query);
+  }
+
+  /** POST /api/product-feedback/:id/votes — add current user's vote to selected idea. */
+  @Post(':id/votes')
+  @HttpCode(HttpStatus.CREATED)
+  async voteForIdea(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.productFeedbackService.voteForIdea(userId, id);
+  }
+
+  /** DELETE /api/product-feedback/:id/votes — remove current user's vote. */
+  @Delete(':id/votes')
+  async removeVoteForIdea(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.productFeedbackService.removeVoteForIdea(userId, id);
   }
 
   /** POST /api/product-feedback/public — capture lightweight public product feedback. */

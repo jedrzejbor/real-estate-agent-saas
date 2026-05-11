@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Settings,
   LogOut,
+  ThumbsUp,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -29,6 +30,12 @@ const navItems = [
     label: 'Moje zgłoszenia',
     href: '/dashboard/feedback',
     icon: MessagesSquare,
+    exact: true,
+  },
+  {
+    label: 'Głosowanie',
+    href: '/dashboard/feedback/ideas',
+    icon: ThumbsUp,
   },
 ] as const;
 
@@ -65,7 +72,9 @@ export function DashboardSidebar() {
         {visibleNavItems.map((item) => {
           const isActive =
             pathname === item.href ||
-            (item.href !== '/dashboard' && pathname.startsWith(item.href));
+            (!('exact' in item) &&
+              item.href !== '/dashboard' &&
+              pathname.startsWith(item.href));
 
           return (
             <Link

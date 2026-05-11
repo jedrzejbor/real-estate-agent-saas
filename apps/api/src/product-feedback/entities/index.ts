@@ -6,6 +6,7 @@ export {
   ProductFeedbackStatus,
   ProductFeedbackType,
 } from './product-feedback.entity';
+export { ProductFeedbackVote } from './product-feedback-vote.entity';
 export {
   FeatureSurvey,
   FeatureSurveyAudience,

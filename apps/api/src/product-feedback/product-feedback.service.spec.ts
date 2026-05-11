@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ProductFeedbackService } from './product-feedback.service';
 import {
   ProductFeedback,
@@ -53,6 +53,18 @@ function buildQueryBuilder(result: ProductFeedback[], total = result.length) {
   };
 }
 
+function buildVoteQueryBuilder(
+  rows: Array<{ feedbackId: string; voteCount: string }> = [],
+) {
+  return {
+    select: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    groupBy: jest.fn().mockReturnThis(),
+    getRawMany: jest.fn().mockResolvedValue(rows),
+  };
+}
+
 function buildService(overrides: { feedback?: ProductFeedback | null } = {}) {
   const productFeedbackRepo = {
     create: jest.fn((value) => value),
@@ -69,6 +81,19 @@ function buildService(overrides: { feedback?: ProductFeedback | null } = {}) {
     count: jest.fn().mockResolvedValue(0),
     createQueryBuilder: jest.fn(),
   };
+  const productFeedbackVoteRepo = {
+    create: jest.fn((value) => value),
+    save: jest.fn(async (value) => ({
+      id: 'vote-1',
+      createdAt: new Date(),
+      ...value,
+    })),
+    findOne: jest.fn().mockResolvedValue(null),
+    find: jest.fn().mockResolvedValue([]),
+    count: jest.fn().mockResolvedValue(0),
+    delete: jest.fn().mockResolvedValue({ affected: 1 }),
+    createQueryBuilder: jest.fn(),
+  };
   const usersService = {
     getAgencyAccessContext: jest.fn().mockResolvedValue({
       user: { email: 'agent@example.com' },
@@ -83,10 +108,12 @@ function buildService(overrides: { feedback?: ProductFeedback | null } = {}) {
   return {
     service: new ProductFeedbackService(
       productFeedbackRepo as never,
+      productFeedbackVoteRepo as never,
       usersService as never,
       analyticsService as never,
     ),
     productFeedbackRepo,
+    productFeedbackVoteRepo,
   };
 }
 
@@ -149,5 +176,77 @@ describe('ProductFeedbackService', () => {
     await expect(
       service.updateForAdmin('missing-feedback', { teamResponse: 'x' }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('lists only voting-enabled ideas with current user vote state', async () => {
+    const feedback = buildFeedback({
+      type: ProductFeedbackType.FEATURE_REQUEST,
+      metadata: { votingEnabled: true },
+    });
+    const queryBuilder = buildQueryBuilder([feedback]);
+    const voteQueryBuilder = buildVoteQueryBuilder([
+      { feedbackId: 'feedback-1', voteCount: '3' },
+    ]);
+    const { service, productFeedbackRepo, productFeedbackVoteRepo } =
+      buildService();
+    productFeedbackRepo.createQueryBuilder.mockReturnValue(queryBuilder);
+    productFeedbackVoteRepo.createQueryBuilder.mockReturnValue(
+      voteQueryBuilder,
+    );
+    productFeedbackVoteRepo.find.mockResolvedValue([
+      { feedbackId: 'feedback-1' },
+    ]);
+
+    const result = await service.findVotableForUser('user-1', {
+      page: 1,
+      limit: 10,
+    });
+
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      "feedback.metadata ->> 'votingEnabled' = :enabled",
+      { enabled: 'true' },
+    );
+    expect(result.data[0]).toMatchObject({
+      id: 'feedback-1',
+      voteCount: 3,
+      viewerHasVoted: true,
+    });
+  });
+
+  it('creates a vote once for a selected idea', async () => {
+    const feedback = buildFeedback({
+      type: ProductFeedbackType.FEATURE_REQUEST,
+      metadata: { votingEnabled: true },
+    });
+    const { service, productFeedbackVoteRepo } = buildService({ feedback });
+    productFeedbackVoteRepo.count.mockResolvedValue(1);
+
+    const result = await service.voteForIdea('user-1', 'feedback-1');
+
+    expect(productFeedbackVoteRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        feedbackId: 'feedback-1',
+        userId: 'user-1',
+        workspaceId: 'workspace-1',
+      }),
+    );
+    expect(result).toEqual({
+      feedbackId: 'feedback-1',
+      voteCount: 1,
+      viewerHasVoted: true,
+    });
+  });
+
+  it('rejects voting for feedback that is not selected for voting', async () => {
+    const feedback = buildFeedback({
+      type: ProductFeedbackType.FEATURE_REQUEST,
+      metadata: {},
+    });
+    const { service, productFeedbackVoteRepo } = buildService({ feedback });
+
+    await expect(
+      service.voteForIdea('user-1', 'feedback-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(productFeedbackVoteRepo.save).not.toHaveBeenCalled();
   });
 });

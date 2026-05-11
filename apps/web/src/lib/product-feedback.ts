@@ -184,6 +184,7 @@ export interface ProductFeedbackAdminItem {
   screenshotUrl?: string | null;
   duplicateOfId?: string | null;
   metadata: Record<string, unknown>;
+  votingEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -244,12 +245,43 @@ export interface ProductFeedbackMyResponse {
   };
 }
 
+export interface ProductFeedbackVotableIdea {
+  id: string;
+  type: ProductFeedbackType;
+  status: ProductFeedbackStatus;
+  category: ProductFeedbackCategory;
+  title: string;
+  description: string;
+  teamResponse?: string | null;
+  voteCount: number;
+  viewerHasVoted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductFeedbackVotableIdeasResponse {
+  data: ProductFeedbackVotableIdea[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface ProductFeedbackVoteResult {
+  feedbackId: string;
+  voteCount: number;
+  viewerHasVoted: boolean;
+}
+
 export interface UpdateProductFeedbackInput {
   status?: ProductFeedbackStatus;
   internalPriority?: ProductFeedbackPriority | null;
   duplicateOfId?: string | null;
   internalNote?: string;
   teamResponse?: string;
+  votingEnabled?: boolean;
   metadata?: Record<string, unknown>;
 }
 
@@ -277,6 +309,36 @@ export function fetchMyProductFeedback(
 ): Promise<ProductFeedbackMyResponse> {
   return apiFetch<ProductFeedbackMyResponse>(
     `/product-feedback/my${buildQueryString(filters)}`,
+  );
+}
+
+export function fetchVotableProductFeedback(
+  filters: ProductFeedbackMyFilters = {},
+): Promise<ProductFeedbackVotableIdeasResponse> {
+  return apiFetch<ProductFeedbackVotableIdeasResponse>(
+    `/product-feedback/votable${buildQueryString(filters)}`,
+  );
+}
+
+export function voteForProductFeedbackIdea(
+  feedbackId: string,
+): Promise<ProductFeedbackVoteResult> {
+  return apiFetch<ProductFeedbackVoteResult>(
+    `/product-feedback/${feedbackId}/votes`,
+    {
+      method: 'POST',
+    },
+  );
+}
+
+export function removeVoteForProductFeedbackIdea(
+  feedbackId: string,
+): Promise<ProductFeedbackVoteResult> {
+  return apiFetch<ProductFeedbackVoteResult>(
+    `/product-feedback/${feedbackId}/votes`,
+    {
+      method: 'DELETE',
+    },
   );
 }
 

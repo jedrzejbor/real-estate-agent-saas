@@ -735,6 +735,25 @@ Zakres:
 - Najpierw wewnętrznie lub w ograniczonej becie.
 - Bez publicznych obietnic terminów.
 
+Status: zrobione.
+
+Zakres:
+
+- dodano encję `ProductFeedbackVote` z unikalnym głosem użytkownika na pomysł,
+- głosowanie jest dostępne tylko dla zalogowanych użytkowników,
+- pomysł trafia do głosowania dopiero po włączeniu flagi `votingEnabled` w
+  panelu admina,
+- dodano endpointy:
+  - `GET /api/product-feedback/votable`,
+  - `POST /api/product-feedback/:id/votes`,
+  - `DELETE /api/product-feedback/:id/votes`,
+- lista pomysłów pokazuje liczbę głosów oraz informację, czy użytkownik już
+  głosował,
+- dodano stronę `/dashboard/feedback/ideas` z głosowaniem i cofnięciem głosu,
+- dodano link `Głosowanie` w nawigacji dashboardu,
+- dodano testy jednostkowe listy pomysłów, oddania głosu i blokady głosowania
+  na nieudostępniony feedback.
+
 ---
 
 ## 18. Rekomendowana kolejność

@@ -6,6 +6,7 @@ import {
   FeatureSurvey,
   FeatureSurveyResponse,
   ProductFeedback,
+  ProductFeedbackVote,
 } from './entities';
 import { FeatureSurveysService } from './feature-surveys.service';
 import {
@@ -20,6 +21,7 @@ import { ProductFeedbackService } from './product-feedback.service';
   imports: [
     TypeOrmModule.forFeature([
       ProductFeedback,
+      ProductFeedbackVote,
       FeatureSurvey,
       FeatureSurveyResponse,
     ]),

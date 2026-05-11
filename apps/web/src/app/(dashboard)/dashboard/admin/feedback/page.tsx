@@ -412,6 +412,9 @@ function FeedbackCard({
   const [teamResponse, setTeamResponse] = useState(
     getTeamResponse(item.metadata),
   );
+  const [votingEnabled, setVotingEnabled] = useState(
+    item.votingEnabled ?? false,
+  );
   const [duplicateOfId, setDuplicateOfId] = useState(item.duplicateOfId ?? '');
 
   return (
@@ -509,6 +512,15 @@ function FeedbackCard({
             className="h-9 rounded-xl"
             onChange={(event) => setDuplicateOfId(event.target.value)}
           />
+          <label className="flex items-center gap-2 rounded-xl border border-border/80 px-3 py-2 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={votingEnabled}
+              onChange={(event) => setVotingEnabled(event.target.checked)}
+            />
+            Udostępnij do głosowania
+          </label>
           <Button
             variant="outline"
             size="sm"
@@ -517,6 +529,7 @@ function FeedbackCard({
               onUpdate({
                 internalNote,
                 teamResponse,
+                votingEnabled,
                 duplicateOfId: duplicateOfId.trim() || null,
               })
             }

@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEnum,
   IsObject,
   IsOptional,
@@ -30,6 +31,10 @@ export class UpdateProductFeedbackDto {
   @IsString()
   @MaxLength(2000)
   teamResponse?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  votingEnabled?: boolean;
 
   @IsOptional()
   @IsObject()
