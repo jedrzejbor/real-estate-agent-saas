@@ -65,6 +65,72 @@ export const ProductFeedbackSource = {
 export type ProductFeedbackSource =
   (typeof ProductFeedbackSource)[keyof typeof ProductFeedbackSource];
 
+export const FeatureSurveyAudience = {
+  ALL_USERS: 'all_users',
+  REGISTERED_USERS: 'registered_users',
+  PUBLIC_VISITORS: 'public_visitors',
+  PLAN_SEGMENT: 'plan_segment',
+  BETA_USERS: 'beta_users',
+} as const;
+
+export type FeatureSurveyAudience =
+  (typeof FeatureSurveyAudience)[keyof typeof FeatureSurveyAudience];
+
+export const FeatureSurveyQuestionType = {
+  SINGLE_CHOICE: 'single_choice',
+  MULTIPLE_CHOICE: 'multiple_choice',
+  RATING: 'rating',
+  NPS: 'nps',
+  TEXT: 'text',
+} as const;
+
+export type FeatureSurveyQuestionType =
+  (typeof FeatureSurveyQuestionType)[keyof typeof FeatureSurveyQuestionType];
+
+export interface FeatureSurveyQuestionOption {
+  value: string;
+  label: string;
+}
+
+export interface FeatureSurveyQuestion {
+  id: string;
+  type: FeatureSurveyQuestionType;
+  label: string;
+  required?: boolean;
+  options?: FeatureSurveyQuestionOption[];
+  min?: number;
+  max?: number;
+}
+
+export interface FeatureSurvey {
+  id: string;
+  title: string;
+  description?: string | null;
+  audience: FeatureSurveyAudience;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  questions: FeatureSurveyQuestion[];
+}
+
+export interface SubmitFeatureSurveyResponseInput {
+  answers: Record<string, unknown>;
+  sourceUrl?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SubmitPublicFeatureSurveyResponseInput extends SubmitFeatureSurveyResponseInput {
+  email?: string;
+  website?: string;
+  formStartedAt?: number;
+}
+
+export interface FeatureSurveyResponseSubmission {
+  id: string;
+  surveyId: string;
+  feedbackId?: string | null;
+  createdAt: string;
+}
+
 export interface CreateProductFeedbackInput {
   type: ProductFeedbackType;
   category?: ProductFeedbackCategory;
@@ -187,6 +253,43 @@ export function updateProductFeedbackAdmin(
     method: 'PATCH',
     body: input,
   });
+}
+
+export function fetchActiveFeatureSurveys(): Promise<FeatureSurvey[]> {
+  return apiFetch<FeatureSurvey[]>('/feature-surveys/active');
+}
+
+export function fetchActivePublicFeatureSurveys(): Promise<FeatureSurvey[]> {
+  return apiFetch<FeatureSurvey[]>('/feature-surveys/public/active', {
+    skipAuth: true,
+  });
+}
+
+export function submitFeatureSurveyResponse(
+  surveyId: string,
+  input: SubmitFeatureSurveyResponseInput,
+): Promise<FeatureSurveyResponseSubmission> {
+  return apiFetch<FeatureSurveyResponseSubmission>(
+    `/feature-surveys/${surveyId}/responses`,
+    {
+      method: 'POST',
+      body: input,
+    },
+  );
+}
+
+export function submitPublicFeatureSurveyResponse(
+  surveyId: string,
+  input: SubmitPublicFeatureSurveyResponseInput,
+): Promise<FeatureSurveyResponseSubmission> {
+  return apiFetch<FeatureSurveyResponseSubmission>(
+    `/feature-surveys/${surveyId}/public-responses`,
+    {
+      method: 'POST',
+      skipAuth: true,
+      body: input,
+    },
+  );
 }
 
 function buildQueryString(filters: object): string {

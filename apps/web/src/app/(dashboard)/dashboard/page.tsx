@@ -22,6 +22,7 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { OnboardingChecklist } from '@/components/dashboard/onboarding-checklist';
 import { PlanUsageCard } from '@/components/dashboard/plan-usage-card';
+import { FeatureSurveyList } from '@/components/feedback/feature-survey-list';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/hooks/use-dashboard';
 import { isUsageWarning } from '@/lib/auth';
@@ -143,6 +144,8 @@ export default function DashboardPage() {
           ) : null}
 
           <OnboardingChecklist stats={stats} />
+
+          <FeatureSurveyList />
 
           {/* Stat cards */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

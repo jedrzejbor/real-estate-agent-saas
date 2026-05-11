@@ -685,6 +685,28 @@ Dlaczego:
 - Odpowiedzi.
 - Segmentacja odbiorców.
 
+Status: zrobione.
+
+Zakres:
+
+- dodano encje `FeatureSurvey` i `FeatureSurveyResponse`,
+- dodano typy pytań: jednokrotny wybór, wielokrotny wybór, rating, NPS i tekst,
+- dodano segmentację przez `audience` oraz `audienceRules` dla planów,
+  użytkowników i workspace'ów beta,
+- dodano endpointy:
+  - `GET /api/feature-surveys/active`,
+  - `GET /api/feature-surveys/public/active`,
+  - `POST /api/feature-surveys/:id/responses`,
+  - `POST /api/feature-surveys/:id/public-responses`,
+  - `POST /api/admin/feature-surveys`,
+  - `PATCH /api/admin/feature-surveys/:id`,
+  - `GET /api/admin/feature-surveys/:id/responses`,
+- odpowiedzi ankiet są zapisywane także jako `ProductFeedback` typu
+  `survey_response`, żeby trafiały do wspólnego panelu triage,
+- dodano komponent ankiet w dashboardzie oraz publicznie na `/feedback`,
+- dodano testy jednostkowe walidacji wymaganych odpowiedzi i segmentacji
+  aktywnych ankiet.
+
 ### `FB.6` Dodać moje zgłoszenia dla użytkownika
 
 - Lista własnych zgłoszeń.

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowLeft, MessageSquare, ShieldCheck } from 'lucide-react';
 import { Container } from '@/components/layout';
+import { FeatureSurveyList } from '@/components/feedback/feature-survey-list';
 import { PublicProductFeedbackForm } from '@/components/feedback/public-product-feedback-form';
 
 export const metadata: Metadata = {
@@ -57,6 +58,8 @@ export default function FeedbackPage() {
 
         <PublicProductFeedbackForm />
       </div>
+
+      <FeatureSurveyList publicMode className="mt-8" />
     </Container>
   );
 }
