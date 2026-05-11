@@ -7,6 +7,7 @@ import {
   CalendarCheck,
   BarChart3,
   MessageSquareText,
+  MessagesSquare,
   ShieldCheck,
   Settings,
   LogOut,
@@ -24,6 +25,11 @@ const navItems = [
   { label: 'Zapytania', href: '/dashboard/inquiries', icon: MessageSquareText },
   { label: 'Kalendarz', href: '/dashboard/calendar', icon: CalendarCheck },
   { label: 'Raporty', href: '/dashboard/reports', icon: BarChart3 },
+  {
+    label: 'Moje zgłoszenia',
+    href: '/dashboard/feedback',
+    icon: MessagesSquare,
+  },
 ] as const;
 
 const bottomItems = [

@@ -17,6 +17,7 @@ import {
   CreateProductFeedbackDto,
   CreatePublicProductFeedbackDto,
   ProductFeedbackAdminQueryDto,
+  ProductFeedbackMyQueryDto,
   UpdateProductFeedbackDto,
 } from './dto';
 import {
@@ -68,6 +69,37 @@ export class ProductFeedbackService {
     await this.trackFeedbackSubmitted(userId, savedFeedback);
 
     return this.toSubmissionResponse(savedFeedback);
+  }
+
+  async findMy(userId: string, query: ProductFeedbackMyQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const qb = this.productFeedbackRepo
+      .createQueryBuilder('feedback')
+      .where('feedback.userId = :userId', { userId })
+      .orderBy('feedback.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (query.status) {
+      qb.andWhere('feedback.status = :status', { status: query.status });
+    }
+
+    if (query.type) {
+      qb.andWhere('feedback.type = :type', { type: query.type });
+    }
+
+    const [data, total] = await qb.getManyAndCount();
+
+    return {
+      data: data.map((feedback) => this.toUserView(feedback)),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
   }
 
   async findAllForAdmin(query: ProductFeedbackAdminQueryDto) {
@@ -171,6 +203,18 @@ export class ProductFeedbackService {
       } else {
         delete nextMetadata.internalNote;
         delete nextMetadata.internalNoteUpdatedAt;
+      }
+    }
+
+    if (dto.teamResponse !== undefined) {
+      const teamResponse = dto.teamResponse.trim();
+
+      if (teamResponse) {
+        nextMetadata.teamResponse = teamResponse;
+        nextMetadata.teamResponseUpdatedAt = new Date().toISOString();
+      } else {
+        delete nextMetadata.teamResponse;
+        delete nextMetadata.teamResponseUpdatedAt;
       }
     }
 
@@ -298,6 +342,28 @@ export class ProductFeedbackService {
     };
   }
 
+  private toUserView(feedback: ProductFeedback) {
+    return {
+      id: feedback.id,
+      type: feedback.type,
+      status: feedback.status,
+      category: feedback.category,
+      source: feedback.source,
+      title: feedback.title,
+      description: feedback.description,
+      userPriority: feedback.userPriority,
+      sourceUrl: feedback.sourceUrl,
+      module: feedback.module,
+      teamResponse: this.getStringMetadata(feedback, 'teamResponse'),
+      teamResponseUpdatedAt: this.getStringMetadata(
+        feedback,
+        'teamResponseUpdatedAt',
+      ),
+      createdAt: feedback.createdAt,
+      updatedAt: feedback.updatedAt,
+    };
+  }
+
   private toAdminView(feedback: ProductFeedback) {
     return {
       id: feedback.id,
@@ -325,5 +391,13 @@ export class ProductFeedbackService {
       createdAt: feedback.createdAt,
       updatedAt: feedback.updatedAt,
     };
+  }
+
+  private getStringMetadata(
+    feedback: ProductFeedback,
+    key: string,
+  ): string | null {
+    const value = feedback.metadata?.[key];
+    return typeof value === 'string' && value.trim() ? value : null;
   }
 }

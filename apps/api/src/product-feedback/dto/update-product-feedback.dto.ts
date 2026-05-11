@@ -27,6 +27,11 @@ export class UpdateProductFeedbackDto {
   internalNote?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  teamResponse?: string;
+
+  @IsOptional()
   @IsObject()
   metadata?: Record<string, unknown>;
 }

@@ -409,6 +409,9 @@ function FeedbackCard({
   const [internalNote, setInternalNote] = useState(
     getInternalNote(item.metadata),
   );
+  const [teamResponse, setTeamResponse] = useState(
+    getTeamResponse(item.metadata),
+  );
   const [duplicateOfId, setDuplicateOfId] = useState(item.duplicateOfId ?? '');
 
   return (
@@ -493,6 +496,13 @@ function FeedbackCard({
             className="w-full resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             onChange={(event) => setInternalNote(event.target.value)}
           />
+          <textarea
+            value={teamResponse}
+            rows={3}
+            placeholder="Odpowiedź widoczna dla użytkownika"
+            className="w-full resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            onChange={(event) => setTeamResponse(event.target.value)}
+          />
           <Input
             value={duplicateOfId}
             placeholder="ID duplikatu"
@@ -506,11 +516,12 @@ function FeedbackCard({
             onClick={() =>
               onUpdate({
                 internalNote,
+                teamResponse,
                 duplicateOfId: duplicateOfId.trim() || null,
               })
             }
           >
-            Zapisz notatkę
+            Zapisz odpowiedzi
           </Button>
         </div>
       </div>
@@ -520,4 +531,8 @@ function FeedbackCard({
 
 function getInternalNote(metadata: Record<string, unknown>): string {
   return typeof metadata.internalNote === 'string' ? metadata.internalNote : '';
+}
+
+function getTeamResponse(metadata: Record<string, unknown>): string {
+  return typeof metadata.teamResponse === 'string' ? metadata.teamResponse : '';
 }

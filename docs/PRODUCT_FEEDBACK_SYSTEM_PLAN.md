@@ -713,6 +713,22 @@ Zakres:
 - Statusy.
 - Odpowiedzi zespołu.
 
+Status: zrobione.
+
+Zakres:
+
+- dodano endpoint `GET /api/product-feedback/my` z paginacją oraz filtrami po
+  statusie i typie,
+- odpowiedź endpointu pokazuje tylko dane użytkownika i nie ujawnia metadanych
+  wewnętrznych ani priorytetu zespołu,
+- dodano pole `teamResponse` w aktualizacji adminowej jako odpowiedź widoczna
+  dla użytkownika,
+- rozdzielono `teamResponse` od `internalNote`,
+- dodano stronę `/dashboard/feedback` z listą zgłoszeń, statusami, filtrami,
+  paginacją i odpowiedzią zespołu,
+- dodano link `Moje zgłoszenia` w nawigacji dashboardu,
+- dodano testy jednostkowe listy własnych zgłoszeń i odpowiedzi zespołu.
+
 ### `FB.7` Dodać głosowanie na wybrane pomysły
 
 - Tylko dla zalogowanych.

@@ -22,6 +22,7 @@ import {
   CreateProductFeedbackDto,
   CreatePublicProductFeedbackDto,
   ProductFeedbackAdminQueryDto,
+  ProductFeedbackMyQueryDto,
   UpdateProductFeedbackDto,
   CreateFeatureSurveyDto,
   SubmitFeatureSurveyResponseDto,
@@ -45,6 +46,15 @@ export class ProductFeedbackController {
     @Body() dto: CreateProductFeedbackDto,
   ) {
     return this.productFeedbackService.createForUser(userId, dto);
+  }
+
+  /** GET /api/product-feedback/my — list feedback submitted by the current user. */
+  @Get('my')
+  async findMy(
+    @CurrentUser('id') userId: string,
+    @Query() query: ProductFeedbackMyQueryDto,
+  ) {
+    return this.productFeedbackService.findMy(userId, query);
   }
 
   /** POST /api/product-feedback/public — capture lightweight public product feedback. */

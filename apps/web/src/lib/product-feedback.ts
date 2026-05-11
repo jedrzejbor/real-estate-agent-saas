@@ -188,6 +188,23 @@ export interface ProductFeedbackAdminItem {
   updatedAt: string;
 }
 
+export interface ProductFeedbackMyItem {
+  id: string;
+  type: ProductFeedbackType;
+  status: ProductFeedbackStatus;
+  category: ProductFeedbackCategory;
+  source: ProductFeedbackSource;
+  title: string;
+  description: string;
+  userPriority?: ProductFeedbackPriority | null;
+  sourceUrl?: string | null;
+  module?: string | null;
+  teamResponse?: string | null;
+  teamResponseUpdatedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ProductFeedbackAdminFilters {
   status?: ProductFeedbackStatus;
   type?: ProductFeedbackType;
@@ -196,6 +213,13 @@ export interface ProductFeedbackAdminFilters {
   userPriority?: ProductFeedbackPriority;
   internalPriority?: ProductFeedbackPriority;
   search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface ProductFeedbackMyFilters {
+  status?: ProductFeedbackStatus;
+  type?: ProductFeedbackType;
   page?: number;
   limit?: number;
 }
@@ -210,11 +234,22 @@ export interface ProductFeedbackAdminResponse {
   };
 }
 
+export interface ProductFeedbackMyResponse {
+  data: ProductFeedbackMyItem[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export interface UpdateProductFeedbackInput {
   status?: ProductFeedbackStatus;
   internalPriority?: ProductFeedbackPriority | null;
   duplicateOfId?: string | null;
   internalNote?: string;
+  teamResponse?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -235,6 +270,14 @@ export function submitPublicProductFeedback(
     skipAuth: true,
     body: input,
   });
+}
+
+export function fetchMyProductFeedback(
+  filters: ProductFeedbackMyFilters = {},
+): Promise<ProductFeedbackMyResponse> {
+  return apiFetch<ProductFeedbackMyResponse>(
+    `/product-feedback/my${buildQueryString(filters)}`,
+  );
 }
 
 export function fetchProductFeedbackAdmin(
