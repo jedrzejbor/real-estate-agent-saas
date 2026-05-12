@@ -101,6 +101,26 @@ function buildService(
 }
 
 describe('FeatureSurveysService', () => {
+  it('lists surveys for admin in admin view shape', async () => {
+    const survey = buildSurvey({
+      id: 'survey-admin',
+      status: FeatureSurveyStatus.DRAFT,
+      metadata: { owner: 'product' },
+    });
+    const { service, surveyRepo } = buildService({ surveys: [survey] });
+
+    const result = await service.findAllForAdmin();
+
+    expect(surveyRepo.find).toHaveBeenCalledWith({
+      order: { createdAt: 'DESC' },
+    });
+    expect(result[0]).toMatchObject({
+      id: 'survey-admin',
+      status: FeatureSurveyStatus.DRAFT,
+      metadata: { owner: 'product' },
+    });
+  });
+
   it('returns only surveys matching authenticated user audience', async () => {
     const matchingPlanSurvey = buildSurvey({
       id: 'survey-free',

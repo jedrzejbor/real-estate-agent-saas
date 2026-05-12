@@ -21,6 +21,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums';
 import {
   CreateProductFeedbackDto,
+  CreateProductFeedbackIdeaDto,
   CreatePublicProductFeedbackDto,
   ProductFeedbackAdminQueryDto,
   ProductFeedbackMyQueryDto,
@@ -112,6 +113,14 @@ export class AdminProductFeedbackController {
     return this.productFeedbackService.findAllForAdmin(query);
   }
 
+  /** POST /api/admin/product-feedback/ideas — manually create an idea for voting. */
+  @Post('ideas')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.CREATED)
+  async createIdeaForAdmin(@Body() dto: CreateProductFeedbackIdeaDto) {
+    return this.productFeedbackService.createIdeaForAdmin(dto);
+  }
+
   /** GET /api/admin/product-feedback/:id — get single feedback item for triage. */
   @Get(':id')
   @Roles(UserRole.ADMIN)
@@ -181,6 +190,13 @@ export class FeatureSurveysController {
 @Controller('admin/feature-surveys')
 export class AdminFeatureSurveysController {
   constructor(private readonly featureSurveysService: FeatureSurveysService) {}
+
+  /** GET /api/admin/feature-surveys — list product surveys. */
+  @Get()
+  @Roles(UserRole.ADMIN)
+  async findAllForAdmin() {
+    return this.featureSurveysService.findAllForAdmin();
+  }
 
   /** POST /api/admin/feature-surveys — create product survey. */
   @Post()

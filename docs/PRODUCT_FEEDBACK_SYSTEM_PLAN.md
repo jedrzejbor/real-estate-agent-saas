@@ -706,6 +706,8 @@ Zakres:
 - dodano komponent ankiet w dashboardzie oraz publicznie na `/feedback`,
 - dodano testy jednostkowe walidacji wymaganych odpowiedzi i segmentacji
   aktywnych ankiet.
+- dodano adminowy panel tworzenia ankiet na
+  `/dashboard/admin/feedback/create`.
 
 ### `FB.6` Dodać moje zgłoszenia dla użytkownika
 
@@ -753,6 +755,8 @@ Zakres:
 - dodano link `Głosowanie` w nawigacji dashboardu,
 - dodano testy jednostkowe listy pomysłów, oddania głosu i blokady głosowania
   na nieudostępniony feedback.
+- dodano ręczne tworzenie pomysłów do głosowania przez admina na
+  `/dashboard/admin/feedback/create`.
 
 ---
 

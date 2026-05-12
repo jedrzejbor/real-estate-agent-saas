@@ -76,6 +76,16 @@ export const FeatureSurveyAudience = {
 export type FeatureSurveyAudience =
   (typeof FeatureSurveyAudience)[keyof typeof FeatureSurveyAudience];
 
+export const FeatureSurveyStatus = {
+  DRAFT: 'draft',
+  ACTIVE: 'active',
+  CLOSED: 'closed',
+  ARCHIVED: 'archived',
+} as const;
+
+export type FeatureSurveyStatus =
+  (typeof FeatureSurveyStatus)[keyof typeof FeatureSurveyStatus];
+
 export const FeatureSurveyQuestionType = {
   SINGLE_CHOICE: 'single_choice',
   MULTIPLE_CHOICE: 'multiple_choice',
@@ -110,6 +120,31 @@ export interface FeatureSurvey {
   startsAt?: string | null;
   endsAt?: string | null;
   questions: FeatureSurveyQuestion[];
+}
+
+export interface FeatureSurveyAdminItem extends FeatureSurvey {
+  status: FeatureSurveyStatus;
+  audienceRules: {
+    planCodes?: string[];
+    userIds?: string[];
+    workspaceIds?: string[];
+    module?: string;
+  };
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFeatureSurveyInput {
+  title: string;
+  description?: string;
+  status?: FeatureSurveyStatus;
+  audience: FeatureSurveyAudience;
+  startsAt?: string;
+  endsAt?: string;
+  questions: FeatureSurveyQuestion[];
+  audienceRules?: FeatureSurveyAdminItem['audienceRules'];
+  metadata?: Record<string, unknown>;
 }
 
 export interface SubmitFeatureSurveyResponseInput {
@@ -285,6 +320,15 @@ export interface UpdateProductFeedbackInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface CreateProductFeedbackIdeaInput {
+  title: string;
+  description: string;
+  category?: ProductFeedbackCategory;
+  status?: ProductFeedbackStatus;
+  internalPriority?: ProductFeedbackPriority;
+  teamResponse?: string;
+}
+
 export function submitProductFeedback(
   input: CreateProductFeedbackInput,
 ): Promise<ProductFeedbackSubmission> {
@@ -350,6 +394,15 @@ export function fetchProductFeedbackAdmin(
   );
 }
 
+export function createProductFeedbackIdeaAdmin(
+  input: CreateProductFeedbackIdeaInput,
+): Promise<ProductFeedbackAdminItem> {
+  return apiFetch<ProductFeedbackAdminItem>('/admin/product-feedback/ideas', {
+    method: 'POST',
+    body: input,
+  });
+}
+
 export function updateProductFeedbackAdmin(
   id: string,
   input: UpdateProductFeedbackInput,
@@ -367,6 +420,19 @@ export function fetchActiveFeatureSurveys(): Promise<FeatureSurvey[]> {
 export function fetchActivePublicFeatureSurveys(): Promise<FeatureSurvey[]> {
   return apiFetch<FeatureSurvey[]>('/feature-surveys/public/active', {
     skipAuth: true,
+  });
+}
+
+export function fetchFeatureSurveysAdmin(): Promise<FeatureSurveyAdminItem[]> {
+  return apiFetch<FeatureSurveyAdminItem[]>('/admin/feature-surveys');
+}
+
+export function createFeatureSurveyAdmin(
+  input: CreateFeatureSurveyInput,
+): Promise<FeatureSurveyAdminItem> {
+  return apiFetch<FeatureSurveyAdminItem>('/admin/feature-surveys', {
+    method: 'POST',
+    body: input,
   });
 }
 

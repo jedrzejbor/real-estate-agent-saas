@@ -92,6 +92,14 @@ export class FeatureSurveysService {
     return surveys.map((survey) => this.toPublicSurveyView(survey));
   }
 
+  async findAllForAdmin() {
+    const surveys = await this.surveyRepo.find({
+      order: { createdAt: 'DESC' },
+    });
+
+    return surveys.map((survey) => this.toAdminSurveyView(survey));
+  }
+
   async submitForUser(
     userId: string,
     surveyId: string,

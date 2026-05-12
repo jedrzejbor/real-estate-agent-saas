@@ -178,6 +178,33 @@ describe('ProductFeedbackService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('creates a manual feature idea enabled for voting', async () => {
+    const { service, productFeedbackRepo } = buildService();
+
+    const result = await service.createIdeaForAdmin({
+      title: 'Integracja z portalami',
+      description: 'Dodajmy eksport ofert do portali.',
+      category: ProductFeedbackCategory.INTEGRATIONS,
+      status: ProductFeedbackStatus.PLANNED,
+      teamResponse: 'Rozważamy ten kierunek.',
+    });
+
+    expect(productFeedbackRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: ProductFeedbackType.FEATURE_REQUEST,
+        status: ProductFeedbackStatus.PLANNED,
+        category: ProductFeedbackCategory.INTEGRATIONS,
+        title: 'Integracja z portalami',
+        metadata: expect.objectContaining({
+          votingEnabled: true,
+          createdManuallyByAdmin: true,
+          teamResponse: 'Rozważamy ten kierunek.',
+        }),
+      }),
+    );
+    expect(result.votingEnabled).toBe(true);
+  });
+
   it('lists only voting-enabled ideas with current user vote state', async () => {
     const feedback = buildFeedback({
       type: ProductFeedbackType.FEATURE_REQUEST,

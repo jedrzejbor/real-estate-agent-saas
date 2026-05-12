@@ -5,12 +5,14 @@ import {
   AlertCircle,
   ExternalLink,
   Filter,
+  Plus,
   RefreshCw,
   Search,
   ShieldCheck,
 } from 'lucide-react';
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { InlineSelect } from '@/components/ui/inline-select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
@@ -186,6 +188,16 @@ export default function ProductFeedbackTriagePage() {
             Minimalny panel triage dla błędów, pomysłów, usprawnień i opinii.
           </p>
         </div>
+        <Link
+          href="/dashboard/admin/feedback/create"
+          className={buttonVariants({
+            variant: 'outline',
+            className: 'gap-2 rounded-xl',
+          })}
+        >
+          <Plus className="h-4 w-4" />
+          Utwórz ankietę / pomysł
+        </Link>
         <Button
           variant="outline"
           className="gap-2 rounded-xl"

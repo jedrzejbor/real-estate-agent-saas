@@ -20,6 +20,7 @@ import { UsersService } from '../users';
 import {
   CreateProductFeedbackDto,
   CreatePublicProductFeedbackDto,
+  CreateProductFeedbackIdeaDto,
   ProductFeedbackAdminQueryDto,
   ProductFeedbackMyQueryDto,
   UpdateProductFeedbackDto,
@@ -216,6 +217,33 @@ export class ProductFeedbackService {
         totalPages: Math.max(1, Math.ceil(total / limit)),
       },
     };
+  }
+
+  async createIdeaForAdmin(dto: CreateProductFeedbackIdeaDto) {
+    const metadata: Record<string, unknown> = {
+      votingEnabled: true,
+      votingEnabledUpdatedAt: new Date().toISOString(),
+      createdManuallyByAdmin: true,
+    };
+    const teamResponse = dto.teamResponse?.trim();
+
+    if (teamResponse) {
+      metadata.teamResponse = teamResponse;
+      metadata.teamResponseUpdatedAt = new Date().toISOString();
+    }
+
+    const feedback = this.productFeedbackRepo.create({
+      type: ProductFeedbackType.FEATURE_REQUEST,
+      status: dto.status ?? ProductFeedbackStatus.TRIAGED,
+      category: dto.category ?? ProductFeedbackCategory.OTHER,
+      source: ProductFeedbackSource.DASHBOARD,
+      title: dto.title.trim(),
+      description: dto.description.trim(),
+      internalPriority: dto.internalPriority ?? null,
+      metadata,
+    });
+
+    return this.toAdminView(await this.productFeedbackRepo.save(feedback));
   }
 
   async findOneForAdmin(id: string) {
