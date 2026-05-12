@@ -17,22 +17,22 @@ export class Agent {
   id: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  firstName: string;
+  firstName: string | null;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  lastName: string;
+  lastName: string | null;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
-  phone: string;
+  phone: string | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
-  licenseNo: string;
+  licenseNo: string | null;
 
   @Column({ type: 'text', nullable: true })
-  bio: string;
+  bio: string | null;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
-  avatarUrl: string;
+  avatarUrl: string | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;

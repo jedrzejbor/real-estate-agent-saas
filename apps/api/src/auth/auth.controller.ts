@@ -6,9 +6,15 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Patch,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto } from './dto';
+import {
+  ChangePasswordDto,
+  LoginDto,
+  RegisterDto,
+  UpdateMyProfileDto,
+} from './dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
@@ -37,7 +43,9 @@ export class AuthController {
   @UseGuards(JwtRefreshGuard)
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@CurrentUser() user: { id: string; email: string; role: string }) {
+  async refresh(
+    @CurrentUser() user: { id: string; email: string; role: string },
+  ) {
     return this.authService.refresh(user.id, user.email, user.role);
   }
 
@@ -45,5 +53,24 @@ export class AuthController {
   @Get('me')
   async getProfile(@CurrentUser('id') userId: string) {
     return this.authService.getProfile(userId);
+  }
+
+  /** PATCH /api/auth/me/profile — update current user's profile. */
+  @Patch('me/profile')
+  async updateProfile(
+    @CurrentUser('id') userId: string,
+    @Body() dto: UpdateMyProfileDto,
+  ) {
+    return this.authService.updateProfile(userId, dto);
+  }
+
+  /** POST /api/auth/me/change-password — change current user's password. */
+  @Post('me/change-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async changePassword(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    await this.authService.changePassword(userId, dto);
   }
 }

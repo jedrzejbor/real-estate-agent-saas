@@ -17,10 +17,7 @@ import {
   SubscriptionStatus,
   UserRole,
 } from '../common/enums';
-import {
-  AgencyEntitlements,
-  AgencyPlanService,
-} from './agency-plan.service';
+import { AgencyEntitlements, AgencyPlanService } from './agency-plan.service';
 
 export interface UserAgencyAccessContext {
   user: User;
@@ -35,6 +32,14 @@ export interface AgencyUsageSummary {
   clients: number;
   monthlyAppointments: number;
   users: number;
+}
+
+export interface UpdateUserProfileInput {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  licenseNo?: string;
+  bio?: string;
 }
 
 @Injectable()
@@ -78,7 +83,9 @@ export class UsersService {
   }): Promise<User> {
     const existing = await this.findByEmail(params.email);
     if (existing) {
-      throw new ConflictException('Użytkownik z tym adresem email już istnieje');
+      throw new ConflictException(
+        'Użytkownik z tym adresem email już istnieje',
+      );
     }
 
     const userId = await this.userRepo.manager.transaction(async (manager) => {
@@ -190,7 +197,9 @@ export class UsersService {
     return this.findById(id) as Promise<User>;
   }
 
-  async getAgencyAccessContext(userId: string): Promise<UserAgencyAccessContext> {
+  async getAgencyAccessContext(
+    userId: string,
+  ): Promise<UserAgencyAccessContext> {
     const user = await this.ensureAgencyForUser(userId);
 
     const agent = await this.agentRepo.findOne({ where: { userId } });
@@ -274,6 +283,51 @@ export class UsersService {
     };
   }
 
+  async updateProfile(
+    userId: string,
+    input: UpdateUserProfileInput,
+  ): Promise<User> {
+    await this.ensureAgencyForUser(userId);
+
+    const agent = await this.agentRepo.findOne({ where: { userId } });
+    if (!agent) {
+      throw new NotFoundException('Profil agenta nie znaleziony');
+    }
+
+    if (input.firstName !== undefined) {
+      agent.firstName = this.normalizeOptional(input.firstName);
+    }
+    if (input.lastName !== undefined) {
+      agent.lastName = this.normalizeOptional(input.lastName);
+    }
+    if (input.phone !== undefined) {
+      agent.phone = this.normalizeOptional(input.phone);
+    }
+    if (input.licenseNo !== undefined) {
+      agent.licenseNo = this.normalizeOptional(input.licenseNo);
+    }
+    if (input.bio !== undefined) {
+      agent.bio = this.normalizeOptional(input.bio);
+    }
+
+    await this.agentRepo.save(agent);
+
+    return this.findById(userId) as Promise<User>;
+  }
+
+  async updatePasswordHash(
+    userId: string,
+    passwordHash: string,
+  ): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Użytkownik nie znaleziony');
+    }
+
+    user.passwordHash = passwordHash;
+    await this.userRepo.save(user);
+  }
+
   /** Deactivate user account. */
   async deactivate(id: string): Promise<void> {
     const user = await this.findById(id);
@@ -286,8 +340,8 @@ export class UsersService {
 
   private buildAgencyName(
     email: string,
-    firstName?: string,
-    lastName?: string,
+    firstName?: string | null,
+    lastName?: string | null,
   ): string {
     const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
 
@@ -301,5 +355,10 @@ export class UsersService {
     }
 
     return 'EstateFlow Workspace';
+  }
+
+  private normalizeOptional(value: string | undefined | null): string | null {
+    const normalized = value?.trim();
+    return normalized ? normalized : null;
   }
 }

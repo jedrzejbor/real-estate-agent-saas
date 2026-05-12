@@ -1,15 +1,16 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { AgencyPlanService } from '../users/agency-plan.service';
 import { ReleaseFlagsService } from '../release-flags';
-import { RegisterDto, LoginDto } from './dto';
+import {
+  ChangePasswordDto,
+  LoginDto,
+  RegisterDto,
+  UpdateMyProfileDto,
+} from './dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { User } from '../users/entities/user.entity';
 
@@ -107,13 +108,36 @@ export class AuthService {
     };
   }
 
+  /** Update current user's profile and return refreshed profile payload. */
+  async updateProfile(userId: string, dto: UpdateMyProfileDto) {
+    const user = await this.usersService.updateProfile(userId, dto);
+    return this.getProfile(user.id);
+  }
+
+  /** Change current user's password after validating the current password. */
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.usersService.findById(userId);
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Użytkownik nie znaleziony');
+    }
+
+    const isCurrentPasswordValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.passwordHash,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new UnauthorizedException('Obecne hasło jest nieprawidłowe');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
+    await this.usersService.updatePasswordHash(userId, passwordHash);
+  }
+
   // ── Private helpers ──
 
-  private async generateTokens(
-    userId: string,
-    email: string,
-    role: string,
-  ) {
+  private async generateTokens(userId: string, email: string, role: string) {
     const payload: JwtPayload = { sub: userId, email, role };
 
     const [accessToken, refreshToken] = await Promise.all([
