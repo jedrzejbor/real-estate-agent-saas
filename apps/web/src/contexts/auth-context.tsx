@@ -11,9 +11,10 @@ import {
   type ReactNode,
 } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { apiFetch } from '@/lib/api-client';
 import { useToast } from '@/contexts/toast-context';
 import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
+import { apiFetch } from '@/lib/api-client';
+import { fetchCurrentUser } from '@/lib/account';
 import {
   type AuthUser,
   type AuthResponse,
@@ -37,6 +38,7 @@ interface AuthContextValue {
     data: RegisterFormData,
     options?: AuthRedirectOptions,
   ) => Promise<void>;
+  refreshUser: () => Promise<AuthUser | null>;
   logout: () => void;
 }
 
@@ -123,29 +125,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [router],
   );
 
-  /** Fetch current user profile from /auth/me. */
-  const fetchUser = useCallback(async () => {
+  /** Fetch current user profile from /auth/me and sync context state. */
+  const refreshUser = useCallback(async (): Promise<AuthUser | null> => {
     const tokens = getStoredTokens();
     if (!tokens) {
+      setUser(null);
       setIsLoading(false);
-      return;
+      return null;
     }
 
     try {
-      const profile = await apiFetch<AuthUser>('/auth/me');
+      const profile = await fetchCurrentUser();
       setUser(profile);
+      return profile;
     } catch {
       const shouldRedirect = pathname?.startsWith('/dashboard') ?? false;
       notifyAuthorizationLost();
       performLogout(shouldRedirect);
+      return null;
     } finally {
       setIsLoading(false);
     }
   }, [notifyAuthorizationLost, pathname, performLogout]);
 
   useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
+    refreshUser();
+  }, [refreshUser]);
 
   useEffect(() => {
     const handleUnauthorized = () => {
@@ -216,9 +221,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!user,
       login,
       register,
+      refreshUser,
       logout,
     }),
-    [user, isLoading, login, register, logout],
+    [user, isLoading, login, register, refreshUser, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
