@@ -120,6 +120,9 @@ export class Listing {
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 
+  /** Derived from analytics_events, not persisted on listings. */
+  publicViewCount?: number;
+
   // ── Relations ──
 
   @ManyToOne(() => Agent, { onDelete: 'CASCADE' })

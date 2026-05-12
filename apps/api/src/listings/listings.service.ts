@@ -16,6 +16,7 @@ import { MonitoringService } from '../monitoring';
 import { Listing } from './entities/listing.entity';
 import { Address } from './entities/address.entity';
 import { ListingImage } from './entities/listing-image.entity';
+import { AnalyticsEvent } from '../analytics/entities/analytics-event.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { Location } from '../locations/entities';
 import { UsersService } from '../users';
@@ -169,6 +170,8 @@ export class ListingsService {
     private readonly agentRepo: Repository<Agent>,
     @InjectRepository(Location)
     private readonly locationRepo: Repository<Location>,
+    @InjectRepository(AnalyticsEvent)
+    private readonly analyticsEventRepo: Repository<AnalyticsEvent>,
     private readonly usersService: UsersService,
     private readonly activityService: ActivityService,
     private readonly configService: ConfigService,
@@ -201,6 +204,7 @@ export class ListingsService {
     );
 
     const createdListing = await this.findOneOrFail(savedListing.id);
+    await this.attachPublicViewCounts([createdListing]);
 
     await this.activityService.log({
       userId,
@@ -246,6 +250,7 @@ export class ListingsService {
     qb.skip(skip).take(limit);
 
     const [data, total] = await qb.getManyAndCount();
+    await this.attachPublicViewCounts(data);
 
     return {
       data,
@@ -263,6 +268,7 @@ export class ListingsService {
   async findOne(id: string, userId: string): Promise<Listing> {
     const listing = await this.findOneOrFail(id);
     await this.assertOwnership(listing, userId);
+    await this.attachPublicViewCounts([listing]);
     return listing;
   }
 
@@ -330,6 +336,7 @@ export class ListingsService {
       changes,
     });
 
+    await this.attachPublicViewCounts([updatedListing]);
     return updatedListing;
   }
 
@@ -383,6 +390,7 @@ export class ListingsService {
       });
     }
 
+    await this.attachPublicViewCounts([updatedListing]);
     return updatedListing;
   }
 
@@ -668,6 +676,7 @@ export class ListingsService {
       changes,
     });
 
+    await this.attachPublicViewCounts([publishedListing]);
     return publishedListing;
   }
 
@@ -719,6 +728,7 @@ export class ListingsService {
       changes,
     });
 
+    await this.attachPublicViewCounts([unpublishedListing]);
     return unpublishedListing;
   }
 
@@ -1921,6 +1931,31 @@ export class ListingsService {
         '(LOWER(listing.title) LIKE LOWER(:search) OR LOWER(listing.description) LIKE LOWER(:search))',
         { search: `%${filters.search}%` },
       );
+    }
+  }
+
+  private async attachPublicViewCounts(listings: Listing[]): Promise<void> {
+    if (listings.length === 0) return;
+
+    const listingIds = listings.map((listing) => listing.id);
+    const rows = await this.analyticsEventRepo
+      .createQueryBuilder('event')
+      .select("event.properties ->> 'listingId'", 'listingId')
+      .addSelect('COUNT(*)::int', 'viewCount')
+      .where('event.name = :eventName', {
+        eventName: 'public_listing_viewed',
+      })
+      .andWhere("event.properties ->> 'listingId' IN (:...listingIds)", {
+        listingIds,
+      })
+      .groupBy("event.properties ->> 'listingId'")
+      .getRawMany<{ listingId: string; viewCount: string }>();
+    const counts = new Map(
+      rows.map((row) => [row.listingId, Number(row.viewCount)]),
+    );
+
+    for (const listing of listings) {
+      listing.publicViewCount = counts.get(listing.id) ?? 0;
     }
   }
 

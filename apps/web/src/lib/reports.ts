@@ -66,6 +66,7 @@ export interface ListingsReportSummary {
   totalListings: number;
   newListings: number;
   activatedListings: number;
+  publicViews: number;
   closedListings: number;
   withdrawnListings: number;
   activeListingsEnd: number;

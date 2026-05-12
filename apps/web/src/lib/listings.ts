@@ -142,6 +142,7 @@ export interface Listing {
   estateflowBrandingEnabled: boolean;
   publishedAt?: string;
   unpublishedAt?: string | null;
+  publicViewCount?: number;
   createdAt: string;
   updatedAt: string;
   address?: Address;

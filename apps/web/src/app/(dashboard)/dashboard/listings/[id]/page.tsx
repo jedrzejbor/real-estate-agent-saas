@@ -13,6 +13,7 @@ import {
   Maximize,
   Building,
   Calendar,
+  Eye,
   Layers,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -278,6 +279,25 @@ export default function ListingDetailPage() {
             )}
           </div>
 
+          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Wyświetlenia publiczne
+                </p>
+                <p className="mt-1 font-heading text-3xl font-bold text-foreground">
+                  {listing.publicViewCount ?? 0}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Liczone z publicznej strony oferty.
+                </p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-muted text-primary">
+                <Eye className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+
           {/* Parameters */}
           <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
             <h2 className="font-heading text-lg font-semibold text-foreground">
@@ -430,6 +450,12 @@ export default function ListingDetailPage() {
                   </dd>
                 </div>
               )}
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Wyświetlenia</dt>
+                <dd className="text-foreground">
+                  {listing.publicViewCount ?? 0}
+                </dd>
+              </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Ostatnia zmiana</dt>
                 <dd className="text-foreground">

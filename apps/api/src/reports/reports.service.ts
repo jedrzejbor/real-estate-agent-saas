@@ -91,6 +91,7 @@ export interface ListingsReportSummary {
   totalListings: number;
   newListings: number;
   activatedListings: number;
+  publicViews: number;
   closedListings: number;
   withdrawnListings: number;
   activeListingsEnd: number;
@@ -939,6 +940,7 @@ export class ReportsService {
       closedListings,
       withdrawnListings,
       activeListingsEnd,
+      publicViews,
       lifecycleRaw,
     ] = await Promise.all([
       listingBase
@@ -984,6 +986,7 @@ export class ReportsService {
         .andWhere('listing.createdAt <= :dateTo', { dateTo: filters.dateTo })
         .andWhere('listing.status = :status', { status: ListingStatus.ACTIVE })
         .getCount(),
+      this.countPublicListingViews(filters, scope),
       listingBase
         .clone()
         .select(
@@ -1009,6 +1012,7 @@ export class ReportsService {
       totalListings,
       newListings,
       activatedListings,
+      publicViews,
       closedListings,
       withdrawnListings,
       activeListingsEnd,
@@ -1865,6 +1869,45 @@ export class ReportsService {
       .andWhere('event.name IN (:...eventNames)', {
         eventNames: FREEMIUM_METRICS.map((metric) => metric.key),
       });
+  }
+
+  private async countPublicListingViews(
+    filters: NormalizedFilters,
+    scope: ResolvedScope,
+  ): Promise<number> {
+    const result = await this.analyticsEventRepo
+      .createQueryBuilder('event')
+      .innerJoin(
+        Listing,
+        'listing',
+        "listing.id::text = event.properties ->> 'listingId'",
+      )
+      .select('COUNT(*)::int', 'count')
+      .where('event.name = :eventName', {
+        eventName: 'public_listing_viewed',
+      })
+      .andWhere('event.agentId IN (:...agentIds)', {
+        agentIds: scope.effectiveAgentIds,
+      })
+      .andWhere('event.createdAt BETWEEN :dateFrom AND :dateTo', {
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+      });
+
+    if (filters.propertyType) {
+      result.andWhere('listing.propertyType = :propertyType', {
+        propertyType: filters.propertyType,
+      });
+    }
+
+    if (filters.transactionType) {
+      result.andWhere('listing.transactionType = :transactionType', {
+        transactionType: filters.transactionType,
+      });
+    }
+
+    const row = await result.getRawOne<{ count: string }>();
+    return Number(row?.count ?? 0);
   }
 
   private percentage(numerator: number, denominator: number): number {

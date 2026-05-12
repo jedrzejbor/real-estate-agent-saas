@@ -4,6 +4,7 @@ import {
   FolderOpen,
   Home,
   Layers3,
+  Eye,
   PieChart,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -69,10 +70,10 @@ export function ReportsListingsSection({ data }: ReportsListingsSectionProps) {
           subtitle={`${summary.activeListingsEnd} aktywnych na koniec okresu`}
         />
         <SummaryCard
-          icon={PieChart}
-          title="Zamknięcia"
-          value={String(summary.closedListings)}
-          subtitle={`${summary.withdrawnListings} wycofanych / zarchiwizowanych`}
+          icon={Eye}
+          title="Wyświetlenia publiczne"
+          value={String(summary.publicViews)}
+          subtitle="Odsłony publicznych stron ofert w okresie"
         />
         <SummaryCard
           icon={CalendarDays}
@@ -95,6 +96,12 @@ export function ReportsListingsSection({ data }: ReportsListingsSectionProps) {
           title="Nowe oferty"
           value={String(summary.newListings)}
           subtitle="Utworzone w wybranym zakresie dat"
+        />
+        <SummaryCard
+          icon={PieChart}
+          title="Zamknięcia"
+          value={String(summary.closedListings)}
+          subtitle={`${summary.withdrawnListings} wycofanych / zarchiwizowanych`}
         />
       </div>
 

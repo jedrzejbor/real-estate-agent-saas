@@ -7,6 +7,7 @@ import {
   Bath,
   Maximize,
   Calendar,
+  Eye,
 } from 'lucide-react';
 import { ListingStatusBadge } from './listing-status-badge';
 import {
@@ -36,6 +37,7 @@ export function ListingCard({ listing }: ListingCardProps) {
     rooms,
     bathrooms,
     address,
+    publicViewCount,
     createdAt,
   } = listing;
 
@@ -112,6 +114,9 @@ export function ListingCard({ listing }: ListingCardProps) {
           {formatPrice(price, currency)}
         </p>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Eye className="h-3 w-3" />
+          <span>{publicViewCount ?? 0}</span>
+          <span className="text-muted-foreground/40">·</span>
           <Calendar className="h-3 w-3" />
           <time dateTime={createdAt}>
             {new Date(createdAt).toLocaleDateString('pl-PL')}
