@@ -3,14 +3,25 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronUp, Clock3, Sparkles } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Clock3,
+  ImageIcon,
+  ImagePlus,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { InlineSelect } from '@/components/ui/inline-select';
 import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { LimitUpgradeBanner } from '@/components/growth/limit-upgrade-banner';
+import { useToast } from '@/contexts/toast-context';
 import { useListingForm } from '@/hooks/use-listing-form';
 import { ListingDescriptionAssistant } from '@/components/listings/listing-description-assistant';
+import { getApiErrorMessage } from '@/lib/api-client';
 import {
   createListingSchema,
   type CreateListingFormData,
@@ -21,6 +32,7 @@ import {
   PropertyType,
   createListing,
   updateListing,
+  uploadListingImages,
 } from '@/lib/listings';
 import {
   buildListingDescription,
@@ -40,6 +52,9 @@ interface ListingFormProps {
   variant?: 'standard' | 'guided';
 }
 
+const ACCEPTED_CREATE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_CREATE_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+
 /** Form for creating or editing a listing. */
 export function ListingForm({
   listing,
@@ -47,6 +62,7 @@ export function ListingForm({
 }: ListingFormProps) {
   const router = useRouter();
   const { user } = useAuth();
+  const { error: showErrorToast, warning: showWarningToast } = useToast();
   const isEdit = !!listing;
   const isGuidedCreate = !isEdit && variant === 'guided';
   const formRef = React.useRef<HTMLFormElement>(null);
@@ -73,9 +89,11 @@ export function ListingForm({
   const [assistantUsage, setAssistantUsage] = useState(() =>
     getStoredDescriptionAssistantUsage(),
   );
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
 
   const listingsUsage = user?.usage.activeListings ?? 0;
   const listingsLimit = user?.entitlements.limits.activeListings ?? null;
+  const imageLimit = user?.entitlements.limits.imagesPerListing ?? null;
   const showUsageWarning =
     !isEdit && isUsageWarning(listingsUsage, listingsLimit);
   const showUsageExceeded =
@@ -88,7 +106,20 @@ export function ListingForm({
         if (isEdit) {
           await updateListing(listing.id, data);
         } else {
-          await createListing(data);
+          const created = await createListing(data);
+          if (selectedImages.length > 0) {
+            try {
+              await uploadListingImages(created.id, selectedImages);
+            } catch (error) {
+              showErrorToast({
+                title: 'Oferta zapisana, zdjęć nie dodano',
+                description: getApiErrorMessage(error),
+              });
+              router.push(`/dashboard/listings/${created.id}/edit`);
+              router.refresh();
+              return;
+            }
+          }
         }
         router.push('/dashboard/listings');
         router.refresh();
@@ -129,6 +160,52 @@ export function ListingForm({
       ...nextInput,
       description: generatedDescription,
     });
+  }
+
+  function handleImageFilesSelected(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = '';
+
+    if (files.length === 0) return;
+
+    const validFiles = files.filter((file) =>
+      validateSelectedListingImage(file, showErrorToast),
+    );
+
+    if (validFiles.length === 0) return;
+
+    setSelectedImages((current) => {
+      const availableSlots =
+        imageLimit === null ? validFiles.length : imageLimit - current.length;
+
+      if (availableSlots <= 0) {
+        showErrorToast({
+          title: 'Limit zdjęć',
+          description: `Nie możesz dodać więcej niż ${imageLimit} zdjęć do jednej oferty.`,
+        });
+        return current;
+      }
+
+      const accepted = validFiles.slice(0, availableSlots);
+      const skipped = validFiles.length - accepted.length;
+
+      if (skipped > 0) {
+        showWarningToast({
+          title: 'Część zdjęć pominięta',
+          description: `Dodano ${accepted.length}, pominięto ${skipped} przez limit planu.`,
+        });
+      }
+
+      return [...current, ...accepted];
+    });
+  }
+
+  function removeSelectedImage(indexToRemove: number) {
+    setSelectedImages((current) =>
+      current.filter((_, index) => index !== indexToRemove),
+    );
   }
 
   return (
@@ -340,6 +417,15 @@ export function ListingForm({
             </span>
           </label>
         </FormSection>
+      ) : null}
+
+      {!isEdit ? (
+        <CreateListingImagesSection
+          files={selectedImages}
+          imageLimit={imageLimit}
+          onFilesSelected={handleImageFilesSelected}
+          onRemove={removeSelectedImage}
+        />
       ) : null}
 
       {isGuidedCreate ? (
@@ -611,6 +697,106 @@ export function ListingForm({
 
 // ── Helper components ──
 
+function CreateListingImagesSection({
+  files,
+  imageLimit,
+  onFilesSelected,
+  onRemove,
+}: {
+  files: File[];
+  imageLimit: number | null;
+  onFilesSelected: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemove: (index: number) => void;
+}) {
+  const isAtLimit = imageLimit !== null && files.length >= imageLimit;
+
+  return (
+    <FormSection
+      title="Zdjęcia oferty"
+      description="Dodaj zdjęcia od razu podczas tworzenia oferty. Po zapisie możesz zmienić kolejność, zdjęcie główne i opisy alternatywne."
+    >
+      <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-muted-foreground ring-1 ring-border">
+              <ImageIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-medium text-foreground">
+                  Galeria publicznej oferty
+                </p>
+                <Badge variant={isAtLimit ? 'warning' : 'secondary'}>
+                  {imageLimit === null
+                    ? `${files.length} zdjęć`
+                    : `${files.length}/${imageLimit}`}
+                </Badge>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                JPG, PNG lub WebP, maksymalnie 10 MB na plik.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <input
+              id="create-listing-images"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              className="sr-only"
+              disabled={isAtLimit}
+              onChange={onFilesSelected}
+            />
+            <label
+              htmlFor="create-listing-images"
+              className={cn(
+                'inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-medium text-foreground shadow-sm transition-colors',
+                'hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+                isAtLimit && 'pointer-events-none opacity-50',
+              )}
+            >
+              <ImagePlus className="h-4 w-4" />
+              Dodaj zdjęcia
+            </label>
+          </div>
+        </div>
+
+        {files.length > 0 ? (
+          <div className="mt-4 grid gap-2">
+            {files.map((file, index) => (
+              <div
+                key={`${file.name}-${file.lastModified}-${index}`}
+                className="flex items-center gap-3 rounded-lg border border-border bg-white px-3 py-2"
+              >
+                <ImageIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {file.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatFileSize(file.size)}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive"
+                  aria-label={`Usuń ${file.name}`}
+                  onClick={() => onRemove(index)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </FormSection>
+  );
+}
+
 function GuidedCreateIntro() {
   return (
     <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
@@ -773,6 +959,37 @@ function toNumberOrNull(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function validateSelectedListingImage(
+  file: File,
+  showErrorToast: (input: { title: string; description?: string }) => string,
+): boolean {
+  if (!ACCEPTED_CREATE_IMAGE_TYPES.includes(file.type)) {
+    showErrorToast({
+      title: 'Nieobsługiwany format',
+      description: `${file.name}: dozwolone są JPG, PNG i WebP.`,
+    });
+    return false;
+  }
+
+  if (file.size > MAX_CREATE_IMAGE_SIZE_BYTES) {
+    showErrorToast({
+      title: 'Plik jest za duży',
+      description: `${file.name}: maksymalny rozmiar to 10 MB.`,
+    });
+    return false;
+  }
+
+  return true;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) {
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function FormSelect({
