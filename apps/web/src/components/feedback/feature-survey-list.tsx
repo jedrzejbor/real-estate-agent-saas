@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Loader2, Send } from 'lucide-react';
+import { Check, ClipboardList, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 interface FeatureSurveyListProps {
   publicMode?: boolean;
   className?: string;
+  emptyState?: boolean;
 }
 
 type Answers = Record<string, unknown>;
@@ -27,6 +28,7 @@ type Answers = Record<string, unknown>;
 export function FeatureSurveyList({
   publicMode = false,
   className,
+  emptyState = false,
 }: FeatureSurveyListProps) {
   const { success: showSuccessToast, error: showErrorToast } = useToast();
   const formStartedAtRef = React.useRef(Date.now());
@@ -130,8 +132,14 @@ export function FeatureSurveyList({
     }));
   }
 
-  if (isLoading || surveys.length === 0) {
+  if (isLoading) {
     return null;
+  }
+
+  if (surveys.length === 0) {
+    return emptyState ? (
+      <FeatureSurveyEmptyState className={className} />
+    ) : null;
   }
 
   return (
@@ -241,6 +249,26 @@ export function FeatureSurveyList({
         );
       })}
     </div>
+  );
+}
+
+function FeatureSurveyEmptyState({ className }: { className?: string }) {
+  return (
+    <section
+      className={cn(
+        'rounded-2xl border border-border bg-white p-8 text-center shadow-sm',
+        className,
+      )}
+    >
+      <ClipboardList className="mx-auto h-10 w-10 text-primary" />
+      <h2 className="mt-4 font-heading text-xl font-semibold">
+        Brak aktywnych ankiet
+      </h2>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        Ankiety pojawią się tutaj, gdy administrator utworzy ankietę ze statusem
+        aktywnym i odbiorcami pasującymi do Twojego konta.
+      </p>
+    </section>
   );
 }
 

@@ -5,6 +5,7 @@ import {
   Building2,
   Users,
   CalendarCheck,
+  ClipboardList,
   BarChart3,
   MessageSquareText,
   MessagesSquare,
@@ -31,6 +32,11 @@ const navItems = [
     href: '/dashboard/feedback',
     icon: MessagesSquare,
     exact: true,
+  },
+  {
+    label: 'Ankiety',
+    href: '/dashboard/feedback/surveys',
+    icon: ClipboardList,
   },
   {
     label: 'Głosowanie',

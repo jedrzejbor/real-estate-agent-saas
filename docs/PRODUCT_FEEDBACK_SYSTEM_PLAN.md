@@ -708,6 +708,8 @@ Zakres:
   aktywnych ankiet.
 - dodano adminowy panel tworzenia ankiet na
   `/dashboard/admin/feedback/create`.
+- dodano dedykowaną stronę `/dashboard/feedback/surveys` i link `Ankiety` w
+  nawigacji dashboardu, żeby aktywne ankiety były łatwo dostępne.
 
 ### `FB.6` Dodać moje zgłoszenia dla użytkownika
 

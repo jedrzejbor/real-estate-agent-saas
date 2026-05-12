@@ -113,7 +113,7 @@ export default function AdminFeedbackCreatePage() {
   const [surveyTitle, setSurveyTitle] = useState('');
   const [surveyDescription, setSurveyDescription] = useState('');
   const [surveyStatus, setSurveyStatus] = useState<FeatureSurveyStatusValue>(
-    FeatureSurveyStatus.DRAFT,
+    FeatureSurveyStatus.ACTIVE,
   );
   const [surveyAudience, setSurveyAudience] =
     useState<FeatureSurveyAudienceValue>(
@@ -206,7 +206,7 @@ export default function AdminFeedbackCreatePage() {
       setSurveys((current) => [created, ...current]);
       setSurveyTitle('');
       setSurveyDescription('');
-      setSurveyStatus(FeatureSurveyStatus.DRAFT);
+      setSurveyStatus(FeatureSurveyStatus.ACTIVE);
       setSurveyAudience(FeatureSurveyAudience.REGISTERED_USERS);
       setPlanCodes('');
       setQuestions([createEmptyQuestion(1)]);
