@@ -13,6 +13,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PlanUsageCard } from '@/components/dashboard/plan-usage-card';
 import { GrowthUpsellCard } from '@/components/growth/growth-upsell-card';
+import {
+  AccountDangerZoneSection,
+  AccountProfileSection,
+  AccountSecuritySection,
+} from '@/components/settings/account-settings-forms';
 import { useAuth } from '@/contexts/auth-context';
 import { isUsageExceeded, isUsageWarning } from '@/lib/auth';
 import {
@@ -23,7 +28,7 @@ import {
 import { getPlanFeatureItems, getPlanUsageMetrics } from '@/lib/plan';
 import { getResolvedReleaseFlags } from '@/lib/release-flags';
 
-export default function PlanSettingsPage() {
+export default function AccountSettingsPage() {
   const { user } = useAuth();
 
   if (!user) {
@@ -59,10 +64,38 @@ export default function PlanSettingsPage() {
       <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
+            <h1 className="font-heading text-2xl font-bold text-foreground">
+              Ustawienia
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Zarządzaj profilem agenta, bezpieczeństwem konta, planem i
+              dostępem do aplikacji.
+            </p>
+          </div>
+
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+          >
+            Wróć do dashboardu
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+
+      <AccountProfileSection />
+      <AccountSecuritySection />
+
+      <section
+        id="plan"
+        className="rounded-2xl border border-border bg-white p-6 shadow-sm"
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="font-heading text-2xl font-bold text-foreground">
+              <h2 className="font-heading text-xl font-semibold text-foreground">
                 Plan i limity
-              </h1>
+              </h2>
               <Badge variant={planBadgeVariant}>
                 Plan {user.entitlements.plan.label}
               </Badge>
@@ -74,13 +107,10 @@ export default function PlanSettingsPage() {
             </p>
           </div>
 
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
-          >
-            Wróć do dashboardu
+          <Button render={<Link href={upgradeHref} />}>
+            Zmień plan
             <ArrowRight className="h-4 w-4" />
-          </Link>
+          </Button>
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-3">
@@ -297,6 +327,8 @@ export default function PlanSettingsPage() {
           </div>
         ) : null}
       </section>
+
+      <AccountDangerZoneSection />
     </div>
   );
 }
