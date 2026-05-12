@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from '../common/enums';
 import { User } from '../users/entities';
@@ -48,6 +48,7 @@ function buildService(userOverrides: Partial<User> = {}) {
     updateProfile: jest.fn().mockResolvedValue(user),
     findById: jest.fn().mockResolvedValue(user),
     updatePasswordHash: jest.fn().mockResolvedValue(undefined),
+    deactivate: jest.fn().mockResolvedValue(undefined),
     ensureAgencyForUser: jest.fn().mockResolvedValue(user),
     getAgencyAccessContext: jest.fn().mockResolvedValue(accessContext),
     getAgencyUsageSummaryByAgentIds: jest.fn().mockResolvedValue({
@@ -136,5 +137,48 @@ describe('AuthService account settings', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
 
     expect(usersService.updatePasswordHash).not.toHaveBeenCalled();
+  });
+
+  it('deactivates a non-admin account after password confirmation', async () => {
+    const passwordHash = await bcrypt.hash('UserPass123', 4);
+    const { service, usersService } = buildService({ passwordHash });
+
+    await service.deactivateMyAccount('user-1', {
+      password: 'UserPass123',
+      confirmation: 'USUŃ KONTO',
+    });
+
+    expect(usersService.deactivate).toHaveBeenCalledWith('user-1');
+  });
+
+  it('rejects account deactivation when password is invalid', async () => {
+    const passwordHash = await bcrypt.hash('UserPass123', 4);
+    const { service, usersService } = buildService({ passwordHash });
+
+    await expect(
+      service.deactivateMyAccount('user-1', {
+        password: 'WrongPass123',
+        confirmation: 'USUŃ KONTO',
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(usersService.deactivate).not.toHaveBeenCalled();
+  });
+
+  it('blocks admin account deactivation', async () => {
+    const passwordHash = await bcrypt.hash('AdminPass123', 4);
+    const { service, usersService } = buildService({
+      passwordHash,
+      role: UserRole.ADMIN,
+    });
+
+    await expect(
+      service.deactivateMyAccount('user-1', {
+        password: 'AdminPass123',
+        confirmation: 'USUŃ KONTO',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(usersService.deactivate).not.toHaveBeenCalled();
   });
 });

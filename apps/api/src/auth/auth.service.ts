@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -7,12 +12,14 @@ import { AgencyPlanService } from '../users/agency-plan.service';
 import { ReleaseFlagsService } from '../release-flags';
 import {
   ChangePasswordDto,
+  DeactivateMyAccountDto,
   LoginDto,
   RegisterDto,
   UpdateMyProfileDto,
 } from './dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { User } from '../users/entities/user.entity';
+import { UserRole } from '../common/enums';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -133,6 +140,35 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
     await this.usersService.updatePasswordHash(userId, passwordHash);
+  }
+
+  /** Deactivate current user's account after password confirmation. */
+  async deactivateMyAccount(
+    userId: string,
+    dto: DeactivateMyAccountDto,
+  ): Promise<void> {
+    const user = await this.usersService.findById(userId);
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Użytkownik nie znaleziony');
+    }
+
+    if (user.role === UserRole.ADMIN) {
+      throw new ForbiddenException(
+        'Konto administratora nie może zostać dezaktywowane z poziomu aplikacji',
+      );
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      dto.password,
+      user.passwordHash,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Hasło jest nieprawidłowe');
+    }
+
+    await this.usersService.deactivate(userId);
   }
 
   // ── Private helpers ──

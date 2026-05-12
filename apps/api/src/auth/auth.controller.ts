@@ -1,5 +1,6 @@
 import {
   Controller,
+  Delete,
   Post,
   Get,
   Body,
@@ -11,6 +12,7 @@ import {
 import { AuthService } from './auth.service';
 import {
   ChangePasswordDto,
+  DeactivateMyAccountDto,
   LoginDto,
   RegisterDto,
   UpdateMyProfileDto,
@@ -72,5 +74,15 @@ export class AuthController {
     @Body() dto: ChangePasswordDto,
   ) {
     await this.authService.changePassword(userId, dto);
+  }
+
+  /** DELETE /api/auth/me — deactivate current user's account. */
+  @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deactivateMyAccount(
+    @CurrentUser('id') userId: string,
+    @Body() dto: DeactivateMyAccountDto,
+  ) {
+    await this.authService.deactivateMyAccount(userId, dto);
   }
 }
