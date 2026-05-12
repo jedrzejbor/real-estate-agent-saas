@@ -22,6 +22,7 @@ import {
   formatArea,
   formatPrice,
   PROPERTY_TYPE_LABELS,
+  shouldShowListingField,
   TRANSACTION_TYPE_LABELS,
   type PublicListing,
 } from '@/lib/listings';
@@ -124,6 +125,8 @@ export default async function PublicListingPage({
     .join(' ');
   const canonicalUrl = absoluteUrl(`/oferty/${listing.slug}`);
   const jsonLd = buildListingJsonLd(listing, canonicalUrl, primaryImage);
+  const facts = getPublicListingFacts(listing);
+  const details = getPublicListingDetails(listing);
 
   return (
     <main className="min-h-screen bg-[#FAFAF9] text-[#1C1917]">
@@ -198,28 +201,9 @@ export default async function PublicListingPage({
       <section className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:px-8 lg:grid-cols-[1fr_360px] lg:px-10">
         <div className="space-y-8">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Fact
-              icon={Maximize}
-              label="Powierzchnia"
-              value={formatArea(
-                listing.areaM2 ?? listing.plotAreaM2 ?? undefined,
-              )}
-            />
-            <Fact
-              icon={BedDouble}
-              label="Pokoje"
-              value={formatNullableNumber(listing.rooms)}
-            />
-            <Fact
-              icon={Bath}
-              label="Łazienki"
-              value={formatNullableNumber(listing.bathrooms)}
-            />
-            <Fact
-              icon={CalendarDays}
-              label="Rok budowy"
-              value={formatNullableNumber(listing.yearBuilt)}
-            />
+            {facts.map((fact) => (
+              <Fact key={fact.label} {...fact} />
+            ))}
             {listing.showPublicViewCount ? (
               <Fact
                 icon={Eye}
@@ -243,26 +227,9 @@ export default async function PublicListingPage({
           <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
             <h2 className="font-heading text-2xl font-semibold">Szczegóły</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <Detail
-                icon={Home}
-                label="Typ nieruchomości"
-                value={PROPERTY_TYPE_LABELS[listing.propertyType]}
-              />
-              <Detail
-                icon={Building2}
-                label="Typ transakcji"
-                value={TRANSACTION_TYPE_LABELS[listing.transactionType]}
-              />
-              <Detail
-                icon={Ruler}
-                label="Powierzchnia działki"
-                value={formatArea(listing.plotAreaM2 ?? undefined)}
-              />
-              <Detail
-                icon={Layers3}
-                label="Piętro"
-                value={formatFloor(listing)}
-              />
+              {details.map((detail) => (
+                <Detail key={detail.label} {...detail} />
+              ))}
             </div>
           </section>
 
@@ -406,6 +373,113 @@ function formatFloor(listing: PublicListing): string {
     : String(listing.floor);
 }
 
+function getPublicListingFacts(listing: PublicListing): DisplayItem[] {
+  const facts: DisplayItem[] = [];
+
+  if (
+    shouldShowListingField(listing.propertyType, 'areaM2') &&
+    hasListingValue(listing.areaM2)
+  ) {
+    facts.push({
+      icon: Maximize,
+      label:
+        listing.propertyType === 'house'
+          ? 'Powierzchnia domu'
+          : 'Powierzchnia',
+      value: formatArea(listing.areaM2 ?? undefined),
+    });
+  }
+
+  if (
+    shouldShowListingField(listing.propertyType, 'plotAreaM2') &&
+    hasListingValue(listing.plotAreaM2)
+  ) {
+    facts.push({
+      icon: Ruler,
+      label: 'Powierzchnia działki',
+      value: formatArea(listing.plotAreaM2 ?? undefined),
+    });
+  }
+
+  if (
+    shouldShowListingField(listing.propertyType, 'rooms') &&
+    hasListingValue(listing.rooms)
+  ) {
+    facts.push({
+      icon: BedDouble,
+      label: listing.propertyType === 'office' ? 'Pokoje / gabinety' : 'Pokoje',
+      value: formatNullableNumber(listing.rooms),
+    });
+  }
+
+  if (
+    shouldShowListingField(listing.propertyType, 'bathrooms') &&
+    hasListingValue(listing.bathrooms)
+  ) {
+    facts.push({
+      icon: Bath,
+      label: listing.propertyType === 'commercial' ? 'Sanitariaty' : 'Łazienki',
+      value: formatNullableNumber(listing.bathrooms),
+    });
+  }
+
+  if (
+    shouldShowListingField(listing.propertyType, 'yearBuilt') &&
+    hasListingValue(listing.yearBuilt)
+  ) {
+    facts.push({
+      icon: CalendarDays,
+      label: 'Rok budowy',
+      value: formatNullableNumber(listing.yearBuilt),
+    });
+  }
+
+  return facts;
+}
+
+function getPublicListingDetails(listing: PublicListing): DisplayItem[] {
+  const details: DisplayItem[] = [
+    {
+      icon: Home,
+      label: 'Typ nieruchomości',
+      value: PROPERTY_TYPE_LABELS[listing.propertyType],
+    },
+    {
+      icon: Building2,
+      label: 'Typ transakcji',
+      value: TRANSACTION_TYPE_LABELS[listing.transactionType],
+    },
+  ];
+
+  if (
+    shouldShowListingField(listing.propertyType, 'floor') &&
+    hasListingValue(listing.floor)
+  ) {
+    details.push({
+      icon: Layers3,
+      label: 'Piętro',
+      value: formatFloor(listing),
+    });
+  }
+
+  if (
+    shouldShowListingField(listing.propertyType, 'totalFloors') &&
+    hasListingValue(listing.totalFloors)
+  ) {
+    details.push({
+      icon: Building2,
+      label: 'Liczba pięter',
+      value: formatNullableNumber(listing.totalFloors),
+    });
+  }
+
+  return details;
+}
+
+function hasListingValue(value: unknown): boolean {
+  return value !== null && value !== undefined && value !== '';
+}
+
 function buildListingJsonLd(
   listing: PublicListing,
   canonicalUrl: string,
@@ -520,4 +594,10 @@ function Detail({
       </div>
     </div>
   );
+}
+
+interface DisplayItem {
+  icon: typeof Maximize;
+  label: string;
+  value: string;
 }
