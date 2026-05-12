@@ -158,6 +158,10 @@ export class UpdateListingDto {
   showExactAddressOnPublicPage?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  showPublicViewCount?: boolean;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => UpdateAddressDto)
   address?: UpdateAddressDto;

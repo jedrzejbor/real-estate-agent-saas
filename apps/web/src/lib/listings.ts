@@ -140,6 +140,7 @@ export interface Listing {
   showPriceOnPublicPage: boolean;
   showExactAddressOnPublicPage: boolean;
   estateflowBrandingEnabled: boolean;
+  showPublicViewCount: boolean;
   publishedAt?: string;
   unpublishedAt?: string | null;
   publicViewCount?: number;
@@ -187,6 +188,8 @@ export interface PublicListing {
   seoDescription?: string | null;
   shareImageUrl?: string | null;
   estateflowBrandingEnabled: boolean;
+  showPublicViewCount: boolean;
+  publicViewCount?: number | null;
   publishedAt: string;
   updatedAt: string;
 }
@@ -459,6 +462,10 @@ export const createListingSchema = z
       .max(new Date().getFullYear() + 5)
       .optional()
       .or(z.literal('')),
+    showPublicViewCount: z
+      .enum(['true', 'false'])
+      .transform((value) => value === 'true')
+      .optional(),
     address: addressSchema,
   })
   .superRefine((data, ctx) => {
@@ -485,6 +492,7 @@ export const publicListingSettingsSchema = z.object({
   shareImageUrl: z.string().max(500).optional().or(z.literal('')),
   showPriceOnPublicPage: z.boolean().optional(),
   showExactAddressOnPublicPage: z.boolean().optional(),
+  showPublicViewCount: z.boolean().optional(),
 });
 
 export type PublicListingSettingsFormData = z.infer<

@@ -746,6 +746,7 @@ export class ListingsService {
       throw new NotFoundException('Publiczna oferta nie znaleziona');
     }
 
+    await this.attachPublicViewCounts([listing]);
     return this.toPublicListingView(listing);
   }
 
@@ -1204,6 +1205,10 @@ export class ListingsService {
         listing.seoDescription ?? this.buildDefaultSeoDescription(listing),
       shareImageUrl: listing.shareImageUrl ?? null,
       estateflowBrandingEnabled: listing.estateflowBrandingEnabled,
+      showPublicViewCount: listing.showPublicViewCount,
+      publicViewCount: listing.showPublicViewCount
+        ? (listing.publicViewCount ?? 0)
+        : null,
       publishedAt: listing.publishedAt,
       updatedAt: listing.updatedAt,
     };
@@ -1986,6 +1991,7 @@ export class ListingsService {
       showPriceOnPublicPage: listing.showPriceOnPublicPage,
       showExactAddressOnPublicPage: listing.showExactAddressOnPublicPage,
       estateflowBrandingEnabled: listing.estateflowBrandingEnabled,
+      showPublicViewCount: listing.showPublicViewCount,
       publishedAt: listing.publishedAt?.toISOString() ?? null,
       unpublishedAt: listing.unpublishedAt?.toISOString() ?? null,
       'address.street': listing.address?.street ?? null,

@@ -60,6 +60,8 @@ export interface PublicListingView {
   seoDescription?: string | null;
   shareImageUrl?: string | null;
   estateflowBrandingEnabled: boolean;
+  showPublicViewCount: boolean;
+  publicViewCount?: number | null;
   publishedAt: Date;
   updatedAt: Date;
 }

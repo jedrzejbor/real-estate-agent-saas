@@ -8,6 +8,7 @@ import {
   BedDouble,
   Building2,
   CalendarDays,
+  Eye,
   Home,
   Layers3,
   MapPin,
@@ -219,6 +220,13 @@ export default async function PublicListingPage({
               label="Rok budowy"
               value={formatNullableNumber(listing.yearBuilt)}
             />
+            {listing.showPublicViewCount ? (
+              <Fact
+                icon={Eye}
+                label="Wyświetlenia"
+                value={String(listing.publicViewCount ?? 0)}
+              />
+            ) : null}
           </div>
 
           {listing.description ? (

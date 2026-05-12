@@ -111,6 +111,7 @@ export function ListingPublicationPanel({
       showPriceOnPublicPage: formData.get('showPriceOnPublicPage') === 'on',
       showExactAddressOnPublicPage:
         formData.get('showExactAddressOnPublicPage') === 'on',
+      showPublicViewCount: formData.get('showPublicViewCount') === 'on',
     };
 
     const parsed = publicListingSettingsSchema.safeParse(payload);
@@ -513,6 +514,12 @@ export function ListingPublicationPanel({
             label="Pokazuj dokładny adres"
             description="Po wyłączeniu klienci zobaczą tylko miasto i dzielnicę."
           />
+          <CheckboxOption
+            name="showPublicViewCount"
+            defaultChecked={listing.showPublicViewCount}
+            label="Pokazuj licznik wyświetleń"
+            description="Odwiedzający zobaczą liczbę odsłon publicznej strony oferty."
+          />
         </div>
 
         {listing.estateflowBrandingEnabled ? (
@@ -661,7 +668,9 @@ function CheckboxOption({
 }: {
   name: keyof Pick<
     PublicListingSettingsFormData,
-    'showPriceOnPublicPage' | 'showExactAddressOnPublicPage'
+    | 'showPriceOnPublicPage'
+    | 'showExactAddressOnPublicPage'
+    | 'showPublicViewCount'
   >;
   defaultChecked: boolean;
   label: string;

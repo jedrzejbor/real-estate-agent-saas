@@ -120,6 +120,10 @@ export class CreateListingDto {
   @IsBoolean()
   isPremium?: boolean;
 
+  @IsOptional()
+  @IsBoolean()
+  showPublicViewCount?: boolean;
+
   @ValidateNested()
   @Type(() => CreateAddressDto)
   address: CreateAddressDto;

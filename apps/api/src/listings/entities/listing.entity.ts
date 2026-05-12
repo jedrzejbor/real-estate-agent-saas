@@ -108,6 +108,9 @@ export class Listing {
   @Column({ type: 'boolean', default: true })
   estateflowBrandingEnabled: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  showPublicViewCount: boolean;
+
   @Column({ type: 'timestamptz', nullable: true })
   publishedAt: Date;
 
