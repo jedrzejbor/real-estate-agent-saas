@@ -24,6 +24,7 @@ export function PublicListingGallery({
   const imageCount = images.length;
   const activeImage = activeIndex !== null ? images[activeIndex] : null;
   const canNavigate = imageCount > 1;
+  const previewImages = images.slice(1, 3);
 
   React.useEffect(() => {
     if (activeIndex === null) return;
@@ -122,7 +123,14 @@ export function PublicListingGallery({
         </Button>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[1.35fr_0.65fr]">
+      <div
+        className={cn(
+          'grid gap-3',
+          previewImages.length > 0
+            ? 'lg:h-[520px] lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]'
+            : 'lg:h-[520px]',
+        )}
+      >
         <GalleryTile
           image={images[0]}
           index={0}
@@ -130,23 +138,44 @@ export function PublicListingGallery({
           large
           onOpen={openGallery}
         />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          {images.slice(1, 5).map((image, index) => (
+        {previewImages.length > 0 ? (
+          <div
+            className={cn(
+              'grid gap-3 sm:grid-cols-2 lg:grid-cols-1 lg:grid-rows-2',
+              getPreviewGridClass(previewImages.length),
+            )}
+          >
+            {previewImages.map((image, index) => (
+              <GalleryTile
+                key={image.id}
+                image={image}
+                index={index + 1}
+                title={listingTitle}
+                remainingCount={
+                  index === previewImages.length - 1 && images.length > 3
+                    ? images.length - 3
+                    : 0
+                }
+                onOpen={openGallery}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {imageCount > 3 ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
+          {images.slice(3, 5).map((image, index) => (
             <GalleryTile
               key={image.id}
               image={image}
-              index={index + 1}
+              index={index + 3}
               title={listingTitle}
-              remainingCount={
-                index === Math.min(images.length - 2, 3) && images.length > 5
-                  ? images.length - 5
-                  : 0
-              }
               onOpen={openGallery}
             />
           ))}
         </div>
-      </div>
+      ) : null}
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {images.map((image, index) => (
@@ -278,7 +307,9 @@ function GalleryTile({
       onClick={() => onOpen(index)}
       className={cn(
         'group relative overflow-hidden rounded-2xl bg-muted text-left focus:outline-none focus:ring-2 focus:ring-primary',
-        large ? 'aspect-[4/3] lg:aspect-[16/10]' : 'aspect-[4/3]',
+        large
+          ? 'aspect-[4/3] lg:h-full lg:aspect-auto'
+          : 'aspect-[4/3] lg:h-full lg:aspect-auto',
       )}
       aria-label={`Otwórz zdjęcie ${index + 1}`}
     >
@@ -329,6 +360,14 @@ function GalleryNavButton({
       <Icon className="h-6 w-6" />
     </Button>
   );
+}
+
+function getPreviewGridClass(imageCount: number): string {
+  if (imageCount <= 1) {
+    return 'lg:grid-cols-1 lg:grid-rows-1';
+  }
+
+  return 'lg:grid-cols-1 lg:grid-rows-2';
 }
 
 function getPreviousIndex(current: number, imageCount: number): number {

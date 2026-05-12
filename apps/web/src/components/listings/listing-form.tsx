@@ -315,30 +315,32 @@ export function ListingForm({
         </div>
       </FormSection>
 
-      <FormSection
-        title="Widoczność publiczna"
-        description="Te ustawienia będą użyte po opublikowaniu publicznej strony oferty."
-      >
-        <label className="flex items-start gap-3 rounded-xl border border-border bg-white p-4 shadow-sm">
-          <input type="hidden" name="showPublicViewCount" value="false" />
-          <input
-            type="checkbox"
-            name="showPublicViewCount"
-            value="true"
-            defaultChecked={listing?.showPublicViewCount ?? false}
-            className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
-          />
-          <span>
-            <span className="block text-sm font-medium text-foreground">
-              Pokaż licznik wyświetleń na stronie oferty
+      {!isEdit ? (
+        <FormSection
+          title="Widoczność publiczna"
+          description="Te ustawienia będą użyte po opublikowaniu publicznej strony oferty."
+        >
+          <label className="flex items-start gap-3 rounded-xl border border-border bg-white p-4 shadow-sm">
+            <input type="hidden" name="showPublicViewCount" value="false" />
+            <input
+              type="checkbox"
+              name="showPublicViewCount"
+              value="true"
+              defaultChecked={false}
+              className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+            />
+            <span>
+              <span className="block text-sm font-medium text-foreground">
+                Pokaż licznik wyświetleń na stronie oferty
+              </span>
+              <span className="mt-1 block text-sm text-muted-foreground">
+                Odwiedzający zobaczą liczbę odsłon publicznej strony. Po
+                utworzeniu oferty możesz zmienić to w panelu publikacji.
+              </span>
             </span>
-            <span className="mt-1 block text-sm text-muted-foreground">
-              Odwiedzający zobaczą liczbę odsłon publicznej strony. W panelu
-              agenta licznik jest widoczny niezależnie od tej opcji.
-            </span>
-          </span>
-        </label>
-      </FormSection>
+          </label>
+        </FormSection>
+      ) : null}
 
       {isGuidedCreate ? (
         <div className="flex flex-col gap-3 rounded-xl border border-dashed border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
