@@ -5,6 +5,7 @@ import {
   FeatureSurveyAudience,
   FeatureSurveyQuestionType,
   FeatureSurveyStatus,
+  type FeatureSurveyResponse,
 } from './entities';
 
 function buildSurvey(overrides: Partial<FeatureSurvey> = {}): FeatureSurvey {
@@ -41,6 +42,7 @@ function buildService(
   overrides: {
     surveys?: FeatureSurvey[];
     survey?: FeatureSurvey | null;
+    responses?: FeatureSurveyResponse[];
   } = {},
 ) {
   const surveyRepo = {
@@ -56,7 +58,7 @@ function buildService(
   };
   const responseRepo = {
     findOne: jest.fn().mockResolvedValue(null),
-    find: jest.fn().mockResolvedValue([]),
+    find: jest.fn().mockResolvedValue(overrides.responses ?? []),
     count: jest.fn().mockResolvedValue(0),
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => ({
@@ -143,6 +145,63 @@ describe('FeatureSurveysService', () => {
     const result = await service.findActiveForUser('user-1');
 
     expect(result.map((survey) => survey.id)).toEqual(['survey-free']);
+  });
+
+  it('includes viewer response and option percentages for answered surveys', async () => {
+    const survey = buildSurvey();
+    const responses = [
+      {
+        id: 'response-user',
+        surveyId: survey.id,
+        survey,
+        userId: 'user-1',
+        answers: { feature: 'reports' },
+        metadata: {},
+        createdAt: new Date('2026-01-02T00:00:00.000Z'),
+      },
+      {
+        id: 'response-other',
+        surveyId: survey.id,
+        survey,
+        userId: 'user-2',
+        answers: { feature: 'integrations' },
+        metadata: {},
+        createdAt: new Date('2026-01-03T00:00:00.000Z'),
+      },
+    ] as FeatureSurveyResponse[];
+    const { service } = buildService({
+      surveys: [survey],
+      responses,
+    });
+
+    const result = await service.findActiveForUser('user-1');
+
+    expect(result[0]).toMatchObject({
+      viewerResponse: {
+        id: 'response-user',
+        answers: { feature: 'reports' },
+      },
+      results: {
+        responseCount: 2,
+        questions: {
+          feature: {
+            responseCount: 2,
+            options: [
+              {
+                value: 'reports',
+                count: 1,
+                percentage: 50,
+              },
+              {
+                value: 'integrations',
+                count: 1,
+                percentage: 50,
+              },
+            ],
+          },
+        },
+      },
+    });
   });
 
   it('rejects missing required answers before writing response', async () => {

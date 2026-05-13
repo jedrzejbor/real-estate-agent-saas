@@ -112,6 +112,37 @@ export interface FeatureSurveyQuestion {
   max?: number;
 }
 
+export interface FeatureSurveyOptionResult {
+  value: string;
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+export interface FeatureSurveyDistributionResult {
+  value: number;
+  count: number;
+  percentage: number;
+}
+
+export interface FeatureSurveyQuestionResult {
+  responseCount: number;
+  options?: FeatureSurveyOptionResult[];
+  distribution?: FeatureSurveyDistributionResult[];
+  average?: number | null;
+}
+
+export interface FeatureSurveyResults {
+  responseCount: number;
+  questions: Record<string, FeatureSurveyQuestionResult>;
+}
+
+export interface FeatureSurveyViewerResponse {
+  id: string;
+  answers: Record<string, unknown>;
+  createdAt: string;
+}
+
 export interface FeatureSurvey {
   id: string;
   title: string;
@@ -120,6 +151,8 @@ export interface FeatureSurvey {
   startsAt?: string | null;
   endsAt?: string | null;
   questions: FeatureSurveyQuestion[];
+  results?: FeatureSurveyResults;
+  viewerResponse?: FeatureSurveyViewerResponse | null;
 }
 
 export interface FeatureSurveyAdminItem extends FeatureSurvey {

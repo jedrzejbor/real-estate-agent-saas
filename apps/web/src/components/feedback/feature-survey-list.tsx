@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, ClipboardList, Loader2, Send } from 'lucide-react';
+import { BarChart3, Check, ClipboardList, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
@@ -14,6 +14,7 @@ import {
   submitPublicFeatureSurveyResponse,
   type FeatureSurvey,
   type FeatureSurveyQuestion,
+  type FeatureSurveyQuestionResult,
 } from '@/lib/product-feedback';
 import { cn } from '@/lib/utils';
 
@@ -50,29 +51,26 @@ export function FeatureSurveyList({
     string | null
   >(null);
 
-  React.useEffect(() => {
-    let isMounted = true;
-
-    async function loadSurveys() {
+  const loadSurveys = React.useCallback(
+    async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
       try {
-        setIsLoading(true);
+        if (showLoading) setIsLoading(true);
         const result = publicMode
           ? await fetchActivePublicFeatureSurveys()
           : await fetchActiveFeatureSurveys();
-        if (isMounted) setSurveys(result);
+        setSurveys(result);
       } catch {
-        if (isMounted) setSurveys([]);
+        if (showLoading) setSurveys([]);
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (showLoading) setIsLoading(false);
       }
-    }
+    },
+    [publicMode],
+  );
 
-    loadSurveys();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [publicMode]);
+  React.useEffect(() => {
+    void loadSurveys();
+  }, [loadSurveys]);
 
   async function handleSubmit(survey: FeatureSurvey) {
     const answers = answersBySurvey[survey.id] ?? {};
@@ -108,6 +106,7 @@ export function FeatureSurveyList({
       }
 
       setSubmittedSurveyIds((prev) => new Set(prev).add(survey.id));
+      await loadSurveys({ showLoading: false });
       showSuccessToast({
         title: 'Ankieta zapisana',
         description: 'Dziękujemy. Odpowiedź trafiła do feedbacku produktu.',
@@ -145,7 +144,8 @@ export function FeatureSurveyList({
   return (
     <div className={cn('space-y-4', className)}>
       {surveys.map((survey) => {
-        const isSubmitted = submittedSurveyIds.has(survey.id);
+        const isSubmitted =
+          submittedSurveyIds.has(survey.id) || !!survey.viewerResponse;
         const isSubmitting = submittingSurveyId === survey.id;
         const answers = answersBySurvey[survey.id] ?? {};
 
@@ -171,12 +171,14 @@ export function FeatureSurveyList({
               {isSubmitted ? (
                 <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
                   <Check className="h-4 w-4" />
-                  Zapisano
+                  Oddano głos
                 </div>
               ) : null}
             </div>
 
-            {isSubmitted ? null : (
+            {isSubmitted ? (
+              <SurveyResults survey={survey} />
+            ) : (
               <div className="mt-5 space-y-5">
                 {survey.questions.map((question) => (
                   <SurveyQuestionField
@@ -248,6 +250,159 @@ export function FeatureSurveyList({
           </section>
         );
       })}
+    </div>
+  );
+}
+
+function SurveyResults({ survey }: { survey: FeatureSurvey }) {
+  const results = survey.results;
+
+  if (!results || results.responseCount === 0) {
+    return (
+      <div className="mt-5 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+        Dziękujemy za odpowiedź. Wyniki pojawią się, gdy system odświeży dane
+        ankiety.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 space-y-5 rounded-xl border border-border bg-muted/20 p-4">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <BarChart3 className="h-4 w-4 text-primary" />
+        <span className="font-medium text-foreground">Wyniki ankiety</span>
+        <span className="text-muted-foreground">
+          {results.responseCount} {pluralizeResponses(results.responseCount)}
+        </span>
+      </div>
+
+      <div className="space-y-5">
+        {survey.questions.map((question) => (
+          <SurveyQuestionResults
+            key={question.id}
+            question={question}
+            result={results.questions[question.id]}
+            viewerAnswer={survey.viewerResponse?.answers[question.id]}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SurveyQuestionResults({
+  question,
+  result,
+  viewerAnswer,
+}: {
+  question: FeatureSurveyQuestion;
+  result?: FeatureSurveyQuestionResult;
+  viewerAnswer: unknown;
+}) {
+  if (!result) return null;
+
+  if (
+    question.type === FeatureSurveyQuestionType.SINGLE_CHOICE ||
+    question.type === FeatureSurveyQuestionType.MULTIPLE_CHOICE
+  ) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-foreground">{question.label}</p>
+        <div className="space-y-2">
+          {(result.options ?? []).map((option) => {
+            const isViewerAnswer = Array.isArray(viewerAnswer)
+              ? viewerAnswer.includes(option.value)
+              : viewerAnswer === option.value;
+
+            return (
+              <div key={option.value} className="space-y-1">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span
+                    className={cn(
+                      'truncate text-foreground',
+                      isViewerAnswer && 'font-medium text-primary',
+                    )}
+                  >
+                    {option.label}
+                    {isViewerAnswer ? ' · Twoja odpowiedź' : ''}
+                  </span>
+                  <span className="shrink-0 text-muted-foreground">
+                    {option.percentage}% · {option.count}
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-white ring-1 ring-border">
+                  <div
+                    className={cn(
+                      'h-full rounded-full',
+                      isViewerAnswer ? 'bg-primary' : 'bg-muted-foreground/40',
+                    )}
+                    style={{ width: `${option.percentage}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (
+    question.type === FeatureSurveyQuestionType.RATING ||
+    question.type === FeatureSurveyQuestionType.NPS
+  ) {
+    return (
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-medium text-foreground">
+            {question.label}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Średnia: {result.average ?? 'brak'}
+          </p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(result.distribution ?? []).map((item) => {
+            const isViewerAnswer = viewerAnswer === item.value;
+            return (
+              <div key={item.value} className="space-y-1">
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <span
+                    className={cn(
+                      'text-foreground',
+                      isViewerAnswer && 'font-medium text-primary',
+                    )}
+                  >
+                    {item.value}
+                    {isViewerAnswer ? ' · Twoja odpowiedź' : ''}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {item.percentage}%
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-white ring-1 ring-border">
+                  <div
+                    className={cn(
+                      'h-full rounded-full',
+                      isViewerAnswer ? 'bg-primary' : 'bg-muted-foreground/40',
+                    )}
+                    style={{ width: `${item.percentage}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="text-sm font-medium text-foreground">{question.label}</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {result.responseCount} {pluralizeResponses(result.responseCount)}
+      </p>
     </div>
   );
 }
@@ -445,4 +600,10 @@ function isAnswerMissing(
 function getCurrentSourceUrl(): string | undefined {
   if (typeof window === 'undefined') return undefined;
   return `${window.location.pathname}${window.location.search}`;
+}
+
+function pluralizeResponses(count: number): string {
+  if (count === 1) return 'odpowiedź';
+  if (count >= 2 && count <= 4) return 'odpowiedzi';
+  return 'odpowiedzi';
 }

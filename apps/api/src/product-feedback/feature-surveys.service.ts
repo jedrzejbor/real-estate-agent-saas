@@ -50,6 +50,35 @@ const PUBLIC_SURVEY_IP_HOURLY_LIMIT = 12;
 const PUBLIC_SURVEY_EMAIL_HOURLY_LIMIT = 6;
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
+interface FeatureSurveyResponseSummary {
+  viewerResponse?: {
+    id: string;
+    answers: Record<string, unknown>;
+    createdAt: Date;
+  };
+  results: {
+    responseCount: number;
+    questions: Record<
+      string,
+      {
+        responseCount: number;
+        options?: Array<{
+          value: string;
+          label: string;
+          count: number;
+          percentage: number;
+        }>;
+        distribution?: Array<{
+          value: number;
+          count: number;
+          percentage: number;
+        }>;
+        average?: number | null;
+      }
+    >;
+  };
+}
+
 @Injectable()
 export class FeatureSurveysService {
   constructor(
@@ -72,15 +101,18 @@ export class FeatureSurveysService {
       FeatureSurveyAudience.BETA_USERS,
     ]);
 
-    return surveys
-      .filter((survey) =>
-        this.matchesUserAudience(survey, {
-          userId,
-          workspaceId: access.agency.id,
-          planCode: access.entitlements.plan.code,
-        }),
-      )
-      .map((survey) => this.toPublicSurveyView(survey));
+    const matchedSurveys = surveys.filter((survey) =>
+      this.matchesUserAudience(survey, {
+        userId,
+        workspaceId: access.agency.id,
+        planCode: access.entitlements.plan.code,
+      }),
+    );
+    const summaries = await this.getResponseSummaries(matchedSurveys, userId);
+
+    return matchedSurveys.map((survey) =>
+      this.toPublicSurveyView(survey, summaries.get(survey.id)),
+    );
   }
 
   async findActivePublic() {
@@ -89,7 +121,11 @@ export class FeatureSurveysService {
       FeatureSurveyAudience.PUBLIC_VISITORS,
     ]);
 
-    return surveys.map((survey) => this.toPublicSurveyView(survey));
+    const summaries = await this.getResponseSummaries(surveys);
+
+    return surveys.map((survey) =>
+      this.toPublicSurveyView(survey, summaries.get(survey.id)),
+    );
   }
 
   async findAllForAdmin() {
@@ -566,7 +602,164 @@ export class FeatureSurveysService {
       .slice(0, 5000);
   }
 
-  private toPublicSurveyView(survey: FeatureSurvey) {
+  private async getResponseSummaries(
+    surveys: FeatureSurvey[],
+    viewerUserId?: string,
+  ): Promise<Map<string, FeatureSurveyResponseSummary>> {
+    if (surveys.length === 0) {
+      return new Map();
+    }
+
+    const responses = await this.responseRepo.find({
+      where: { surveyId: In(surveys.map((survey) => survey.id)) },
+      order: { createdAt: 'ASC' },
+    });
+    const responsesBySurvey = new Map<string, FeatureSurveyResponse[]>();
+
+    for (const response of responses) {
+      const current = responsesBySurvey.get(response.surveyId) ?? [];
+      current.push(response);
+      responsesBySurvey.set(response.surveyId, current);
+    }
+
+    return new Map(
+      surveys.map((survey) => {
+        const surveyResponses = responsesBySurvey.get(survey.id) ?? [];
+        return [
+          survey.id,
+          {
+            viewerResponse: viewerUserId
+              ? this.getViewerResponse(surveyResponses, viewerUserId)
+              : undefined,
+            results: this.buildSurveyResults(survey, surveyResponses),
+          },
+        ];
+      }),
+    );
+  }
+
+  private getViewerResponse(
+    responses: FeatureSurveyResponse[],
+    viewerUserId: string,
+  ): FeatureSurveyResponseSummary['viewerResponse'] {
+    const response = responses.find((item) => item.userId === viewerUserId);
+    if (!response) {
+      return undefined;
+    }
+
+    return {
+      id: response.id,
+      answers: response.answers,
+      createdAt: response.createdAt,
+    };
+  }
+
+  private buildSurveyResults(
+    survey: FeatureSurvey,
+    responses: FeatureSurveyResponse[],
+  ): FeatureSurveyResponseSummary['results'] {
+    return {
+      responseCount: responses.length,
+      questions: Object.fromEntries(
+        survey.questions.map((question) => [
+          question.id,
+          this.buildQuestionResults(question, responses),
+        ]),
+      ),
+    };
+  }
+
+  private buildQuestionResults(
+    question: FeatureSurveyQuestion,
+    responses: FeatureSurveyResponse[],
+  ): FeatureSurveyResponseSummary['results']['questions'][string] {
+    const answeredResponses = responses.filter(
+      (response) => response.answers[question.id] !== undefined,
+    );
+    const responseCount = answeredResponses.length;
+
+    if (
+      question.type === FeatureSurveyQuestionType.SINGLE_CHOICE ||
+      question.type === FeatureSurveyQuestionType.MULTIPLE_CHOICE
+    ) {
+      return {
+        responseCount,
+        options: (question.options ?? []).map((option) => {
+          const count = answeredResponses.filter((response) => {
+            const value = response.answers[question.id];
+            return Array.isArray(value)
+              ? value.includes(option.value)
+              : value === option.value;
+          }).length;
+
+          return {
+            value: option.value,
+            label: option.label,
+            count,
+            percentage: this.calculatePercentage(count, responseCount),
+          };
+        }),
+      };
+    }
+
+    if (
+      question.type === FeatureSurveyQuestionType.RATING ||
+      question.type === FeatureSurveyQuestionType.NPS
+    ) {
+      const numericAnswers = answeredResponses
+        .map((response) => response.answers[question.id])
+        .filter((value): value is number => typeof value === 'number');
+      const min =
+        question.type === FeatureSurveyQuestionType.NPS
+          ? 0
+          : (question.min ?? 1);
+      const max =
+        question.type === FeatureSurveyQuestionType.NPS
+          ? 10
+          : (question.max ?? 5);
+
+      return {
+        responseCount,
+        average:
+          numericAnswers.length > 0
+            ? Number(
+                (
+                  numericAnswers.reduce((sum, value) => sum + value, 0) /
+                  numericAnswers.length
+                ).toFixed(1),
+              )
+            : null,
+        distribution: Array.from(
+          { length: max - min + 1 },
+          (_, index) => min + index,
+        ).map((value) => {
+          const count = numericAnswers.filter(
+            (answer) => answer === value,
+          ).length;
+          return {
+            value,
+            count,
+            percentage: this.calculatePercentage(count, responseCount),
+          };
+        }),
+      };
+    }
+
+    return { responseCount };
+  }
+
+  private calculatePercentage(count: number, total: number): number {
+    if (total <= 0) {
+      return 0;
+    }
+
+    return Math.round((count / total) * 100);
+  }
+
+  private toPublicSurveyView(
+    survey: FeatureSurvey,
+    summary?: FeatureSurveyResponseSummary,
+  ) {
     return {
       id: survey.id,
       title: survey.title,
@@ -575,6 +768,11 @@ export class FeatureSurveysService {
       startsAt: survey.startsAt,
       endsAt: survey.endsAt,
       questions: survey.questions,
+      results: summary?.results ?? {
+        responseCount: 0,
+        questions: {},
+      },
+      viewerResponse: summary?.viewerResponse,
     };
   }
 
