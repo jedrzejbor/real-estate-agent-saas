@@ -30,6 +30,7 @@ import {
   SubmitFeatureSurveyResponseDto,
   SubmitPublicFeatureSurveyResponseDto,
   UpdateFeatureSurveyDto,
+  UpdateFeatureSurveyResponseDto,
 } from './dto';
 import { FeatureSurveysService } from './feature-surveys.service';
 import { ProductFeedbackService } from './product-feedback.service';
@@ -164,6 +165,16 @@ export class FeatureSurveysController {
     @Body() dto: SubmitFeatureSurveyResponseDto,
   ) {
     return this.featureSurveysService.submitForUser(userId, id, dto);
+  }
+
+  /** PATCH /api/feature-surveys/:id/responses/my — update authenticated user's response. */
+  @Patch(':id/responses/my')
+  async updateMyResponse(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateFeatureSurveyResponseDto,
+  ) {
+    return this.featureSurveysService.updateForUser(userId, id, dto);
   }
 
   /** GET /api/feature-surveys/public/active — active surveys for visitors. */

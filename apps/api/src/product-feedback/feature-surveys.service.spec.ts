@@ -43,6 +43,7 @@ function buildService(
     surveys?: FeatureSurvey[];
     survey?: FeatureSurvey | null;
     responses?: FeatureSurveyResponse[];
+    existingResponse?: FeatureSurveyResponse | null;
   } = {},
 ) {
   const surveyRepo = {
@@ -57,7 +58,7 @@ function buildService(
     })),
   };
   const responseRepo = {
-    findOne: jest.fn().mockResolvedValue(null),
+    findOne: jest.fn().mockResolvedValue(overrides.existingResponse ?? null),
     find: jest.fn().mockResolvedValue(overrides.responses ?? []),
     count: jest.fn().mockResolvedValue(0),
     create: jest.fn((value) => value),
@@ -75,6 +76,7 @@ function buildService(
       updatedAt: new Date(),
       ...value,
     })),
+    update: jest.fn().mockResolvedValue({ affected: 1 }),
   };
   const usersService = {
     getAgencyAccessContext: jest.fn().mockResolvedValue({
@@ -201,6 +203,51 @@ describe('FeatureSurveysService', () => {
           },
         },
       },
+    });
+  });
+
+  it('updates an existing user response and linked feedback', async () => {
+    const survey = buildSurvey();
+    const existingResponse = {
+      id: 'response-user',
+      surveyId: survey.id,
+      survey,
+      feedbackId: 'feedback-1',
+      userId: 'user-1',
+      answers: { feature: 'reports' },
+      metadata: { original: true },
+      createdAt: new Date('2026-01-02T00:00:00.000Z'),
+    } as FeatureSurveyResponse;
+    const { service, responseRepo, productFeedbackRepo } = buildService({
+      survey,
+      existingResponse,
+    });
+
+    const result = await service.updateForUser('user-1', survey.id, {
+      answers: { feature: 'integrations' },
+      sourceUrl: '/dashboard/feedback/surveys',
+    });
+
+    expect(responseRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'response-user',
+        answers: { feature: 'integrations' },
+        sourceUrl: '/dashboard/feedback/surveys',
+      }),
+    );
+    expect(productFeedbackRepo.update).toHaveBeenCalledWith(
+      'feedback-1',
+      expect.objectContaining({
+        description: expect.stringContaining('integrations'),
+        metadata: expect.objectContaining({
+          surveyId: survey.id,
+          answers: { feature: 'integrations' },
+        }),
+      }),
+    );
+    expect(result).toMatchObject({
+      id: 'response-user',
+      surveyId: survey.id,
     });
   });
 

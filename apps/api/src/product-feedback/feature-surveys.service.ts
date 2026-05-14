@@ -30,6 +30,7 @@ import {
   SubmitFeatureSurveyResponseDto,
   SubmitPublicFeatureSurveyResponseDto,
   UpdateFeatureSurveyDto,
+  UpdateFeatureSurveyResponseDto,
 } from './dto';
 import {
   FeatureSurvey,
@@ -213,6 +214,63 @@ export class FeatureSurveysService {
         source: ProductFeedbackSource.DASHBOARD,
       },
     });
+
+    return this.toResponseView(savedResponse);
+  }
+
+  async updateForUser(
+    userId: string,
+    surveyId: string,
+    dto: UpdateFeatureSurveyResponseDto,
+  ) {
+    const access = await this.usersService.getAgencyAccessContext(userId);
+    const survey = await this.getActiveSurveyForResponse(surveyId);
+
+    if (
+      !this.matchesUserAudience(survey, {
+        userId,
+        workspaceId: access.agency.id,
+        planCode: access.entitlements.plan.code,
+      })
+    ) {
+      throw new ForbiddenException(
+        'Ta ankieta nie jest dostępna dla użytkownika',
+      );
+    }
+
+    const response = await this.responseRepo.findOne({
+      where: { surveyId, userId },
+    });
+
+    if (!response) {
+      throw new NotFoundException('Odpowiedź na tę ankietę nie istnieje');
+    }
+
+    const answers = this.normalizeAnswers(survey.questions, dto.answers);
+    const editedAt = new Date().toISOString();
+    response.answers = answers;
+    response.sourceUrl = normalizeOptional(dto.sourceUrl);
+    response.metadata = {
+      ...(response.metadata ?? {}),
+      ...(dto.metadata ?? {}),
+      editedAt,
+    };
+
+    const savedResponse = await this.responseRepo.save(response);
+
+    if (response.feedbackId) {
+      await this.productFeedbackRepo.update(response.feedbackId, {
+        description: this.buildFeedbackDescription(survey, answers),
+        sourceUrl: normalizeOptional(dto.sourceUrl),
+        metadata: {
+          ...(response.metadata ?? {}),
+          surveyId: survey.id,
+          surveyTitle: survey.title,
+          answers,
+          editedAt,
+        },
+      });
+    }
 
     return this.toResponseView(savedResponse);
   }

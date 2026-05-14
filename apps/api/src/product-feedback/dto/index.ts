@@ -11,4 +11,5 @@ export {
   SubmitFeatureSurveyResponseDto,
   SubmitPublicFeatureSurveyResponseDto,
   UpdateFeatureSurveyDto,
+  UpdateFeatureSurveyResponseDto,
 } from './feature-survey.dto';

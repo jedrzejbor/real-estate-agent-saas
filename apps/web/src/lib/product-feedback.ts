@@ -482,6 +482,19 @@ export function submitFeatureSurveyResponse(
   );
 }
 
+export function updateFeatureSurveyResponse(
+  surveyId: string,
+  input: SubmitFeatureSurveyResponseInput,
+): Promise<FeatureSurveyResponseSubmission> {
+  return apiFetch<FeatureSurveyResponseSubmission>(
+    `/feature-surveys/${surveyId}/responses/my`,
+    {
+      method: 'PATCH',
+      body: input,
+    },
+  );
+}
+
 export function submitPublicFeatureSurveyResponse(
   surveyId: string,
   input: SubmitPublicFeatureSurveyResponseInput,

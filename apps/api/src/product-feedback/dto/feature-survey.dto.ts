@@ -202,6 +202,8 @@ export class SubmitFeatureSurveyResponseDto {
   metadata?: Record<string, unknown>;
 }
 
+export class UpdateFeatureSurveyResponseDto extends SubmitFeatureSurveyResponseDto {}
+
 export class SubmitPublicFeatureSurveyResponseDto extends SubmitFeatureSurveyResponseDto {
   @IsOptional()
   @IsEmail()

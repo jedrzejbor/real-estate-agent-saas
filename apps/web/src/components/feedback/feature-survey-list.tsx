@@ -1,7 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import { BarChart3, Check, ClipboardList, Loader2, Send } from 'lucide-react';
+import {
+  BarChart3,
+  Check,
+  ClipboardList,
+  Loader2,
+  Pencil,
+  Send,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
@@ -12,6 +19,7 @@ import {
   fetchActivePublicFeatureSurveys,
   submitFeatureSurveyResponse,
   submitPublicFeatureSurveyResponse,
+  updateFeatureSurveyResponse,
   type FeatureSurvey,
   type FeatureSurveyQuestion,
   type FeatureSurveyQuestionResult,
@@ -46,6 +54,9 @@ export function FeatureSurveyList({
   const [submittedSurveyIds, setSubmittedSurveyIds] = React.useState<
     Set<string>
   >(() => new Set());
+  const [editingSurveyIds, setEditingSurveyIds] = React.useState<Set<string>>(
+    () => new Set(),
+  );
   const [isLoading, setIsLoading] = React.useState(true);
   const [submittingSurveyId, setSubmittingSurveyId] = React.useState<
     string | null
@@ -89,6 +100,7 @@ export function FeatureSurveyList({
     try {
       setSubmittingSurveyId(survey.id);
       const sourceUrl = getCurrentSourceUrl();
+      const isUpdating = !publicMode && !!survey.viewerResponse;
 
       if (publicMode) {
         await submitPublicFeatureSurveyResponse(survey.id, {
@@ -98,6 +110,11 @@ export function FeatureSurveyList({
           website: websiteBySurvey[survey.id] ?? '',
           formStartedAt: formStartedAtRef.current,
         });
+      } else if (isUpdating) {
+        await updateFeatureSurveyResponse(survey.id, {
+          answers,
+          sourceUrl,
+        });
       } else {
         await submitFeatureSurveyResponse(survey.id, {
           answers,
@@ -106,10 +123,17 @@ export function FeatureSurveyList({
       }
 
       setSubmittedSurveyIds((prev) => new Set(prev).add(survey.id));
+      setEditingSurveyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(survey.id);
+        return next;
+      });
       await loadSurveys({ showLoading: false });
       showSuccessToast({
-        title: 'Ankieta zapisana',
-        description: 'Dziękujemy. Odpowiedź trafiła do feedbacku produktu.',
+        title: isUpdating ? 'Odpowiedź zaktualizowana' : 'Ankieta zapisana',
+        description: isUpdating
+          ? 'Wyniki ankiety zostały przeliczone.'
+          : 'Dziękujemy. Odpowiedź trafiła do feedbacku produktu.',
       });
     } catch (error) {
       showErrorToast({
@@ -131,6 +155,24 @@ export function FeatureSurveyList({
     }));
   }
 
+  function startEditingResponse(survey: FeatureSurvey) {
+    if (!survey.viewerResponse) return;
+
+    setAnswersBySurvey((current) => ({
+      ...current,
+      [survey.id]: survey.viewerResponse?.answers ?? {},
+    }));
+    setEditingSurveyIds((current) => new Set(current).add(survey.id));
+  }
+
+  function cancelEditingResponse(surveyId: string) {
+    setEditingSurveyIds((current) => {
+      const next = new Set(current);
+      next.delete(surveyId);
+      return next;
+    });
+  }
+
   if (isLoading) {
     return null;
   }
@@ -146,8 +188,10 @@ export function FeatureSurveyList({
       {surveys.map((survey) => {
         const isSubmitted =
           submittedSurveyIds.has(survey.id) || !!survey.viewerResponse;
+        const isEditing = editingSurveyIds.has(survey.id);
         const isSubmitting = submittingSurveyId === survey.id;
-        const answers = answersBySurvey[survey.id] ?? {};
+        const answers =
+          answersBySurvey[survey.id] ?? survey.viewerResponse?.answers ?? {};
 
         return (
           <section
@@ -176,8 +220,12 @@ export function FeatureSurveyList({
               ) : null}
             </div>
 
-            {isSubmitted ? (
-              <SurveyResults survey={survey} />
+            {isSubmitted && !isEditing ? (
+              <SurveyResults
+                survey={survey}
+                canEdit={!publicMode}
+                onEdit={() => startEditingResponse(survey)}
+              />
             ) : (
               <div className="mt-5 space-y-5">
                 {survey.questions.map((question) => (
@@ -230,7 +278,18 @@ export function FeatureSurveyList({
                   </>
                 ) : null}
 
-                <div className="flex justify-end">
+                <div className="flex flex-col justify-end gap-2 sm:flex-row">
+                  {isEditing ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-xl"
+                      disabled={isSubmitting}
+                      onClick={() => cancelEditingResponse(survey.id)}
+                    >
+                      Anuluj edycję
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     className="gap-2 rounded-xl"
@@ -242,7 +301,7 @@ export function FeatureSurveyList({
                     ) : (
                       <Send className="h-4 w-4" />
                     )}
-                    Wyślij ankietę
+                    {isEditing ? 'Zapisz zmiany' : 'Wyślij ankietę'}
                   </Button>
                 </div>
               </div>
@@ -254,7 +313,15 @@ export function FeatureSurveyList({
   );
 }
 
-function SurveyResults({ survey }: { survey: FeatureSurvey }) {
+function SurveyResults({
+  survey,
+  canEdit,
+  onEdit,
+}: {
+  survey: FeatureSurvey;
+  canEdit: boolean;
+  onEdit: () => void;
+}) {
   const results = survey.results;
 
   if (!results || results.responseCount === 0) {
@@ -268,12 +335,26 @@ function SurveyResults({ survey }: { survey: FeatureSurvey }) {
 
   return (
     <div className="mt-5 space-y-5 rounded-xl border border-border bg-muted/20 p-4">
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <BarChart3 className="h-4 w-4 text-primary" />
-        <span className="font-medium text-foreground">Wyniki ankiety</span>
-        <span className="text-muted-foreground">
-          {results.responseCount} {pluralizeResponses(results.responseCount)}
-        </span>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <BarChart3 className="h-4 w-4 text-primary" />
+          <span className="font-medium text-foreground">Wyniki ankiety</span>
+          <span className="text-muted-foreground">
+            {results.responseCount} {pluralizeResponses(results.responseCount)}
+          </span>
+        </div>
+        {canEdit ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2 rounded-xl sm:self-start"
+            onClick={onEdit}
+          >
+            <Pencil className="h-4 w-4" />
+            Edytuj odpowiedź
+          </Button>
+        ) : null}
       </div>
 
       <div className="space-y-5">
