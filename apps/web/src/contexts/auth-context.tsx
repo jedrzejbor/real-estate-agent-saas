@@ -205,7 +205,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       storeTokens(res);
       setUser(res.user);
-      router.push(options?.redirectTo ?? '/dashboard');
+      router.push(
+        options?.redirectTo ??
+          (data.accountType === 'private_seller'
+            ? '/dodaj-oferte'
+            : '/dashboard'),
+      );
     },
     [router],
   );

@@ -112,6 +112,9 @@ export const loginSchema = z.object({
 });
 
 export const registerSchema = z.object({
+  accountType: z.enum(['agent', 'private_seller'], {
+    message: 'Wybierz typ konta',
+  }),
   email: z
     .string()
     .min(1, 'Email jest wymagany')

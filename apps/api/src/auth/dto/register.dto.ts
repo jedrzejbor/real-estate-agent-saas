@@ -6,9 +6,24 @@ import {
   MaxLength,
   IsOptional,
   Matches,
+  IsIn,
 } from 'class-validator';
 
+export const RegisterAccountType = {
+  AGENT: 'agent',
+  PRIVATE_SELLER: 'private_seller',
+} as const;
+
+export type RegisterAccountType =
+  (typeof RegisterAccountType)[keyof typeof RegisterAccountType];
+
 export class RegisterDto {
+  @IsOptional()
+  @IsIn(Object.values(RegisterAccountType), {
+    message: 'Nieprawidłowy typ konta',
+  })
+  accountType?: RegisterAccountType;
+
   @IsEmail({}, { message: 'Nieprawidłowy adres email' })
   @IsNotEmpty({ message: 'Email jest wymagany' })
   email: string;

@@ -15,6 +15,7 @@ import {
   DeactivateMyAccountDto,
   LoginDto,
   RegisterDto,
+  RegisterAccountType,
   UpdateMyProfileDto,
 } from './dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
@@ -44,6 +45,10 @@ export class AuthService {
       passwordHash,
       firstName: dto.firstName,
       lastName: dto.lastName,
+      role:
+        dto.accountType === RegisterAccountType.PRIVATE_SELLER
+          ? UserRole.VIEWER
+          : UserRole.AGENT,
     });
 
     const user = await this.usersService.ensureAgencyForUser(createdUser.id);
