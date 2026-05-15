@@ -1,6 +1,12 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
+import {
+  isPrivateSellerUser,
+  PRIVATE_SELLER_HOME_PATH,
+} from '@/lib/auth';
 import { DashboardSidebar } from '@/components/dashboard/sidebar';
 import { DashboardTopbar } from '@/components/dashboard/topbar';
 
@@ -11,8 +17,16 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, isLoading } = useAuth();
+  const router = useRouter();
+  const isPrivateSeller = user ? isPrivateSellerUser(user) : false;
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isLoading && isPrivateSeller) {
+      router.replace(PRIVATE_SELLER_HOME_PATH);
+    }
+  }, [isLoading, isPrivateSeller, router]);
+
+  if (isLoading || isPrivateSeller) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

@@ -25,6 +25,7 @@ import {
   getStoredTokens,
   getAccessTokenExpiresAt,
   refreshTokens,
+  getDefaultAuthenticatedPath,
 } from '@/lib/auth';
 
 // ── Context shape ──
@@ -191,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           agencyId: res.user.agency?.id ?? null,
         },
       });
-      router.push(options?.redirectTo ?? '/dashboard');
+      router.push(options?.redirectTo ?? getDefaultAuthenticatedPath(res.user));
     },
     [router],
   );
@@ -205,12 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       storeTokens(res);
       setUser(res.user);
-      router.push(
-        options?.redirectTo ??
-          (data.accountType === 'private_seller'
-            ? '/dodaj-oferte'
-            : '/dashboard'),
-      );
+      router.push(options?.redirectTo ?? getDefaultAuthenticatedPath(res.user));
     },
     [router],
   );

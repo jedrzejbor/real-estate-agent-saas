@@ -99,6 +99,9 @@ export interface AuthResponse extends AuthTokens {
   user: AuthUser;
 }
 
+export const PRIVATE_SELLER_HOME_PATH = '/dodaj-oferte';
+export const AGENT_DASHBOARD_PATH = '/dashboard';
+
 // ── Zod Schemas (frontend validation, mirrors backend DTOs) ──
 
 export const loginSchema = z.object({
@@ -137,6 +140,16 @@ export const registerSchema = z.object({
 
 export type LoginFormData = z.infer<typeof loginSchema>;
 export type RegisterFormData = z.infer<typeof registerSchema>;
+
+export function isPrivateSellerUser(user: Pick<AuthUser, 'role'>): boolean {
+  return user.role === 'viewer';
+}
+
+export function getDefaultAuthenticatedPath(user: AuthUser): string {
+  return isPrivateSellerUser(user)
+    ? PRIVATE_SELLER_HOME_PATH
+    : AGENT_DASHBOARD_PATH;
+}
 
 // ── Token helpers ──
 

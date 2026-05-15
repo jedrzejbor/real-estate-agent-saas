@@ -376,9 +376,24 @@ Te decyzje wymagają osobnego dokumentu pricingowego.
 
 ### Etap 1 — Minimum po rejestracji
 
-- [ ] Po loginie `private_seller` przekierować do `/seller` albo
+- [x] Po loginie `private_seller` przekierować do `/seller` albo
   `/dodaj-oferte`.
-- [ ] Ukryć pełny dashboard CRM przed `private_seller`.
+  - Data zakończenia: 2026-05-16
+  - Wykonano:
+    - dodano wspólny helper `getDefaultAuthenticatedPath`,
+    - użytkownik z rolą tymczasowo mapowaną na `private_seller` (`viewer`) po
+      loginie trafia do `/dodaj-oferte`,
+    - rejestracja korzysta z odpowiedzi API zamiast duplikować logikę
+      przekierowań po stronie formularza.
+- [x] Ukryć pełny dashboard CRM przed `private_seller`.
+  - Data zakończenia: 2026-05-16
+  - Wykonano:
+    - layout `/dashboard` rozpoznaje prywatnego sprzedającego przez helper
+      `isPrivateSellerUser`,
+    - prywatny sprzedający jest przekierowywany z `/dashboard` do
+      `/dodaj-oferte`,
+    - dashboard CRM nie renderuje sidebaru, topbaru ani treści modułów CRM dla
+      tej roli.
 - [ ] Dodać prosty ekran `/seller` z CTA `Dodaj ogłoszenie`.
 - [ ] Dodać pusty stan: `Nie masz jeszcze ogłoszeń`.
 

@@ -5,7 +5,11 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Building2, Home } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
-import { registerSchema, type RegisterFormData } from '@/lib/auth';
+import {
+  PRIVATE_SELLER_HOME_PATH,
+  registerSchema,
+  type RegisterFormData,
+} from '@/lib/auth';
 import {
   buildClaimAuthPath,
   buildClaimRedirectPath,
@@ -39,7 +43,7 @@ function RegisterForm() {
         redirectTo:
           claimRedirectPath ??
           (data.accountType === 'private_seller'
-            ? '/dodaj-oferte'
+            ? PRIVATE_SELLER_HOME_PATH
             : undefined),
       });
     },
