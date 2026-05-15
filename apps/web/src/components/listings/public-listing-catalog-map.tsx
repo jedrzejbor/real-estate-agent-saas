@@ -14,6 +14,8 @@ import type * as Leaflet from 'leaflet';
 interface PublicListingCatalogMapProps {
   markers: PublicListingCatalogMapMarker[];
   mapMeta: PublicListingCatalogResponse['meta']['map'];
+  activeBbox?: string | null;
+  onBboxChange?: (bbox: string | null) => void;
 }
 
 const DEFAULT_CENTER: [number, number] = [52.0693, 19.4803];
@@ -28,6 +30,8 @@ const TILE_ATTRIBUTION =
 export function PublicListingCatalogMap({
   markers,
   mapMeta,
+  activeBbox: controlledActiveBbox,
+  onBboxChange,
 }: PublicListingCatalogMapProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const leafletRef = useRef<typeof Leaflet | null>(null);
@@ -41,7 +45,7 @@ export function PublicListingCatalogMap({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const activeBbox = searchParams.get('bbox');
+  const activeBbox = controlledActiveBbox ?? searchParams.get('bbox');
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) {
@@ -217,6 +221,11 @@ export function PublicListingCatalogMap({
       },
     });
 
+    if (onBboxChange) {
+      onBboxChange(selectedBbox);
+      return;
+    }
+
     router.push(`${pathname}?${params.toString()}`);
   };
 
@@ -234,6 +243,11 @@ export function PublicListingCatalogMap({
     const params = new URLSearchParams(searchParams.toString());
     params.delete('bbox');
     params.set('page', '1');
+
+    if (onBboxChange) {
+      onBboxChange(null);
+      return;
+    }
 
     const qs = params.toString();
     router.push(qs ? `${pathname}?${qs}` : pathname);
