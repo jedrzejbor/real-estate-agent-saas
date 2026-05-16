@@ -394,8 +394,20 @@ Te decyzje wymagają osobnego dokumentu pricingowego.
       `/dodaj-oferte`,
     - dashboard CRM nie renderuje sidebaru, topbaru ani treści modułów CRM dla
       tej roli.
-- [ ] Dodać prosty ekran `/seller` z CTA `Dodaj ogłoszenie`.
-- [ ] Dodać pusty stan: `Nie masz jeszcze ogłoszeń`.
+- [x] Dodać prosty ekran `/seller` z CTA `Dodaj ogłoszenie`.
+  - Data zakończenia: 2026-05-16
+  - Wykonano:
+    - dodano chroniony widok `/seller`,
+    - prywatny sprzedający widzi uproszczony panel właściciela,
+    - główne CTA prowadzi do `/dodaj-oferte`,
+    - agenci trafiają z `/seller` z powrotem do `/dashboard`,
+    - niezalogowani użytkownicy trafiają do `/login`.
+- [x] Dodać pusty stan: `Nie masz jeszcze ogłoszeń`.
+  - Data zakończenia: 2026-05-16
+  - Wykonano:
+    - dodano pusty stan dla konta bez ogłoszeń,
+    - pokazano krótką ścieżkę: dodanie danych, zdjęcia, publikacja,
+    - dodano drugorzędny link do katalogu ofert.
 
 ### Etap 2 — Własne ogłoszenia
 

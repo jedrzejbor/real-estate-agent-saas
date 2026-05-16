@@ -99,7 +99,7 @@ export interface AuthResponse extends AuthTokens {
   user: AuthUser;
 }
 
-export const PRIVATE_SELLER_HOME_PATH = '/dodaj-oferte';
+export const PRIVATE_SELLER_HOME_PATH = '/seller';
 export const AGENT_DASHBOARD_PATH = '/dashboard';
 
 // ── Zod Schemas (frontend validation, mirrors backend DTOs) ──
