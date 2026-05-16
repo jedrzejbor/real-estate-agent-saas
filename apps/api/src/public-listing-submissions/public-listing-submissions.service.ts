@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -45,6 +46,7 @@ import { assertSafeImageUpload } from '../common/image-upload-security';
 import {
   ClaimPublicListingSubmissionDto,
   CreatePublicListingSubmissionDto,
+  UpdateSellerPublicListingSubmissionDto,
   VerifyPublicListingSubmissionDto,
 } from './dto';
 import {
@@ -132,6 +134,18 @@ export interface SellerPublicListingSubmissionListItem {
   claimedAt: Date | null;
   rejectedAt: Date | null;
   expiredAt: Date | null;
+}
+
+export interface SellerPublicListingSubmissionDetail
+  extends SellerPublicListingSubmissionListItem {
+  listing: PublicListingSubmissionPayload['listing'];
+  address: PublicListingSubmissionPayload['address'];
+  publicSettings: PublicListingSubmissionPayload['publicSettings'];
+  images: NonNullable<PublicListingSubmissionPayload['images']>;
+  ownerName: string;
+  email: string;
+  phone: string;
+  agencyName: string | null;
 }
 
 @Injectable()
@@ -251,6 +265,86 @@ export class PublicListingSubmissionsService {
     });
 
     return submissions.map((submission) => toSellerListItem(submission));
+  }
+
+  async findOneForOwner(
+    ownerUserId: string,
+    id: string,
+  ): Promise<SellerPublicListingSubmissionDetail> {
+    const submission = await this.findOwnedSubmissionOrFail(ownerUserId, id);
+
+    return toSellerDetail(submission);
+  }
+
+  async updateForOwner(
+    ownerUserId: string,
+    id: string,
+    dto: UpdateSellerPublicListingSubmissionDto,
+  ): Promise<SellerPublicListingSubmissionDetail> {
+    const submission = await this.findOwnedSubmissionOrFail(ownerUserId, id);
+    this.assertSellerSubmissionEditable(submission);
+
+    if (dto.listing) {
+      submission.payload = {
+        ...submission.payload,
+        listing: sanitizePayloadObject(dto.listing),
+      };
+    }
+
+    if (dto.address) {
+      submission.payload = {
+        ...submission.payload,
+        address: sanitizePayloadObject(dto.address),
+      };
+    }
+
+    if (dto.publicSettings) {
+      submission.payload = {
+        ...submission.payload,
+        publicSettings: sanitizePayloadObject(dto.publicSettings),
+      };
+    }
+
+    if (dto.images) {
+      submission.payload = {
+        ...submission.payload,
+        images: dto.images.slice(0, 15).map((image, index) => ({
+          url: image.url,
+          altText: normalizeOptional(image.altText),
+          order: image.order ?? index,
+        })),
+      };
+    }
+
+    if (dto.ownerName !== undefined) {
+      submission.ownerName = dto.ownerName.trim();
+    }
+
+    if (dto.email !== undefined) {
+      submission.email = dto.email.toLowerCase().trim();
+    }
+
+    if (dto.phone !== undefined) {
+      submission.phone = dto.phone.trim();
+    }
+
+    if (dto.agencyName !== undefined) {
+      submission.agencyName = normalizeOptional(dto.agencyName);
+    }
+
+    if (dto.metadata) {
+      submission.metadata = {
+        ...submission.metadata,
+        sellerEdit: {
+          ...sanitizeMetadata(dto.metadata),
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }
+
+    const saved = await this.submissionRepo.save(submission);
+
+    return toSellerDetail(saved);
   }
 
   async uploadImages(
@@ -769,6 +863,32 @@ export class PublicListingSubmissionsService {
 
     return `${slugBase}-${randomBytes(4).toString('hex')}`.slice(0, 160);
   }
+
+  private async findOwnedSubmissionOrFail(
+    ownerUserId: string,
+    id: string,
+  ): Promise<PublicListingSubmission> {
+    const submission = await this.submissionRepo.findOne({
+      where: { id, ownerUserId },
+      relations: ['publishedListing'],
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Ogłoszenie nie znalezione');
+    }
+
+    return submission;
+  }
+
+  private assertSellerSubmissionEditable(
+    submission: PublicListingSubmission,
+  ): void {
+    if (submission.status === PublicListingSubmissionStatus.CLAIMED) {
+      throw new ForbiddenException(
+        'Opublikowana oferta nie może być jeszcze edytowana w panelu właściciela',
+      );
+    }
+  }
 }
 
 function buildListingDataFromPayload(
@@ -916,6 +1036,28 @@ function toSellerListItem(
     rejectedAt: submission.rejectedAt ?? null,
     expiredAt: submission.expiredAt ?? null,
   };
+}
+
+function toSellerDetail(
+  submission: PublicListingSubmission,
+): SellerPublicListingSubmissionDetail {
+  return {
+    ...toSellerListItem(submission),
+    listing: submission.payload.listing ?? {},
+    address: submission.payload.address ?? {},
+    publicSettings: submission.payload.publicSettings ?? {},
+    images: submission.payload.images ?? [],
+    ownerName: submission.ownerName,
+    email: submission.email,
+    phone: submission.phone,
+    agencyName: submission.agencyName ?? null,
+  };
+}
+
+function sanitizePayloadObject<T extends object>(value: T): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined),
+  );
 }
 
 function getString(value: unknown, fallback: string): string {

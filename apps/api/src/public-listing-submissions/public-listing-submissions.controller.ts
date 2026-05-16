@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Req,
   UploadedFiles,
@@ -20,6 +21,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import {
   ClaimPublicListingSubmissionDto,
   CreatePublicListingSubmissionDto,
+  UpdateSellerPublicListingSubmissionDto,
   VerifyPublicListingSubmissionDto,
 } from './dto';
 import { PublicListingSubmissionsService } from './public-listing-submissions.service';
@@ -99,6 +101,25 @@ export class PublicListingSubmissionsController {
   @Get('seller')
   async listForCurrentSeller(@CurrentUser('id') userId: string) {
     return this.submissionsService.findForOwner(userId);
+  }
+
+  /** GET /api/public-listing-submissions/seller/:id — get one owned submission for editing. */
+  @Get('seller/:id')
+  async getForCurrentSeller(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.submissionsService.findOneForOwner(userId, id);
+  }
+
+  /** PATCH /api/public-listing-submissions/seller/:id — update one owned submission. */
+  @Patch('seller/:id')
+  async updateForCurrentSeller(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateSellerPublicListingSubmissionDto,
+  ) {
+    return this.submissionsService.updateForOwner(userId, id, dto);
   }
 
   /** POST /api/public-listing-submissions/images — upload temporary public submission images. */

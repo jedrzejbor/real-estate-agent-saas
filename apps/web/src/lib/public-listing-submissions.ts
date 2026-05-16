@@ -116,6 +116,25 @@ export interface SellerPublicListingSubmissionListItem {
   expiredAt: string | null;
 }
 
+export interface SellerPublicListingSubmissionDetail
+  extends SellerPublicListingSubmissionListItem {
+  listing: CreatePublicListingSubmissionInput['listing'];
+  address: CreatePublicListingSubmissionInput['address'];
+  publicSettings?: CreatePublicListingSubmissionInput['publicSettings'];
+  images: PublicListingSubmissionImage[];
+  ownerName: string;
+  email: string;
+  phone: string;
+  agencyName: string | null;
+}
+
+export type UpdateSellerPublicListingSubmissionInput = Partial<
+  Pick<
+    CreatePublicListingSubmissionInput,
+    'listing' | 'address' | 'publicSettings' | 'images' | 'ownerName' | 'email' | 'phone' | 'agencyName' | 'metadata'
+  >
+>;
+
 export async function createPublicListingSubmission(
   input: CreatePublicListingSubmissionInput,
 ): Promise<PublicListingSubmissionCreatedResult> {
@@ -146,6 +165,27 @@ export async function fetchSellerPublicListingSubmissions(): Promise<
 > {
   return apiFetch<SellerPublicListingSubmissionListItem[]>(
     '/public-listing-submissions/seller',
+  );
+}
+
+export async function fetchSellerPublicListingSubmission(
+  id: string,
+): Promise<SellerPublicListingSubmissionDetail> {
+  return apiFetch<SellerPublicListingSubmissionDetail>(
+    `/public-listing-submissions/seller/${id}`,
+  );
+}
+
+export async function updateSellerPublicListingSubmission(
+  id: string,
+  input: UpdateSellerPublicListingSubmissionInput,
+): Promise<SellerPublicListingSubmissionDetail> {
+  return apiFetch<SellerPublicListingSubmissionDetail>(
+    `/public-listing-submissions/seller/${id}`,
+    {
+      method: 'PATCH',
+      body: input,
+    },
   );
 }
 

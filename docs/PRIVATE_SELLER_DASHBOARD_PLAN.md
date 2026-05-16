@@ -433,8 +433,21 @@ Te decyzje wymagają osobnego dokumentu pricingowego.
     - statusy mają etykiety i opis kolejnego kontekstu dla właściciela,
     - opublikowane/przejęte zgłoszenia pokazują link do publicznej oferty, gdy
       dostępny jest publiczny slug.
-- [ ] Dodać edycję podstawowych danych.
-- [ ] Dodać zarządzanie zdjęciami.
+- [x] Dodać edycję podstawowych danych.
+  - Data zakończenia: 2026-05-16
+  - Wykonano:
+    - dodano chroniony endpoint szczegółów zgłoszenia właściciela,
+    - dodano chroniony endpoint zapisu podstawowych danych,
+    - dodano stronę `/seller/listings/[id]/edit`,
+    - zapis działa wyłącznie dla zgłoszenia z `ownerUserId` równym bieżącemu
+      użytkownikowi.
+- [x] Dodać zarządzanie zdjęciami.
+  - Data zakończenia: 2026-05-16
+  - Wykonano:
+    - edycja ogłoszenia pokazuje aktualne zdjęcia z payloadu zgłoszenia,
+    - właściciel może dodać zdjęcia przez istniejący mechanizm uploadu,
+    - właściciel może usuwać zdjęcia z listy przed zapisem,
+    - po zapisie payload zgłoszenia przechowuje zaktualizowaną kolejność zdjęć.
 
 ### Etap 3 — Zapytania
 
