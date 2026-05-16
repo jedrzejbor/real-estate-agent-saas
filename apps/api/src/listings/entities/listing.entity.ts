@@ -17,6 +17,7 @@ import {
   TransactionType,
 } from '../../common/enums';
 import { Agent } from '../../users/entities/agent.entity';
+import { User } from '../../users/entities/user.entity';
 import { ListingImage } from './listing-image.entity';
 import { Address } from './address.entity';
 
@@ -135,6 +136,14 @@ export class Listing {
   @Index()
   @Column({ type: 'uuid' })
   agentId: string;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'owner_user_id' })
+  ownerUser?: User | null;
+
+  @Index()
+  @Column({ type: 'uuid', name: 'owner_user_id', nullable: true })
+  ownerUserId?: string | null;
 
   @OneToMany(() => ListingImage, (img) => img.listing, {
     cascade: true,

@@ -411,9 +411,28 @@ Te decyzje wymagają osobnego dokumentu pricingowego.
 
 ### Etap 2 — Własne ogłoszenia
 
-- [ ] Powiązać submission/listing z `ownerUserId`.
-- [ ] Dodać listę własnych ogłoszeń.
-- [ ] Dodać widok statusu ogłoszenia.
+- [x] Powiązać submission/listing z `ownerUserId`.
+  - Data zakończenia: 2026-05-16
+  - Wykonano:
+    - dodano `ownerUserId` do `PublicListingSubmission`,
+    - dodano nullable `ownerUserId` do `Listing`, żeby opublikowana oferta
+      mogła zachować właściciela po utworzeniu rekordu oferty,
+    - dodano migrację SQL dla kolumny, indeksu i FK do `users`,
+    - zalogowany prywatny właściciel wysyła formularz przez chroniony endpoint,
+      dzięki czemu ownership wynika z JWT, nie z danych przesłanych z UI.
+- [x] Dodać listę własnych ogłoszeń.
+  - Data zakończenia: 2026-05-16
+  - Wykonano:
+    - dodano chroniony endpoint listujący zgłoszenia bieżącego użytkownika,
+    - `/seller` pobiera i pokazuje własne zgłoszenia właściciela,
+    - pusty stan nadal pojawia się, gdy lista jest pusta.
+- [x] Dodać widok statusu ogłoszenia.
+  - Data zakończenia: 2026-05-16
+  - Wykonano:
+    - karty ogłoszeń w `/seller` pokazują status publikacji,
+    - statusy mają etykiety i opis kolejnego kontekstu dla właściciela,
+    - opublikowane/przejęte zgłoszenia pokazują link do publicznej oferty, gdy
+      dostępny jest publiczny slug.
 - [ ] Dodać edycję podstawowych danych.
 - [ ] Dodać zarządzanie zdjęciami.
 

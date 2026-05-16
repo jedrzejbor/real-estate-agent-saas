@@ -113,6 +113,27 @@ export interface PublicListingSubmissionClaimResult {
   moderationReasons: string[];
 }
 
+export interface SellerPublicListingSubmissionListItem {
+  id: string;
+  status: PublicListingSubmissionStatus;
+  title: string;
+  propertyType: PropertyType;
+  transactionType: TransactionType;
+  price: number | null;
+  currency: string;
+  city: string | null;
+  primaryImageUrl: string | null;
+  publishedListingId: string | null;
+  publishedListingSlug: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  verifiedAt: Date | null;
+  publishedAt: Date | null;
+  claimedAt: Date | null;
+  rejectedAt: Date | null;
+  expiredAt: Date | null;
+}
+
 @Injectable()
 export class PublicListingSubmissionsService {
   private readonly logger = new Logger(PublicListingSubmissionsService.name);
@@ -133,6 +154,7 @@ export class PublicListingSubmissionsService {
   async create(
     dto: CreatePublicListingSubmissionDto,
     request: Request,
+    ownerUserId?: string | null,
   ): Promise<PublicListingSubmissionCreatedResult> {
     return this.monitoringService.monitor(
       {
@@ -145,13 +167,14 @@ export class PublicListingSubmissionsService {
           status: result.status,
         }),
       },
-      () => this.createCore(dto, request),
+      () => this.createCore(dto, request, ownerUserId),
     );
   }
 
   private async createCore(
     dto: CreatePublicListingSubmissionDto,
     request: Request,
+    ownerUserId?: string | null,
   ): Promise<PublicListingSubmissionCreatedResult> {
     this.assertHumanSubmission(dto);
     this.assertConsents(dto);
@@ -198,6 +221,7 @@ export class PublicListingSubmissionsService {
       },
       sourceUrl: normalizeOptional(dto.sourceUrl),
       referrer: normalizeOptional(dto.referrer),
+      ownerUserId: ownerUserId ?? null,
       utmSource: normalizeOptional(dto.utmSource),
       utmMedium: normalizeOptional(dto.utmMedium),
       utmCampaign: normalizeOptional(dto.utmCampaign),
@@ -214,6 +238,19 @@ export class PublicListingSubmissionsService {
       emailMasked: maskEmail(saved.email),
       expiresAt,
     };
+  }
+
+  async findForOwner(
+    ownerUserId: string,
+  ): Promise<SellerPublicListingSubmissionListItem[]> {
+    const submissions = await this.submissionRepo.find({
+      where: { ownerUserId },
+      relations: ['publishedListing'],
+      order: { createdAt: 'DESC' },
+      take: 100,
+    });
+
+    return submissions.map((submission) => toSellerListItem(submission));
   }
 
   async uploadImages(
@@ -489,6 +526,7 @@ export class PublicListingSubmissionsService {
       const listing = manager.create(Listing, {
         ...buildListingDataFromPayload(submission.payload),
         agentId: access.agent.id,
+        ownerUserId: submission.ownerUserId ?? null,
         status: listingState.status,
         publicationStatus: listingState.publicationStatus,
         publicSlug: moderation.reviewRequired
@@ -842,6 +880,42 @@ function buildImageDataFromPayload(
       },
     ];
   });
+}
+
+function toSellerListItem(
+  submission: PublicListingSubmission,
+): SellerPublicListingSubmissionListItem {
+  const listing = submission.payload.listing ?? {};
+  const address = submission.payload.address ?? {};
+
+  return {
+    id: submission.id,
+    status: submission.status,
+    title: getString(listing.title, 'Ogłoszenie nieruchomości'),
+    propertyType: getEnumValue(
+      listing.propertyType,
+      Object.values(PropertyType),
+      PropertyType.APARTMENT,
+    ),
+    transactionType: getEnumValue(
+      listing.transactionType,
+      Object.values(TransactionType),
+      TransactionType.SALE,
+    ),
+    price: getNullableNumber(listing.price),
+    currency: getString(listing.currency, 'PLN').slice(0, 3),
+    city: getNullableString(address.city),
+    primaryImageUrl: getFirstImageUrl(submission.payload),
+    publishedListingId: submission.publishedListingId ?? null,
+    publishedListingSlug: submission.publishedListing?.publicSlug ?? null,
+    createdAt: submission.createdAt,
+    updatedAt: submission.updatedAt,
+    verifiedAt: submission.verifiedAt ?? null,
+    publishedAt: submission.publishedAt ?? null,
+    claimedAt: submission.claimedAt ?? null,
+    rejectedAt: submission.rejectedAt ?? null,
+    expiredAt: submission.expiredAt ?? null,
+  };
 }
 
 function getString(value: unknown, fallback: string): string {

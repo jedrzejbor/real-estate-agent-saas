@@ -1,13 +1,18 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
+  AlertCircle,
   ArrowRight,
   Building2,
+  Clock,
+  Eye,
   Home,
+  Loader2,
   LogOut,
+  MapPin,
   PlusCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
@@ -15,12 +20,28 @@ import {
   AGENT_DASHBOARD_PATH,
   isPrivateSellerUser,
 } from '@/lib/auth';
+import { getApiErrorMessage } from '@/lib/api-client';
+import {
+  formatPrice,
+  PROPERTY_TYPE_LABELS,
+  TRANSACTION_TYPE_LABELS,
+} from '@/lib/listings';
+import {
+  fetchSellerPublicListingSubmissions,
+  type SellerPublicListingSubmissionListItem,
+  type SellerPublicListingSubmissionStatus,
+} from '@/lib/public-listing-submissions';
 import { Logo } from '@/components/common/logo';
 
 export default function SellerDashboardPage() {
   const { user, isLoading, logout } = useAuth();
   const router = useRouter();
   const isPrivateSeller = user ? isPrivateSellerUser(user) : false;
+  const [submissions, setSubmissions] = useState<
+    SellerPublicListingSubmissionListItem[]
+  >([]);
+  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isLoading) return;
@@ -34,6 +55,38 @@ export default function SellerDashboardPage() {
       router.replace(AGENT_DASHBOARD_PATH);
     }
   }, [isLoading, isPrivateSeller, router, user]);
+
+  useEffect(() => {
+    if (isLoading || !user || !isPrivateSeller) return;
+
+    let cancelled = false;
+
+    async function loadSubmissions() {
+      setIsLoadingSubmissions(true);
+      setSubmissionError(null);
+
+      try {
+        const result = await fetchSellerPublicListingSubmissions();
+        if (!cancelled) {
+          setSubmissions(result);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSubmissionError(getApiErrorMessage(error));
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingSubmissions(false);
+        }
+      }
+    }
+
+    void loadSubmissions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading, isPrivateSeller, user]);
 
   if (isLoading || !user || !isPrivateSeller) {
     return (
@@ -95,9 +148,183 @@ export default function SellerDashboardPage() {
           </div>
         </div>
 
-        <SellerEmptyState />
+        {isLoadingSubmissions ? (
+          <SellerSubmissionsLoading />
+        ) : submissionError ? (
+          <SellerSubmissionsError message={submissionError} />
+        ) : submissions.length > 0 ? (
+          <SellerSubmissionList submissions={submissions} />
+        ) : (
+          <SellerEmptyState />
+        )}
       </section>
     </main>
+  );
+}
+
+function SellerSubmissionList({
+  submissions,
+}: {
+  submissions: SellerPublicListingSubmissionListItem[];
+}) {
+  return (
+    <section className="mt-8">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-heading text-2xl font-semibold">
+            Moje ogłoszenia
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Status publikacji i najważniejsze informacje o Twoich zgłoszeniach.
+          </p>
+        </div>
+        <Link
+          href="/dodaj-oferte"
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <PlusCircle className="h-4 w-4" />
+          Dodaj ogłoszenie
+        </Link>
+      </div>
+
+      <div className="grid gap-4">
+        {submissions.map((submission) => (
+          <SellerSubmissionCard key={submission.id} submission={submission} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SellerSubmissionCard({
+  submission,
+}: {
+  submission: SellerPublicListingSubmissionListItem;
+}) {
+  const status = SELLER_STATUS_COPY[submission.status];
+  const publicHref = submission.publishedListingSlug
+    ? `/oferty/${submission.publishedListingSlug}`
+    : null;
+
+  return (
+    <article className="grid overflow-hidden rounded-2xl border border-border bg-white shadow-sm md:grid-cols-[180px_1fr]">
+      <div
+        className="min-h-40 bg-muted"
+        style={
+          submission.primaryImageUrl
+            ? {
+                backgroundImage: `url(${submission.primaryImageUrl})`,
+                backgroundPosition: 'center',
+                backgroundSize: 'cover',
+              }
+            : undefined
+        }
+        aria-label={
+          submission.primaryImageUrl
+            ? `Zdjęcie ogłoszenia ${submission.title}`
+            : undefined
+        }
+      >
+        {!submission.primaryImageUrl ? (
+          <div className="flex h-full min-h-40 items-center justify-center text-muted-foreground">
+            <Home className="h-8 w-8" />
+          </div>
+        ) : null}
+      </div>
+
+      <div className="p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="mb-2 flex flex-wrap gap-2">
+              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                {PROPERTY_TYPE_LABELS[submission.propertyType]}
+              </span>
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                {TRANSACTION_TYPE_LABELS[submission.transactionType]}
+              </span>
+            </div>
+            <h3 className="font-heading text-xl font-semibold">
+              {submission.title}
+            </h3>
+            <div className="mt-2 flex flex-wrap gap-3 text-sm text-muted-foreground">
+              {submission.city ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4" />
+                  {submission.city}
+                </span>
+              ) : null}
+              <span className="inline-flex items-center gap-1.5">
+                <Clock className="h-4 w-4" />
+                Dodano {formatDate(submission.createdAt)}
+              </span>
+            </div>
+          </div>
+
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${status.className}`}
+          >
+            {status.label}
+          </span>
+        </div>
+
+        <div className="mt-4 rounded-xl bg-muted/40 p-4">
+          <p className="text-sm font-semibold text-foreground">
+            {submission.price
+              ? formatPrice(submission.price, submission.currency)
+              : 'Cena do ustalenia'}
+          </p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {status.description}
+          </p>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {publicHref ? (
+            <Link
+              href={publicHref}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted"
+            >
+              <Eye className="h-4 w-4" />
+              Zobacz publicznie
+            </Link>
+          ) : null}
+          <Link
+            href="/dodaj-oferte"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <PlusCircle className="h-4 w-4" />
+            Dodaj kolejne
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function SellerSubmissionsLoading() {
+  return (
+    <section className="mt-8 rounded-2xl border border-border bg-white p-8 text-center shadow-sm">
+      <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+      <p className="mt-3 text-sm font-medium text-muted-foreground">
+        Pobieramy Twoje ogłoszenia...
+      </p>
+    </section>
+  );
+}
+
+function SellerSubmissionsError({ message }: { message: string }) {
+  return (
+    <section className="mt-8 rounded-2xl border border-destructive/20 bg-white p-8 text-center shadow-sm">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+        <AlertCircle className="h-6 w-6" />
+      </div>
+      <h2 className="mt-4 font-heading text-2xl font-semibold">
+        Nie udało się pobrać ogłoszeń
+      </h2>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+        {message}
+      </p>
+    </section>
   );
 }
 
@@ -159,4 +386,56 @@ function Step({
       </p>
     </div>
   );
+}
+
+const SELLER_STATUS_COPY: Record<
+  SellerPublicListingSubmissionStatus,
+  { label: string; description: string; className: string }
+> = {
+  draft: {
+    label: 'Szkic',
+    description: 'Ogłoszenie jest zapisane roboczo i nie zostało wysłane.',
+    className: 'bg-muted text-muted-foreground',
+  },
+  pending_email_verification: {
+    label: 'Czeka na email',
+    description:
+      'Sprawdź skrzynkę i potwierdź adres email, żeby kontynuować publikację.',
+    className: 'bg-amber-100 text-amber-900',
+  },
+  verified: {
+    label: 'W weryfikacji',
+    description:
+      'Email został potwierdzony. Ogłoszenie czeka na publikację lub przejęcie.',
+    className: 'bg-blue-100 text-blue-900',
+  },
+  published: {
+    label: 'Opublikowane',
+    description: 'Ogłoszenie jest widoczne publicznie w katalogu.',
+    className: 'bg-emerald-100 text-emerald-900',
+  },
+  claimed: {
+    label: 'Przejęte',
+    description: 'Ogłoszenie zostało powiązane z kontem i ofertą publiczną.',
+    className: 'bg-emerald-100 text-emerald-900',
+  },
+  rejected: {
+    label: 'Wymaga poprawek',
+    description:
+      'Ogłoszenie wymaga korekty przed publikacją. Przygotujemy tu edycję danych.',
+    className: 'bg-red-100 text-red-900',
+  },
+  expired: {
+    label: 'Wygasłe',
+    description: 'Link weryfikacyjny albo ogłoszenie wygasło.',
+    className: 'bg-stone-200 text-stone-800',
+  },
+};
+
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 }

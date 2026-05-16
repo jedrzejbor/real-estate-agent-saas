@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -80,6 +81,24 @@ export class PublicListingSubmissionsController {
     @Req() request: Request,
   ) {
     return this.submissionsService.create(dto, request);
+  }
+
+  /** POST /api/public-listing-submissions/seller — submit draft as the current private seller. */
+  @Post('seller')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.CREATED)
+  async createForCurrentSeller(
+    @CurrentUser('id') userId: string,
+    @Body() dto: CreatePublicListingSubmissionDto,
+    @Req() request: Request,
+  ) {
+    return this.submissionsService.create(dto, request, userId);
+  }
+
+  /** GET /api/public-listing-submissions/seller — list submissions owned by the current user. */
+  @Get('seller')
+  async listForCurrentSeller(@CurrentUser('id') userId: string) {
+    return this.submissionsService.findForOwner(userId);
   }
 
   /** POST /api/public-listing-submissions/images — upload temporary public submission images. */

@@ -20,7 +20,9 @@ import { Button } from '@/components/ui/button';
 import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
+import { useAuth } from '@/contexts/auth-context';
 import { getApiErrorMessage } from '@/lib/api-client';
+import { isPrivateSellerUser } from '@/lib/auth';
 import {
   PROPERTY_TYPE_LABELS,
   PropertyType,
@@ -32,6 +34,7 @@ import {
 import { LEGAL_COPY, LEGAL_LINKS } from '@/lib/legal';
 import {
   createPublicListingSubmission,
+  createSellerPublicListingSubmission,
   uploadPublicListingSubmissionImages,
   type PublicListingSubmissionImage,
 } from '@/lib/public-listing-submissions';
@@ -126,6 +129,7 @@ const SUBMISSION_PROCESS = [
 export default function PublicListingSubmissionWizardPage() {
   const router = useRouter();
   const { success: showSuccessToast, error: showErrorToast } = useToast();
+  const { user } = useAuth();
   const formStartedAt = React.useRef(Date.now());
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [draft, setDraft] =
@@ -257,7 +261,10 @@ export default function PublicListingSubmissionWizardPage() {
 
     try {
       setIsSubmitting(true);
-      const result = await createPublicListingSubmission(payload);
+      const submit = user && isPrivateSellerUser(user)
+        ? createSellerPublicListingSubmission
+        : createPublicListingSubmission;
+      const result = await submit(payload);
       localStorage.removeItem(STORAGE_KEY);
       router.push(
         `/dodaj-oferte/sprawdz-email?${new URLSearchParams({

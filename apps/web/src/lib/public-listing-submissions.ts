@@ -86,6 +86,36 @@ export interface PublicListingSubmissionClaimResult {
   moderationReasons: string[];
 }
 
+export type SellerPublicListingSubmissionStatus =
+  | 'draft'
+  | 'pending_email_verification'
+  | 'verified'
+  | 'published'
+  | 'claimed'
+  | 'rejected'
+  | 'expired';
+
+export interface SellerPublicListingSubmissionListItem {
+  id: string;
+  status: SellerPublicListingSubmissionStatus;
+  title: string;
+  propertyType: PropertyType;
+  transactionType: TransactionType;
+  price: number | null;
+  currency: string;
+  city: string | null;
+  primaryImageUrl: string | null;
+  publishedListingId: string | null;
+  publishedListingSlug: string | null;
+  createdAt: string;
+  updatedAt: string;
+  verifiedAt: string | null;
+  publishedAt: string | null;
+  claimedAt: string | null;
+  rejectedAt: string | null;
+  expiredAt: string | null;
+}
+
 export async function createPublicListingSubmission(
   input: CreatePublicListingSubmissionInput,
 ): Promise<PublicListingSubmissionCreatedResult> {
@@ -96,6 +126,26 @@ export async function createPublicListingSubmission(
       skipAuth: true,
       body: input,
     },
+  );
+}
+
+export async function createSellerPublicListingSubmission(
+  input: CreatePublicListingSubmissionInput,
+): Promise<PublicListingSubmissionCreatedResult> {
+  return apiFetch<PublicListingSubmissionCreatedResult>(
+    '/public-listing-submissions/seller',
+    {
+      method: 'POST',
+      body: input,
+    },
+  );
+}
+
+export async function fetchSellerPublicListingSubmissions(): Promise<
+  SellerPublicListingSubmissionListItem[]
+> {
+  return apiFetch<SellerPublicListingSubmissionListItem[]>(
+    '/public-listing-submissions/seller',
   );
 }
 

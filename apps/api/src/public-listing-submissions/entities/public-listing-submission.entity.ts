@@ -13,7 +13,7 @@ import {
   PublicListingSubmissionStatus,
 } from '../../common/enums';
 import { Listing } from '../../listings/entities/listing.entity';
-import { Agent, Agency } from '../../users/entities';
+import { Agent, Agency, User } from '../../users/entities';
 
 export interface PublicListingSubmissionPayload {
   listing: Record<string, unknown>;
@@ -142,6 +142,14 @@ export class PublicListingSubmission {
 
   @Column({ type: 'varchar', length: 500, nullable: true })
   referrer?: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'owner_user_id' })
+  ownerUser?: User | null;
+
+  @Index()
+  @Column({ type: 'uuid', name: 'owner_user_id', nullable: true })
+  ownerUserId?: string | null;
 
   @Column({ type: 'varchar', length: 255, name: 'utm_source', nullable: true })
   utmSource?: string | null;
