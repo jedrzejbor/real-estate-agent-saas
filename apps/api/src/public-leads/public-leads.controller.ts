@@ -31,6 +31,15 @@ export class PublicLeadsController {
     return this.publicLeadsService.findAll(userId, query);
   }
 
+  /** GET /api/public-leads/seller — list public inquiries for current private seller. */
+  @Get('seller')
+  async findForSeller(
+    @CurrentUser('id') userId: string,
+    @Query() query: PublicLeadQueryDto,
+  ) {
+    return this.publicLeadsService.findForSeller(userId, query);
+  }
+
   /** POST /api/public-leads/listings/:slug — capture a public listing inquiry. */
   @Public()
   @Post('listings/:slug')

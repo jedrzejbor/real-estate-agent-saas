@@ -193,6 +193,81 @@ export class PublicLeadsService {
     };
   }
 
+  async findForSeller(
+    ownerUserId: string,
+    query: PublicLeadQueryDto,
+  ): Promise<PaginatedPublicLeads> {
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+      status,
+      source,
+      listingId,
+      search,
+    } = query;
+
+    const qb = this.publicLeadRepo
+      .createQueryBuilder('lead')
+      .leftJoinAndSelect('lead.listing', 'listing')
+      .leftJoinAndSelect('lead.convertedClient', 'convertedClient')
+      .where('listing.ownerUserId = :ownerUserId', { ownerUserId });
+
+    if (status) {
+      qb.andWhere('lead.status = :status', { status });
+    }
+
+    if (source) {
+      qb.andWhere('lead.source = :source', { source });
+    }
+
+    if (listingId) {
+      qb.andWhere('lead.listingId = :listingId', { listingId });
+    }
+
+    if (search?.trim()) {
+      const searchValue = `%${search.trim()}%`;
+      qb.andWhere(
+        new Brackets((subQb) => {
+          subQb
+            .where('LOWER(lead.fullName) LIKE LOWER(:search)', {
+              search: searchValue,
+            })
+            .orWhere('LOWER(lead.email) LIKE LOWER(:search)', {
+              search: searchValue,
+            })
+            .orWhere('LOWER(lead.phone) LIKE LOWER(:search)', {
+              search: searchValue,
+            })
+            .orWhere('LOWER(listing.title) LIKE LOWER(:search)', {
+              search: searchValue,
+            })
+            .orWhere('LOWER(listing.publicTitle) LIKE LOWER(:search)', {
+              search: searchValue,
+            });
+        }),
+      );
+    }
+
+    const allowedSortColumns = ['createdAt', 'status'];
+    const column = allowedSortColumns.includes(sortBy) ? sortBy : 'createdAt';
+    qb.orderBy(`lead.${column}`, sortOrder === 'ASC' ? 'ASC' : 'DESC');
+    qb.skip((page - 1) * limit).take(limit);
+
+    const [data, total] = await qb.getManyAndCount();
+
+    return {
+      data: data.map(mapPublicLeadListItem),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   async createForPublicListing(
     slug: string,
     dto: CreatePublicLeadDto,

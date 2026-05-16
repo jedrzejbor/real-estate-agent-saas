@@ -13,7 +13,10 @@ import {
   Home,
   Loader2,
   LogOut,
+  Mail,
   MapPin,
+  MessageSquareText,
+  Phone,
   PlusCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
@@ -32,6 +35,12 @@ import {
   type SellerPublicListingSubmissionListItem,
   type SellerPublicListingSubmissionStatus,
 } from '@/lib/public-listing-submissions';
+import {
+  fetchSellerPublicInquiries,
+  PUBLIC_LEAD_STATUS_LABELS,
+  type PublicInquiry,
+  type PublicLeadStatus,
+} from '@/lib/public-inquiries';
 import { Logo } from '@/components/common/logo';
 
 export default function SellerDashboardPage() {
@@ -41,8 +50,10 @@ export default function SellerDashboardPage() {
   const [submissions, setSubmissions] = useState<
     SellerPublicListingSubmissionListItem[]
   >([]);
+  const [inquiries, setInquiries] = useState<PublicInquiry[]>([]);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [inquiryError, setInquiryError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isLoading) return;
@@ -65,15 +76,31 @@ export default function SellerDashboardPage() {
     async function loadSubmissions() {
       setIsLoadingSubmissions(true);
       setSubmissionError(null);
+      setInquiryError(null);
 
       try {
-        const result = await fetchSellerPublicListingSubmissions();
+        const [submissionResult, inquiryResult] = await Promise.allSettled([
+          fetchSellerPublicListingSubmissions(),
+          fetchSellerPublicInquiries({
+            page: 1,
+            limit: 5,
+            sortBy: 'createdAt',
+            sortOrder: 'DESC',
+          }),
+        ]);
+
         if (!cancelled) {
-          setSubmissions(result);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setSubmissionError(getApiErrorMessage(error));
+          if (submissionResult.status === 'fulfilled') {
+            setSubmissions(submissionResult.value);
+          } else {
+            setSubmissionError(getApiErrorMessage(submissionResult.reason));
+          }
+
+          if (inquiryResult.status === 'fulfilled') {
+            setInquiries(inquiryResult.value.data);
+          } else {
+            setInquiryError(getApiErrorMessage(inquiryResult.reason));
+          }
         }
       } finally {
         if (!cancelled) {
@@ -154,12 +181,125 @@ export default function SellerDashboardPage() {
         ) : submissionError ? (
           <SellerSubmissionsError message={submissionError} />
         ) : submissions.length > 0 ? (
-          <SellerSubmissionList submissions={submissions} />
+          <>
+            <SellerSubmissionList submissions={submissions} />
+            <SellerInquiriesSection
+              inquiries={inquiries}
+              error={inquiryError}
+            />
+          </>
         ) : (
           <SellerEmptyState />
         )}
       </section>
     </main>
+  );
+}
+
+function SellerInquiriesSection({
+  inquiries,
+  error,
+}: {
+  inquiries: PublicInquiry[];
+  error: string | null;
+}) {
+  return (
+    <section className="mt-8">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-heading text-2xl font-semibold">Zapytania</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Ostatnie wiadomości wysłane z publicznych stron Twoich ogłoszeń.
+          </p>
+        </div>
+      </div>
+
+      {error ? (
+        <div className="rounded-2xl border border-destructive/20 bg-white p-6 text-sm text-destructive shadow-sm">
+          {error}
+        </div>
+      ) : inquiries.length === 0 ? (
+        <div className="rounded-2xl border border-border bg-white p-6 text-center shadow-sm">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <MessageSquareText className="h-6 w-6" />
+          </div>
+          <h3 className="mt-4 font-heading text-xl font-semibold">
+            Nie masz jeszcze zapytań
+          </h3>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+            Gdy ktoś napisze z publicznej strony Twojej oferty, pokażemy tę
+            wiadomość tutaj razem ze statusem.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {inquiries.map((inquiry) => (
+            <SellerInquiryCard key={inquiry.id} inquiry={inquiry} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SellerInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
+  const status = SELLER_INQUIRY_STATUS_COPY[inquiry.status];
+
+  return (
+    <article className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${status.className}`}
+            >
+              {PUBLIC_LEAD_STATUS_LABELS[inquiry.status]}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {formatDate(inquiry.createdAt)}
+            </span>
+          </div>
+
+          <h3 className="mt-3 font-heading text-lg font-semibold">
+            {inquiry.fullName}
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {inquiry.listing?.title ?? 'Ogłoszenie niedostępne'}
+          </p>
+
+          {inquiry.message ? (
+            <p className="mt-3 line-clamp-3 text-sm leading-6 text-foreground">
+              {inquiry.message}
+            </p>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Zapytanie bez dodatkowej wiadomości.
+            </p>
+          )}
+        </div>
+
+        <div className="flex shrink-0 flex-col gap-2 text-sm">
+          {inquiry.email ? (
+            <a
+              href={`mailto:${inquiry.email}`}
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border px-3 font-semibold transition-colors hover:bg-muted"
+            >
+              <Mail className="h-4 w-4" />
+              Email
+            </a>
+          ) : null}
+          {inquiry.phone ? (
+            <a
+              href={`tel:${inquiry.phone}`}
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border px-3 font-semibold transition-colors hover:bg-muted"
+            >
+              <Phone className="h-4 w-4" />
+              Telefon
+            </a>
+          ) : null}
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -431,6 +571,18 @@ const SELLER_STATUS_COPY: Record<
     description: 'Link weryfikacyjny albo ogłoszenie wygasło.',
     className: 'bg-stone-200 text-stone-800',
   },
+};
+
+const SELLER_INQUIRY_STATUS_COPY: Record<
+  PublicLeadStatus,
+  { className: string }
+> = {
+  new: { className: 'bg-blue-100 text-blue-900' },
+  contacted: { className: 'bg-violet-100 text-violet-900' },
+  qualified: { className: 'bg-emerald-100 text-emerald-900' },
+  converted_to_client: { className: 'bg-emerald-100 text-emerald-900' },
+  spam: { className: 'bg-red-100 text-red-900' },
+  archived: { className: 'bg-stone-200 text-stone-800' },
 };
 
 function formatDate(value: string): string {

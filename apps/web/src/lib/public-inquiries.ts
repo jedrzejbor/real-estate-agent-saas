@@ -124,3 +124,11 @@ export async function fetchPublicInquiries(
     `/public-leads${buildQueryString(filters)}`,
   );
 }
+
+export async function fetchSellerPublicInquiries(
+  filters: PublicInquiryFilters = {},
+): Promise<PaginatedPublicInquiries> {
+  return apiFetch<PaginatedPublicInquiries>(
+    `/public-leads/seller${buildQueryString(filters)}`,
+  );
+}

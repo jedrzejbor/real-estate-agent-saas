@@ -451,8 +451,20 @@ Te decyzje wymagają osobnego dokumentu pricingowego.
 
 ### Etap 3 — Zapytania
 
-- [ ] Pokazać zapytania tylko do ogłoszeń właściciela.
-- [ ] Dodać statusy zapytań.
+- [x] Pokazać zapytania tylko do ogłoszeń właściciela.
+  - Data zakończenia: 2026-05-17
+  - Wykonano:
+    - dodano chroniony endpoint `GET /api/public-leads/seller`,
+    - backend filtruje zapytania przez `listing.ownerUserId = currentUser.id`,
+      więc właściciel nie może pobrać zapytań do cudzych ogłoszeń,
+    - panel `/seller` pokazuje ostatnie zapytania z tego endpointu.
+- [x] Dodać statusy zapytań.
+  - Data zakończenia: 2026-05-17
+  - Wykonano:
+    - karty zapytań w `/seller` pokazują status z `PublicLeadStatus`,
+    - statusy używają polskich etykiet i rozróżnionych kolorów,
+    - pusty stan zapytań wyjaśnia, że wiadomości pojawią się po kontakcie z
+      publicznej strony oferty.
 - [ ] Dodać akcje kontaktu.
 - [ ] Dodać powiadomienia email o nowych zapytaniach.
 
