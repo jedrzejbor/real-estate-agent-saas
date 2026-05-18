@@ -132,3 +132,13 @@ export async function fetchSellerPublicInquiries(
     `/public-leads/seller${buildQueryString(filters)}`,
   );
 }
+
+export async function updateSellerPublicInquiryStatus(
+  id: string,
+  status: typeof PublicLeadStatus.CONTACTED | typeof PublicLeadStatus.ARCHIVED,
+): Promise<PublicInquiry> {
+  return apiFetch<PublicInquiry>(`/public-leads/seller/${id}`, {
+    method: 'PATCH',
+    body: { status },
+  });
+}

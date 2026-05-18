@@ -465,8 +465,22 @@ Te decyzje wymagają osobnego dokumentu pricingowego.
     - statusy używają polskich etykiet i rozróżnionych kolorów,
     - pusty stan zapytań wyjaśnia, że wiadomości pojawią się po kontakcie z
       publicznej strony oferty.
-- [ ] Dodać akcje kontaktu.
-- [ ] Dodać powiadomienia email o nowych zapytaniach.
+- [x] Dodać akcje kontaktu.
+  - Data zakończenia: 2026-05-18
+  - Wykonano:
+    - dodano chroniony endpoint `PATCH /api/public-leads/seller/:id`,
+    - właściciel może oznaczyć zapytanie jako `contacted` albo `archived`,
+    - akcje email/telefon w `/seller` oznaczają zapytanie jako
+      `Skontaktowany`,
+    - backend egzekwuje ownership przez `listing.ownerUserId`.
+- [x] Dodać powiadomienia email o nowych zapytaniach.
+  - Data zakończenia: 2026-05-18
+  - Wykonano:
+    - po utworzeniu zapytania do oferty z `ownerUserId` system wysyła email do
+      właściciela konta,
+    - email zawiera tytuł ogłoszenia, dane kontaktowe nadawcy, treść wiadomości
+      i link do `/seller`,
+    - błąd wysyłki emaila jest logowany, ale nie przerywa procesu zapytania.
 
 ### Etap 4 — Dojrzały panel właściciela
 

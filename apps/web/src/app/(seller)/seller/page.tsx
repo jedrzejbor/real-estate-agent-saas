@@ -10,6 +10,8 @@ import {
   Clock,
   Edit3,
   Eye,
+  Archive,
+  CheckCircle2,
   Home,
   Loader2,
   LogOut,
@@ -37,9 +39,11 @@ import {
 } from '@/lib/public-listing-submissions';
 import {
   fetchSellerPublicInquiries,
+  PublicLeadStatus,
   PUBLIC_LEAD_STATUS_LABELS,
+  updateSellerPublicInquiryStatus,
   type PublicInquiry,
-  type PublicLeadStatus,
+  type PublicLeadStatus as PublicLeadStatusValue,
 } from '@/lib/public-inquiries';
 import { Logo } from '@/components/common/logo';
 
@@ -52,6 +56,9 @@ export default function SellerDashboardPage() {
   >([]);
   const [inquiries, setInquiries] = useState<PublicInquiry[]>([]);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
+  const [updatingInquiryId, setUpdatingInquiryId] = useState<string | null>(
+    null,
+  );
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [inquiryError, setInquiryError] = useState<string | null>(null);
 
@@ -115,6 +122,25 @@ export default function SellerDashboardPage() {
       cancelled = true;
     };
   }, [isLoading, isPrivateSeller, user]);
+
+  async function updateInquiryStatus(
+    id: string,
+    status: typeof PublicLeadStatus.CONTACTED | typeof PublicLeadStatus.ARCHIVED,
+  ) {
+    setUpdatingInquiryId(id);
+    setInquiryError(null);
+
+    try {
+      const updated = await updateSellerPublicInquiryStatus(id, status);
+      setInquiries((current) =>
+        current.map((inquiry) => (inquiry.id === id ? updated : inquiry)),
+      );
+    } catch (error) {
+      setInquiryError(getApiErrorMessage(error));
+    } finally {
+      setUpdatingInquiryId(null);
+    }
+  }
 
   if (isLoading || !user || !isPrivateSeller) {
     return (
@@ -186,6 +212,8 @@ export default function SellerDashboardPage() {
             <SellerInquiriesSection
               inquiries={inquiries}
               error={inquiryError}
+              updatingInquiryId={updatingInquiryId}
+              onStatusChange={updateInquiryStatus}
             />
           </>
         ) : (
@@ -199,9 +227,16 @@ export default function SellerDashboardPage() {
 function SellerInquiriesSection({
   inquiries,
   error,
+  updatingInquiryId,
+  onStatusChange,
 }: {
   inquiries: PublicInquiry[];
   error: string | null;
+  updatingInquiryId: string | null;
+  onStatusChange: (
+    id: string,
+    status: typeof PublicLeadStatus.CONTACTED | typeof PublicLeadStatus.ARCHIVED,
+  ) => void;
 }) {
   return (
     <section className="mt-8">
@@ -234,7 +269,12 @@ function SellerInquiriesSection({
       ) : (
         <div className="grid gap-3">
           {inquiries.map((inquiry) => (
-            <SellerInquiryCard key={inquiry.id} inquiry={inquiry} />
+            <SellerInquiryCard
+              key={inquiry.id}
+              inquiry={inquiry}
+              isUpdating={updatingInquiryId === inquiry.id}
+              onStatusChange={onStatusChange}
+            />
           ))}
         </div>
       )}
@@ -242,7 +282,18 @@ function SellerInquiriesSection({
   );
 }
 
-function SellerInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
+function SellerInquiryCard({
+  inquiry,
+  isUpdating,
+  onStatusChange,
+}: {
+  inquiry: PublicInquiry;
+  isUpdating: boolean;
+  onStatusChange: (
+    id: string,
+    status: typeof PublicLeadStatus.CONTACTED | typeof PublicLeadStatus.ARCHIVED,
+  ) => void;
+}) {
   const status = SELLER_INQUIRY_STATUS_COPY[inquiry.status];
 
   return (
@@ -282,6 +333,9 @@ function SellerInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
           {inquiry.email ? (
             <a
               href={`mailto:${inquiry.email}`}
+              onClick={() =>
+                onStatusChange(inquiry.id, PublicLeadStatus.CONTACTED)
+              }
               className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border px-3 font-semibold transition-colors hover:bg-muted"
             >
               <Mail className="h-4 w-4" />
@@ -291,11 +345,48 @@ function SellerInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
           {inquiry.phone ? (
             <a
               href={`tel:${inquiry.phone}`}
+              onClick={() =>
+                onStatusChange(inquiry.id, PublicLeadStatus.CONTACTED)
+              }
               className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border px-3 font-semibold transition-colors hover:bg-muted"
             >
               <Phone className="h-4 w-4" />
               Telefon
             </a>
+          ) : null}
+          {inquiry.status !== PublicLeadStatus.CONTACTED ? (
+            <button
+              type="button"
+              disabled={isUpdating}
+              onClick={() =>
+                onStatusChange(inquiry.id, PublicLeadStatus.CONTACTED)
+              }
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border px-3 font-semibold transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-60"
+            >
+              {isUpdating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+              Oznacz kontakt
+            </button>
+          ) : null}
+          {inquiry.status !== PublicLeadStatus.ARCHIVED ? (
+            <button
+              type="button"
+              disabled={isUpdating}
+              onClick={() =>
+                onStatusChange(inquiry.id, PublicLeadStatus.ARCHIVED)
+              }
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border px-3 font-semibold transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-60"
+            >
+              {isUpdating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Archive className="h-4 w-4" />
+              )}
+              Archiwizuj
+            </button>
           ) : null}
         </div>
       </div>
@@ -574,7 +665,7 @@ const SELLER_STATUS_COPY: Record<
 };
 
 const SELLER_INQUIRY_STATUS_COPY: Record<
-  PublicLeadStatus,
+  PublicLeadStatusValue,
   { className: string }
 > = {
   new: { className: 'bg-blue-100 text-blue-900' },
