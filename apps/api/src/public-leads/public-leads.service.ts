@@ -3,8 +3,10 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 import {
   Brackets,
@@ -17,6 +19,7 @@ import { ActivityService } from '../activity';
 import { AnalyticsService } from '../analytics';
 import { Client } from '../clients/entities/client.entity';
 import { ClientNote } from '../clients/entities/client-note.entity';
+import { EmailService } from '../email';
 import { MonitoringService } from '../monitoring';
 import {
   ActivityAction,
@@ -36,8 +39,12 @@ import {
   normalizeOptional,
 } from '../common/abuse-protection';
 import { Listing } from '../listings/entities/listing.entity';
-import { Agent } from '../users/entities';
-import { CreatePublicLeadDto, PublicLeadQueryDto } from './dto';
+import { Agent, User } from '../users/entities';
+import {
+  CreatePublicLeadDto,
+  PublicLeadQueryDto,
+  UpdateSellerPublicLeadDto,
+} from './dto';
 import { PublicLead } from './entities';
 
 const MIN_FORM_COMPLETION_MS = 2500;
@@ -111,9 +118,13 @@ export class PublicLeadsService {
     private readonly listingRepo: Repository<Listing>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     private readonly dataSource: DataSource,
     private readonly activityService: ActivityService,
     private readonly analyticsService: AnalyticsService,
+    private readonly emailService: EmailService,
+    private readonly configService: ConfigService,
     private readonly monitoringService: MonitoringService,
   ) {}
 
@@ -266,6 +277,54 @@ export class PublicLeadsService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async updateForSeller(
+    ownerUserId: string,
+    id: string,
+    dto: UpdateSellerPublicLeadDto,
+  ): Promise<PublicLeadListItem> {
+    if (
+      dto.status !== PublicLeadStatus.CONTACTED &&
+      dto.status !== PublicLeadStatus.ARCHIVED
+    ) {
+      throw new ForbiddenException('Ten status nie jest dostępny w panelu właściciela');
+    }
+
+    const lead = await this.publicLeadRepo
+      .createQueryBuilder('lead')
+      .leftJoinAndSelect('lead.listing', 'listing')
+      .leftJoinAndSelect('lead.convertedClient', 'convertedClient')
+      .where('lead.id = :id', { id })
+      .andWhere('listing.ownerUserId = :ownerUserId', { ownerUserId })
+      .getOne();
+
+    if (!lead) {
+      throw new NotFoundException('Zapytanie nie znalezione');
+    }
+
+    const now = new Date();
+    lead.status = dto.status;
+
+    if (dto.status === PublicLeadStatus.CONTACTED) {
+      lead.handledAt = now;
+    }
+
+    if (dto.status === PublicLeadStatus.ARCHIVED) {
+      lead.archivedAt = now;
+    }
+
+    lead.metadata = {
+      ...lead.metadata,
+      sellerStatus: {
+        status: dto.status,
+        updatedAt: now.toISOString(),
+      },
+    };
+
+    const saved = await this.publicLeadRepo.save(lead);
+
+    return mapPublicLeadListItem(saved);
   }
 
   async createForPublicListing(
@@ -436,6 +495,11 @@ export class PublicLeadsService {
       lead: conversion.lead,
       clientId: conversion.client.id,
       conversion: conversion.conversion,
+    });
+
+    await this.notifyPrivateSellerAboutLead({
+      listing,
+      lead: conversion.lead,
     });
 
     return {
@@ -779,6 +843,59 @@ export class PublicLeadsService {
     } catch (error) {
       this.logger.warn(
         `Failed to track public lead accepted event for lead ${input.lead.id}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
+  }
+
+  private async notifyPrivateSellerAboutLead(input: {
+    listing: Listing;
+    lead: PublicLead;
+  }): Promise<void> {
+    if (!input.listing.ownerUserId) {
+      return;
+    }
+
+    const owner = await this.userRepo.findOne({
+      where: { id: input.listing.ownerUserId },
+      select: ['id', 'email'],
+    });
+
+    if (!owner?.email) {
+      return;
+    }
+
+    const frontendUrl = this.configService.get(
+      'FRONTEND_URL',
+      'http://localhost:3000',
+    );
+    const sellerUrl = `${frontendUrl.replace(/\/+$/, '')}/seller`;
+    const listingTitle = input.listing.publicTitle || input.listing.title;
+    const contactLines = [
+      input.lead.email ? `Email: ${input.lead.email}` : null,
+      input.lead.phone ? `Telefon: ${input.lead.phone}` : null,
+    ].filter((line): line is string => Boolean(line));
+
+    try {
+      await this.emailService.send({
+        to: owner.email,
+        subject: `Nowe zapytanie o ogłoszenie: ${listingTitle}`,
+        text: [
+          `Masz nowe zapytanie o ogłoszenie "${listingTitle}".`,
+          '',
+          `Od: ${input.lead.fullName}`,
+          ...contactLines,
+          input.lead.message ? `Wiadomość: ${input.lead.message}` : null,
+          '',
+          `Zobacz zapytania w panelu właściciela: ${sellerUrl}`,
+        ]
+          .filter((line): line is string => line !== null)
+          .join('\n'),
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to notify private seller ${owner.id} about public lead ${input.lead.id}: ${
           error instanceof Error ? error.message : 'unknown error'
         }`,
       );
