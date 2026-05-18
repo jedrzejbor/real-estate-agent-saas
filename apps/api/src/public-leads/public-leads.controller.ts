@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   ParseUUIDPipe,
   Post,
   Query,
@@ -15,7 +16,11 @@ import type { Request } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { PublicSlugPipe } from '../common/public-param-security';
-import { CreatePublicLeadDto, PublicLeadQueryDto } from './dto';
+import {
+  CreatePublicLeadDto,
+  PublicLeadQueryDto,
+  UpdateSellerPublicLeadDto,
+} from './dto';
 import { PublicLeadsService } from './public-leads.service';
 
 @Controller('public-leads')
@@ -38,6 +43,16 @@ export class PublicLeadsController {
     @Query() query: PublicLeadQueryDto,
   ) {
     return this.publicLeadsService.findForSeller(userId, query);
+  }
+
+  /** PATCH /api/public-leads/seller/:id — update status for current private seller inquiry. */
+  @Patch('seller/:id')
+  async updateForSeller(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateSellerPublicLeadDto,
+  ) {
+    return this.publicLeadsService.updateForSeller(userId, id, dto);
   }
 
   /** POST /api/public-leads/listings/:slug — capture a public listing inquiry. */
