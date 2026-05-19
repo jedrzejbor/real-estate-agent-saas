@@ -125,6 +125,10 @@ export class PublicListingSubmission {
   @Column({ type: 'timestamptz', name: 'expired_at', nullable: true })
   expiredAt?: Date | null;
 
+  @Index()
+  @Column({ type: 'timestamptz', name: 'expires_at', nullable: true })
+  expiresAt?: Date | null;
+
   @Column({ type: 'varchar', length: 128, name: 'ip_hash', nullable: true })
   ipHash?: string | null;
 

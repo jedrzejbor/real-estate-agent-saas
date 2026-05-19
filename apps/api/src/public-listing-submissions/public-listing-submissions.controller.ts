@@ -122,6 +122,26 @@ export class PublicListingSubmissionsController {
     return this.submissionsService.updateForOwner(userId, id, dto);
   }
 
+  /** POST /api/public-listing-submissions/seller/:id/renew — renew an owned public listing. */
+  @Post('seller/:id/renew')
+  @HttpCode(HttpStatus.OK)
+  async renewForCurrentSeller(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.submissionsService.renewForOwner(userId, id);
+  }
+
+  /** POST /api/public-listing-submissions/seller/:id/unpublish — remove an owned listing from public catalog. */
+  @Post('seller/:id/unpublish')
+  @HttpCode(HttpStatus.OK)
+  async unpublishForCurrentSeller(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.submissionsService.unpublishForOwner(userId, id);
+  }
+
   /** POST /api/public-listing-submissions/images — upload temporary public submission images. */
   @Public()
   @Post('images')

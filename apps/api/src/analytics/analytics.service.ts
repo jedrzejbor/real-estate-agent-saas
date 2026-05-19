@@ -78,7 +78,7 @@ export class AnalyticsService {
       },
     });
 
-    if (!listing?.publicSlug) {
+    if (!listing?.publicSlug || isListingExpired(listing)) {
       throw new NotFoundException('Publiczna oferta nie znaleziona');
     }
 
@@ -129,4 +129,10 @@ export class AnalyticsService {
       createdAt: savedEvent.createdAt,
     };
   }
+}
+
+function isListingExpired(listing: { expiresAt?: Date | null }): boolean {
+  return Boolean(
+    listing.expiresAt && listing.expiresAt.getTime() <= Date.now(),
+  );
 }

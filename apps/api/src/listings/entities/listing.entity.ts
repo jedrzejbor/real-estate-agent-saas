@@ -118,6 +118,10 @@ export class Listing {
   @Column({ type: 'timestamptz', nullable: true })
   unpublishedAt?: Date | null;
 
+  @Index()
+  @Column({ type: 'timestamptz', nullable: true })
+  expiresAt?: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 

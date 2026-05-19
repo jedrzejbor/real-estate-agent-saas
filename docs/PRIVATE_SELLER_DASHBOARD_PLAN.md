@@ -484,8 +484,18 @@ Te decyzje wymagają osobnego dokumentu pricingowego.
 
 ### Etap 4 — Dojrzały panel właściciela
 
-- [ ] Dodać wygasanie i odnawianie ogłoszeń.
-- [ ] Dodać wycofanie publikacji.
+- [x] Dodać wygasanie i odnawianie ogłoszeń.
+  - 2026-05-19:
+    - dodano `expiresAt` dla ofert i zgłoszeń właściciela prywatnego,
+    - publiczny katalog, szczegóły, formularze zapytań i sitemap ignorują
+      wygasłe oferty,
+    - dodano chronioną akcję odnowienia ogłoszenia właściciela,
+    - w MVP ogłoszenie właściciela jest odnawiane na 60 dni.
+- [x] Dodać wycofanie publikacji.
+  - 2026-05-19:
+    - dodano chronioną akcję wycofania publikacji po `ownerUserId`,
+    - panel `/seller` pokazuje status `Wycofane`,
+    - właściciel może odnowić wycofane ogłoszenie, żeby wróciło do katalogu.
 - [ ] Dodać prostą analitykę: wyświetlenia i liczba zapytań.
 - [ ] Dodać ścieżkę upgrade'u do konta agenta.
 

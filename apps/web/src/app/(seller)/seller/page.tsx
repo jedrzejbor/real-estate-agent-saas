@@ -20,22 +20,24 @@ import {
   MessageSquareText,
   Phone,
   PlusCircle,
+  RefreshCw,
+  EyeOff,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
-import {
-  AGENT_DASHBOARD_PATH,
-  isPrivateSellerUser,
-} from '@/lib/auth';
+import { AGENT_DASHBOARD_PATH, isPrivateSellerUser } from '@/lib/auth';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
   formatPrice,
+  ListingPublicationStatus,
   PROPERTY_TYPE_LABELS,
   TRANSACTION_TYPE_LABELS,
 } from '@/lib/listings';
 import {
   fetchSellerPublicListingSubmissions,
+  renewSellerPublicListingSubmission,
   type SellerPublicListingSubmissionListItem,
   type SellerPublicListingSubmissionStatus,
+  unpublishSellerPublicListingSubmission,
 } from '@/lib/public-listing-submissions';
 import {
   fetchSellerPublicInquiries,
@@ -59,6 +61,9 @@ export default function SellerDashboardPage() {
   const [updatingInquiryId, setUpdatingInquiryId] = useState<string | null>(
     null,
   );
+  const [updatingSubmissionId, setUpdatingSubmissionId] = useState<
+    string | null
+  >(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [inquiryError, setInquiryError] = useState<string | null>(null);
 
@@ -125,7 +130,9 @@ export default function SellerDashboardPage() {
 
   async function updateInquiryStatus(
     id: string,
-    status: typeof PublicLeadStatus.CONTACTED | typeof PublicLeadStatus.ARCHIVED,
+    status:
+      | typeof PublicLeadStatus.CONTACTED
+      | typeof PublicLeadStatus.ARCHIVED,
   ) {
     setUpdatingInquiryId(id);
     setInquiryError(null);
@@ -139,6 +146,42 @@ export default function SellerDashboardPage() {
       setInquiryError(getApiErrorMessage(error));
     } finally {
       setUpdatingInquiryId(null);
+    }
+  }
+
+  async function renewSubmission(id: string) {
+    setUpdatingSubmissionId(id);
+    setSubmissionError(null);
+
+    try {
+      const updated = await renewSellerPublicListingSubmission(id);
+      setSubmissions((current) =>
+        current.map((submission) =>
+          submission.id === id ? updated : submission,
+        ),
+      );
+    } catch (error) {
+      setSubmissionError(getApiErrorMessage(error));
+    } finally {
+      setUpdatingSubmissionId(null);
+    }
+  }
+
+  async function unpublishSubmission(id: string) {
+    setUpdatingSubmissionId(id);
+    setSubmissionError(null);
+
+    try {
+      const updated = await unpublishSellerPublicListingSubmission(id);
+      setSubmissions((current) =>
+        current.map((submission) =>
+          submission.id === id ? updated : submission,
+        ),
+      );
+    } catch (error) {
+      setSubmissionError(getApiErrorMessage(error));
+    } finally {
+      setUpdatingSubmissionId(null);
     }
   }
 
@@ -208,7 +251,12 @@ export default function SellerDashboardPage() {
           <SellerSubmissionsError message={submissionError} />
         ) : submissions.length > 0 ? (
           <>
-            <SellerSubmissionList submissions={submissions} />
+            <SellerSubmissionList
+              submissions={submissions}
+              updatingSubmissionId={updatingSubmissionId}
+              onRenew={renewSubmission}
+              onUnpublish={unpublishSubmission}
+            />
             <SellerInquiriesSection
               inquiries={inquiries}
               error={inquiryError}
@@ -235,7 +283,9 @@ function SellerInquiriesSection({
   updatingInquiryId: string | null;
   onStatusChange: (
     id: string,
-    status: typeof PublicLeadStatus.CONTACTED | typeof PublicLeadStatus.ARCHIVED,
+    status:
+      | typeof PublicLeadStatus.CONTACTED
+      | typeof PublicLeadStatus.ARCHIVED,
   ) => void;
 }) {
   return (
@@ -291,7 +341,9 @@ function SellerInquiryCard({
   isUpdating: boolean;
   onStatusChange: (
     id: string,
-    status: typeof PublicLeadStatus.CONTACTED | typeof PublicLeadStatus.ARCHIVED,
+    status:
+      | typeof PublicLeadStatus.CONTACTED
+      | typeof PublicLeadStatus.ARCHIVED,
   ) => void;
 }) {
   const status = SELLER_INQUIRY_STATUS_COPY[inquiry.status];
@@ -396,8 +448,14 @@ function SellerInquiryCard({
 
 function SellerSubmissionList({
   submissions,
+  updatingSubmissionId,
+  onRenew,
+  onUnpublish,
 }: {
   submissions: SellerPublicListingSubmissionListItem[];
+  updatingSubmissionId: string | null;
+  onRenew: (id: string) => void;
+  onUnpublish: (id: string) => void;
 }) {
   return (
     <section className="mt-8">
@@ -421,7 +479,13 @@ function SellerSubmissionList({
 
       <div className="grid gap-4">
         {submissions.map((submission) => (
-          <SellerSubmissionCard key={submission.id} submission={submission} />
+          <SellerSubmissionCard
+            key={submission.id}
+            submission={submission}
+            isUpdating={updatingSubmissionId === submission.id}
+            onRenew={onRenew}
+            onUnpublish={onUnpublish}
+          />
         ))}
       </div>
     </section>
@@ -430,13 +494,25 @@ function SellerSubmissionList({
 
 function SellerSubmissionCard({
   submission,
+  isUpdating,
+  onRenew,
+  onUnpublish,
 }: {
   submission: SellerPublicListingSubmissionListItem;
+  isUpdating: boolean;
+  onRenew: (id: string) => void;
+  onUnpublish: (id: string) => void;
 }) {
-  const status = SELLER_STATUS_COPY[submission.status];
-  const publicHref = submission.publishedListingSlug
-    ? `/oferty/${submission.publishedListingSlug}`
-    : null;
+  const status = getSellerSubmissionStatusCopy(submission);
+  const isPublished =
+    submission.publicationStatus === ListingPublicationStatus.PUBLISHED;
+  const isExpired = isSellerSubmissionExpired(submission);
+  const publicHref =
+    submission.publishedListingSlug && isPublished && !isExpired
+      ? `/oferty/${submission.publishedListingSlug}`
+      : null;
+  const canRenew = Boolean(submission.publishedListingId);
+  const canUnpublish = Boolean(submission.publishedListingId && isPublished);
 
   return (
     <article className="grid overflow-hidden rounded-2xl border border-border bg-white shadow-sm md:grid-cols-[180px_1fr]">
@@ -508,6 +584,17 @@ function SellerSubmissionCard({
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             {status.description}
           </p>
+          {submission.expiresAt ? (
+            <p className="mt-2 text-xs font-medium text-muted-foreground">
+              {isExpired ? 'Wygasło' : 'Ważne do'}{' '}
+              {formatDate(submission.expiresAt)}
+            </p>
+          ) : null}
+          {submission.unpublishedAt ? (
+            <p className="mt-2 text-xs font-medium text-muted-foreground">
+              Wycofano {formatDate(submission.unpublishedAt)}
+            </p>
+          ) : null}
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -526,6 +613,36 @@ function SellerSubmissionCard({
               <Eye className="h-4 w-4" />
               Zobacz publicznie
             </Link>
+          ) : null}
+          {canRenew ? (
+            <button
+              type="button"
+              disabled={isUpdating}
+              onClick={() => onRenew(submission.id)}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-60"
+            >
+              {isUpdating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Odnów
+            </button>
+          ) : null}
+          {canUnpublish ? (
+            <button
+              type="button"
+              disabled={isUpdating}
+              onClick={() => onUnpublish(submission.id)}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-60"
+            >
+              {isUpdating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <EyeOff className="h-4 w-4" />
+              )}
+              Wycofaj
+            </button>
           ) : null}
         </div>
       </div>
@@ -570,8 +687,8 @@ function SellerEmptyState() {
         Nie masz jeszcze ogłoszeń
       </h2>
       <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-        Dodaj pierwszą nieruchomość, a po weryfikacji będzie mogła pojawić się
-        w katalogu ofert i na mapie.
+        Dodaj pierwszą nieruchomość, a po weryfikacji będzie mogła pojawić się w
+        katalogu ofert i na mapie.
       </p>
 
       <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -592,21 +709,24 @@ function SellerEmptyState() {
       </div>
 
       <div className="mx-auto mt-8 grid max-w-3xl gap-3 text-left sm:grid-cols-3">
-        <Step title="1. Dodaj dane" description="Uzupełnij opis, cenę i lokalizację." />
-        <Step title="2. Dodaj zdjęcia" description="Pokaż nieruchomość kupującym." />
-        <Step title="3. Opublikuj" description="Po weryfikacji pokażemy ofertę publicznie." />
+        <Step
+          title="1. Dodaj dane"
+          description="Uzupełnij opis, cenę i lokalizację."
+        />
+        <Step
+          title="2. Dodaj zdjęcia"
+          description="Pokaż nieruchomość kupującym."
+        />
+        <Step
+          title="3. Opublikuj"
+          description="Po weryfikacji pokażemy ofertę publicznie."
+        />
       </div>
     </section>
   );
 }
 
-function Step({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
+function Step({ title, description }: { title: string; description: string }) {
   return (
     <div className="rounded-xl bg-muted/40 p-4">
       <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -663,6 +783,46 @@ const SELLER_STATUS_COPY: Record<
     className: 'bg-stone-200 text-stone-800',
   },
 };
+
+const SELLER_PUBLICATION_STATUS_COPY = {
+  expired: {
+    label: 'Wygasłe',
+    description:
+      'Ogłoszenie nie jest widoczne publicznie. Odnów je, żeby wróciło do katalogu.',
+    className: 'bg-stone-200 text-stone-800',
+  },
+  unpublished: {
+    label: 'Wycofane',
+    description: 'Ogłoszenie zostało wycofane z publicznego katalogu.',
+    className: 'bg-stone-200 text-stone-800',
+  },
+} satisfies Record<
+  'expired' | 'unpublished',
+  { label: string; description: string; className: string }
+>;
+
+function getSellerSubmissionStatusCopy(
+  submission: SellerPublicListingSubmissionListItem,
+) {
+  if (submission.publicationStatus === ListingPublicationStatus.UNPUBLISHED) {
+    return SELLER_PUBLICATION_STATUS_COPY.unpublished;
+  }
+
+  if (isSellerSubmissionExpired(submission)) {
+    return SELLER_PUBLICATION_STATUS_COPY.expired;
+  }
+
+  return SELLER_STATUS_COPY[submission.status];
+}
+
+function isSellerSubmissionExpired(
+  submission: SellerPublicListingSubmissionListItem,
+): boolean {
+  return Boolean(
+    submission.expiresAt &&
+    new Date(submission.expiresAt).getTime() <= Date.now(),
+  );
+}
 
 const SELLER_INQUIRY_STATUS_COPY: Record<
   PublicLeadStatusValue,

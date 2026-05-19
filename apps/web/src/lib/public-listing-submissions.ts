@@ -1,6 +1,10 @@
 import { apiFetch, apiFormDataFetch } from './api-client';
 import { AnalyticsEventName, trackAnalyticsEvent } from './analytics';
-import type { PropertyType, TransactionType } from './listings';
+import type {
+  ListingPublicationStatus,
+  PropertyType,
+  TransactionType,
+} from './listings';
 
 export interface PublicListingSubmissionImage {
   url: string;
@@ -107,17 +111,19 @@ export interface SellerPublicListingSubmissionListItem {
   primaryImageUrl: string | null;
   publishedListingId: string | null;
   publishedListingSlug: string | null;
+  publicationStatus: ListingPublicationStatus | null;
   createdAt: string;
   updatedAt: string;
   verifiedAt: string | null;
   publishedAt: string | null;
+  unpublishedAt: string | null;
+  expiresAt: string | null;
   claimedAt: string | null;
   rejectedAt: string | null;
   expiredAt: string | null;
 }
 
-export interface SellerPublicListingSubmissionDetail
-  extends SellerPublicListingSubmissionListItem {
+export interface SellerPublicListingSubmissionDetail extends SellerPublicListingSubmissionListItem {
   listing: CreatePublicListingSubmissionInput['listing'];
   address: CreatePublicListingSubmissionInput['address'];
   publicSettings?: CreatePublicListingSubmissionInput['publicSettings'];
@@ -131,7 +137,15 @@ export interface SellerPublicListingSubmissionDetail
 export type UpdateSellerPublicListingSubmissionInput = Partial<
   Pick<
     CreatePublicListingSubmissionInput,
-    'listing' | 'address' | 'publicSettings' | 'images' | 'ownerName' | 'email' | 'phone' | 'agencyName' | 'metadata'
+    | 'listing'
+    | 'address'
+    | 'publicSettings'
+    | 'images'
+    | 'ownerName'
+    | 'email'
+    | 'phone'
+    | 'agencyName'
+    | 'metadata'
   >
 >;
 
@@ -185,6 +199,28 @@ export async function updateSellerPublicListingSubmission(
     {
       method: 'PATCH',
       body: input,
+    },
+  );
+}
+
+export async function renewSellerPublicListingSubmission(
+  id: string,
+): Promise<SellerPublicListingSubmissionDetail> {
+  return apiFetch<SellerPublicListingSubmissionDetail>(
+    `/public-listing-submissions/seller/${id}/renew`,
+    {
+      method: 'POST',
+    },
+  );
+}
+
+export async function unpublishSellerPublicListingSubmission(
+  id: string,
+): Promise<SellerPublicListingSubmissionDetail> {
+  return apiFetch<SellerPublicListingSubmissionDetail>(
+    `/public-listing-submissions/seller/${id}/unpublish`,
+    {
+      method: 'POST',
     },
   );
 }

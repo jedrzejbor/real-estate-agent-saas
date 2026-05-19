@@ -288,7 +288,9 @@ export class PublicLeadsService {
       dto.status !== PublicLeadStatus.CONTACTED &&
       dto.status !== PublicLeadStatus.ARCHIVED
     ) {
-      throw new ForbiddenException('Ten status nie jest dostępny w panelu właściciela');
+      throw new ForbiddenException(
+        'Ten status nie jest dostępny w panelu właściciela',
+      );
     }
 
     const lead = await this.publicLeadRepo
@@ -366,7 +368,7 @@ export class PublicLeadsService {
     });
 
     const publicSlug = listing?.publicSlug;
-    if (!publicSlug) {
+    if (!publicSlug || isListingExpired(listing)) {
       throw new NotFoundException('Publiczna oferta nie znaleziona');
     }
 
@@ -551,12 +553,16 @@ export class PublicLeadsService {
       throw new NotFoundException('Publiczny profil nie znaleziony');
     }
 
-    const publishedListingsCount = await this.listingRepo.count({
-      where: {
-        agentId: agent.id,
+    const publishedListingsCount = await this.listingRepo
+      .createQueryBuilder('listing')
+      .where('listing.agentId = :agentId', { agentId: agent.id })
+      .andWhere('listing.publicationStatus = :publicationStatus', {
         publicationStatus: ListingPublicationStatus.PUBLISHED,
-      },
-    });
+      })
+      .andWhere('(listing.expiresAt IS NULL OR listing.expiresAt > :now)', {
+        now: new Date(),
+      })
+      .getCount();
 
     if (publishedListingsCount === 0) {
       throw new NotFoundException('Publiczny profil nie znaleziony');
@@ -1001,6 +1007,12 @@ export class PublicLeadsService {
 
     assertRateLimit(contactUsage, PUBLIC_LEAD_CONTACT_LIMIT);
   }
+}
+
+function isListingExpired(listing: Pick<Listing, 'expiresAt'>): boolean {
+  return Boolean(
+    listing.expiresAt && listing.expiresAt.getTime() <= Date.now(),
+  );
 }
 
 function mapPublicLeadListItem(lead: PublicLead): PublicLeadListItem {

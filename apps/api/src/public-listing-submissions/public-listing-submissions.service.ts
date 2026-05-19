@@ -23,6 +23,7 @@ import {
   ActivityAction,
   ActivityEntityType,
   ListingStatus,
+  ListingPublicationStatus,
   PropertyType,
   PublicListingSubmissionSource,
   PublicListingSubmissionStatus,
@@ -67,6 +68,7 @@ const SUBMISSION_CONTACT_LIMIT = 3;
 const RESEND_IP_WINDOW_MS = 60 * 60 * 1000;
 const RESEND_IP_LIMIT = 10;
 const MAX_DESCRIPTION_LINKS = 2;
+const SELLER_LISTING_PUBLICATION_TTL_MS = 60 * 24 * 60 * 60 * 1000;
 
 interface TokenPair {
   token: string;
@@ -127,17 +129,19 @@ export interface SellerPublicListingSubmissionListItem {
   primaryImageUrl: string | null;
   publishedListingId: string | null;
   publishedListingSlug: string | null;
+  publicationStatus: ListingPublicationStatus | null;
   createdAt: Date;
   updatedAt: Date;
   verifiedAt: Date | null;
   publishedAt: Date | null;
+  unpublishedAt: Date | null;
+  expiresAt: Date | null;
   claimedAt: Date | null;
   rejectedAt: Date | null;
   expiredAt: Date | null;
 }
 
-export interface SellerPublicListingSubmissionDetail
-  extends SellerPublicListingSubmissionListItem {
+export interface SellerPublicListingSubmissionDetail extends SellerPublicListingSubmissionListItem {
   listing: PublicListingSubmissionPayload['listing'];
   address: PublicListingSubmissionPayload['address'];
   publicSettings: PublicListingSubmissionPayload['publicSettings'];
@@ -345,6 +349,91 @@ export class PublicListingSubmissionsService {
     const saved = await this.submissionRepo.save(submission);
 
     return toSellerDetail(saved);
+  }
+
+  async renewForOwner(
+    ownerUserId: string,
+    id: string,
+  ): Promise<SellerPublicListingSubmissionDetail> {
+    const submission = await this.findOwnedSubmissionOrFail(ownerUserId, id);
+    const listing = submission.publishedListing;
+
+    if (!listing) {
+      throw new BadRequestException('Ogłoszenie nie jest jeszcze opublikowane');
+    }
+
+    if (!listing.publicSlug) {
+      throw new BadRequestException('Ogłoszenie wymaga jeszcze weryfikacji');
+    }
+
+    const now = new Date();
+    const expiresAt = buildSellerListingExpiresAt(now);
+
+    listing.expiresAt = expiresAt;
+    listing.unpublishedAt = null;
+    listing.status = ListingStatus.ACTIVE;
+    listing.publicationStatus = ListingPublicationStatus.PUBLISHED;
+    listing.publishedAt = listing.publishedAt ?? now;
+
+    submission.expiresAt = expiresAt;
+    submission.expiredAt = null;
+    submission.metadata = {
+      ...submission.metadata,
+      sellerRenewal: {
+        renewedAt: now.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+      },
+    };
+
+    const savedSubmission = await this.dataSource.transaction(
+      async (manager) => {
+        await manager.save(Listing, listing);
+        return manager.save(PublicListingSubmission, submission);
+      },
+    );
+
+    return toSellerDetail({
+      ...savedSubmission,
+      publishedListing: listing,
+    });
+  }
+
+  async unpublishForOwner(
+    ownerUserId: string,
+    id: string,
+  ): Promise<SellerPublicListingSubmissionDetail> {
+    const submission = await this.findOwnedSubmissionOrFail(ownerUserId, id);
+    const listing = submission.publishedListing;
+
+    if (!listing) {
+      throw new BadRequestException('Ogłoszenie nie jest jeszcze opublikowane');
+    }
+
+    if (listing.publicationStatus !== ListingPublicationStatus.PUBLISHED) {
+      throw new BadRequestException('Ogłoszenie nie jest obecnie opublikowane');
+    }
+
+    const now = new Date();
+    listing.publicationStatus = ListingPublicationStatus.UNPUBLISHED;
+    listing.unpublishedAt = now;
+    submission.metadata = {
+      ...submission.metadata,
+      sellerUnpublish: {
+        unpublishedAt: now.toISOString(),
+      },
+    };
+
+    const savedSubmission = await this.dataSource.transaction(
+      async (manager) => {
+        await manager.save(Listing, listing);
+        return manager.save(PublicListingSubmission, submission);
+      },
+    );
+
+    return toSellerDetail({
+      ...savedSubmission,
+      publishedListing: listing,
+    });
   }
 
   async uploadImages(
@@ -616,6 +705,10 @@ export class PublicListingSubmissionsService {
     const now = new Date();
     const moderation = evaluateSubmissionModeration(submission);
     const listingState = getModeratedListingState(moderation);
+    const publicationExpiresAt =
+      submission.ownerUserId && !moderation.reviewRequired
+        ? buildSellerListingExpiresAt(now)
+        : null;
     const claimed = await this.dataSource.transaction(async (manager) => {
       const listing = manager.create(Listing, {
         ...buildListingDataFromPayload(submission.payload),
@@ -628,6 +721,7 @@ export class PublicListingSubmissionsService {
           : await this.generateUniquePublicSlug(submission.payload),
         publishedAt: listingState.publishedAt,
         unpublishedAt: null,
+        expiresAt: publicationExpiresAt,
       });
 
       const savedListing = await manager.save(Listing, listing);
@@ -654,6 +748,7 @@ export class PublicListingSubmissionsService {
       submission.status = PublicListingSubmissionStatus.CLAIMED;
       submission.claimedAt = now;
       submission.publishedAt = moderation.reviewRequired ? null : now;
+      submission.expiresAt = publicationExpiresAt;
       submission.publishedListingId = savedListing.id;
       submission.claimedAgentId = access.agent.id;
       submission.claimedAgencyId = access.agency?.id ?? null;
@@ -1007,6 +1102,7 @@ function toSellerListItem(
 ): SellerPublicListingSubmissionListItem {
   const listing = submission.payload.listing ?? {};
   const address = submission.payload.address ?? {};
+  const publishedListing = submission.publishedListing;
 
   return {
     id: submission.id,
@@ -1027,11 +1123,14 @@ function toSellerListItem(
     city: getNullableString(address.city),
     primaryImageUrl: getFirstImageUrl(submission.payload),
     publishedListingId: submission.publishedListingId ?? null,
-    publishedListingSlug: submission.publishedListing?.publicSlug ?? null,
+    publishedListingSlug: publishedListing?.publicSlug ?? null,
+    publicationStatus: publishedListing?.publicationStatus ?? null,
     createdAt: submission.createdAt,
     updatedAt: submission.updatedAt,
     verifiedAt: submission.verifiedAt ?? null,
     publishedAt: submission.publishedAt ?? null,
+    unpublishedAt: publishedListing?.unpublishedAt ?? null,
+    expiresAt: publishedListing?.expiresAt ?? submission.expiresAt ?? null,
     claimedAt: submission.claimedAt ?? null,
     rejectedAt: submission.rejectedAt ?? null,
     expiredAt: submission.expiredAt ?? null,
@@ -1054,10 +1153,16 @@ function toSellerDetail(
   };
 }
 
-function sanitizePayloadObject<T extends object>(value: T): Record<string, unknown> {
+function sanitizePayloadObject<T extends object>(
+  value: T,
+): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(value).filter(([, entry]) => entry !== undefined),
   );
+}
+
+function buildSellerListingExpiresAt(now: Date): Date {
+  return new Date(now.getTime() + SELLER_LISTING_PUBLICATION_TTL_MS);
 }
 
 function getString(value: unknown, fallback: string): string {

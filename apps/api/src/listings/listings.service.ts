@@ -655,6 +655,9 @@ export class ListingsService {
     listing.publicationStatus = ListingPublicationStatus.PUBLISHED;
     listing.publishedAt = listing.publishedAt ?? new Date();
     listing.unpublishedAt = null;
+    listing.expiresAt = listing.ownerUserId
+      ? (listing.expiresAt ?? buildSellerListingExpiresAt(new Date()))
+      : listing.expiresAt;
 
     await this.listingRepo.save(listing);
 
@@ -742,7 +745,12 @@ export class ListingsService {
       relations: ['address', 'images', 'agent', 'agent.agency'],
     });
 
-    if (!listing || !listing.publicSlug || !listing.publishedAt) {
+    if (
+      !listing ||
+      !listing.publicSlug ||
+      !listing.publishedAt ||
+      isListingExpired(listing)
+    ) {
       throw new NotFoundException('Publiczna oferta nie znaleziona');
     }
 
@@ -770,7 +778,10 @@ export class ListingsService {
       })
       .andWhere('listing.status = :status', { status: ListingStatus.ACTIVE })
       .andWhere('listing.publicSlug IS NOT NULL')
-      .andWhere('listing.publishedAt IS NOT NULL');
+      .andWhere('listing.publishedAt IS NOT NULL')
+      .andWhere('(listing.expiresAt IS NULL OR listing.expiresAt > :now)', {
+        now: new Date(),
+      });
 
     this.applyPublicCatalogFilters(qb, query);
     this.applyPublicCatalogSort(qb, sort);
@@ -869,7 +880,13 @@ export class ListingsService {
     });
 
     const publicListings = listings
-      .filter((listing) => Boolean(listing.publicSlug && listing.publishedAt))
+      .filter((listing) =>
+        Boolean(
+          listing.publicSlug &&
+          listing.publishedAt &&
+          !isListingExpired(listing),
+        ),
+      )
       .map((listing) => ({
         id: listing.id,
         slug: listing.publicSlug as string,
@@ -954,7 +971,7 @@ export class ListingsService {
       .then((listings) =>
         listings
           .filter((listing): listing is Listing & { publicSlug: string } =>
-            Boolean(listing.publicSlug),
+            Boolean(listing.publicSlug && !isListingExpired(listing)),
           )
           .map((listing) => ({
             slug: listing.publicSlug,
@@ -1131,7 +1148,11 @@ export class ListingsService {
   }
 
   private toPublicListingView(listing: Listing): PublicListingView {
-    if (!listing.publicSlug || !listing.publishedAt) {
+    if (
+      !listing.publicSlug ||
+      !listing.publishedAt ||
+      isListingExpired(listing)
+    ) {
       throw new NotFoundException('Publiczna oferta nie znaleziona');
     }
 
@@ -1215,7 +1236,11 @@ export class ListingsService {
   }
 
   private toPublicCatalogItem(listing: Listing): PublicListingCatalogItem {
-    if (!listing.publicSlug || !listing.publishedAt) {
+    if (
+      !listing.publicSlug ||
+      !listing.publishedAt ||
+      isListingExpired(listing)
+    ) {
       throw new NotFoundException('Publiczna oferta nie znaleziona');
     }
 
@@ -1278,7 +1303,11 @@ export class ListingsService {
         break;
       }
 
-      if (!listing.publicSlug || !listing.publishedAt) {
+      if (
+        !listing.publicSlug ||
+        !listing.publishedAt ||
+        isListingExpired(listing)
+      ) {
         continue;
       }
 
@@ -1994,6 +2023,7 @@ export class ListingsService {
       showPublicViewCount: listing.showPublicViewCount,
       publishedAt: listing.publishedAt?.toISOString() ?? null,
       unpublishedAt: listing.unpublishedAt?.toISOString() ?? null,
+      expiresAt: listing.expiresAt?.toISOString() ?? null,
       'address.street': listing.address?.street ?? null,
       'address.city': listing.address?.city ?? null,
       'address.postalCode': listing.address?.postalCode ?? null,
@@ -2010,6 +2040,18 @@ export class ListingsService {
       })),
     };
   }
+}
+
+const SELLER_LISTING_PUBLICATION_TTL_MS = 60 * 24 * 60 * 60 * 1000;
+
+function buildSellerListingExpiresAt(now: Date): Date {
+  return new Date(now.getTime() + SELLER_LISTING_PUBLICATION_TTL_MS);
+}
+
+function isListingExpired(listing: Pick<Listing, 'expiresAt'>): boolean {
+  return Boolean(
+    listing.expiresAt && listing.expiresAt.getTime() <= Date.now(),
+  );
 }
 
 function normalizeImageExtension(
