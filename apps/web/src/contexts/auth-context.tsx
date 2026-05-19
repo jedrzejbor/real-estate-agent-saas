@@ -25,7 +25,7 @@ import {
   getStoredTokens,
   getAccessTokenExpiresAt,
   refreshTokens,
-  getDefaultAuthenticatedPath,
+  getAuthenticatedRedirectPath,
 } from '@/lib/auth';
 
 // ── Context shape ──
@@ -192,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           agencyId: res.user.agency?.id ?? null,
         },
       });
-      router.push(options?.redirectTo ?? getDefaultAuthenticatedPath(res.user));
+      router.push(getAuthenticatedRedirectPath(res.user, options?.redirectTo));
     },
     [router],
   );
@@ -206,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       storeTokens(res);
       setUser(res.user);
-      router.push(options?.redirectTo ?? getDefaultAuthenticatedPath(res.user));
+      router.push(getAuthenticatedRedirectPath(res.user, options?.redirectTo));
     },
     [router],
   );

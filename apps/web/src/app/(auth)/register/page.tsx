@@ -1,11 +1,12 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Building2, Home } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import {
+  getAuthenticatedRedirectPath,
   PRIVATE_SELLER_HOME_PATH,
   registerSchema,
   type RegisterFormData,
@@ -17,6 +18,7 @@ import {
 import { useAuthForm } from '@/hooks/use-auth-form';
 import { Button } from '@/components/ui/button';
 import { AuthFormField } from '@/components/auth/auth-form-field';
+import { AuthRedirectLoading } from '@/components/auth/auth-redirect-loading';
 
 export default function RegisterPage() {
   return (
@@ -27,16 +29,26 @@ export default function RegisterPage() {
 }
 
 function RegisterForm() {
-  const { register } = useAuth();
+  const { register, user, isLoading: isAuthLoading } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const claimToken = searchParams.get('claimToken');
   const claimRedirectPath = claimToken
     ? buildClaimRedirectPath(claimToken)
     : undefined;
 
-  const { handleSubmit, getFieldError, globalError, isLoading } = useAuthForm<
-    typeof registerSchema
-  >({
+  useEffect(() => {
+    if (isAuthLoading || !user) return;
+
+    router.replace(getAuthenticatedRedirectPath(user, claimRedirectPath));
+  }, [claimRedirectPath, isAuthLoading, router, user]);
+
+  const {
+    handleSubmit,
+    getFieldError,
+    globalError,
+    isLoading: isSubmitting,
+  } = useAuthForm<typeof registerSchema>({
     schema: registerSchema,
     onSubmit: async (data: RegisterFormData) => {
       await register(data, {
@@ -48,6 +60,10 @@ function RegisterForm() {
       });
     },
   });
+
+  if (isAuthLoading || user) {
+    return <AuthRedirectLoading />;
+  }
 
   return (
     <>
@@ -179,10 +195,10 @@ function RegisterForm() {
 
           <Button
             type="submit"
-            disabled={isLoading}
+            disabled={isSubmitting}
             className="h-10 w-full rounded-xl text-sm font-semibold"
           >
-            {isLoading ? 'Tworzenie konta…' : 'Zarejestruj się'}
+            {isSubmitting ? 'Tworzenie konta…' : 'Zarejestruj się'}
           </Button>
         </form>
       </div>

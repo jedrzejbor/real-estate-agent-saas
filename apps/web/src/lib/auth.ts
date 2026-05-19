@@ -109,9 +109,7 @@ export const loginSchema = z.object({
     .string()
     .min(1, 'Email jest wymagany')
     .email('Nieprawidłowy format email'),
-  password: z
-    .string()
-    .min(1, 'Hasło jest wymagane'),
+  password: z.string().min(1, 'Hasło jest wymagane'),
 });
 
 export const registerSchema = z.object({
@@ -149,6 +147,28 @@ export function getDefaultAuthenticatedPath(user: AuthUser): string {
   return isPrivateSellerUser(user)
     ? PRIVATE_SELLER_HOME_PATH
     : AGENT_DASHBOARD_PATH;
+}
+
+export function getAuthenticatedRedirectPath(
+  user: AuthUser,
+  preferredPath?: string | null,
+): string {
+  if (
+    !preferredPath ||
+    !preferredPath.startsWith('/') ||
+    preferredPath.startsWith('//')
+  ) {
+    return getDefaultAuthenticatedPath(user);
+  }
+
+  if (
+    isPrivateSellerUser(user) &&
+    preferredPath.startsWith(AGENT_DASHBOARD_PATH)
+  ) {
+    return PRIVATE_SELLER_HOME_PATH;
+  }
+
+  return preferredPath;
 }
 
 // ── Token helpers ──

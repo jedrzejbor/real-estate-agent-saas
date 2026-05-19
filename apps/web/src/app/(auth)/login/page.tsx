@@ -1,10 +1,14 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import { loginSchema, type LoginFormData } from '@/lib/auth';
+import {
+  getAuthenticatedRedirectPath,
+  loginSchema,
+  type LoginFormData,
+} from '@/lib/auth';
 import {
   buildClaimAuthPath,
   buildClaimRedirectPath,
@@ -12,6 +16,7 @@ import {
 import { useAuthForm } from '@/hooks/use-auth-form';
 import { Button } from '@/components/ui/button';
 import { AuthFormField } from '@/components/auth/auth-form-field';
+import { AuthRedirectLoading } from '@/components/auth/auth-redirect-loading';
 
 export default function LoginPage() {
   return (
@@ -22,21 +27,35 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
-  const { login } = useAuth();
+  const { login, user, isLoading: isAuthLoading } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const claimToken = searchParams.get('claimToken');
   const claimRedirectPath = claimToken
     ? buildClaimRedirectPath(claimToken)
     : undefined;
 
-  const { handleSubmit, getFieldError, globalError, isLoading } = useAuthForm<
-    typeof loginSchema
-  >({
+  useEffect(() => {
+    if (isAuthLoading || !user) return;
+
+    router.replace(getAuthenticatedRedirectPath(user, claimRedirectPath));
+  }, [claimRedirectPath, isAuthLoading, router, user]);
+
+  const {
+    handleSubmit,
+    getFieldError,
+    globalError,
+    isLoading: isSubmitting,
+  } = useAuthForm<typeof loginSchema>({
     schema: loginSchema,
     onSubmit: async (data: LoginFormData) => {
       await login(data, { redirectTo: claimRedirectPath });
     },
   });
+
+  if (isAuthLoading || user) {
+    return <AuthRedirectLoading />;
+  }
 
   return (
     <>
@@ -86,10 +105,10 @@ function LoginForm() {
 
           <Button
             type="submit"
-            disabled={isLoading}
+            disabled={isSubmitting}
             className="h-10 w-full rounded-xl text-sm font-semibold"
           >
-            {isLoading ? 'Logowanie…' : 'Zaloguj się'}
+            {isSubmitting ? 'Logowanie…' : 'Zaloguj się'}
           </Button>
         </form>
       </div>
