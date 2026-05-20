@@ -2,6 +2,10 @@ import Link from 'next/link';
 import { Menu } from 'lucide-react';
 import { Logo } from '@/components/common/logo';
 import { Container } from '@/components/layout/container';
+import {
+  NavbarAuthActions,
+  NavbarMobileAuthAction,
+} from '@/components/layout/navbar-auth-actions';
 
 const navLinks = [
   { label: 'Home', href: '/' },
@@ -9,7 +13,6 @@ const navLinks = [
   { label: 'Cechy', href: '#features' },
   { label: 'Cennik', href: '#pricing' },
   { label: 'Blog', href: '#' },
-  { label: 'Logowanie', href: '/login' },
 ] as const;
 
 /** Marketing top navigation bar. */
@@ -42,12 +45,7 @@ export function Navbar() {
           >
             Dodaj ofertę
           </Link>
-          <Link
-            href="/register"
-            className="rounded-full border-2 border-primary bg-transparent px-5 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
-          >
-            Darmowe konto
-          </Link>
+          <NavbarAuthActions />
         </div>
 
         <div className="flex items-center gap-2 md:hidden">
@@ -57,6 +55,7 @@ export function Navbar() {
           >
             Oferty
           </Link>
+          <NavbarMobileAuthAction />
 
           {/* Mobile hamburger — placeholder for future client component */}
           <button
