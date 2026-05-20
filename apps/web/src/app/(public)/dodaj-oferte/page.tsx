@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
 import { useAuth } from '@/contexts/auth-context';
 import { getApiErrorMessage } from '@/lib/api-client';
-import { isPrivateSellerUser } from '@/lib/auth';
+import { isPrivateSellerUser, type AuthUser } from '@/lib/auth';
 import {
   PROPERTY_TYPE_LABELS,
   PropertyType,
@@ -131,6 +131,7 @@ export default function PublicListingSubmissionWizardPage() {
   const { success: showSuccessToast, error: showErrorToast } = useToast();
   const { user } = useAuth();
   const formStartedAt = React.useRef(Date.now());
+  const appliedContactDefaultsForUserRef = React.useRef<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [draft, setDraft] =
     React.useState<PublicListingWizardDraft>(INITIAL_DRAFT);
@@ -162,6 +163,26 @@ export default function PublicListingSubmissionWizardPage() {
     setDraft(nextDraft);
     setIsHydrated(true);
   }, []);
+
+  React.useEffect(() => {
+    if (!isHydrated || !user) return;
+    if (appliedContactDefaultsForUserRef.current === user.id) return;
+
+    appliedContactDefaultsForUserRef.current = user.id;
+
+    setDraft((current) => {
+      const next = applyAuthenticatedContactDefaults(current, user);
+      if (next === current) {
+        return current;
+      }
+
+      setFieldErrors((errors) =>
+        clearErrorsForFilledContactDefaults(errors, current, next),
+      );
+
+      return next;
+    });
+  }, [isHydrated, user]);
 
   React.useEffect(() => {
     if (!isHydrated) return;
@@ -261,17 +282,22 @@ export default function PublicListingSubmissionWizardPage() {
 
     try {
       setIsSubmitting(true);
-      const submit = user && isPrivateSellerUser(user)
-        ? createSellerPublicListingSubmission
-        : createPublicListingSubmission;
+      const submit =
+        user && isPrivateSellerUser(user)
+          ? createSellerPublicListingSubmission
+          : createPublicListingSubmission;
       const result = await submit(payload);
       localStorage.removeItem(STORAGE_KEY);
-      router.push(
-        `/dodaj-oferte/sprawdz-email?${new URLSearchParams({
-          email: result.emailMasked,
-          expiresAt: result.expiresAt,
-        }).toString()}`,
-      );
+      const nextParams = new URLSearchParams({
+        email: result.emailMasked,
+        expiresAt: result.expiresAt,
+      });
+
+      if (user && isPrivateSellerUser(user)) {
+        nextParams.set('account', 'private_seller');
+      }
+
+      router.push(`/dodaj-oferte/sprawdz-email?${nextParams.toString()}`);
     } catch (error) {
       showErrorToast({
         title: 'Nie udało się wysłać oferty',
@@ -1257,6 +1283,62 @@ function getValidationMessage(field: string, fallback: string): string {
     termsConsent: 'Akceptacja regulaminu jest wymagana',
   };
   return messages[field] ?? fallback;
+}
+
+function applyAuthenticatedContactDefaults(
+  draft: PublicListingWizardDraft,
+  user: AuthUser,
+): PublicListingWizardDraft {
+  const defaults = getAuthenticatedContactDefaults(user);
+  let next = draft;
+
+  for (const [key, value] of Object.entries(defaults) as Array<
+    [keyof typeof defaults, string]
+  >) {
+    if (!value || draft[key].trim()) {
+      continue;
+    }
+
+    next = {
+      ...next,
+      [key]: value,
+    };
+  }
+
+  return next;
+}
+
+function getAuthenticatedContactDefaults(
+  user: AuthUser,
+): Pick<
+  PublicListingWizardDraft,
+  'ownerName' | 'email' | 'phone' | 'agencyName'
+> {
+  return {
+    ownerName: [user.agent?.firstName, user.agent?.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim(),
+    email: user.email,
+    phone: user.agent?.phone?.trim() ?? '',
+    agencyName: user.agency?.name?.trim() ?? '',
+  };
+}
+
+function clearErrorsForFilledContactDefaults(
+  errors: Record<string, string>,
+  previous: PublicListingWizardDraft,
+  next: PublicListingWizardDraft,
+): Record<string, string> {
+  const updated = { ...errors };
+
+  for (const field of ['ownerName', 'email', 'phone', 'agencyName'] as const) {
+    if (!previous[field].trim() && next[field].trim()) {
+      delete updated[field];
+    }
+  }
+
+  return updated;
 }
 
 function buildSubmissionPayload(

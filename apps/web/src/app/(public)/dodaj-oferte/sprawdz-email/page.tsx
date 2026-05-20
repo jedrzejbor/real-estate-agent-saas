@@ -3,7 +3,11 @@ import { ArrowRight, MailCheck, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface CheckEmailPageProps {
-  searchParams: Promise<{ email?: string; expiresAt?: string }>;
+  searchParams: Promise<{
+    account?: string;
+    email?: string;
+    expiresAt?: string;
+  }>;
 }
 
 export default async function PublicListingSubmissionCheckEmailPage({
@@ -11,6 +15,7 @@ export default async function PublicListingSubmissionCheckEmailPage({
 }: CheckEmailPageProps) {
   const params = await searchParams;
   const email = params.email;
+  const isPrivateSeller = params.account === 'private_seller';
 
   return (
     <main className="min-h-screen bg-[#F7F3EA] px-4 py-10 text-foreground">
@@ -32,22 +37,29 @@ export default async function PublicListingSubmissionCheckEmailPage({
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
             Wysłaliśmy link weryfikacyjny
-            {email ? ` na adres ${email}` : ''}. Po kliknięciu linku pokażemy Ci
-            możliwość założenia konta albo zalogowania się i przejęcia oferty do
-            CRM.
+            {email ? ` na adres ${email}` : ''}.{' '}
+            {isPrivateSeller
+              ? 'Po kliknięciu linku zgłoszenie zostanie potwierdzone i zostanie w Twoim panelu właściciela.'
+              : 'Po kliknięciu linku pokażemy Ci możliwość założenia konta albo zalogowania się i przejęcia oferty do CRM.'}
           </p>
           <div className="mx-auto mt-5 max-w-xl rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-left">
             <p className="text-sm font-semibold text-foreground">
-              Status: oferta trafiła do weryfikacji emaila
+              {isPrivateSeller
+                ? 'Status: ogłoszenie przypisane do Twojego konta'
+                : 'Status: oferta trafiła do weryfikacji emaila'}
             </p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Gdy potwierdzisz adres email, oferta będzie gotowa do przejęcia.
-              Jeżeli przejdzie automatyczną kontrolę treści, po przejęciu może
-              pojawić się publicznie w katalogu; w przeciwnym razie zostanie
-              sprawdzona przed publikacją.
+              {isPrivateSeller
+                ? 'Gdy potwierdzisz adres email, pokażemy zgłoszenie w panelu właściciela ze statusem weryfikacji. Stamtąd możesz wrócić do ogłoszenia i śledzić jego publikację.'
+                : 'Gdy potwierdzisz adres email, oferta będzie gotowa do przejęcia. Jeżeli przejdzie automatyczną kontrolę treści, po przejęciu może pojawić się publicznie w katalogu; w przeciwnym razie zostanie sprawdzona przed publikacją.'}
             </p>
           </div>
           <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+            {isPrivateSeller ? (
+              <Link href="/seller">
+                <Button className="h-10 rounded-xl">Przejdź do panelu</Button>
+              </Link>
+            ) : null}
             <Link href="/oferty">
               <Button variant="outline" className="h-10 gap-2 rounded-xl">
                 <Search className="h-4 w-4" />
@@ -59,9 +71,13 @@ export default async function PublicListingSubmissionCheckEmailPage({
                 Dodaj kolejną ofertę
               </Button>
             </Link>
-            <Link href="/">
-              <Button className="h-10 rounded-xl">Wróć na stronę główną</Button>
-            </Link>
+            {!isPrivateSeller ? (
+              <Link href="/">
+                <Button className="h-10 rounded-xl">
+                  Wróć na stronę główną
+                </Button>
+              </Link>
+            ) : null}
           </div>
         </section>
       </div>
