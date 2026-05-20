@@ -38,15 +38,7 @@ export function Navbar() {
         </nav>
 
         {/* CTA */}
-        <div className="hidden items-center gap-2 md:flex">
-          <Link
-            href="/dodaj-oferte"
-            className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#047857]"
-          >
-            Dodaj ofertę
-          </Link>
-          <NavbarAuthActions />
-        </div>
+        <NavbarAuthActions />
 
         <div className="flex items-center gap-2 md:hidden">
           <Link

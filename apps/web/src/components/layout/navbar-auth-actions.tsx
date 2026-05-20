@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { LayoutDashboard, LogIn, UserCircle } from 'lucide-react';
+import { LayoutDashboard, LogIn, PlusCircle, UserCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { getDefaultAuthenticatedPath, type AuthUser } from '@/lib/auth';
 
@@ -15,6 +15,13 @@ export function NavbarAuthActions() {
   if (!user) {
     return (
       <div className="hidden items-center gap-2 md:flex">
+        <Link
+          href="/dodaj-oferte"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-[#047857]"
+        >
+          <PlusCircle className="h-4 w-4" />
+          Dodaj ofertę
+        </Link>
         <Link
           href="/login"
           className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-border px-4 text-sm font-semibold text-[#44403C] transition-colors hover:border-primary hover:text-primary"
@@ -33,18 +40,27 @@ export function NavbarAuthActions() {
   }
 
   return (
-    <div className="hidden items-center gap-3 md:flex">
+    <div className="hidden items-center gap-4 md:flex">
       <span className="inline-flex min-w-0 max-w-52 items-center gap-2 text-sm font-medium text-[#44403C]">
         <UserCircle className="h-4 w-4 shrink-0 text-primary" />
         <span className="truncate">Witaj, {getUserDisplayName(user)}</span>
       </span>
-      <Link
-        href={getDefaultAuthenticatedPath(user)}
-        className="inline-flex h-10 items-center justify-center gap-2 rounded-full border-2 border-primary bg-transparent px-5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
-      >
-        <LayoutDashboard className="h-4 w-4" />
-        Panel
-      </Link>
+      <div className="flex items-center gap-2">
+        <Link
+          href="/dodaj-oferte"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-[#047857]"
+        >
+          <PlusCircle className="h-4 w-4" />
+          Dodaj ofertę
+        </Link>
+        <Link
+          href={getDefaultAuthenticatedPath(user)}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-full border-2 border-primary bg-transparent px-5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+        >
+          <LayoutDashboard className="h-4 w-4" />
+          Panel
+        </Link>
+      </div>
     </div>
   );
 }
