@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowRight,
   CheckCircle2,
@@ -14,15 +14,19 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
-import { isPrivateSellerUser } from '@/lib/auth';
+import { useToast } from '@/contexts/toast-context';
+import { isPrivateSellerUser, PRIVATE_SELLER_HOME_PATH } from '@/lib/auth';
+import { getApiErrorMessage } from '@/lib/api-client';
 import {
   buildClaimAuthPath,
+  claimPublicListingSubmission,
   verifyPublicListingSubmission,
 } from '@/lib/public-listing-submissions';
 
 type VerificationState =
   | { status: 'idle' | 'loading' }
   | { status: 'success'; claimToken: string }
+  | { status: 'claiming' }
   | { status: 'error'; message: string };
 
 export default function PublicListingSubmissionConfirmedPage() {
@@ -35,8 +39,12 @@ export default function PublicListingSubmissionConfirmedPage() {
 
 function VerificationContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const { success: showSuccessToast } = useToast();
   const token = searchParams.get('token');
   const hasVerifiedRef = useRef(false);
+  const hasClaimedRef = useRef(false);
   const [state, setState] = useState<VerificationState>(() =>
     token
       ? { status: 'loading' }
@@ -69,6 +77,46 @@ function VerificationContent() {
       );
   }, [token]);
 
+  useEffect(() => {
+    if (
+      state.status !== 'success' ||
+      isAuthLoading ||
+      !user ||
+      !isPrivateSellerUser(user) ||
+      hasClaimedRef.current
+    ) {
+      return;
+    }
+
+    hasClaimedRef.current = true;
+    const claimingStateTimer = window.setTimeout(
+      () => setState({ status: 'claiming' }),
+      0,
+    );
+
+    claimPublicListingSubmission(state.claimToken)
+      .then((result) => {
+        showSuccessToast({
+          title: result.reviewRequired
+            ? 'Oferta czeka na sprawdzenie'
+            : 'Oferta została dodana',
+          description:
+            'Przenieśliśmy ją do panelu właściciela. Status publikacji zobaczysz na liście ogłoszeń.',
+          duration: 6000,
+        });
+        router.replace(PRIVATE_SELLER_HOME_PATH);
+      })
+      .catch((error) => {
+        hasClaimedRef.current = false;
+        setState({
+          status: 'error',
+          message: getApiErrorMessage(error),
+        });
+      });
+
+    return () => window.clearTimeout(claimingStateTimer);
+  }, [isAuthLoading, router, showSuccessToast, state, user]);
+
   return <VerificationShell state={state} />;
 }
 
@@ -88,17 +136,22 @@ function VerificationShell({ state }: { state: VerificationState }) {
         </Link>
 
         <section className="rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
-          {state.status === 'idle' || state.status === 'loading' ? (
+          {state.status === 'idle' ||
+          state.status === 'loading' ||
+          state.status === 'claiming' ? (
             <div className="flex flex-col items-center py-10 text-center">
               <div className="rounded-full bg-primary/10 p-3 text-primary">
                 <Loader2 className="h-8 w-8 animate-spin" />
               </div>
               <h1 className="mt-5 font-heading text-2xl font-bold">
-                Potwierdzamy Twoją ofertę
+                {state.status === 'claiming'
+                  ? 'Dodajemy ofertę do panelu'
+                  : 'Potwierdzamy Twoją ofertę'}
               </h1>
               <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                Sprawdzamy link z emaila i przygotowujemy bezpieczne przejęcie
-                oferty do konta CRM.
+                {state.status === 'claiming'
+                  ? 'Łączymy zweryfikowane zgłoszenie z Twoim kontem właściciela i za chwilę przejdziemy do panelu.'
+                  : 'Sprawdzamy link z emaila i przygotowujemy bezpieczne przejęcie oferty do konta.'}
               </p>
             </div>
           ) : null}

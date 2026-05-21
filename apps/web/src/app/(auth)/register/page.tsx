@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Building2, Home } from 'lucide-react';
@@ -11,9 +11,10 @@ import {
   registerSchema,
   type RegisterFormData,
 } from '@/lib/auth';
+import { getApiErrorMessage } from '@/lib/api-client';
 import {
   buildClaimAuthPath,
-  buildClaimRedirectPath,
+  claimPublicListingSubmission,
 } from '@/lib/public-listing-submissions';
 import { useAuthForm } from '@/hooks/use-auth-form';
 import { Button } from '@/components/ui/button';
@@ -33,15 +34,28 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const claimToken = searchParams.get('claimToken');
-  const claimRedirectPath = claimToken
-    ? buildClaimRedirectPath(claimToken)
-    : undefined;
+  const hasClaimedAuthenticatedTokenRef = useRef(false);
+  const [authenticatedClaimError, setAuthenticatedClaimError] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     if (isAuthLoading || !user) return;
 
-    router.replace(getAuthenticatedRedirectPath(user, claimRedirectPath));
-  }, [claimRedirectPath, isAuthLoading, router, user]);
+    if (claimToken) {
+      if (hasClaimedAuthenticatedTokenRef.current) return;
+
+      hasClaimedAuthenticatedTokenRef.current = true;
+      claimPublicListingSubmission(claimToken)
+        .then(() => router.replace(PRIVATE_SELLER_HOME_PATH))
+        .catch((error) => {
+          setAuthenticatedClaimError(getApiErrorMessage(error));
+        });
+      return;
+    }
+
+    router.replace(getAuthenticatedRedirectPath(user));
+  }, [claimToken, isAuthLoading, router, user]);
 
   const {
     handleSubmit,
@@ -51,18 +65,39 @@ function RegisterForm() {
   } = useAuthForm<typeof registerSchema>({
     schema: registerSchema,
     onSubmit: async (data: RegisterFormData) => {
+      if (claimToken) {
+        hasClaimedAuthenticatedTokenRef.current = true;
+        await register(
+          { ...data, accountType: 'private_seller' },
+          { skipRedirect: true },
+        );
+        try {
+          await claimPublicListingSubmission(claimToken);
+        } catch (error) {
+          setAuthenticatedClaimError(getApiErrorMessage(error));
+          return;
+        }
+        router.push(PRIVATE_SELLER_HOME_PATH);
+        return;
+      }
+
       await register(data, {
         redirectTo:
-          claimRedirectPath ??
-          (data.accountType === 'private_seller'
+          data.accountType === 'private_seller'
             ? PRIVATE_SELLER_HOME_PATH
-            : undefined),
+            : undefined,
       });
     },
   });
 
   if (isAuthLoading || user) {
-    return <AuthRedirectLoading />;
+    return authenticatedClaimError ? (
+      <div className="rounded-2xl border border-destructive/20 bg-white p-6 text-sm text-destructive shadow-sm">
+        {authenticatedClaimError}
+      </div>
+    ) : (
+      <AuthRedirectLoading />
+    );
   }
 
   return (
@@ -73,7 +108,7 @@ function RegisterForm() {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {claimToken
-            ? 'Utwórz konto, aby przejąć ofertę i zacząć pracę w CRM'
+            ? 'Utwórz konto właściciela, aby zarządzać ofertą w panelu'
             : 'Wybierz, czy chcesz pracować jako agent, czy tylko opublikować ogłoszenie'}
         </p>
       </div>
@@ -103,7 +138,8 @@ function RegisterForm() {
                   type="radio"
                   name="accountType"
                   value="agent"
-                  defaultChecked
+                  defaultChecked={!claimToken}
+                  disabled={Boolean(claimToken)}
                   className="peer sr-only"
                 />
                 <span className="flex items-start gap-3">
@@ -126,7 +162,7 @@ function RegisterForm() {
                   type="radio"
                   name="accountType"
                   value="private_seller"
-                  disabled={Boolean(claimToken)}
+                  defaultChecked={Boolean(claimToken)}
                   className="peer sr-only"
                 />
                 <span className="flex items-start gap-3">
@@ -146,7 +182,8 @@ function RegisterForm() {
             </div>
             {claimToken ? (
               <p className="mt-2 text-xs text-muted-foreground">
-                Przejęcie zweryfikowanej oferty wymaga konta agenta.
+                Zweryfikowana oferta zostanie automatycznie przypisana do
+                konta właściciela.
               </p>
             ) : null}
             {getFieldError('accountType') ? (

@@ -34,11 +34,14 @@ interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (data: LoginFormData, options?: AuthRedirectOptions) => Promise<void>;
+  login: (
+    data: LoginFormData,
+    options?: AuthRedirectOptions,
+  ) => Promise<AuthResponse>;
   register: (
     data: RegisterFormData,
     options?: AuthRedirectOptions,
-  ) => Promise<void>;
+  ) => Promise<AuthResponse>;
   refreshUser: () => Promise<AuthUser | null>;
   logout: () => void;
 }
@@ -47,6 +50,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 interface AuthRedirectOptions {
   redirectTo?: string;
+  skipRedirect?: boolean;
 }
 
 // ── Provider ──
@@ -192,7 +196,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           agencyId: res.user.agency?.id ?? null,
         },
       });
-      router.push(getAuthenticatedRedirectPath(res.user, options?.redirectTo));
+      if (!options?.skipRedirect) {
+        router.push(
+          getAuthenticatedRedirectPath(res.user, options?.redirectTo),
+        );
+      }
+      return res;
     },
     [router],
   );
@@ -206,7 +215,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       storeTokens(res);
       setUser(res.user);
-      router.push(getAuthenticatedRedirectPath(res.user, options?.redirectTo));
+      if (!options?.skipRedirect) {
+        router.push(
+          getAuthenticatedRedirectPath(res.user, options?.redirectTo),
+        );
+      }
+      return res;
     },
     [router],
   );

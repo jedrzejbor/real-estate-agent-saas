@@ -705,15 +705,16 @@ export class PublicListingSubmissionsService {
     const now = new Date();
     const moderation = evaluateSubmissionModeration(submission);
     const listingState = getModeratedListingState(moderation);
+    const ownerUserId = submission.ownerUserId ?? userId;
     const publicationExpiresAt =
-      submission.ownerUserId && !moderation.reviewRequired
+      ownerUserId && !moderation.reviewRequired
         ? buildSellerListingExpiresAt(now)
         : null;
     const claimed = await this.dataSource.transaction(async (manager) => {
       const listing = manager.create(Listing, {
         ...buildListingDataFromPayload(submission.payload),
         agentId: access.agent.id,
-        ownerUserId: submission.ownerUserId ?? null,
+        ownerUserId,
         status: listingState.status,
         publicationStatus: listingState.publicationStatus,
         publicSlug: moderation.reviewRequired
@@ -750,6 +751,7 @@ export class PublicListingSubmissionsService {
       submission.publishedAt = moderation.reviewRequired ? null : now;
       submission.expiresAt = publicationExpiresAt;
       submission.publishedListingId = savedListing.id;
+      submission.ownerUserId = ownerUserId;
       submission.claimedAgentId = access.agent.id;
       submission.claimedAgencyId = access.agency?.id ?? null;
       submission.claimTokenHash = null;
