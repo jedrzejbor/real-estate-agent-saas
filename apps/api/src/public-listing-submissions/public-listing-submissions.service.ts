@@ -1081,29 +1081,36 @@ export class PublicListingSubmissionsService {
     submission: PublicListingSubmission,
     reason: string,
   ): Promise<void> {
+    const sellerDashboardUrl = this.buildFrontendUrl('/seller');
+
     await this.emailService.send({
       to: submission.email,
-      subject: 'Twoje ogłoszenie wymaga poprawek',
+      subject: 'Twoje ogłoszenie zostało odrzucone',
       text: [
         `Cześć ${submission.ownerName},`,
         '',
-        'Twoje ogłoszenie zostało sprawdzone i wymaga poprawek przed publikacją.',
+        'Twoje ogłoszenie zostało odrzucone po weryfikacji.',
         '',
         `Powód: ${reason}`,
         '',
-        'Zaloguj się do panelu właściciela, popraw ogłoszenie i wyślij je ponownie do weryfikacji.',
+        `Możesz je poprawić w panelu właściciela i wysłać ponownie do weryfikacji: ${sellerDashboardUrl}`,
       ].join('\n'),
     });
   }
 
   private buildPublicListingUrl(publicSlug: string): string {
+    return this.buildFrontendUrl(`/oferty/${encodeURIComponent(publicSlug)}`);
+  }
+
+  private buildFrontendUrl(path: string): string {
     const frontendUrl = this.configService.get(
       'FRONTEND_URL',
       'http://localhost:3000',
     );
     const normalizedFrontendUrl = String(frontendUrl).replace(/\/+$/, '');
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
 
-    return `${normalizedFrontendUrl}/oferty/${encodeURIComponent(publicSlug)}`;
+    return `${normalizedFrontendUrl}${normalizedPath}`;
   }
 
   private assertHumanSubmission(dto: CreatePublicListingSubmissionDto): void {

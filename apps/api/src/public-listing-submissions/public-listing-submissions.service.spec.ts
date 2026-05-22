@@ -255,9 +255,21 @@ describe('PublicListingSubmissionsService admin moderation', () => {
     expect(emailService.send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: submission.email,
-        subject: 'Twoje ogłoszenie wymaga poprawek',
+        subject: 'Twoje ogłoszenie zostało odrzucone',
+        text: expect.stringContaining('Twoje ogłoszenie zostało odrzucone'),
+      }),
+    );
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
         text: expect.stringContaining(
-          'Brakuje zdjęć dokumentujących stan nieruchomości.',
+          'Powód: Brakuje zdjęć dokumentujących stan nieruchomości.',
+        ),
+      }),
+    );
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining(
+          'Możesz je poprawić w panelu właściciela i wysłać ponownie do weryfikacji: https://estateflow.test/seller',
         ),
       }),
     );

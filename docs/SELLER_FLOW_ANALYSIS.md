@@ -333,7 +333,8 @@ Sprint C (panel admina):
 - [x] **C3** — Email do klienta przy zatwierdzeniu — "Twoje ogłoszenie zostało opublikowane, możesz je zobaczyć tutaj: [link]".
   - Wykonano: `approveByAdmin()` po publikacji wysyła email do właściciela z linkiem do `/oferty/:slug` zbudowanym na bazie `FRONTEND_URL`. Test serwisu sprawdza wysyłkę i poprawny publiczny URL.
 
-- [ ] **C4** — Email do klienta przy odrzuceniu — "Twoje ogłoszenie zostało odrzucone. Powód: [powód]. Możesz je poprawić i wysłać ponownie."
+- [x] **C4** — Email do klienta przy odrzuceniu — "Twoje ogłoszenie zostało odrzucone. Powód: [powód]. Możesz je poprawić i wysłać ponownie."
+  - Wykonano: `rejectByAdmin()` wysyła email z tematem "Twoje ogłoszenie zostało odrzucone", powodem odrzucenia oraz linkiem do panelu właściciela `/seller`, gdzie klient może poprawić ogłoszenie i wysłać je ponownie do weryfikacji. Test serwisu sprawdza temat, powód i link.
 
 ---
 
