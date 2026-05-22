@@ -135,6 +135,16 @@ export class PublicListingSubmissionsController {
     return this.submissionsService.renewForOwner(userId, id);
   }
 
+  /** POST /api/public-listing-submissions/seller/:id/resubmit — send a rejected listing back to moderation. */
+  @Post('seller/:id/resubmit')
+  @HttpCode(HttpStatus.OK)
+  async resubmitForCurrentSeller(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.submissionsService.resubmitForOwner(userId, id);
+  }
+
   /** POST /api/public-listing-submissions/seller/:id/unpublish — remove an owned listing from public catalog. */
   @Post('seller/:id/unpublish')
   @HttpCode(HttpStatus.OK)
@@ -219,5 +229,12 @@ export class AdminListingSubmissionsController {
     @Body() dto: RejectPublicListingSubmissionDto,
   ) {
     return this.submissionsService.rejectByAdmin(adminUserId, id, dto);
+  }
+
+  /** POST /api/admin/listing-submissions/expiring-reminders — send 7-day expiry reminders. */
+  @Post('expiring-reminders')
+  @HttpCode(HttpStatus.OK)
+  async sendExpiringReminders() {
+    return this.submissionsService.sendExpiringSoonReminders();
   }
 }

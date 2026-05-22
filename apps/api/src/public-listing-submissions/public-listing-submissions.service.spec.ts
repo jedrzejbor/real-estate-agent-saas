@@ -118,6 +118,7 @@ function buildService(submission: PublicListingSubmission) {
   const submissionRepo = {
     find: jest.fn().mockResolvedValue([submission]),
     findOne: jest.fn().mockResolvedValue(submission),
+    save: jest.fn(async (value: PublicListingSubmission) => value),
     createQueryBuilder: jest.fn(),
   };
   const listingRepo = {
@@ -141,6 +142,15 @@ function buildService(submission: PublicListingSubmission) {
   const dataSource = {
     transaction: jest.fn(async (callback: (manager: unknown) => unknown) =>
       callback({
+        create: jest.fn((_entity: unknown, value: unknown) => value),
+        createQueryBuilder: jest.fn().mockReturnValue({
+          delete: jest.fn().mockReturnThis(),
+          from: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          execute: jest.fn().mockResolvedValue(undefined),
+        }),
+        delete: jest.fn().mockResolvedValue(undefined),
+        findOne: jest.fn().mockResolvedValue(null),
         save: jest.fn(async (_entity: unknown, value: unknown) => value),
       }),
     ),
@@ -167,6 +177,22 @@ function buildService(submission: PublicListingSubmission) {
     configService,
     listing: submission.publishedListing as Listing,
   };
+}
+
+function mockSubmissionQueryBuilder(
+  submissionRepo: { createQueryBuilder: jest.Mock },
+  submissions: PublicListingSubmission[],
+) {
+  submissionRepo.createQueryBuilder.mockReturnValue({
+    innerJoinAndSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    setParameters: jest.fn().mockReturnThis(),
+    getMany: jest.fn().mockResolvedValue(submissions),
+  });
 }
 
 describe('PublicListingSubmissionsService admin moderation', () => {
@@ -353,5 +379,137 @@ describe('PublicListingSubmissionsService admin moderation', () => {
         publicationStatus: ListingPublicationStatus.DRAFT,
       }),
     ]);
+  });
+
+  it('resubmits a rejected owner submission to admin moderation', async () => {
+    const listing = buildListing({
+      publicationStatus: ListingPublicationStatus.DRAFT,
+      status: ListingStatus.DRAFT,
+      publishedAt: null,
+      unpublishedAt: new Date('2026-01-02T00:00:00.000Z'),
+    });
+    const submission = buildSubmission({
+      status: PublicListingSubmissionStatus.REJECTED,
+      rejectedAt: new Date('2026-01-02T00:00:00.000Z'),
+      publishedListing: listing,
+      metadata: {
+        adminRejection: {
+          reason: 'Brakuje zdjęć.',
+        },
+      },
+      payload: {
+        listing: {
+          title: 'Poprawione mieszkanie testowe',
+          propertyType: PropertyType.APARTMENT,
+          transactionType: TransactionType.SALE,
+          price: 520000,
+          currency: 'PLN',
+          areaM2: 52,
+        },
+        address: {
+          city: 'Kraków',
+        },
+        images: [
+          {
+            url: 'https://estateflow.test/uploads/photo.webp',
+            altText: 'Salon',
+            order: 0,
+          },
+        ],
+      },
+    });
+    const { service, activityService } = buildService(submission);
+
+    const result = await service.resubmitForOwner('owner-1', submission.id);
+
+    expect(submission.status).toBe(PublicListingSubmissionStatus.CLAIMED);
+    expect(submission.rejectedAt).toBeNull();
+    expect(listing.title).toBe('Poprawione mieszkanie testowe');
+    expect(listing.price).toBe(520000);
+    expect(listing.publicationStatus).toBe(ListingPublicationStatus.DRAFT);
+    expect(submission.metadata.sellerResubmission).toEqual(
+      expect.objectContaining({
+        resubmittedAt: expect.any(String),
+      }),
+    );
+    expect(activityService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'owner-1',
+        entityId: listing.id,
+        action: ActivityAction.STATUS_CHANGED,
+      }),
+    );
+    expect(result.status).toBe(PublicListingSubmissionStatus.CLAIMED);
+  });
+
+  it('sends 7-day expiry reminders once per expiration date', async () => {
+    const expiresAt = new Date('2026-02-08T12:00:00.000Z');
+    const listing = buildListing({
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publicSlug: 'mieszkanie-testowe-warszawa',
+      expiresAt,
+    });
+    const submission = buildSubmission({
+      publishedListing: listing,
+      publishedAt: new Date('2026-01-01T00:00:00.000Z'),
+      expiresAt,
+    });
+    const { service, emailService, submissionRepo } = buildService(submission);
+    mockSubmissionQueryBuilder(submissionRepo, [submission]);
+
+    const result = await service.sendExpiringSoonReminders(
+      new Date('2026-02-01T12:00:00.000Z'),
+    );
+
+    expect(result).toEqual({
+      processed: 1,
+      sent: 1,
+      skipped: 0,
+    });
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: submission.email,
+        subject: 'Twoje ogłoszenie wygaśnie za 7 dni',
+        text: expect.stringContaining(
+          'Odnów je tutaj: https://estateflow.test/seller/listings/submission-1',
+        ),
+      }),
+    );
+    expect(submission.metadata.expiryReminder7Days).toMatchObject({
+      expiresAt: expiresAt.toISOString(),
+    });
+    expect(submissionRepo.save).toHaveBeenCalledWith(submission);
+  });
+
+  it('skips an expiry reminder already sent for the same expiration date', async () => {
+    const expiresAt = new Date('2026-02-08T12:00:00.000Z');
+    const listing = buildListing({
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      expiresAt,
+    });
+    const submission = buildSubmission({
+      publishedListing: listing,
+      expiresAt,
+      metadata: {
+        expiryReminder7Days: {
+          sentAt: '2026-02-01T08:00:00.000Z',
+          expiresAt: expiresAt.toISOString(),
+        },
+      },
+    });
+    const { service, emailService, submissionRepo } = buildService(submission);
+    mockSubmissionQueryBuilder(submissionRepo, [submission]);
+
+    const result = await service.sendExpiringSoonReminders(
+      new Date('2026-02-01T12:00:00.000Z'),
+    );
+
+    expect(result).toEqual({
+      processed: 1,
+      sent: 0,
+      skipped: 1,
+    });
+    expect(emailService.send).not.toHaveBeenCalled();
+    expect(submissionRepo.save).not.toHaveBeenCalled();
   });
 });

@@ -72,6 +72,8 @@ const RESEND_IP_WINDOW_MS = 60 * 60 * 1000;
 const RESEND_IP_LIMIT = 10;
 const MAX_DESCRIPTION_LINKS = 2;
 const SELLER_LISTING_PUBLICATION_TTL_MS = 60 * 24 * 60 * 60 * 1000;
+const EXPIRING_SOON_REMINDER_DAYS = 7;
+const EXPIRING_SOON_REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 interface TokenPair {
   token: string;
@@ -175,6 +177,12 @@ export interface AdminPublicListingSubmissionListItem {
   publishedListingId: string;
   publishedListingSlug: string | null;
   publicationStatus: ListingPublicationStatus;
+}
+
+export interface ExpiringListingReminderResult {
+  processed: number;
+  sent: number;
+  skipped: number;
 }
 
 @Injectable()
@@ -483,6 +491,178 @@ export class PublicListingSubmissionsService {
       ...savedSubmission,
       publishedListing: listing,
     });
+  }
+
+  async resubmitForOwner(
+    ownerUserId: string,
+    id: string,
+  ): Promise<SellerPublicListingSubmissionDetail> {
+    const submission = await this.findOwnedSubmissionOrFail(ownerUserId, id);
+
+    if (submission.status !== PublicListingSubmissionStatus.REJECTED) {
+      throw new BadRequestException(
+        'Tylko odrzucone zgłoszenie można wysłać ponownie do weryfikacji',
+      );
+    }
+
+    const listing = submission.publishedListing;
+
+    if (!listing) {
+      throw new BadRequestException('Zgłoszenie nie ma powiązanego ogłoszenia');
+    }
+
+    const now = new Date();
+    const previousStatus = submission.status;
+
+    Object.assign(listing, buildListingDataFromPayload(submission.payload));
+    listing.status = ListingStatus.DRAFT;
+    listing.publicationStatus = ListingPublicationStatus.DRAFT;
+    listing.publishedAt = null;
+    listing.unpublishedAt = now;
+    listing.expiresAt = null;
+
+    submission.status = PublicListingSubmissionStatus.CLAIMED;
+    submission.publishedAt = null;
+    submission.expiresAt = null;
+    submission.rejectedAt = null;
+    submission.metadata = {
+      ...submission.metadata,
+      sellerResubmission: {
+        resubmittedAt: now.toISOString(),
+      },
+    };
+
+    const savedSubmission = await this.dataSource.transaction(
+      async (manager) => {
+        await manager.save(Listing, listing);
+
+        const existingAddress = await manager.findOne(Address, {
+          where: { listing: { id: listing.id } },
+        });
+        await manager.save(
+          Address,
+          manager.create(Address, {
+            ...(existingAddress ? { id: existingAddress.id } : {}),
+            ...buildAddressDataFromPayload(submission.payload),
+            listing,
+          }),
+        );
+
+        await manager
+          .createQueryBuilder()
+          .delete()
+          .from(ListingImage)
+          .where('listing_id = :listingId', { listingId: listing.id })
+          .execute();
+        const images = buildImageDataFromPayload(submission.payload).map(
+          (image, index) =>
+            manager.create(ListingImage, {
+              ...image,
+              order: image.order ?? index,
+              isPrimary: index === 0,
+              listing,
+            }),
+        );
+
+        if (images.length > 0) {
+          await manager.save(ListingImage, images);
+        }
+
+        return manager.save(PublicListingSubmission, submission);
+      },
+    );
+
+    await this.activityService.log({
+      userId: ownerUserId,
+      entityType: ActivityEntityType.LISTING,
+      entityId: listing.id,
+      action: ActivityAction.STATUS_CHANGED,
+      description: 'Wysłano poprawione publiczne zgłoszenie do ponownej weryfikacji',
+      changes: [
+        {
+          field: 'publicListingSubmissionStatus',
+          oldValue: previousStatus,
+          newValue: PublicListingSubmissionStatus.CLAIMED,
+        },
+      ],
+    });
+
+    return toSellerDetail({
+      ...savedSubmission,
+      publishedListing: listing,
+    });
+  }
+
+  async sendExpiringSoonReminders(
+    now = new Date(),
+  ): Promise<ExpiringListingReminderResult> {
+    const windowStart = new Date(
+      now.getTime() +
+        EXPIRING_SOON_REMINDER_DAYS * EXPIRING_SOON_REMINDER_WINDOW_MS,
+    );
+    const windowEnd = new Date(
+      windowStart.getTime() + EXPIRING_SOON_REMINDER_WINDOW_MS,
+    );
+    const submissions = await this.submissionRepo
+      .createQueryBuilder('submission')
+      .innerJoinAndSelect('submission.publishedListing', 'listing')
+      .where('submission.status = :status', {
+        status: PublicListingSubmissionStatus.CLAIMED,
+      })
+      .andWhere('submission.ownerUserId IS NOT NULL')
+      .andWhere('submission.expiresAt >= :windowStart')
+      .andWhere('submission.expiresAt < :windowEnd')
+      .orderBy('submission.expiresAt', 'ASC')
+      .take(250)
+      .setParameters({ windowStart, windowEnd })
+      .getMany();
+    const candidates = submissions.filter((submission) => {
+      const listing = submission.publishedListing;
+      const expiresAt = listing?.expiresAt ?? submission.expiresAt;
+
+      return Boolean(
+        listing &&
+          listing.publicationStatus === ListingPublicationStatus.PUBLISHED &&
+          expiresAt &&
+          expiresAt >= windowStart &&
+          expiresAt < windowEnd,
+      );
+    });
+
+    let sent = 0;
+    let skipped = 0;
+
+    for (const submission of candidates) {
+      const listing = submission.publishedListing;
+      const expiresAt = listing?.expiresAt ?? submission.expiresAt;
+
+      if (!listing || !expiresAt) {
+        skipped += 1;
+        continue;
+      }
+
+      if (hasSentExpiryReminder(submission.metadata, expiresAt)) {
+        skipped += 1;
+        continue;
+      }
+
+      await this.sendExpiryReminderEmail(submission, listing, expiresAt);
+      submission.metadata = {
+        ...submission.metadata,
+        expiryReminder7Days: {
+          sentAt: now.toISOString(),
+          expiresAt: expiresAt.toISOString(),
+        },
+      };
+      await this.submissionRepo.save(submission);
+      sent += 1;
+    }
+
+    return {
+      processed: candidates.length,
+      sent,
+      skipped,
+    };
   }
 
   async uploadImages(
@@ -1098,6 +1278,34 @@ export class PublicListingSubmissionsService {
     });
   }
 
+  private async sendExpiryReminderEmail(
+    submission: PublicListingSubmission,
+    listing: Listing,
+    expiresAt: Date,
+  ): Promise<void> {
+    const renewalUrl = this.buildFrontendUrl(
+      `/seller/listings/${encodeURIComponent(submission.id)}`,
+    );
+    const publicListingUrl = listing.publicSlug
+      ? this.buildPublicListingUrl(listing.publicSlug)
+      : null;
+
+    await this.emailService.send({
+      to: submission.email,
+      subject: 'Twoje ogłoszenie wygaśnie za 7 dni',
+      text: [
+        `Cześć ${submission.ownerName},`,
+        '',
+        `Twoje ogłoszenie "${listing.publicTitle || listing.title}" wygaśnie za 7 dni, ${formatDateForEmail(expiresAt)}.`,
+        '',
+        `Odnów je tutaj: ${renewalUrl}`,
+        publicListingUrl ? `Publiczny link do ogłoszenia: ${publicListingUrl}` : null,
+      ]
+        .filter((line): line is string => line !== null)
+        .join('\n'),
+    });
+  }
+
   private buildPublicListingUrl(publicSlug: string): string {
     return this.buildFrontendUrl(`/oferty/${encodeURIComponent(publicSlug)}`);
   }
@@ -1363,6 +1571,29 @@ function buildListingDataFromPayload(
     ),
     estateflowBrandingEnabled: true,
   };
+}
+
+function hasSentExpiryReminder(
+  metadata: Record<string, unknown> | null | undefined,
+  expiresAt: Date,
+): boolean {
+  const reminder = metadata?.expiryReminder7Days;
+
+  if (typeof reminder !== 'object' || reminder === null) {
+    return false;
+  }
+
+  return (
+    (reminder as { expiresAt?: unknown }).expiresAt === expiresAt.toISOString()
+  );
+}
+
+function formatDateForEmail(value: Date): string {
+  return new Intl.DateTimeFormat('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(value);
 }
 
 function evaluateSubmissionModeration(

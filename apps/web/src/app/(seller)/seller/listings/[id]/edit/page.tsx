@@ -10,6 +10,7 @@ import {
   ImagePlus,
   Loader2,
   Save,
+  Send,
   Trash2,
 } from 'lucide-react';
 import { z } from 'zod';
@@ -30,6 +31,7 @@ import {
 } from '@/lib/listings';
 import {
   fetchSellerPublicListingSubmission,
+  resubmitSellerPublicListingSubmission,
   updateSellerPublicListingSubmission,
   uploadPublicListingSubmissionImages,
   type PublicListingSubmissionImage,
@@ -86,6 +88,7 @@ export default function SellerListingEditPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isFetching, setIsFetching] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isResubmitting, setIsResubmitting] = useState(false);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
 
   useEffect(() => {
@@ -205,23 +208,32 @@ export default function SellerListingEditPage() {
     );
   }
 
-  async function handleSave() {
-    if (!draft) return;
+  async function saveDraft(): Promise<SellerPublicListingSubmissionDetail | null> {
+    if (!draft) return null;
 
     const validation = validateDraft(draft);
     if (!validation.success) {
       setFieldErrors(validation.errors);
-      return;
+      return null;
     }
 
+    const updated = await updateSellerPublicListingSubmission(
+      params.id,
+      buildUpdatePayload(draft),
+    );
+    setSubmission(updated);
+    setDraft(toDraft(updated));
+
+    return updated;
+  }
+
+  async function handleSave() {
     try {
       setIsSaving(true);
-      const updated = await updateSellerPublicListingSubmission(
-        params.id,
-        buildUpdatePayload(draft),
-      );
-      setSubmission(updated);
-      setDraft(toDraft(updated));
+      const updated = await saveDraft();
+
+      if (!updated) return;
+
       showSuccessToast({
         title: 'Ogłoszenie zapisane',
         description: 'Zapisaliśmy podstawowe dane i zdjęcia.',
@@ -234,6 +246,33 @@ export default function SellerListingEditPage() {
       });
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleResubmit() {
+    try {
+      setIsResubmitting(true);
+      const updated = await saveDraft();
+
+      if (!updated) return;
+
+      const resubmitted = await resubmitSellerPublicListingSubmission(
+        updated.id,
+      );
+      setSubmission(resubmitted);
+      setDraft(toDraft(resubmitted));
+      showSuccessToast({
+        title: 'Wysłano do ponownej weryfikacji',
+        description: 'Zespół sprawdzi poprawioną ofertę przed publikacją.',
+      });
+      router.push('/seller');
+    } catch (error) {
+      showErrorToast({
+        title: 'Nie udało się wysłać ogłoszenia',
+        description: getApiErrorMessage(error),
+      });
+    } finally {
+      setIsResubmitting(false);
     }
   }
 
@@ -296,22 +335,48 @@ export default function SellerListingEditPage() {
               dotyczą Twojego zgłoszenia w panelu właściciela.
             </p>
           </div>
-          <Button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving || isUploadingImages}
-            className="h-11 gap-2 rounded-xl"
-          >
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            Zapisz zmiany
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSave}
+              disabled={isSaving || isResubmitting || isUploadingImages}
+              className="h-11 gap-2 rounded-xl"
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Zapisz zmiany
+            </Button>
+            {submission?.status === 'rejected' ? (
+              <Button
+                type="button"
+                onClick={handleResubmit}
+                disabled={isSaving || isResubmitting || isUploadingImages}
+                className="h-11 gap-2 rounded-xl"
+              >
+                {isResubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                Wyślij do weryfikacji
+              </Button>
+            ) : null}
+          </div>
         </div>
 
         <div className="grid gap-5">
+          {submission?.status === 'rejected' ? (
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950">
+              Oferta została odrzucona w moderacji. Popraw dane zgodnie z
+              wiadomością od zespołu i wyślij zgłoszenie do ponownej
+              weryfikacji.
+            </section>
+          ) : null}
+
           <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
             <SectionHeader
               icon={Home}

@@ -236,6 +236,17 @@ export async function renewSellerPublicListingSubmission(
   );
 }
 
+export async function resubmitSellerPublicListingSubmission(
+  id: string,
+): Promise<SellerPublicListingSubmissionDetail> {
+  return apiFetch<SellerPublicListingSubmissionDetail>(
+    `/public-listing-submissions/seller/${id}/resubmit`,
+    {
+      method: 'POST',
+    },
+  );
+}
+
 export async function unpublishSellerPublicListingSubmission(
   id: string,
 ): Promise<SellerPublicListingSubmissionDetail> {

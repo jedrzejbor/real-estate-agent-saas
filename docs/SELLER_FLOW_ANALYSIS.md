@@ -343,9 +343,11 @@ Sprint C (panel admina):
 - [x] **D1** — Ścieżka upgrade: CTA w panelu `/seller` "Chcesz więcej? Przejdź na konto agenta" z opisem benefitów.
   - Wykonano: panel `/seller` pokazuje CTA z benefitami konta agenta i linkiem do `/dashboard/upgrade` z kontekstem `private_seller_dashboard_upgrade_cta`. Dashboard layout pozwala `private_seller` wejść wyłącznie na stronę upgrade, bez dostępu do pozostałych ekranów CRM, a ekran upgrade wraca dla tej roli do `/seller`.
 
-- [ ] **D2** — Powiadomienie email do klienta gdy ogłoszenie wygasa za 7 dni — "Twoje ogłoszenie wygaśnie za 7 dni. Odnów je tutaj."
+- [x] **D2** — Powiadomienie email do klienta gdy ogłoszenie wygasa za 7 dni — "Twoje ogłoszenie wygaśnie za 7 dni. Odnów je tutaj."
+  - Wykonano: dodano backendowy proces `sendExpiringSoonReminders()` oraz admin-only endpoint `POST /api/admin/listing-submissions/expiring-reminders`, który wysyła właścicielom prywatnym mail z linkiem do odnowienia oferty w `/seller/listings/:id`. Wysyłka jest idempotentna dla tej samej daty `expiresAt` dzięki metadanym `expiryReminder7Days`, więc ponowne odpalenie zadania nie duplikuje maili.
 
-- [ ] **D3** — Możliwość wysłania ponownie zgłoszenia po odrzuceniu — klient edytuje i klika "Wyślij do ponownej weryfikacji".
+- [x] **D3** — Możliwość wysłania ponownie zgłoszenia po odrzuceniu — klient edytuje i klika "Wyślij do ponownej weryfikacji".
+  - Wykonano: dodano endpoint `POST /api/public-listing-submissions/seller/:id/resubmit`, który działa tylko dla właściciela odrzuconego zgłoszenia, synchronizuje poprawiony payload do powiązanego `Listing`, ustawia listing jako `draft`, przywraca zgłoszenie do statusu `claimed` i zapisuje metadane `sellerResubmission`. Ekran edycji odrzuconej oferty pokazuje CTA "Wyślij do weryfikacji", które najpierw zapisuje poprawki, a potem odsyła zgłoszenie do kolejki moderacji.
 
 ---
 
