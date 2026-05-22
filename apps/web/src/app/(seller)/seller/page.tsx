@@ -32,6 +32,7 @@ import {
   PROPERTY_TYPE_LABELS,
   TRANSACTION_TYPE_LABELS,
 } from '@/lib/listings';
+import { getUpgradeHref } from '@/lib/growth-upsells';
 import {
   fetchSellerPublicListingSubmissions,
   renewSellerPublicListingSubmission,
@@ -66,6 +67,10 @@ export default function SellerDashboardPage() {
   >(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [inquiryError, setInquiryError] = useState<string | null>(null);
+  const upgradeHref = getUpgradeHref({
+    source: 'private_seller_dashboard_upgrade_cta',
+    upsellId: 'higher-limits',
+  });
 
   useEffect(() => {
     if (isLoading) return;
@@ -244,6 +249,8 @@ export default function SellerDashboardPage() {
             </p>
           </div>
         </div>
+
+        <SellerUpgradeCallout href={upgradeHref} />
 
         {isLoadingSubmissions ? (
           <SellerSubmissionsLoading />
@@ -666,6 +673,56 @@ function SellerSubmissionCard({
         </div>
       </div>
     </article>
+  );
+}
+
+function SellerUpgradeCallout({ href }: { href: string }) {
+  const benefits = [
+    'pełny CRM klientów i historii kontaktu',
+    'więcej aktywnych ofert i zdjęć',
+    'raporty, automatyzacje i publiczny profil agenta',
+  ];
+
+  return (
+    <section className="mt-8 rounded-2xl border border-[#D4A853]/35 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFF9E6] text-[#B8922F] ring-1 ring-[#D4A853]/25">
+              <Building2 className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold uppercase text-[#8A6A1F]">
+                Chcesz więcej?
+              </p>
+              <h2 className="font-heading text-xl font-semibold text-foreground">
+                Przejdź na konto agenta
+              </h2>
+            </div>
+          </div>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+            Konto agenta odblokowuje narzędzia do regularnej sprzedaży i obsługi
+            wielu nieruchomości, bez utraty aktualnego ogłoszenia właściciela.
+          </p>
+          <ul className="mt-4 grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
+            {benefits.map((benefit) => (
+              <li key={benefit} className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span>{benefit}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <Link
+          href={href}
+          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Przejdź na konto agenta
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </section>
   );
 }
 

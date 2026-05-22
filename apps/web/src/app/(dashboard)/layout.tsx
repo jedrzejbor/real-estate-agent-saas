@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
   isPrivateSellerUser,
@@ -18,15 +18,24 @@ export default function DashboardLayout({
 }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const isPrivateSeller = user ? isPrivateSellerUser(user) : false;
+  const canPrivateSellerUseDashboardRoute = pathname === '/dashboard/upgrade';
 
   useEffect(() => {
-    if (!isLoading && isPrivateSeller) {
+    if (
+      !isLoading &&
+      isPrivateSeller &&
+      !canPrivateSellerUseDashboardRoute
+    ) {
       router.replace(PRIVATE_SELLER_HOME_PATH);
     }
-  }, [isLoading, isPrivateSeller, router]);
+  }, [canPrivateSellerUseDashboardRoute, isLoading, isPrivateSeller, router]);
 
-  if (isLoading || isPrivateSeller) {
+  if (
+    isLoading ||
+    (isPrivateSeller && !canPrivateSellerUseDashboardRoute)
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -37,6 +46,14 @@ export default function DashboardLayout({
   if (!user) {
     // Middleware handles redirect, but just in case show nothing
     return null;
+  }
+
+  if (isPrivateSeller) {
+    return (
+      <div className="min-h-screen bg-[#F5F5F4]">
+        <main className="mx-auto max-w-6xl p-6">{children}</main>
+      </div>
+    );
   }
 
   return (

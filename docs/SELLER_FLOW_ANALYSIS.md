@@ -340,7 +340,8 @@ Sprint C (panel admina):
 
 ### Sprint D — Dodatkowe ulepszenia
 
-- [ ] **D1** — Ścieżka upgrade: CTA w panelu `/seller` "Chcesz więcej? Przejdź na konto agenta" z opisem benefitów.
+- [x] **D1** — Ścieżka upgrade: CTA w panelu `/seller` "Chcesz więcej? Przejdź na konto agenta" z opisem benefitów.
+  - Wykonano: panel `/seller` pokazuje CTA z benefitami konta agenta i linkiem do `/dashboard/upgrade` z kontekstem `private_seller_dashboard_upgrade_cta`. Dashboard layout pozwala `private_seller` wejść wyłącznie na stronę upgrade, bez dostępu do pozostałych ekranów CRM, a ekran upgrade wraca dla tej roli do `/seller`.
 
 - [ ] **D2** — Powiadomienie email do klienta gdy ogłoszenie wygasa za 7 dni — "Twoje ogłoszenie wygaśnie za 7 dni. Odnów je tutaj."
 

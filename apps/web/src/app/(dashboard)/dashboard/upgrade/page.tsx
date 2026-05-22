@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
+import { isPrivateSellerUser } from '@/lib/auth';
 import {
   GROWTH_UPSELLS,
   type GrowthUpsellId,
@@ -107,6 +108,7 @@ const priorityOptions = [
 export default function UpgradePage() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const isPrivateSeller = user ? isPrivateSellerUser(user) : false;
   const upsellId = getUpsellId(searchParams.get('upsellId'));
   const source = searchParams.get('source') || 'upgrade_page_direct';
   const resource = searchParams.get('resource') || undefined;
@@ -180,10 +182,14 @@ export default function UpgradePage() {
             variant="outline"
             size="sm"
             className="rounded-xl"
-            render={<Link href="/dashboard/settings" />}
+            render={
+              <Link
+                href={isPrivateSeller ? '/seller' : '/dashboard/settings'}
+              />
+            }
           >
             <ArrowLeft className="h-4 w-4" />
-            Plan i limity
+            {isPrivateSeller ? 'Panel właściciela' : 'Plan i limity'}
           </Button>
         </div>
 
