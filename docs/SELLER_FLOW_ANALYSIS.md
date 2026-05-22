@@ -259,22 +259,26 @@ Sprint C (panel admina):
 
 ### Sprint A — Naprawa krytyczna (claim flow)
 
-- [ ] **A1** — Strona `/dodaj-oferte/potwierdzono`: jeśli klient jest zalogowany jako `private_seller`, wykonaj auto-claim od razu po weryfikacji i przekieruj do `/seller`.
+- [x] **A1** — Strona `/dodaj-oferte/potwierdzono`: jeśli klient jest zalogowany jako `private_seller`, wykonaj auto-claim od razu po weryfikacji i przekieruj do `/seller`.
   - Plik: `apps/web/src/app/(public)/dodaj-oferte/potwierdzono/page.tsx`
   - Logika: `useAuth()` → jeśli `isPrivateSellerUser(user)` → wywołaj `claimPublicListingSubmission(claimToken)` → redirect `/seller`
+  - Wykonano: po poprawnej weryfikacji emaila zalogowany właściciel dostaje stan "Dodajemy ofertę do panelu", aplikacja wykonuje `claimPublicListingSubmission(claimToken)`, pokazuje toast z wynikiem i przekierowuje do `/seller`.
 
-- [ ] **A2** — Strona `/dodaj-oferte/potwierdzono`: jeśli klient NIE jest zalogowany, pokaż CTA "Zarejestruj się i zarządzaj ogłoszeniem" z `claimToken` w URL rejestracji.
+- [x] **A2** — Strona `/dodaj-oferte/potwierdzono`: jeśli klient NIE jest zalogowany, pokaż CTA "Zarejestruj się i zarządzaj ogłoszeniem" z `claimToken` w URL rejestracji.
   - Plik: `apps/web/src/app/(public)/dodaj-oferte/potwierdzono/page.tsx`
   - Link: `/rejestracja?claimToken=XYZ`
+  - Wykonano: niezalogowany klient widzi CTA do rejestracji i logowania z `claimToken` w URL. Aktualna ścieżka aplikacji to `/register?claimToken=XYZ` oraz `/login?claimToken=XYZ`.
 
-- [ ] **A3** — Rejestracja: po rejestracji sprawdzić `claimToken` w URL i automatycznie wykonać claim.
+- [x] **A3** — Rejestracja: po rejestracji sprawdzić `claimToken` w URL i automatycznie wykonać claim.
   - Plik: `apps/web/src/app/(public)/rejestracja/page.tsx` (lub odpowiednik — trzeba znaleźć)
   - Logika: po `register()` + `login()` → jeśli `claimToken` w searchParams → `claimPublicListingSubmission(claimToken)` → redirect `/seller`
+  - Wykonano: odpowiednik to `apps/web/src/app/(auth)/register/page.tsx`. Rejestracja z `claimToken` wymusza konto `private_seller`, pomija automatyczny redirect auth, wykonuje claim i dopiero potem przechodzi do `/seller`. Backend claim przypisuje anonimowe zgłoszenie i listing do aktualnego `ownerUserId`.
 
-- [ ] **A4** — Backend: dodać endpoint `POST /api/admin/listing-submissions/:id/approve` (tylko rola `admin`).
+- [x] **A4** — Backend: dodać endpoint `POST /api/admin/listing-submissions/:id/approve` (tylko rola `admin`).
   - Działanie: ustawia `Listing.publicationStatus = published`, `Listing.publishedAt = now`, NIE zmienia `ownerUserId`
   - Plik: `apps/api/src/public-listing-submissions/public-listing-submissions.controller.ts`
   - Plik: `apps/api/src/public-listing-submissions/public-listing-submissions.service.ts`
+  - Wykonano: dodano kontroler `AdminListingSubmissionsController` pod `/api/admin/listing-submissions`, zabezpieczony `@Roles(UserRole.ADMIN)`. `approveByAdmin()` publikuje powiązany listing, generuje `publicSlug` jeśli go brakuje, ustawia daty publikacji/wygasania, zapisuje metadane `adminApproval` i log aktywności, bez zmiany `ownerUserId`.
 
 - [ ] **A5** — Backend: dodać endpoint `POST /api/admin/listing-submissions/:id/reject` (tylko rola `admin`).
   - Działanie: ustawia `Listing.publicationStatus = draft`, `submission.status = rejected`, wysyła email do klienta z powodem

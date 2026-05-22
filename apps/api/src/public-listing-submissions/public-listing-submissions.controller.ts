@@ -18,6 +18,8 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { Public } from '../auth/decorators/public.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../common/enums';
 import {
   ClaimPublicListingSubmissionDto,
   CreatePublicListingSubmissionDto,
@@ -181,5 +183,23 @@ export class PublicListingSubmissionsController {
     @Body() dto: ClaimPublicListingSubmissionDto,
   ) {
     return this.submissionsService.claim(userId, dto);
+  }
+}
+
+@Controller('admin/listing-submissions')
+@Roles(UserRole.ADMIN)
+export class AdminListingSubmissionsController {
+  constructor(
+    private readonly submissionsService: PublicListingSubmissionsService,
+  ) {}
+
+  /** POST /api/admin/listing-submissions/:id/approve — publish a moderated submission without changing ownership. */
+  @Post(':id/approve')
+  @HttpCode(HttpStatus.OK)
+  async approve(
+    @CurrentUser('id') adminUserId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.submissionsService.approveByAdmin(adminUserId, id);
   }
 }

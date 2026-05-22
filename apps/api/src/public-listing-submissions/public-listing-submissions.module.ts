@@ -9,7 +9,10 @@ import { MonitoringModule } from '../monitoring';
 import { Agent, Agency } from '../users/entities';
 import { UsersModule } from '../users';
 import { PublicListingSubmission } from './entities';
-import { PublicListingSubmissionsController } from './public-listing-submissions.controller';
+import {
+  AdminListingSubmissionsController,
+  PublicListingSubmissionsController,
+} from './public-listing-submissions.controller';
 import { PublicListingSubmissionsService } from './public-listing-submissions.service';
 
 @Module({
@@ -27,7 +30,10 @@ import { PublicListingSubmissionsService } from './public-listing-submissions.se
     UsersModule,
     MonitoringModule,
   ],
-  controllers: [PublicListingSubmissionsController],
+  controllers: [
+    PublicListingSubmissionsController,
+    AdminListingSubmissionsController,
+  ],
   providers: [PublicListingSubmissionsService],
   exports: [TypeOrmModule, PublicListingSubmissionsService],
 })

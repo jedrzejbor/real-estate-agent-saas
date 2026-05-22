@@ -803,6 +803,88 @@ export class PublicListingSubmissionsService {
     };
   }
 
+  async approveByAdmin(
+    adminUserId: string,
+    id: string,
+  ): Promise<SellerPublicListingSubmissionDetail> {
+    const submission = await this.submissionRepo.findOne({
+      where: { id },
+      relations: ['publishedListing'],
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Zgłoszenie nie znalezione');
+    }
+
+    if (submission.status !== PublicListingSubmissionStatus.CLAIMED) {
+      throw new BadRequestException(
+        'Tylko przejęte zgłoszenie może zostać zatwierdzone',
+      );
+    }
+
+    const listing = submission.publishedListing;
+
+    if (!listing) {
+      throw new BadRequestException('Zgłoszenie nie ma powiązanego ogłoszenia');
+    }
+
+    if (!submission.ownerUserId || !listing.ownerUserId) {
+      throw new BadRequestException(
+        'Nie można zatwierdzić ogłoszenia bez przypisanego właściciela',
+      );
+    }
+
+    const now = new Date();
+    const expiresAt = listing.expiresAt ?? buildSellerListingExpiresAt(now);
+
+    listing.status = ListingStatus.ACTIVE;
+    listing.publicationStatus = ListingPublicationStatus.PUBLISHED;
+    listing.publicSlug =
+      listing.publicSlug ??
+      (await this.generateUniquePublicSlug(submission.payload));
+    listing.publishedAt = listing.publishedAt ?? now;
+    listing.unpublishedAt = null;
+    listing.expiresAt = expiresAt;
+
+    submission.publishedAt = submission.publishedAt ?? now;
+    submission.expiresAt = expiresAt;
+    submission.rejectedAt = null;
+    submission.metadata = {
+      ...submission.metadata,
+      adminApproval: {
+        approvedByUserId: adminUserId,
+        approvedAt: now.toISOString(),
+      },
+    };
+
+    const savedSubmission = await this.dataSource.transaction(
+      async (manager) => {
+        await manager.save(Listing, listing);
+        return manager.save(PublicListingSubmission, submission);
+      },
+    );
+
+    await this.activityService.log({
+      userId: adminUserId,
+      entityType: ActivityEntityType.LISTING,
+      entityId: listing.id,
+      action: ActivityAction.PUBLISHED,
+      description: 'Zatwierdzono publiczne zgłoszenie ogłoszenia',
+      changes: [
+        {
+          field: 'publicListingSubmissionId',
+          oldValue: null,
+          newValue: submission.id,
+        },
+      ],
+    });
+
+    return toSellerDetail({
+      ...savedSubmission,
+      publishedListing: listing,
+    });
+  }
+
   private async sendVerificationEmail(
     submission: PublicListingSubmission,
     token: string,
