@@ -194,6 +194,12 @@ export class AdminListingSubmissionsController {
     private readonly submissionsService: PublicListingSubmissionsService,
   ) {}
 
+  /** GET /api/admin/listing-submissions — list submissions waiting for moderation. */
+  @Get()
+  async listPendingReview() {
+    return this.submissionsService.findPendingAdminReview();
+  }
+
   /** POST /api/admin/listing-submissions/:id/approve — publish a moderated submission without changing ownership. */
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)

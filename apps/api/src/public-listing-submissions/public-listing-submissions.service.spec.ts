@@ -118,6 +118,7 @@ function buildService(submission: PublicListingSubmission) {
   const submissionRepo = {
     find: jest.fn().mockResolvedValue([submission]),
     findOne: jest.fn().mockResolvedValue(submission),
+    createQueryBuilder: jest.fn(),
   };
   const listingRepo = {
     findOne: jest.fn().mockResolvedValue(null),
@@ -299,5 +300,32 @@ describe('PublicListingSubmissionsService admin moderation', () => {
       viewCount: 12,
       inquiryCount: 3,
     });
+  });
+
+  it('lists claimed draft submissions for admin moderation', async () => {
+    const submission = buildSubmission();
+    const { service, submissionRepo, listing } = buildService(submission);
+    submissionRepo.createQueryBuilder.mockReturnValue({
+      innerJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([submission]),
+    });
+
+    const result = await service.findPendingAdminReview();
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: submission.id,
+        email: submission.email,
+        title: 'Mieszkanie testowe',
+        city: 'Warszawa',
+        publishedListingId: listing.id,
+        publicationStatus: ListingPublicationStatus.DRAFT,
+      }),
+    ]);
   });
 });

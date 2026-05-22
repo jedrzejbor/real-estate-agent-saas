@@ -136,6 +136,26 @@ export interface SellerPublicListingSubmissionDetail extends SellerPublicListing
   agencyName: string | null;
 }
 
+export interface AdminPublicListingSubmissionListItem {
+  id: string;
+  status: SellerPublicListingSubmissionStatus;
+  ownerName: string;
+  email: string;
+  phone: string;
+  title: string;
+  propertyType: PropertyType;
+  transactionType: TransactionType;
+  price: number | null;
+  currency: string;
+  city: string | null;
+  createdAt: string;
+  verifiedAt: string | null;
+  claimedAt: string | null;
+  publishedListingId: string;
+  publishedListingSlug: string | null;
+  publicationStatus: ListingPublicationStatus;
+}
+
 export type UpdateSellerPublicListingSubmissionInput = Partial<
   Pick<
     CreatePublicListingSubmissionInput,
@@ -223,6 +243,38 @@ export async function unpublishSellerPublicListingSubmission(
     `/public-listing-submissions/seller/${id}/unpublish`,
     {
       method: 'POST',
+    },
+  );
+}
+
+export async function fetchAdminPublicListingSubmissions(): Promise<
+  AdminPublicListingSubmissionListItem[]
+> {
+  return apiFetch<AdminPublicListingSubmissionListItem[]>(
+    '/admin/listing-submissions',
+  );
+}
+
+export async function approveAdminPublicListingSubmission(
+  id: string,
+): Promise<SellerPublicListingSubmissionDetail> {
+  return apiFetch<SellerPublicListingSubmissionDetail>(
+    `/admin/listing-submissions/${id}/approve`,
+    {
+      method: 'POST',
+    },
+  );
+}
+
+export async function rejectAdminPublicListingSubmission(
+  id: string,
+  reason: string,
+): Promise<SellerPublicListingSubmissionDetail> {
+  return apiFetch<SellerPublicListingSubmissionDetail>(
+    `/admin/listing-submissions/${id}/reject`,
+    {
+      method: 'POST',
+      body: { reason },
     },
   );
 }

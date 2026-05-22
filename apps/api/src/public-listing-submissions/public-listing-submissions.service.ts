@@ -157,6 +157,26 @@ export interface SellerPublicListingSubmissionDetail extends SellerPublicListing
   agencyName: string | null;
 }
 
+export interface AdminPublicListingSubmissionListItem {
+  id: string;
+  status: PublicListingSubmissionStatus;
+  ownerName: string;
+  email: string;
+  phone: string;
+  title: string;
+  propertyType: PropertyType;
+  transactionType: TransactionType;
+  price: number | null;
+  currency: string;
+  city: string | null;
+  createdAt: Date;
+  verifiedAt: Date | null;
+  claimedAt: Date | null;
+  publishedListingId: string;
+  publishedListingSlug: string | null;
+  publicationStatus: ListingPublicationStatus;
+}
+
 @Injectable()
 export class PublicListingSubmissionsService {
   private readonly logger = new Logger(PublicListingSubmissionsService.name);
@@ -280,6 +300,24 @@ export class PublicListingSubmissionsService {
     await this.attachSellerSubmissionStats(submissions);
 
     return submissions.map((submission) => toSellerListItem(submission));
+  }
+
+  async findPendingAdminReview(): Promise<AdminPublicListingSubmissionListItem[]> {
+    const submissions = await this.submissionRepo
+      .createQueryBuilder('submission')
+      .innerJoinAndSelect('submission.publishedListing', 'listing')
+      .where('submission.status = :status', {
+        status: PublicListingSubmissionStatus.CLAIMED,
+      })
+      .andWhere('listing.publicationStatus = :publicationStatus', {
+        publicationStatus: ListingPublicationStatus.DRAFT,
+      })
+      .orderBy('submission.claimedAt', 'ASC', 'NULLS LAST')
+      .addOrderBy('submission.createdAt', 'ASC')
+      .take(100)
+      .getMany();
+
+    return submissions.map(toAdminListItem);
   }
 
   async findOneForOwner(
@@ -1403,6 +1441,46 @@ function toSellerDetail(
     email: submission.email,
     phone: submission.phone,
     agencyName: submission.agencyName ?? null,
+  };
+}
+
+function toAdminListItem(
+  submission: PublicListingSubmission,
+): AdminPublicListingSubmissionListItem {
+  const listing = submission.payload.listing ?? {};
+  const address = submission.payload.address ?? {};
+  const publishedListing = submission.publishedListing;
+
+  if (!publishedListing) {
+    throw new Error('Admin moderation item requires a published listing');
+  }
+
+  return {
+    id: submission.id,
+    status: submission.status,
+    ownerName: submission.ownerName,
+    email: submission.email,
+    phone: submission.phone,
+    title: getString(listing.title, 'Ogłoszenie nieruchomości'),
+    propertyType: getEnumValue(
+      listing.propertyType,
+      Object.values(PropertyType),
+      PropertyType.APARTMENT,
+    ),
+    transactionType: getEnumValue(
+      listing.transactionType,
+      Object.values(TransactionType),
+      TransactionType.SALE,
+    ),
+    price: getNullableNumber(listing.price),
+    currency: getString(listing.currency, 'PLN').slice(0, 3),
+    city: getNullableString(address.city),
+    createdAt: submission.createdAt,
+    verifiedAt: submission.verifiedAt ?? null,
+    claimedAt: submission.claimedAt ?? null,
+    publishedListingId: publishedListing.id,
+    publishedListingSlug: publishedListing.publicSlug ?? null,
+    publicationStatus: publishedListing.publicationStatus,
   };
 }
 

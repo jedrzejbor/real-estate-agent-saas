@@ -322,11 +322,13 @@ Sprint C (panel admina):
 
 ### Sprint C — Panel moderacji admina
 
-- [ ] **C1** — Frontend: strona `/dashboard/admin/submissions` — lista zgłoszeń do moderacji (tylko dla roli `admin`).
+- [x] **C1** — Frontend: strona `/dashboard/admin/submissions` — lista zgłoszeń do moderacji (tylko dla roli `admin`).
   - Pokazuje zgłoszenia z `status = claimed` i `listing.publicationStatus = draft` (wymagające przeglądu)
   - Kolumny: data, email klienta, tytuł ogłoszenia, cena, lokalizacja, status
+  - Wykonano: dodano admin-only stronę `/dashboard/admin/submissions` oraz link w sidebarze dla administratorów. Backend `GET /api/admin/listing-submissions` zwraca maksymalnie 100 zgłoszeń `claimed` z listingiem w `publicationStatus = draft`; UI pokazuje datę, email/telefon, właściciela, tytuł, cenę, lokalizację i status moderacji.
 
-- [ ] **C2** — Frontend: akcje na liście moderacji — `Zatwierdź` i `Odrzuć` (z polem powodu odrzucenia).
+- [x] **C2** — Frontend: akcje na liście moderacji — `Zatwierdź` i `Odrzuć` (z polem powodu odrzucenia).
+  - Wykonano: każda karta moderacji ma akcję `Zatwierdź` wywołującą `POST /api/admin/listing-submissions/:id/approve` oraz `Odrzuć` z wymaganym textarea powodu, który trafia do `POST /api/admin/listing-submissions/:id/reject`. Po sukcesie zgłoszenie znika z listy i użytkownik dostaje toast.
 
 - [ ] **C3** — Email do klienta przy zatwierdzeniu — "Twoje ogłoszenie zostało opublikowane, możesz je zobaczyć tutaj: [link]".
 

@@ -61,6 +61,11 @@ export function DashboardSidebar() {
             href: '/dashboard/admin/feedback',
             icon: ShieldCheck,
           },
+          {
+            label: 'Moderacja ofert',
+            href: '/dashboard/admin/submissions',
+            icon: ClipboardList,
+          },
         ]
       : navItems;
 
