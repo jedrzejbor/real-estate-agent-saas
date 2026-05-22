@@ -113,7 +113,7 @@ export class Listing {
   showPublicViewCount: boolean;
 
   @Column({ type: 'timestamptz', nullable: true })
-  publishedAt: Date;
+  publishedAt: Date | null;
 
   @Column({ type: 'timestamptz', nullable: true })
   unpublishedAt?: Date | null;

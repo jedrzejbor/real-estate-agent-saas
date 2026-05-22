@@ -47,6 +47,7 @@ import { assertSafeImageUpload } from '../common/image-upload-security';
 import {
   ClaimPublicListingSubmissionDto,
   CreatePublicListingSubmissionDto,
+  RejectPublicListingSubmissionDto,
   UpdateSellerPublicListingSubmissionDto,
   VerifyPublicListingSubmissionDto,
 } from './dto';
@@ -885,6 +886,95 @@ export class PublicListingSubmissionsService {
     });
   }
 
+  async rejectByAdmin(
+    adminUserId: string,
+    id: string,
+    dto: RejectPublicListingSubmissionDto,
+  ): Promise<SellerPublicListingSubmissionDetail> {
+    const reason = dto.reason.trim();
+
+    if (!reason) {
+      throw new BadRequestException('Powód odrzucenia jest wymagany');
+    }
+
+    const submission = await this.submissionRepo.findOne({
+      where: { id },
+      relations: ['publishedListing'],
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Zgłoszenie nie znalezione');
+    }
+
+    if (submission.status !== PublicListingSubmissionStatus.CLAIMED) {
+      throw new BadRequestException(
+        'Tylko przejęte zgłoszenie może zostać odrzucone',
+      );
+    }
+
+    const listing = submission.publishedListing;
+
+    if (!listing) {
+      throw new BadRequestException('Zgłoszenie nie ma powiązanego ogłoszenia');
+    }
+
+    const now = new Date();
+    const previousPublicationStatus = listing.publicationStatus;
+
+    listing.status = ListingStatus.DRAFT;
+    listing.publicationStatus = ListingPublicationStatus.DRAFT;
+    listing.publishedAt = null;
+    listing.unpublishedAt = now;
+    listing.expiresAt = null;
+
+    submission.status = PublicListingSubmissionStatus.REJECTED;
+    submission.publishedAt = null;
+    submission.expiresAt = null;
+    submission.rejectedAt = now;
+    submission.metadata = {
+      ...submission.metadata,
+      adminRejection: {
+        rejectedByUserId: adminUserId,
+        rejectedAt: now.toISOString(),
+        reason,
+      },
+    };
+
+    const savedSubmission = await this.dataSource.transaction(
+      async (manager) => {
+        await manager.save(Listing, listing);
+        return manager.save(PublicListingSubmission, submission);
+      },
+    );
+
+    await this.activityService.log({
+      userId: adminUserId,
+      entityType: ActivityEntityType.LISTING,
+      entityId: listing.id,
+      action: ActivityAction.STATUS_CHANGED,
+      description: 'Odrzucono publiczne zgłoszenie ogłoszenia',
+      changes: [
+        {
+          field: 'publicListingSubmissionStatus',
+          oldValue: PublicListingSubmissionStatus.CLAIMED,
+          newValue: PublicListingSubmissionStatus.REJECTED,
+        },
+        {
+          field: 'publicationStatus',
+          oldValue: previousPublicationStatus,
+          newValue: ListingPublicationStatus.DRAFT,
+        },
+      ],
+    });
+
+    await this.sendRejectionEmail(savedSubmission, reason);
+
+    return toSellerDetail({
+      ...savedSubmission,
+      publishedListing: listing,
+    });
+  }
+
   private async sendVerificationEmail(
     submission: PublicListingSubmission,
     token: string,
@@ -905,6 +995,25 @@ export class PublicListingSubmissionsService {
         verificationUrl,
         '',
         'Link jest ważny przez 48 godzin.',
+      ].join('\n'),
+    });
+  }
+
+  private async sendRejectionEmail(
+    submission: PublicListingSubmission,
+    reason: string,
+  ): Promise<void> {
+    await this.emailService.send({
+      to: submission.email,
+      subject: 'Twoje ogłoszenie wymaga poprawek',
+      text: [
+        `Cześć ${submission.ownerName},`,
+        '',
+        'Twoje ogłoszenie zostało sprawdzone i wymaga poprawek przed publikacją.',
+        '',
+        `Powód: ${reason}`,
+        '',
+        'Zaloguj się do panelu właściciela, popraw ogłoszenie i wyślij je ponownie do weryfikacji.',
       ].join('\n'),
     });
   }

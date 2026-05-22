@@ -280,9 +280,10 @@ Sprint C (panel admina):
   - Plik: `apps/api/src/public-listing-submissions/public-listing-submissions.service.ts`
   - Wykonano: dodano kontroler `AdminListingSubmissionsController` pod `/api/admin/listing-submissions`, zabezpieczony `@Roles(UserRole.ADMIN)`. `approveByAdmin()` publikuje powiązany listing, generuje `publicSlug` jeśli go brakuje, ustawia daty publikacji/wygasania, zapisuje metadane `adminApproval` i log aktywności, bez zmiany `ownerUserId`.
 
-- [ ] **A5** — Backend: dodać endpoint `POST /api/admin/listing-submissions/:id/reject` (tylko rola `admin`).
+- [x] **A5** — Backend: dodać endpoint `POST /api/admin/listing-submissions/:id/reject` (tylko rola `admin`).
   - Działanie: ustawia `Listing.publicationStatus = draft`, `submission.status = rejected`, wysyła email do klienta z powodem
   - Plik: jak wyżej
+  - Wykonano: dodano DTO z wymaganym powodem odrzucenia, endpoint `POST /api/admin/listing-submissions/:id/reject` zabezpieczony rolą `admin` oraz `rejectByAdmin()`. Odrzucenie przestawia listing na `draft`, czyści daty publikacji/wygasania, ustawia `submission.status = rejected`, zapisuje `adminRejection` w metadanych, loguje aktywność i wysyła email do klienta z powodem.
 
 ---
 

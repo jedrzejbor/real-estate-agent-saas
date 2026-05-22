@@ -2,5 +2,6 @@ export { CreatePublicListingSubmissionDto } from './create-public-listing-submis
 export { UpdateSellerPublicListingSubmissionDto } from './update-seller-public-listing-submission.dto';
 export {
   ClaimPublicListingSubmissionDto,
+  RejectPublicListingSubmissionDto,
   VerifyPublicListingSubmissionDto,
 } from './verify-public-listing-submission.dto';

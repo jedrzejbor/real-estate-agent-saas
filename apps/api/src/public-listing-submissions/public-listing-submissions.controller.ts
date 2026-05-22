@@ -23,6 +23,7 @@ import { UserRole } from '../common/enums';
 import {
   ClaimPublicListingSubmissionDto,
   CreatePublicListingSubmissionDto,
+  RejectPublicListingSubmissionDto,
   UpdateSellerPublicListingSubmissionDto,
   VerifyPublicListingSubmissionDto,
 } from './dto';
@@ -201,5 +202,16 @@ export class AdminListingSubmissionsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.submissionsService.approveByAdmin(adminUserId, id);
+  }
+
+  /** POST /api/admin/listing-submissions/:id/reject — reject a moderated submission without changing ownership. */
+  @Post(':id/reject')
+  @HttpCode(HttpStatus.OK)
+  async reject(
+    @CurrentUser('id') adminUserId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RejectPublicListingSubmissionDto,
+  ) {
+    return this.submissionsService.rejectByAdmin(adminUserId, id, dto);
   }
 }

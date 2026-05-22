@@ -13,3 +13,10 @@ export class ClaimPublicListingSubmissionDto {
   @MaxLength(255)
   claimToken: string;
 }
+
+export class RejectPublicListingSubmissionDto {
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(1000)
+  reason: string;
+}
