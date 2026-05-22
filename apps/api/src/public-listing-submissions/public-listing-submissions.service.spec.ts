@@ -135,6 +135,9 @@ function buildService(submission: PublicListingSubmission) {
   const emailService = {
     send: jest.fn().mockResolvedValue(undefined),
   };
+  const configService = {
+    get: jest.fn().mockReturnValue('https://estateflow.test'),
+  };
   const dataSource = {
     transaction: jest.fn(async (callback: (manager: unknown) => unknown) =>
       callback({
@@ -152,7 +155,7 @@ function buildService(submission: PublicListingSubmission) {
       dataSource as never,
       activityService as never,
       emailService as never,
-      {} as never,
+      configService as never,
       {} as never,
       {} as never,
     ),
@@ -161,6 +164,7 @@ function buildService(submission: PublicListingSubmission) {
     publicLeadRepo,
     activityService,
     emailService,
+    configService,
     listing: submission.publishedListing as Listing,
   };
 }
@@ -172,7 +176,8 @@ describe('PublicListingSubmissionsService admin moderation', () => {
 
   it('approves a claimed submission without changing ownership', async () => {
     const submission = buildSubmission();
-    const { service, activityService, listing } = buildService(submission);
+    const { service, activityService, emailService, listing } =
+      buildService(submission);
 
     const result = await service.approveByAdmin('admin-1', submission.id);
 
@@ -191,6 +196,15 @@ describe('PublicListingSubmissionsService admin moderation', () => {
         userId: 'admin-1',
         entityId: listing.id,
         action: ActivityAction.PUBLISHED,
+      }),
+    );
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: submission.email,
+        subject: 'Twoje ogłoszenie zostało opublikowane',
+        text: expect.stringContaining(
+          'https://estateflow.test/oferty/mieszkanie-testowe-warszawa',
+        ),
       }),
     );
     expect(result.publishedListingId).toBe(listing.id);

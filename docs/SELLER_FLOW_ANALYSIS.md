@@ -330,7 +330,8 @@ Sprint C (panel admina):
 - [x] **C2** — Frontend: akcje na liście moderacji — `Zatwierdź` i `Odrzuć` (z polem powodu odrzucenia).
   - Wykonano: każda karta moderacji ma akcję `Zatwierdź` wywołującą `POST /api/admin/listing-submissions/:id/approve` oraz `Odrzuć` z wymaganym textarea powodu, który trafia do `POST /api/admin/listing-submissions/:id/reject`. Po sukcesie zgłoszenie znika z listy i użytkownik dostaje toast.
 
-- [ ] **C3** — Email do klienta przy zatwierdzeniu — "Twoje ogłoszenie zostało opublikowane, możesz je zobaczyć tutaj: [link]".
+- [x] **C3** — Email do klienta przy zatwierdzeniu — "Twoje ogłoszenie zostało opublikowane, możesz je zobaczyć tutaj: [link]".
+  - Wykonano: `approveByAdmin()` po publikacji wysyła email do właściciela z linkiem do `/oferty/:slug` zbudowanym na bazie `FRONTEND_URL`. Test serwisu sprawdza wysyłkę i poprawny publiczny URL.
 
 - [ ] **C4** — Email do klienta przy odrzuceniu — "Twoje ogłoszenie zostało odrzucone. Powód: [powód]. Możesz je poprawić i wysłać ponownie."
 

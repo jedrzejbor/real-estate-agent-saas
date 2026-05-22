@@ -928,6 +928,8 @@ export class PublicListingSubmissionsService {
       ],
     });
 
+    await this.sendApprovalEmail(savedSubmission, listing);
+
     return toSellerDetail({
       ...savedSubmission,
       publishedListing: listing,
@@ -1047,6 +1049,34 @@ export class PublicListingSubmissionsService {
     });
   }
 
+  private async sendApprovalEmail(
+    submission: PublicListingSubmission,
+    listing: Listing,
+  ): Promise<void> {
+    if (!listing.publicSlug) {
+      this.logger.warn(
+        `Skipping approval email for submission ${submission.id}: listing has no public slug`,
+      );
+      return;
+    }
+
+    const publicListingUrl = this.buildPublicListingUrl(listing.publicSlug);
+
+    await this.emailService.send({
+      to: submission.email,
+      subject: 'Twoje ogłoszenie zostało opublikowane',
+      text: [
+        `Cześć ${submission.ownerName},`,
+        '',
+        'Twoje ogłoszenie zostało zatwierdzone i opublikowane w katalogu.',
+        '',
+        `Możesz je zobaczyć tutaj: ${publicListingUrl}`,
+        '',
+        'W panelu właściciela możesz śledzić wyświetlenia, zapytania oraz zarządzać publikacją.',
+      ].join('\n'),
+    });
+  }
+
   private async sendRejectionEmail(
     submission: PublicListingSubmission,
     reason: string,
@@ -1064,6 +1094,16 @@ export class PublicListingSubmissionsService {
         'Zaloguj się do panelu właściciela, popraw ogłoszenie i wyślij je ponownie do weryfikacji.',
       ].join('\n'),
     });
+  }
+
+  private buildPublicListingUrl(publicSlug: string): string {
+    const frontendUrl = this.configService.get(
+      'FRONTEND_URL',
+      'http://localhost:3000',
+    );
+    const normalizedFrontendUrl = String(frontendUrl).replace(/\/+$/, '');
+
+    return `${normalizedFrontendUrl}/oferty/${encodeURIComponent(publicSlug)}`;
   }
 
   private assertHumanSubmission(dto: CreatePublicListingSubmissionDto): void {
