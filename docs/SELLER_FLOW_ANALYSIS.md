@@ -303,17 +303,20 @@ Sprint C (panel admina):
   - Ikona: `Eye` z lucide-react (już importowana)
   - Wykonano: karta ogłoszenia pokazuje ikonę `Eye` i sformatowany licznik wyświetleń, jeśli listing jest już powiązany z publiczną ofertą.
 
-- [ ] **B4** — Frontend UI: pokazać liczbę zapytań (`💬 X zapytań`) na karcie ogłoszenia w `/seller`.
+- [x] **B4** — Frontend UI: pokazać liczbę zapytań (`💬 X zapytań`) na karcie ogłoszenia w `/seller`.
   - Plik: `apps/web/src/app/(seller)/seller/page.tsx` — komponent `SellerSubmissionCard`
   - Dane: dodać `inquiryCount` do odpowiedzi backendowej lub obliczać z istniejącej listy `inquiries`
+  - Wykonano: backend zwraca `inquiryCount` na bazie `public_leads`, typ frontendowy zawiera pole, a karta ogłoszenia pokazuje ikonę `MessageSquareText` i licznik zapytań.
 
-- [ ] **B5** — Strona szczegółów ogłoszenia `/seller/listings/[id]` — widok tylko do odczytu z pełnymi statystykami.
+- [x] **B5** — Strona szczegółów ogłoszenia `/seller/listings/[id]` — widok tylko do odczytu z pełnymi statystykami.
   - Strona powinna pokazywać: status, wyświetlenia, zapytania, daty, link do publicznego ogłoszenia, akcje (edytuj/wycofaj/odnów)
   - Plik do stworzenia: `apps/web/src/app/(seller)/seller/listings/[id]/page.tsx`
+  - Wykonano: dodano stronę szczegółów z ochroną roli `private_seller`, statystykami, statusem, datami, ceną/opisem, linkiem publicznym oraz akcjami `Edytuj`, `Wycofaj`, `Odnów`. Karta w `/seller` ma link `Szczegóły`.
 
-- [ ] **B6** — Ulepszyć komunikat statusu `verified` / `w weryfikacji` w panelu `/seller`.
+- [x] **B6** — Ulepszyć komunikat statusu `verified` / `w weryfikacji` w panelu `/seller`.
   - Zamiast ogólnego "W weryfikacji" pokazać: "Twoje ogłoszenie oczekuje na publikację. Zazwyczaj trwa to do 24h."
   - Plik: `apps/web/src/app/(seller)/seller/page.tsx` — etykiety statusów
+  - Wykonano: status `verified` pokazuje nowy, konkretny komunikat, `claimed` z nieopublikowanym listingiem pokazuje "W weryfikacji przez zespół", a listing z `publicationStatus = published` jest prezentowany jako "Opublikowane".
 
 ---
 

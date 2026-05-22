@@ -19,6 +19,7 @@ import { Address } from '../listings/entities/address.entity';
 import { Listing } from '../listings/entities/listing.entity';
 import { ListingImage } from '../listings/entities/listing-image.entity';
 import { MonitoringService } from '../monitoring';
+import { PublicLead } from '../public-leads/entities';
 import { UsersService } from '../users';
 import {
   ActivityAction,
@@ -133,6 +134,7 @@ export interface SellerPublicListingSubmissionListItem {
   publishedListingSlug: string | null;
   publicationStatus: ListingPublicationStatus | null;
   viewCount: number | null;
+  inquiryCount: number | null;
   createdAt: Date;
   updatedAt: Date;
   verifiedAt: Date | null;
@@ -166,6 +168,8 @@ export class PublicListingSubmissionsService {
     private readonly listingRepo: Repository<Listing>,
     @InjectRepository(AnalyticsEvent)
     private readonly analyticsEventRepo: Repository<AnalyticsEvent>,
+    @InjectRepository(PublicLead)
+    private readonly publicLeadRepo: Repository<PublicLead>,
     private readonly dataSource: DataSource,
     private readonly activityService: ActivityService,
     private readonly emailService: EmailService,
@@ -273,7 +277,7 @@ export class PublicListingSubmissionsService {
       take: 100,
     });
 
-    await this.attachSellerSubmissionViewCounts(submissions);
+    await this.attachSellerSubmissionStats(submissions);
 
     return submissions.map((submission) => toSellerListItem(submission));
   }
@@ -1174,7 +1178,7 @@ export class PublicListingSubmissionsService {
     return submission;
   }
 
-  private async attachSellerSubmissionViewCounts(
+  private async attachSellerSubmissionStats(
     submissions: PublicListingSubmission[],
   ): Promise<void> {
     const listings = submissions
@@ -1184,24 +1188,37 @@ export class PublicListingSubmissionsService {
     if (listings.length === 0) return;
 
     const listingIds = listings.map((listing) => listing.id);
-    const rows = await this.analyticsEventRepo
-      .createQueryBuilder('event')
-      .select("event.properties ->> 'listingId'", 'listingId')
-      .addSelect('COUNT(*)::int', 'viewCount')
-      .where('event.name = :eventName', {
-        eventName: 'public_listing_viewed',
-      })
-      .andWhere("event.properties ->> 'listingId' IN (:...listingIds)", {
-        listingIds,
-      })
-      .groupBy("event.properties ->> 'listingId'")
-      .getRawMany<{ listingId: string; viewCount: string }>();
-    const counts = new Map(
-      rows.map((row) => [row.listingId, Number(row.viewCount)]),
+    const [viewRows, inquiryRows] = await Promise.all([
+      this.analyticsEventRepo
+        .createQueryBuilder('event')
+        .select("event.properties ->> 'listingId'", 'listingId')
+        .addSelect('COUNT(*)::int', 'viewCount')
+        .where('event.name = :eventName', {
+          eventName: 'public_listing_viewed',
+        })
+        .andWhere("event.properties ->> 'listingId' IN (:...listingIds)", {
+          listingIds,
+        })
+        .groupBy("event.properties ->> 'listingId'")
+        .getRawMany<{ listingId: string; viewCount: string }>(),
+      this.publicLeadRepo
+        .createQueryBuilder('lead')
+        .select('lead.listingId', 'listingId')
+        .addSelect('COUNT(*)::int', 'inquiryCount')
+        .where('lead.listingId IN (:...listingIds)', { listingIds })
+        .groupBy('lead.listingId')
+        .getRawMany<{ listingId: string; inquiryCount: string }>(),
+    ]);
+    const viewCounts = new Map(
+      viewRows.map((row) => [row.listingId, Number(row.viewCount)]),
+    );
+    const inquiryCounts = new Map(
+      inquiryRows.map((row) => [row.listingId, Number(row.inquiryCount)]),
     );
 
     for (const listing of listings) {
-      listing.publicViewCount = counts.get(listing.id) ?? 0;
+      listing.publicViewCount = viewCounts.get(listing.id) ?? 0;
+      listing.publicInquiryCount = inquiryCounts.get(listing.id) ?? 0;
     }
   }
 
@@ -1357,6 +1374,9 @@ function toSellerListItem(
     publicationStatus: publishedListing?.publicationStatus ?? null,
     viewCount: publishedListing
       ? (publishedListing.publicViewCount ?? 0)
+      : null,
+    inquiryCount: publishedListing
+      ? (publishedListing.publicInquiryCount ?? 0)
       : null,
     createdAt: submission.createdAt,
     updatedAt: submission.updatedAt,

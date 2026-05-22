@@ -131,6 +131,9 @@ export class Listing {
   /** Derived from analytics_events, not persisted on listings. */
   publicViewCount?: number;
 
+  /** Derived from public_leads, not persisted on listings. */
+  publicInquiryCount?: number;
+
   // ── Relations ──
 
   @ManyToOne(() => Agent, { onDelete: 'CASCADE' })

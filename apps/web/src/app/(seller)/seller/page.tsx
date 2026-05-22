@@ -587,6 +587,12 @@ function SellerSubmissionCard({
               {formatViewCount(submission.viewCount)}
             </p>
           ) : null}
+          {submission.inquiryCount !== null ? (
+            <p className="mt-2 ml-0 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground sm:ml-4">
+              <MessageSquareText className="h-4 w-4" />
+              {formatInquiryCount(submission.inquiryCount)}
+            </p>
+          ) : null}
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             {status.description}
           </p>
@@ -604,6 +610,13 @@ function SellerSubmissionCard({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href={`/seller/listings/${submission.id}`}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted"
+          >
+            <Eye className="h-4 w-4" />
+            Szczegóły
+          </Link>
           <Link
             href={`/seller/listings/${submission.id}/edit`}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
@@ -764,7 +777,7 @@ const SELLER_STATUS_COPY: Record<
   verified: {
     label: 'W weryfikacji',
     description:
-      'Email został potwierdzony. Ogłoszenie czeka na publikację lub przejęcie.',
+      'Twoje ogłoszenie oczekuje na publikację. Zazwyczaj trwa to do 24h.',
     className: 'bg-blue-100 text-blue-900',
   },
   published: {
@@ -773,9 +786,10 @@ const SELLER_STATUS_COPY: Record<
     className: 'bg-emerald-100 text-emerald-900',
   },
   claimed: {
-    label: 'Przejęte',
-    description: 'Ogłoszenie zostało powiązane z kontem i ofertą publiczną.',
-    className: 'bg-emerald-100 text-emerald-900',
+    label: 'W weryfikacji przez zespół',
+    description:
+      'Ogłoszenie jest przypisane do Twojego konta i czeka na zatwierdzenie przez zespół.',
+    className: 'bg-blue-100 text-blue-900',
   },
   rejected: {
     label: 'Wymaga poprawek',
@@ -810,6 +824,10 @@ const SELLER_PUBLICATION_STATUS_COPY = {
 function getSellerSubmissionStatusCopy(
   submission: SellerPublicListingSubmissionListItem,
 ) {
+  if (submission.publicationStatus === ListingPublicationStatus.PUBLISHED) {
+    return SELLER_STATUS_COPY.published;
+  }
+
   if (submission.publicationStatus === ListingPublicationStatus.UNPUBLISHED) {
     return SELLER_PUBLICATION_STATUS_COPY.unpublished;
   }
@@ -854,6 +872,14 @@ function formatViewCount(count: number): string {
   const normalizedCount = Math.max(0, Math.trunc(count));
   const pluralRule = new Intl.PluralRules('pl-PL').select(normalizedCount);
   const label = pluralRule === 'one' ? 'wyświetlenie' : 'wyświetleń';
+
+  return `${normalizedCount.toLocaleString('pl-PL')} ${label}`;
+}
+
+function formatInquiryCount(count: number): string {
+  const normalizedCount = Math.max(0, Math.trunc(count));
+  const pluralRule = new Intl.PluralRules('pl-PL').select(normalizedCount);
+  const label = pluralRule === 'one' ? 'zapytanie' : 'zapytań';
 
   return `${normalizedCount.toLocaleString('pl-PL')} ${label}`;
 }

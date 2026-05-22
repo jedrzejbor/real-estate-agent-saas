@@ -125,6 +125,9 @@ function buildService(submission: PublicListingSubmission) {
   const analyticsEventRepo = {
     createQueryBuilder: jest.fn(),
   };
+  const publicLeadRepo = {
+    createQueryBuilder: jest.fn(),
+  };
   const activityService = {
     log: jest.fn().mockResolvedValue(undefined),
   };
@@ -144,6 +147,7 @@ function buildService(submission: PublicListingSubmission) {
       submissionRepo as never,
       listingRepo as never,
       analyticsEventRepo as never,
+      publicLeadRepo as never,
       dataSource as never,
       activityService as never,
       emailService as never,
@@ -153,6 +157,7 @@ function buildService(submission: PublicListingSubmission) {
     ),
     submissionRepo,
     analyticsEventRepo,
+    publicLeadRepo,
     activityService,
     emailService,
     listing: submission.publishedListing as Listing,
@@ -256,9 +261,10 @@ describe('PublicListingSubmissionsService admin moderation', () => {
     expect(emailService.send).not.toHaveBeenCalled();
   });
 
-  it('adds public view counts to seller submission list items', async () => {
+  it('adds public stats to seller submission list items', async () => {
     const submission = buildSubmission();
-    const { service, analyticsEventRepo, listing } = buildService(submission);
+    const { service, analyticsEventRepo, publicLeadRepo, listing } =
+      buildService(submission);
     analyticsEventRepo.createQueryBuilder.mockReturnValue({
       select: jest.fn().mockReturnThis(),
       addSelect: jest.fn().mockReturnThis(),
@@ -272,6 +278,18 @@ describe('PublicListingSubmissionsService admin moderation', () => {
         },
       ]),
     });
+    publicLeadRepo.createQueryBuilder.mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([
+        {
+          listingId: listing.id,
+          inquiryCount: '3',
+        },
+      ]),
+    });
 
     const result = await service.findForOwner('owner-1');
 
@@ -279,6 +297,7 @@ describe('PublicListingSubmissionsService admin moderation', () => {
     expect(result[0]).toMatchObject({
       id: submission.id,
       viewCount: 12,
+      inquiryCount: 3,
     });
   });
 });
