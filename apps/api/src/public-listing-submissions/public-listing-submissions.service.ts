@@ -13,6 +13,7 @@ import { mkdir, writeFile } from 'fs/promises';
 import { extname, join } from 'path';
 import { DataSource, In, MoreThanOrEqual, Not, Repository } from 'typeorm';
 import { ActivityService } from '../activity';
+import { AnalyticsEvent } from '../analytics/entities/analytics-event.entity';
 import { EmailService } from '../email';
 import { Address } from '../listings/entities/address.entity';
 import { Listing } from '../listings/entities/listing.entity';
@@ -131,6 +132,7 @@ export interface SellerPublicListingSubmissionListItem {
   publishedListingId: string | null;
   publishedListingSlug: string | null;
   publicationStatus: ListingPublicationStatus | null;
+  viewCount: number | null;
   createdAt: Date;
   updatedAt: Date;
   verifiedAt: Date | null;
@@ -162,6 +164,8 @@ export class PublicListingSubmissionsService {
     private readonly submissionRepo: Repository<PublicListingSubmission>,
     @InjectRepository(Listing)
     private readonly listingRepo: Repository<Listing>,
+    @InjectRepository(AnalyticsEvent)
+    private readonly analyticsEventRepo: Repository<AnalyticsEvent>,
     private readonly dataSource: DataSource,
     private readonly activityService: ActivityService,
     private readonly emailService: EmailService,
@@ -268,6 +272,8 @@ export class PublicListingSubmissionsService {
       order: { createdAt: 'DESC' },
       take: 100,
     });
+
+    await this.attachSellerSubmissionViewCounts(submissions);
 
     return submissions.map((submission) => toSellerListItem(submission));
   }
@@ -1168,6 +1174,37 @@ export class PublicListingSubmissionsService {
     return submission;
   }
 
+  private async attachSellerSubmissionViewCounts(
+    submissions: PublicListingSubmission[],
+  ): Promise<void> {
+    const listings = submissions
+      .map((submission) => submission.publishedListing)
+      .filter((listing): listing is Listing => Boolean(listing));
+
+    if (listings.length === 0) return;
+
+    const listingIds = listings.map((listing) => listing.id);
+    const rows = await this.analyticsEventRepo
+      .createQueryBuilder('event')
+      .select("event.properties ->> 'listingId'", 'listingId')
+      .addSelect('COUNT(*)::int', 'viewCount')
+      .where('event.name = :eventName', {
+        eventName: 'public_listing_viewed',
+      })
+      .andWhere("event.properties ->> 'listingId' IN (:...listingIds)", {
+        listingIds,
+      })
+      .groupBy("event.properties ->> 'listingId'")
+      .getRawMany<{ listingId: string; viewCount: string }>();
+    const counts = new Map(
+      rows.map((row) => [row.listingId, Number(row.viewCount)]),
+    );
+
+    for (const listing of listings) {
+      listing.publicViewCount = counts.get(listing.id) ?? 0;
+    }
+  }
+
   private assertSellerSubmissionEditable(
     submission: PublicListingSubmission,
   ): void {
@@ -1318,6 +1355,9 @@ function toSellerListItem(
     publishedListingId: submission.publishedListingId ?? null,
     publishedListingSlug: publishedListing?.publicSlug ?? null,
     publicationStatus: publishedListing?.publicationStatus ?? null,
+    viewCount: publishedListing
+      ? (publishedListing.publicViewCount ?? 0)
+      : null,
     createdAt: submission.createdAt,
     updatedAt: submission.updatedAt,
     verifiedAt: submission.verifiedAt ?? null,

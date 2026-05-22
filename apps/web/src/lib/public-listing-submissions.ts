@@ -112,6 +112,7 @@ export interface SellerPublicListingSubmissionListItem {
   publishedListingId: string | null;
   publishedListingSlug: string | null;
   publicationStatus: ListingPublicationStatus | null;
+  viewCount: number | null;
   createdAt: string;
   updatedAt: string;
   verifiedAt: string | null;

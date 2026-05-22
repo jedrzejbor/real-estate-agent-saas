@@ -116,10 +116,14 @@ function buildSubmission(
 
 function buildService(submission: PublicListingSubmission) {
   const submissionRepo = {
+    find: jest.fn().mockResolvedValue([submission]),
     findOne: jest.fn().mockResolvedValue(submission),
   };
   const listingRepo = {
     findOne: jest.fn().mockResolvedValue(null),
+  };
+  const analyticsEventRepo = {
+    createQueryBuilder: jest.fn(),
   };
   const activityService = {
     log: jest.fn().mockResolvedValue(undefined),
@@ -139,6 +143,7 @@ function buildService(submission: PublicListingSubmission) {
     service: new PublicListingSubmissionsService(
       submissionRepo as never,
       listingRepo as never,
+      analyticsEventRepo as never,
       dataSource as never,
       activityService as never,
       emailService as never,
@@ -146,6 +151,8 @@ function buildService(submission: PublicListingSubmission) {
       {} as never,
       {} as never,
     ),
+    submissionRepo,
+    analyticsEventRepo,
     activityService,
     emailService,
     listing: submission.publishedListing as Listing,
@@ -247,5 +254,31 @@ describe('PublicListingSubmissionsService admin moderation', () => {
 
     expect(activityService.log).not.toHaveBeenCalled();
     expect(emailService.send).not.toHaveBeenCalled();
+  });
+
+  it('adds public view counts to seller submission list items', async () => {
+    const submission = buildSubmission();
+    const { service, analyticsEventRepo, listing } = buildService(submission);
+    analyticsEventRepo.createQueryBuilder.mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([
+        {
+          listingId: listing.id,
+          viewCount: '12',
+        },
+      ]),
+    });
+
+    const result = await service.findForOwner('owner-1');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      id: submission.id,
+      viewCount: 12,
+    });
   });
 });

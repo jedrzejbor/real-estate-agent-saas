@@ -289,16 +289,19 @@ Sprint C (panel admina):
 
 ### Sprint B — Panel klienta (statystyki i UX)
 
-- [ ] **B1** — Backend: dołączyć `viewCount` do odpowiedzi `GET /api/public-listing-submissions/seller`.
+- [x] **B1** — Backend: dołączyć `viewCount` do odpowiedzi `GET /api/public-listing-submissions/seller`.
   - Plik: `apps/api/src/public-listing-submissions/public-listing-submissions.service.ts` — funkcja `toSellerListItem`
   - Logika: pobrać `publicViewCount` z `publishedListing` (już obliczany przez `attachPublicViewCounts`)
+  - Wykonano: `findForOwner()` agreguje eventy `public_listing_viewed` dla powiązanych listingów i uzupełnia `publishedListing.publicViewCount`; `toSellerListItem()` zwraca `viewCount`.
 
-- [ ] **B2** — Frontend typ: dodać pole `viewCount: number | null` do `SellerPublicListingSubmissionListItem`.
+- [x] **B2** — Frontend typ: dodać pole `viewCount: number | null` do `SellerPublicListingSubmissionListItem`.
   - Plik: `apps/web/src/lib/public-listing-submissions.ts`
+  - Wykonano: kontrakt frontendowy listy ogłoszeń właściciela zawiera `viewCount: number | null`.
 
-- [ ] **B3** — Frontend UI: pokazać licznik wyświetleń (`👁 X wyświetleń`) na karcie ogłoszenia w `/seller`.
+- [x] **B3** — Frontend UI: pokazać licznik wyświetleń (`👁 X wyświetleń`) na karcie ogłoszenia w `/seller`.
   - Plik: `apps/web/src/app/(seller)/seller/page.tsx` — komponent `SellerSubmissionCard`
   - Ikona: `Eye` z lucide-react (już importowana)
+  - Wykonano: karta ogłoszenia pokazuje ikonę `Eye` i sformatowany licznik wyświetleń, jeśli listing jest już powiązany z publiczną ofertą.
 
 - [ ] **B4** — Frontend UI: pokazać liczbę zapytań (`💬 X zapytań`) na karcie ogłoszenia w `/seller`.
   - Plik: `apps/web/src/app/(seller)/seller/page.tsx` — komponent `SellerSubmissionCard`

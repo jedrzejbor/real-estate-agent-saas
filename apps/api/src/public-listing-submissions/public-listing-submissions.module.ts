@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ActivityModule } from '../activity';
+import { AnalyticsEvent } from '../analytics/entities/analytics-event.entity';
 import { EmailModule } from '../email';
 import { Address } from '../listings/entities/address.entity';
 import { Listing } from '../listings/entities/listing.entity';
@@ -22,6 +23,7 @@ import { PublicListingSubmissionsService } from './public-listing-submissions.se
       Listing,
       Address,
       ListingImage,
+      AnalyticsEvent,
       Agent,
       Agency,
     ]),

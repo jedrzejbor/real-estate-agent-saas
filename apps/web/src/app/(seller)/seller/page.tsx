@@ -581,6 +581,12 @@ function SellerSubmissionCard({
               ? formatPrice(submission.price, submission.currency)
               : 'Cena do ustalenia'}
           </p>
+          {submission.viewCount !== null ? (
+            <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              <Eye className="h-4 w-4" />
+              {formatViewCount(submission.viewCount)}
+            </p>
+          ) : null}
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             {status.description}
           </p>
@@ -842,4 +848,12 @@ function formatDate(value: string): string {
     month: '2-digit',
     year: 'numeric',
   });
+}
+
+function formatViewCount(count: number): string {
+  const normalizedCount = Math.max(0, Math.trunc(count));
+  const pluralRule = new Intl.PluralRules('pl-PL').select(normalizedCount);
+  const label = pluralRule === 'one' ? 'wyświetlenie' : 'wyświetleń';
+
+  return `${normalizedCount.toLocaleString('pl-PL')} ${label}`;
 }
