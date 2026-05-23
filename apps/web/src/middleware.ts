@@ -1,6 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = ['/', '/login', '/register'];
+const PUBLIC_PATHS = [
+  '/',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+];
 
 /** Simple client-side token check. Real validation happens in AuthProvider. */
 export function middleware(request: NextRequest) {
