@@ -3,7 +3,7 @@
 import { useState, useCallback, type FormEvent } from 'react';
 import type { z } from 'zod';
 
-interface UseAuthFormOptions<T extends z.ZodObject<z.ZodRawShape>> {
+interface UseAuthFormOptions<T extends z.ZodTypeAny> {
   schema: T;
   onSubmit: (data: z.infer<T>) => Promise<void>;
 }
@@ -17,7 +17,7 @@ interface FieldError {
  * Lightweight form hook with Zod validation.
  * Avoids heavy dependencies like react-hook-form for simple auth forms.
  */
-export function useAuthForm<T extends z.ZodObject<z.ZodRawShape>>({
+export function useAuthForm<T extends z.ZodTypeAny>({
   schema,
   onSubmit,
 }: UseAuthFormOptions<T>) {
