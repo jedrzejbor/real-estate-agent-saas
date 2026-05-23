@@ -136,8 +136,55 @@ export const registerSchema = z.object({
     .max(50, 'Nazwisko może mieć maksymalnie 50 znaków'),
 });
 
+export const requestPasswordResetSchema = z.object({
+  email: z
+    .string()
+    .min(1, 'Email jest wymagany')
+    .email('Nieprawidłowy format email'),
+});
+
+const passwordSchema = z
+  .string()
+  .min(8, 'Hasło musi mieć minimum 8 znaków')
+  .regex(/[A-Z]/, 'Hasło musi zawierać wielką literę')
+  .regex(/[a-z]/, 'Hasło musi zawierać małą literę')
+  .regex(/\d/, 'Hasło musi zawierać cyfrę');
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1, 'Link resetu hasła jest nieprawidłowy'),
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1, 'Potwierdź nowe hasło'),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'Hasła nie są takie same',
+  });
+
 export type LoginFormData = z.infer<typeof loginSchema>;
 export type RegisterFormData = z.infer<typeof registerSchema>;
+export type RequestPasswordResetFormData = z.infer<
+  typeof requestPasswordResetSchema
+>;
+export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
+
+export async function requestPasswordReset(
+  input: RequestPasswordResetFormData,
+): Promise<void> {
+  await authFetch('/auth/password-reset/request', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export async function resetPassword(
+  input: ResetPasswordFormData,
+): Promise<void> {
+  await authFetch('/auth/password-reset/confirm', {
+    method: 'POST',
+    body: input,
+  });
+}
 
 export function isPrivateSellerUser(user: Pick<AuthUser, 'role'>): boolean {
   return user.role === 'viewer';
@@ -244,4 +291,33 @@ export async function refreshTokens(): Promise<AuthTokens> {
   const tokens: AuthTokens = await res.json();
   storeTokens(tokens);
   return tokens;
+}
+
+async function authFetch(
+  path: string,
+  {
+    body,
+    ...init
+  }: Omit<RequestInit, 'body'> & { body?: Record<string, unknown> },
+): Promise<void> {
+  const headers = new Headers(init.headers);
+  headers.set('Content-Type', 'application/json');
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (res.ok) return;
+
+  const json = await res.json().catch(() => ({}));
+  const message =
+    typeof json.message === 'string'
+      ? json.message
+      : Array.isArray(json.message)
+        ? json.message.join(', ')
+        : 'Wystąpił nieoczekiwany błąd';
+
+  throw new Error(message);
 }
