@@ -11,11 +11,13 @@ import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { UsersModule } from '../users/users.module';
 import { ReleaseFlagsModule } from '../release-flags';
+import { EmailModule } from '../email';
 
 @Module({
   imports: [
     UsersModule,
     ReleaseFlagsModule,
+    EmailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -29,7 +31,14 @@ import { ReleaseFlagsModule } from '../release-flags';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtRefreshStrategy, JwtAuthGuard, JwtRefreshGuard, RolesGuard],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    JwtRefreshStrategy,
+    JwtAuthGuard,
+    JwtRefreshGuard,
+    RolesGuard,
+  ],
   exports: [AuthService, JwtAuthGuard, JwtRefreshGuard, RolesGuard],
 })
 export class AuthModule {}
