@@ -328,6 +328,44 @@ export class UsersService {
     await this.userRepo.save(user);
   }
 
+  async setPasswordResetToken(
+    userId: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Użytkownik nie znaleziony');
+    }
+
+    user.passwordResetTokenHash = tokenHash;
+    user.passwordResetExpiresAt = expiresAt;
+    await this.userRepo.save(user);
+  }
+
+  async findByPasswordResetTokenHash(
+    tokenHash: string,
+  ): Promise<User | null> {
+    return this.userRepo.findOne({
+      where: { passwordResetTokenHash: tokenHash },
+    });
+  }
+
+  async completePasswordReset(
+    userId: string,
+    passwordHash: string,
+  ): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Użytkownik nie znaleziony');
+    }
+
+    user.passwordHash = passwordHash;
+    user.passwordResetTokenHash = null;
+    user.passwordResetExpiresAt = null;
+    await this.userRepo.save(user);
+  }
+
   /** Deactivate user account. */
   async deactivate(id: string): Promise<void> {
     const user = await this.findById(id);

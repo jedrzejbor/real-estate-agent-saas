@@ -24,6 +24,24 @@ export class User {
   @Exclude()
   passwordHash: string;
 
+  @Index()
+  @Column({
+    type: 'varchar',
+    length: 128,
+    name: 'password_reset_token_hash',
+    nullable: true,
+  })
+  @Exclude()
+  passwordResetTokenHash?: string | null;
+
+  @Column({
+    type: 'timestamptz',
+    name: 'password_reset_expires_at',
+    nullable: true,
+  })
+  @Exclude()
+  passwordResetExpiresAt?: Date | null;
+
   @Column({ type: 'enum', enum: UserRole, default: UserRole.AGENT })
   role: UserRole;
 

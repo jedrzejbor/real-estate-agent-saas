@@ -103,6 +103,15 @@ function LoginForm() {
             error={getFieldError('password')}
           />
 
+          <div className="text-right">
+            <Link
+              href="/forgot-password"
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Nie pamiętasz hasła?
+            </Link>
+          </div>
+
           <Button
             type="submit"
             disabled={isSubmitting}

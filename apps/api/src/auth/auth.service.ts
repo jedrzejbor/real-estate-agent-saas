@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -7,6 +8,8 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import { createHash, randomBytes } from 'crypto';
+import { EmailService } from '../email';
 import { UsersService } from '../users/users.service';
 import { AgencyPlanService } from '../users/agency-plan.service';
 import { ReleaseFlagsService } from '../release-flags';
@@ -16,6 +19,8 @@ import {
   LoginDto,
   RegisterDto,
   RegisterAccountType,
+  RequestPasswordResetDto,
+  ResetPasswordDto,
   UpdateMyProfileDto,
 } from './dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
@@ -23,6 +28,8 @@ import { User } from '../users/entities/user.entity';
 import { UserRole } from '../common/enums';
 
 const BCRYPT_ROUNDS = 12;
+const PASSWORD_RESET_TOKEN_BYTES = 32;
+const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -34,6 +41,7 @@ export class AuthService {
     private readonly releaseFlagsService: ReleaseFlagsService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly emailService: EmailService,
   ) {}
 
   /** Register a new user and return tokens. */
@@ -147,6 +155,55 @@ export class AuthService {
     await this.usersService.updatePasswordHash(userId, passwordHash);
   }
 
+  async requestPasswordReset(
+    dto: RequestPasswordResetDto,
+  ): Promise<{ success: true }> {
+    const email = dto.email.toLowerCase().trim();
+    const user = await this.usersService.findByEmail(email);
+
+    if (!user || !user.isActive) {
+      return { success: true };
+    }
+
+    const token = randomBytes(PASSWORD_RESET_TOKEN_BYTES).toString('hex');
+    const tokenHash = hashPasswordResetToken(token);
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
+
+    await this.usersService.setPasswordResetToken(
+      user.id,
+      tokenHash,
+      expiresAt,
+    );
+    await this.sendPasswordResetEmail(user.email, token, expiresAt);
+
+    return { success: true };
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<void> {
+    if (dto.newPassword !== dto.confirmPassword) {
+      throw new BadRequestException('Hasła nie są takie same');
+    }
+
+    const tokenHash = hashPasswordResetToken(dto.token);
+    const user = await this.usersService.findByPasswordResetTokenHash(
+      tokenHash,
+    );
+
+    if (
+      !user ||
+      !user.isActive ||
+      !user.passwordResetExpiresAt ||
+      user.passwordResetExpiresAt.getTime() <= Date.now()
+    ) {
+      throw new BadRequestException(
+        'Link resetu hasła jest nieprawidłowy lub wygasł',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
+    await this.usersService.completePasswordReset(user.id, passwordHash);
+  }
+
   /** Deactivate current user's account after password confirmation. */
   async deactivateMyAccount(
     userId: string,
@@ -193,6 +250,40 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
+  private async sendPasswordResetEmail(
+    email: string,
+    token: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    const resetUrl = this.buildFrontendUrl(
+      `/reset-password?token=${encodeURIComponent(token)}`,
+    );
+
+    await this.emailService.send({
+      to: email,
+      subject: 'Reset hasła EstateFlow',
+      text: [
+        'Otrzymaliśmy prośbę o ustawienie nowego hasła do konta EstateFlow.',
+        '',
+        `Kliknij link i podaj nowe hasło: ${resetUrl}`,
+        '',
+        `Link jest ważny do ${formatDateTimeForEmail(expiresAt)}.`,
+        'Jeśli to nie Ty wysłałeś tę prośbę, zignoruj tę wiadomość.',
+      ].join('\n'),
+    });
+  }
+
+  private buildFrontendUrl(path: string): string {
+    const frontendUrl = this.configService.get(
+      'FRONTEND_URL',
+      'http://localhost:3000',
+    );
+    const normalizedFrontendUrl = String(frontendUrl).replace(/\/+$/, '');
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+    return `${normalizedFrontendUrl}${normalizedPath}`;
+  }
+
   private async serializeUser(user: User) {
     const access = await this.usersService.getAgencyAccessContext(user.id);
     const usage = await this.usersService.getAgencyUsageSummaryByAgentIds(
@@ -228,4 +319,18 @@ export class AuthService {
       usage,
     };
   }
+}
+
+function hashPasswordResetToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+function formatDateTimeForEmail(value: Date): string {
+  return new Intl.DateTimeFormat('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(value);
 }
