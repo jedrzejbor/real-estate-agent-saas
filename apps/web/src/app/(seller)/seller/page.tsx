@@ -684,43 +684,47 @@ function SellerUpgradeCallout({ href }: { href: string }) {
   ];
 
   return (
-    <section className="mt-8 rounded-2xl border border-[#D4A853]/35 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFF9E6] text-[#B8922F] ring-1 ring-[#D4A853]/25">
+    <section className="mt-8 overflow-hidden rounded-2xl border border-[#D4A853]/30 bg-[#FFFCF5] shadow-sm">
+      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="p-5 sm:p-6 lg:py-6 lg:pl-6 lg:pr-8">
+          <div className="flex items-start gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-[#B8922F] ring-1 ring-[#D4A853]/30">
               <Building2 className="h-5 w-5" />
             </span>
-            <div>
-              <p className="text-sm font-semibold uppercase text-[#8A6A1F]">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wide text-[#8A6A1F]">
                 Chcesz więcej?
               </p>
-              <h2 className="font-heading text-xl font-semibold text-foreground">
+              <h2 className="mt-1 font-heading text-2xl font-semibold leading-tight text-foreground">
                 Przejdź na konto agenta
               </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Konto agenta odblokowuje narzędzia do regularnej sprzedaży,
+                obsługi wielu nieruchomości i pracy z kontaktami bez utraty
+                aktualnego ogłoszenia właściciela.
+              </p>
             </div>
           </div>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Konto agenta odblokowuje narzędzia do regularnej sprzedaży i obsługi
-            wielu nieruchomości, bez utraty aktualnego ogłoszenia właściciela.
-          </p>
-          <ul className="mt-4 grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
+        </div>
+
+        <div className="border-t border-[#D4A853]/25 bg-white/70 p-5 sm:p-6 lg:border-l lg:border-t-0">
+          <ul className="grid gap-3 text-sm text-muted-foreground">
             {benefits.map((benefit) => (
-              <li key={benefit} className="flex items-start gap-2">
+              <li key={benefit} className="flex items-start gap-3">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <span>{benefit}</span>
+                <span className="leading-5">{benefit}</span>
               </li>
             ))}
           </ul>
-        </div>
 
-        <Link
-          href={href}
-          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          Przejdź na konto agenta
-          <ArrowRight className="h-4 w-4" />
-        </Link>
+          <Link
+            href={href}
+            className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Przejdź na konto agenta
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
     </section>
   );
