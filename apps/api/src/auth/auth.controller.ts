@@ -9,12 +9,15 @@ import {
   UseGuards,
   Patch,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import {
   ChangePasswordDto,
   DeactivateMyAccountDto,
   LoginDto,
   RegisterDto,
+  RequestPasswordResetDto,
+  ResetPasswordDto,
   UpdateMyProfileDto,
 } from './dto';
 import { Public } from './decorators/public.decorator';
@@ -38,6 +41,24 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  /** POST /api/auth/password-reset/request — public, always returns generic success. */
+  @Public()
+  @Post('password-reset/request')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  async requestPasswordReset(@Body() dto: RequestPasswordResetDto) {
+    return this.authService.requestPasswordReset(dto);
+  }
+
+  /** POST /api/auth/password-reset/confirm — public, consumes password reset token. */
+  @Public()
+  @Post('password-reset/confirm')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.authService.resetPassword(dto);
   }
 
   /** POST /api/auth/refresh — requires valid refresh token in x-refresh-token header */
