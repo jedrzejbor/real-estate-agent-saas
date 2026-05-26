@@ -11,15 +11,13 @@ import {
   Loader2,
   Save,
   Send,
+  Star,
   Trash2,
 } from 'lucide-react';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
-import {
-  AGENT_DASHBOARD_PATH,
-  isPrivateSellerUser,
-} from '@/lib/auth';
+import { AGENT_DASHBOARD_PATH, isPrivateSellerUser } from '@/lib/auth';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
   PROPERTY_TYPE_LABELS,
@@ -178,14 +176,17 @@ export default function SellerListingEditPage() {
       const result = await uploadPublicListingSubmissionImages(validFiles);
       updateDraft(
         'images',
-        [
-          ...draft.images,
-          ...result.images.map((image, index) => ({
-            ...image,
-            altText: draft.title || null,
-            order: draft.images.length + index,
-          })),
-        ].slice(0, MAX_IMAGES),
+        normalizeSubmissionImages(
+          [
+            ...draft.images,
+            ...result.images.map((image, index) => ({
+              ...image,
+              altText: draft.title || null,
+              order: draft.images.length + index,
+              isPrimary: draft.images.length === 0 && index === 0,
+            })),
+          ].slice(0, MAX_IMAGES),
+        ),
       );
     } catch (error) {
       showErrorToast({
@@ -202,9 +203,24 @@ export default function SellerListingEditPage() {
 
     updateDraft(
       'images',
-      draft.images
-        .filter((_, currentIndex) => currentIndex !== index)
-        .map((image, nextIndex) => ({ ...image, order: nextIndex })),
+      normalizeSubmissionImages(
+        draft.images.filter((_, currentIndex) => currentIndex !== index),
+      ),
+    );
+  }
+
+  function setPrimaryImage(index: number) {
+    if (!draft) return;
+
+    const target = draft.images[index];
+    if (!target) return;
+
+    updateDraft(
+      'images',
+      normalizeSubmissionImages([
+        target,
+        ...draft.images.filter((_, currentIndex) => currentIndex !== index),
+      ]),
     );
   }
 
@@ -524,7 +540,9 @@ export default function SellerListingEditPage() {
               <Button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isUploadingImages || draft.images.length >= MAX_IMAGES}
+                disabled={
+                  isUploadingImages || draft.images.length >= MAX_IMAGES
+                }
                 className="mt-4 h-10 gap-2 rounded-xl"
               >
                 {isUploadingImages ? (
@@ -547,25 +565,44 @@ export default function SellerListingEditPage() {
                       className="relative aspect-[4/3] bg-muted bg-cover bg-center"
                       style={{ backgroundImage: `url(${image.url})` }}
                     >
-                      {index === 0 ? (
+                      {image.isPrimary || index === 0 ? (
                         <span className="absolute left-3 top-3 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-900">
                           Główne
                         </span>
                       ) : null}
                     </div>
-                    <div className="flex items-center justify-between gap-3 p-3">
-                      <span className="text-xs text-muted-foreground">
-                        Zdjęcie {index + 1}
-                      </span>
+                    <div className="grid gap-2 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-muted-foreground">
+                          Zdjęcie {index + 1}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon-sm"
+                          aria-label="Usuń zdjęcie"
+                          onClick={() => removeImage(index)}
+                          className="rounded-xl"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <Button
                         type="button"
-                        variant="destructive"
-                        size="icon-sm"
-                        aria-label="Usuń zdjęcie"
-                        onClick={() => removeImage(index)}
-                        className="rounded-xl"
+                        variant={
+                          image.isPrimary || index === 0
+                            ? 'secondary'
+                            : 'outline'
+                        }
+                        size="sm"
+                        disabled={image.isPrimary || index === 0}
+                        onClick={() => setPrimaryImage(index)}
+                        className="w-full rounded-xl"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Star className="h-4 w-4" />
+                        {image.isPrimary || index === 0
+                          ? 'Zdjęcie główne'
+                          : 'Ustaw jako główne'}
                       </Button>
                     </div>
                   </article>
@@ -609,10 +646,17 @@ function toDraft(
     totalFloors: asString(listing.totalFloors),
     yearBuilt: asString(listing.yearBuilt),
     description: asString(listing.description),
-    images: submission.images.map((image, index) => ({
-      ...image,
-      order: image.order ?? index,
-    })),
+    images: normalizeSubmissionImages(
+      submission.images
+        .map((image, index) => ({
+          ...image,
+          order: image.order ?? index,
+        }))
+        .sort((a, b) => {
+          if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+          return (a.order ?? 0) - (b.order ?? 0);
+        }),
+    ),
     ownerName: submission.ownerName,
     email: submission.email,
     phone: submission.phone,
@@ -655,6 +699,7 @@ function buildUpdatePayload(draft: SellerListingEditDraft) {
       url: image.url,
       altText: image.altText || draft.title.trim(),
       order: index,
+      isPrimary: image.isPrimary || index === 0,
     })),
     ownerName: draft.ownerName.trim(),
     email: draft.email.trim(),
@@ -695,7 +740,10 @@ function validateDraft(
     Object.assign(errors, mapZodErrors(result.error));
   }
 
-  if (draft.propertyType !== PropertyType.LAND && !positiveNumber(draft.areaM2)) {
+  if (
+    draft.propertyType !== PropertyType.LAND &&
+    !positiveNumber(draft.areaM2)
+  ) {
     errors.areaM2 = 'Powierzchnia jest wymagana';
   }
   if (
@@ -918,4 +966,14 @@ function optionalNumber(value: string): number | undefined {
 function optionalString(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function normalizeSubmissionImages(
+  images: PublicListingSubmissionImage[],
+): PublicListingSubmissionImage[] {
+  return images.map((image, index) => ({
+    ...image,
+    order: index,
+    isPrimary: index === 0,
+  }));
 }

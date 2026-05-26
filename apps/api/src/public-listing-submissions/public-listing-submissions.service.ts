@@ -310,7 +310,9 @@ export class PublicListingSubmissionsService {
     return submissions.map((submission) => toSellerListItem(submission));
   }
 
-  async findPendingAdminReview(): Promise<AdminPublicListingSubmissionListItem[]> {
+  async findPendingAdminReview(): Promise<
+    AdminPublicListingSubmissionListItem[]
+  > {
     const submissions = await this.submissionRepo
       .createQueryBuilder('submission')
       .innerJoinAndSelect('submission.publishedListing', 'listing')
@@ -554,14 +556,17 @@ export class PublicListingSubmissionsService {
           .from(ListingImage)
           .where('listing_id = :listingId', { listingId: listing.id })
           .execute();
-        const images = buildImageDataFromPayload(submission.payload).map(
-          (image, index) =>
-            manager.create(ListingImage, {
-              ...image,
-              order: image.order ?? index,
-              isPrimary: index === 0,
-              listing,
-            }),
+        const imageData = sortImageDataByPrimary(
+          buildImageDataFromPayload(submission.payload),
+        );
+        const primaryImageIndex = getPrimaryImageIndex(imageData);
+        const images = imageData.map((image, index) =>
+          manager.create(ListingImage, {
+            ...image,
+            order: index,
+            isPrimary: index === primaryImageIndex,
+            listing,
+          }),
         );
 
         if (images.length > 0) {
@@ -577,7 +582,8 @@ export class PublicListingSubmissionsService {
       entityType: ActivityEntityType.LISTING,
       entityId: listing.id,
       action: ActivityAction.STATUS_CHANGED,
-      description: 'Wysłano poprawione publiczne zgłoszenie do ponownej weryfikacji',
+      description:
+        'Wysłano poprawione publiczne zgłoszenie do ponownej weryfikacji',
       changes: [
         {
           field: 'publicListingSubmissionStatus',
@@ -622,10 +628,10 @@ export class PublicListingSubmissionsService {
 
       return Boolean(
         listing &&
-          listing.publicationStatus === ListingPublicationStatus.PUBLISHED &&
-          expiresAt &&
-          expiresAt >= windowStart &&
-          expiresAt < windowEnd,
+        listing.publicationStatus === ListingPublicationStatus.PUBLISHED &&
+        expiresAt &&
+        expiresAt >= windowStart &&
+        expiresAt < windowEnd,
       );
     });
 
@@ -961,14 +967,17 @@ export class PublicListingSubmissionsService {
       });
       await manager.save(Address, address);
 
-      const images = buildImageDataFromPayload(submission.payload).map(
-        (image, index) =>
-          manager.create(ListingImage, {
-            ...image,
-            order: image.order ?? index,
-            isPrimary: index === 0,
-            listing: savedListing,
-          }),
+      const imageData = sortImageDataByPrimary(
+        buildImageDataFromPayload(submission.payload),
+      );
+      const primaryImageIndex = getPrimaryImageIndex(imageData);
+      const images = imageData.map((image, index) =>
+        manager.create(ListingImage, {
+          ...image,
+          order: index,
+          isPrimary: index === primaryImageIndex,
+          listing: savedListing,
+        }),
       );
 
       if (images.length > 0) {
@@ -1299,7 +1308,9 @@ export class PublicListingSubmissionsService {
         `Twoje ogłoszenie "${listing.publicTitle || listing.title}" wygaśnie za 7 dni, ${formatDateForEmail(expiresAt)}.`,
         '',
         `Odnów je tutaj: ${renewalUrl}`,
-        publicListingUrl ? `Publiczny link do ogłoszenia: ${publicListingUrl}` : null,
+        publicListingUrl
+          ? `Publiczny link do ogłoszenia: ${publicListingUrl}`
+          : null,
       ]
         .filter((line): line is string => line !== null)
         .join('\n'),
@@ -1655,8 +1666,30 @@ function buildImageDataFromPayload(
         url,
         altText: getOptionalString(image.altText),
         order: getOptionalNumber(image.order) ?? 0,
+        isPrimary: Boolean(image.isPrimary),
       },
     ];
+  });
+}
+
+function getPrimaryImageIndex(images: Array<Partial<ListingImage>>): number {
+  if (images.length === 0) {
+    return -1;
+  }
+
+  const selectedIndex = images.findIndex((image) => image.isPrimary);
+  return selectedIndex >= 0 ? selectedIndex : 0;
+}
+
+function sortImageDataByPrimary(
+  images: Array<Partial<ListingImage>>,
+): Array<Partial<ListingImage>> {
+  return images.slice().sort((a, b) => {
+    if (Boolean(a.isPrimary) !== Boolean(b.isPrimary)) {
+      return Boolean(a.isPrimary) ? -1 : 1;
+    }
+
+    return (a.order ?? 0) - (b.order ?? 0);
   });
 }
 
@@ -1817,9 +1850,18 @@ function getEnumValue<T extends string>(
 function getFirstImageUrl(
   payload: PublicListingSubmissionPayload,
 ): string | null {
-  const firstImage = payload.images?.find((image) =>
-    getNullableString(image.url),
-  );
+  const firstImage = (payload.images ?? [])
+    .filter((image) => getNullableString(image.url))
+    .sort((a, b) => {
+      if (Boolean(a.isPrimary) !== Boolean(b.isPrimary)) {
+        return Boolean(a.isPrimary) ? -1 : 1;
+      }
+
+      return (
+        (getOptionalNumber(a.order) ?? 0) - (getOptionalNumber(b.order) ?? 0)
+      );
+    })[0];
+
   return firstImage ? getNullableString(firstImage.url) : null;
 }
 

@@ -172,6 +172,10 @@ export class PublicSubmissionImageDto {
   @IsNumber()
   @Min(0)
   order?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isPrimary?: boolean;
 }
 
 export class CreatePublicListingSubmissionDto {

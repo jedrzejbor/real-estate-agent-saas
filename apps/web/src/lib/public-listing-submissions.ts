@@ -10,6 +10,7 @@ export interface PublicListingSubmissionImage {
   url: string;
   altText?: string | null;
   order?: number;
+  isPrimary?: boolean;
 }
 
 export interface CreatePublicListingSubmissionInput {

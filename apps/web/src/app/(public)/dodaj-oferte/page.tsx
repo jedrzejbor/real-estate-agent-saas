@@ -12,6 +12,7 @@ import {
   ImagePlus,
   Loader2,
   Mail,
+  Star,
   Trash2,
 } from 'lucide-react';
 import { z } from 'zod';
@@ -257,10 +258,11 @@ export default function PublicListingSubmissionWizardPage() {
           ...image,
           altText: draft.title || null,
           order: draft.images.length + index,
+          isPrimary: draft.images.length === 0 && index === 0,
         })),
       ].slice(0, MAX_IMAGES);
 
-      updateDraft('images', nextImages);
+      updateDraft('images', normalizeSubmissionImages(nextImages));
       showSuccessToast({
         title: 'Zdjęcia dodane',
         description: 'Dodaliśmy zdjęcia do publicznego zgłoszenia.',
@@ -669,9 +671,22 @@ function StepImages({
   function removeImage(index: number) {
     updateDraft(
       'images',
-      draft.images
-        .filter((_, currentIndex) => currentIndex !== index)
-        .map((image, nextIndex) => ({ ...image, order: nextIndex })),
+      normalizeSubmissionImages(
+        draft.images.filter((_, currentIndex) => currentIndex !== index),
+      ),
+    );
+  }
+
+  function setPrimaryImage(index: number) {
+    const target = draft.images[index];
+    if (!target) return;
+
+    updateDraft(
+      'images',
+      normalizeSubmissionImages([
+        target,
+        ...draft.images.filter((_, currentIndex) => currentIndex !== index),
+      ]),
     );
   }
 
@@ -725,25 +740,42 @@ function StepImages({
                   alt={image.altText || draft.title || 'Zdjęcie oferty'}
                   className="h-full w-full object-cover"
                 />
-                {index === 0 ? (
+                {image.isPrimary || index === 0 ? (
                   <Badge className="absolute left-3 top-3" variant="success">
                     Główne
                   </Badge>
                 ) : null}
               </div>
-              <div className="flex items-center justify-between gap-3 p-3">
-                <span className="text-xs text-muted-foreground">
-                  Zdjęcie {index + 1}
-                </span>
+              <div className="grid gap-2 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground">
+                    Zdjęcie {index + 1}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon-sm"
+                    aria-label="Usuń zdjęcie"
+                    onClick={() => removeImage(index)}
+                    className="rounded-xl"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
                 <Button
                   type="button"
-                  variant="destructive"
-                  size="icon-sm"
-                  aria-label="Usuń zdjęcie"
-                  onClick={() => removeImage(index)}
-                  className="rounded-xl"
+                  variant={
+                    image.isPrimary || index === 0 ? 'secondary' : 'outline'
+                  }
+                  size="sm"
+                  disabled={image.isPrimary || index === 0}
+                  onClick={() => setPrimaryImage(index)}
+                  className="w-full rounded-xl"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Star className="h-4 w-4" />
+                  {image.isPrimary || index === 0
+                    ? 'Zdjęcie główne'
+                    : 'Ustaw jako główne'}
                 </Button>
               </div>
             </article>
@@ -1387,6 +1419,7 @@ function buildSubmissionPayload(
       url: image.url,
       altText: image.altText || draft.title.trim(),
       order: index,
+      isPrimary: image.isPrimary || index === 0,
     })),
     ownerName: draft.ownerName.trim(),
     email: draft.email.trim(),
@@ -1421,6 +1454,16 @@ function buildSubmissionPayload(
         : undefined,
     },
   };
+}
+
+function normalizeSubmissionImages(
+  images: PublicListingSubmissionImage[],
+): PublicListingSubmissionImage[] {
+  return images.map((image, index) => ({
+    ...image,
+    order: index,
+    isPrimary: index === 0,
+  }));
 }
 
 function positiveNumber(value: string): boolean {
