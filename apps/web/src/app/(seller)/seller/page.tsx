@@ -12,6 +12,7 @@ import {
   Eye,
   Archive,
   CheckCircle2,
+  Copy,
   Home,
   Loader2,
   LogOut,
@@ -24,6 +25,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
+import { useToast } from '@/contexts/toast-context';
 import { AGENT_DASHBOARD_PATH, isPrivateSellerUser } from '@/lib/auth';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
@@ -354,6 +356,26 @@ function SellerInquiryCard({
   ) => void;
 }) {
   const status = SELLER_INQUIRY_STATUS_COPY[inquiry.status];
+  const { success: showSuccessToast, error: showErrorToast } = useToast();
+
+  async function copyContactValue(label: string, value: string) {
+    try {
+      await copyText(value);
+      showSuccessToast({
+        title: 'Skopiowano',
+        description: `${label}: ${value}`,
+      });
+    } catch {
+      showErrorToast({
+        title: 'Nie udało się skopiować',
+        description: 'Zaznacz wartość ręcznie i skopiuj ją z karty zapytania.',
+      });
+    }
+  }
+
+  function markContacted() {
+    onStatusChange(inquiry.id, PublicLeadStatus.CONTACTED);
+  }
 
   return (
     <article className="rounded-2xl border border-border bg-white p-5 shadow-sm">
@@ -388,30 +410,30 @@ function SellerInquiryCard({
           )}
         </div>
 
-        <div className="flex shrink-0 flex-col gap-2 text-sm">
+        <div className="flex w-full shrink-0 flex-col gap-3 text-sm md:w-80">
           {inquiry.email ? (
-            <a
+            <ContactValueRow
+              icon={Mail}
+              label="Email"
+              value={inquiry.email}
               href={`mailto:${inquiry.email}`}
-              onClick={() =>
-                onStatusChange(inquiry.id, PublicLeadStatus.CONTACTED)
-              }
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border px-3 font-semibold transition-colors hover:bg-muted"
-            >
-              <Mail className="h-4 w-4" />
-              Email
-            </a>
+              actionLabel="Napisz"
+              onCopy={() => copyContactValue('Email', inquiry.email as string)}
+              onOpen={markContacted}
+            />
           ) : null}
           {inquiry.phone ? (
-            <a
+            <ContactValueRow
+              icon={Phone}
+              label="Telefon"
+              value={inquiry.phone}
               href={`tel:${inquiry.phone}`}
-              onClick={() =>
-                onStatusChange(inquiry.id, PublicLeadStatus.CONTACTED)
+              actionLabel="Zadzwoń"
+              onCopy={() =>
+                copyContactValue('Telefon', inquiry.phone as string)
               }
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border px-3 font-semibold transition-colors hover:bg-muted"
-            >
-              <Phone className="h-4 w-4" />
-              Telefon
-            </a>
+              onOpen={markContacted}
+            />
           ) : null}
           {inquiry.status !== PublicLeadStatus.CONTACTED ? (
             <button
@@ -450,6 +472,58 @@ function SellerInquiryCard({
         </div>
       </div>
     </article>
+  );
+}
+
+function ContactValueRow({
+  icon: Icon,
+  label,
+  value,
+  href,
+  actionLabel,
+  onCopy,
+  onOpen,
+}: {
+  icon: typeof Mail;
+  label: string;
+  value: string;
+  href: string;
+  actionLabel: string;
+  onCopy: () => void;
+  onOpen: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 p-3">
+      <div className="flex items-start gap-2">
+        <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold uppercase text-muted-foreground">
+            {label}
+          </p>
+          <p className="mt-1 break-all text-sm font-medium text-foreground">
+            {value}
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={onCopy}
+          className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold transition-colors hover:bg-muted"
+        >
+          <Copy className="h-4 w-4" />
+          Kopiuj
+        </button>
+        <a
+          href={href}
+          onClick={onOpen}
+          className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold transition-colors hover:bg-muted"
+        >
+          <Icon className="h-4 w-4" />
+          {actionLabel}
+        </a>
+      </div>
+    </div>
   );
 }
 
@@ -943,4 +1017,28 @@ function formatInquiryCount(count: number): string {
   const label = pluralRule === 'one' ? 'zapytanie' : 'zapytań';
 
   return `${normalizedCount.toLocaleString('pl-PL')} ${label}`;
+}
+
+async function copyText(value: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  try {
+    const copied = document.execCommand('copy');
+    if (!copied) {
+      throw new Error('Copy command failed');
+    }
+  } finally {
+    document.body.removeChild(textarea);
+  }
 }
