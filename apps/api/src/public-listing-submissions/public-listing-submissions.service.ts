@@ -1529,9 +1529,14 @@ export class PublicListingSubmissionsService {
   private assertSellerSubmissionEditable(
     submission: PublicListingSubmission,
   ): void {
-    if (submission.status === PublicListingSubmissionStatus.CLAIMED) {
+    const isWaitingForModeration =
+      submission.status === PublicListingSubmissionStatus.CLAIMED &&
+      submission.publishedListing?.publicationStatus ===
+        ListingPublicationStatus.DRAFT;
+
+    if (isWaitingForModeration) {
       throw new ForbiddenException(
-        'Opublikowana oferta nie może być jeszcze edytowana w panelu właściciela',
+        'Oferta oczekuje na weryfikację i nie może być teraz edytowana',
       );
     }
   }

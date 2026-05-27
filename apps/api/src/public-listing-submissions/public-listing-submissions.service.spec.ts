@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import {
   ActivityAction,
   ListingPublicationStatus,
@@ -440,6 +440,59 @@ describe('PublicListingSubmissionsService admin moderation', () => {
       }),
     );
     expect(result.status).toBe(PublicListingSubmissionStatus.CLAIMED);
+  });
+
+  it('allows the owner to edit a published claimed submission', async () => {
+    const listing = buildListing({
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publicSlug: 'mieszkanie-testowe-warszawa',
+    });
+    const submission = buildSubmission({
+      publishedListing: listing,
+    });
+    const { service, submissionRepo } = buildService(submission);
+
+    const result = await service.updateForOwner('owner-1', submission.id, {
+      listing: {
+        title: 'Zaktualizowane mieszkanie testowe',
+        propertyType: PropertyType.APARTMENT,
+        transactionType: TransactionType.SALE,
+        price: 525000,
+        currency: 'PLN',
+        areaM2: 50,
+      },
+    });
+
+    expect(submissionRepo.save).toHaveBeenCalledWith(submission);
+    expect(submission.payload.listing.title).toBe(
+      'Zaktualizowane mieszkanie testowe',
+    );
+    expect(result.title).toBe('Zaktualizowane mieszkanie testowe');
+  });
+
+  it('blocks owner edits while a claimed submission is waiting for moderation', async () => {
+    const listing = buildListing({
+      publicationStatus: ListingPublicationStatus.DRAFT,
+    });
+    const submission = buildSubmission({
+      publishedListing: listing,
+    });
+    const { service, submissionRepo } = buildService(submission);
+
+    await expect(
+      service.updateForOwner('owner-1', submission.id, {
+        listing: {
+          title: 'Próba edycji w moderacji',
+          propertyType: PropertyType.APARTMENT,
+          transactionType: TransactionType.SALE,
+          price: 525000,
+          currency: 'PLN',
+          areaM2: 50,
+        },
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(submissionRepo.save).not.toHaveBeenCalled();
   });
 
   it('sends 7-day expiry reminders once per expiration date', async () => {
