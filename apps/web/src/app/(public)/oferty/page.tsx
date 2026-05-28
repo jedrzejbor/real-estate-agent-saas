@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, PlusCircle } from 'lucide-react';
+import { ArrowLeft, MapPin } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
 import { absoluteUrl, getSiteUrl } from '@/lib/seo';
 import {
@@ -18,6 +18,7 @@ import {
   type PublicListingCatalogResponse,
 } from '@/lib/listings';
 import { PublicListingCatalog } from '@/components/listings/public-listing-catalog';
+import { PublicListingsHeroActions } from '@/components/listings/public-listings-hero-actions';
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -133,21 +134,7 @@ export default async function PublicListingsIndexPage({
                     ? `Przeglądaj opublikowane mieszkania, domy i działki w lokalizacji ${filters.city}. Zmieniaj filtry, sprawdzaj mapę i przechodź do szczegółów wybranej nieruchomości.`
                     : 'Przeglądaj opublikowane oferty, filtruj po lokalizacji, parametrach i cenie, a potem przejdź do szczegółów wybranej nieruchomości.'}
               </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  href="/dodaj-oferte"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  <PlusCircle className="h-4 w-4" />
-                  Dodaj ofertę bez konta
-                </Link>
-                <Link
-                  href="/register"
-                  className="inline-flex h-11 items-center justify-center rounded-xl border border-border px-5 text-sm font-semibold transition-colors hover:bg-muted"
-                >
-                  Załóż konto agenta
-                </Link>
-              </div>
+              <PublicListingsHeroActions />
             </div>
 
             <div className="rounded-2xl border border-border bg-muted/30 p-4">
