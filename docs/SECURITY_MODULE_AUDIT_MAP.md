@@ -389,6 +389,7 @@ poniższych elementów:
 
 | Data | Autor | Typ | Zmiana | Do sprawdzenia |
 | --- | --- | --- | --- | --- |
+| 2026-05-30 | Codex | product/security | Lista zapytań publicznych zwraca i wyświetla główne zdjęcie powiązanej oferty w panelu agenta i sprzedającego. | Przy audycie sprawdzić, że `primaryImage` pochodzi wyłącznie z oferty w scope agenta/sprzedającego i nie ujawnia zdjęć niepowiązanych leadów. |
 | 2026-05-28 | Codex | audit-map | Utworzono rejestr modułu. | Przy audycie sprawdzić deduplikację leadów i widoczność dla sprzedającego. |
 
 ---

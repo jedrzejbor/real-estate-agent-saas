@@ -357,6 +357,7 @@ function SellerInquiryCard({
 }) {
   const status = SELLER_INQUIRY_STATUS_COPY[inquiry.status];
   const { success: showSuccessToast, error: showErrorToast } = useToast();
+  const primaryImage = inquiry.listing?.primaryImage;
 
   async function copyContactValue(label: string, value: string) {
     try {
@@ -380,34 +381,60 @@ function SellerInquiryCard({
   return (
     <article className="rounded-2xl border border-border bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${status.className}`}
-            >
-              {PUBLIC_LEAD_STATUS_LABELS[inquiry.status]}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {formatDate(inquiry.createdAt)}
-            </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row">
+          <div
+            className="h-28 w-full shrink-0 rounded-xl bg-muted sm:w-36"
+            style={
+              primaryImage
+                ? {
+                    backgroundImage: `url(${primaryImage.url})`,
+                    backgroundPosition: 'center',
+                    backgroundSize: 'cover',
+                  }
+                : undefined
+            }
+            aria-label={
+              primaryImage
+                ? `Zdjęcie ogłoszenia ${inquiry.listing?.title ?? ''}`
+                : undefined
+            }
+          >
+            {!primaryImage ? (
+              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                <Home className="h-7 w-7" />
+              </div>
+            ) : null}
           </div>
 
-          <h3 className="mt-3 font-heading text-lg font-semibold">
-            {inquiry.fullName}
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {inquiry.listing?.title ?? 'Ogłoszenie niedostępne'}
-          </p>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${status.className}`}
+              >
+                {PUBLIC_LEAD_STATUS_LABELS[inquiry.status]}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {formatDate(inquiry.createdAt)}
+              </span>
+            </div>
 
-          {inquiry.message ? (
-            <p className="mt-3 line-clamp-3 text-sm leading-6 text-foreground">
-              {inquiry.message}
+            <h3 className="mt-3 font-heading text-lg font-semibold">
+              {inquiry.fullName}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {inquiry.listing?.title ?? 'Ogłoszenie niedostępne'}
             </p>
-          ) : (
-            <p className="mt-3 text-sm text-muted-foreground">
-              Zapytanie bez dodatkowej wiadomości.
-            </p>
-          )}
+
+            {inquiry.message ? (
+              <p className="mt-3 line-clamp-3 text-sm leading-6 text-foreground">
+                {inquiry.message}
+              </p>
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Zapytanie bez dodatkowej wiadomości.
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="flex w-full shrink-0 flex-col gap-3 text-sm md:w-80">

@@ -89,6 +89,11 @@ export interface PublicLeadListItem {
     id: string;
     title: string;
     publicSlug: string | null;
+    primaryImage: {
+      id: string;
+      url: string;
+      altText: string | null;
+    } | null;
   } | null;
   convertedClient: {
     id: string;
@@ -106,6 +111,10 @@ export interface PaginatedPublicLeads {
     totalPages: number;
   };
 }
+
+type PublicLeadListingImage = NonNullable<
+  PublicLeadListItem['listing']
+>['primaryImage'];
 
 @Injectable()
 export class PublicLeadsService {
@@ -147,6 +156,7 @@ export class PublicLeadsService {
     const qb = this.publicLeadRepo
       .createQueryBuilder('lead')
       .leftJoinAndSelect('lead.listing', 'listing')
+      .leftJoinAndSelect('listing.images', 'listingImages')
       .leftJoinAndSelect('lead.convertedClient', 'convertedClient')
       .where('lead.agentId = :agentId', { agentId: agent.id });
 
@@ -222,6 +232,7 @@ export class PublicLeadsService {
     const qb = this.publicLeadRepo
       .createQueryBuilder('lead')
       .leftJoinAndSelect('lead.listing', 'listing')
+      .leftJoinAndSelect('listing.images', 'listingImages')
       .leftJoinAndSelect('lead.convertedClient', 'convertedClient')
       .where('listing.ownerUserId = :ownerUserId', { ownerUserId });
 
@@ -296,6 +307,7 @@ export class PublicLeadsService {
     const lead = await this.publicLeadRepo
       .createQueryBuilder('lead')
       .leftJoinAndSelect('lead.listing', 'listing')
+      .leftJoinAndSelect('listing.images', 'listingImages')
       .leftJoinAndSelect('lead.convertedClient', 'convertedClient')
       .where('lead.id = :id', { id })
       .andWhere('listing.ownerUserId = :ownerUserId', { ownerUserId })
@@ -1040,6 +1052,7 @@ function mapPublicLeadListItem(lead: PublicLead): PublicLeadListItem {
           id: lead.listing.id,
           title: lead.listing.publicTitle || lead.listing.title,
           publicSlug: lead.listing.publicSlug ?? null,
+          primaryImage: getPrimaryLeadListingImage(lead.listing),
         }
       : null,
     convertedClient: lead.convertedClient
@@ -1077,6 +1090,26 @@ function splitFullName(fullName: string): {
     firstName: parts[0],
     lastName: parts.slice(1).join(' '),
   };
+}
+
+function getPrimaryLeadListingImage(listing: Listing): PublicLeadListingImage {
+  const primaryImage = (listing.images ?? [])
+    .slice()
+    .sort((a, b) => {
+      if (a.isPrimary !== b.isPrimary) {
+        return a.isPrimary ? -1 : 1;
+      }
+
+      return a.order - b.order;
+    })[0];
+
+  return primaryImage
+    ? {
+        id: primaryImage.id,
+        url: primaryImage.url,
+        altText: primaryImage.altText ?? null,
+      }
+    : null;
 }
 
 function buildClientInitialNotes(lead: PublicLead): string {

@@ -57,6 +57,11 @@ export interface PublicInquiryListing {
   id: string;
   title: string;
   publicSlug: string | null;
+  primaryImage: {
+    id: string;
+    url: string;
+    altText: string | null;
+  } | null;
 }
 
 export interface PublicInquiryConvertedClient {

@@ -1,9 +1,11 @@
 'use client';
 
+/* eslint-disable @next/next/no-img-element */
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
   ExternalLink,
+  ImageIcon,
   Inbox,
   MessageSquareText,
   RefreshCw,
@@ -219,51 +221,71 @@ function PublicInquiryFiltersBar({
 
 function PublicInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
   const statusVariant = PUBLIC_LEAD_STATUS_BADGE_VARIANT[inquiry.status];
+  const primaryImage = inquiry.listing?.primaryImage;
 
   return (
     <article className="rounded-2xl border border-border bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 flex-1 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={statusVariant}>
-              {PUBLIC_LEAD_STATUS_LABELS[inquiry.status]}
-            </Badge>
-            <Badge variant="outline">
-              {PUBLIC_LEAD_SOURCE_LABELS[inquiry.source]}
-            </Badge>
-            {inquiry.utmCampaign ? (
-              <Badge variant="muted">UTM: {inquiry.utmCampaign}</Badge>
-            ) : null}
+        <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row">
+          <div className="h-28 w-full shrink-0 overflow-hidden rounded-xl bg-muted sm:w-36">
+            {primaryImage ? (
+              <img
+                src={primaryImage.url}
+                alt={primaryImage.altText || inquiry.listing?.title || 'Oferta'}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                <ImageIcon className="h-7 w-7" />
+              </div>
+            )}
           </div>
 
-          <div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <h2 className="text-base font-semibold text-foreground">
-                {inquiry.fullName}
-              </h2>
-              <span className="text-xs text-muted-foreground">
-                {formatRelativeTime(inquiry.createdAt)}
-              </span>
+          <div className="min-w-0 flex-1 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={statusVariant}>
+                {PUBLIC_LEAD_STATUS_LABELS[inquiry.status]}
+              </Badge>
+              <Badge variant="outline">
+                {PUBLIC_LEAD_SOURCE_LABELS[inquiry.source]}
+              </Badge>
+              {inquiry.utmCampaign ? (
+                <Badge variant="muted">UTM: {inquiry.utmCampaign}</Badge>
+              ) : null}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {inquiry.listing?.title ?? 'Oferta niedostępna'}
-            </p>
-          </div>
 
-          {inquiry.message ? (
-            <p className="line-clamp-3 max-w-4xl text-sm leading-6 text-foreground">
-              {inquiry.message}
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Zapytanie bez dodatkowej wiadomości.
-            </p>
-          )}
+            <div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h2 className="text-base font-semibold text-foreground">
+                  {inquiry.fullName}
+                </h2>
+                <span className="text-xs text-muted-foreground">
+                  {formatRelativeTime(inquiry.createdAt)}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {inquiry.listing?.title ?? 'Oferta niedostępna'}
+              </p>
+            </div>
 
-          <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-            <span>{inquiry.email ?? 'Brak emaila'}</span>
-            <span>{inquiry.phone ?? 'Brak telefonu'}</span>
-            {inquiry.marketingConsent ? <span>Zgoda marketingowa</span> : null}
+            {inquiry.message ? (
+              <p className="line-clamp-3 max-w-4xl text-sm leading-6 text-foreground">
+                {inquiry.message}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Zapytanie bez dodatkowej wiadomości.
+              </p>
+            )}
+
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+              <span>{inquiry.email ?? 'Brak emaila'}</span>
+              <span>{inquiry.phone ?? 'Brak telefonu'}</span>
+              {inquiry.marketingConsent ? (
+                <span>Zgoda marketingowa</span>
+              ) : null}
+            </div>
           </div>
         </div>
 
