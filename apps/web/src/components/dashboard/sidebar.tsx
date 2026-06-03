@@ -13,6 +13,7 @@ import {
   Settings,
   LogOut,
   ThumbsUp,
+  Newspaper,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -60,6 +61,11 @@ export function DashboardSidebar() {
             label: 'Feedback',
             href: '/dashboard/admin/feedback',
             icon: ShieldCheck,
+          },
+          {
+            label: 'Blog',
+            href: '/dashboard/blog',
+            icon: Newspaper,
           },
           {
             label: 'Moderacja ofert',

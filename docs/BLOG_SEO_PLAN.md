@@ -729,12 +729,19 @@ canonicalami, schema i sitemapą.
 Cel sprintu: umożliwić zarządzanie blogiem z dashboardu bez ręcznego edytowania
 bazy danych.
 
-- [ ] 🔴 Dodać trasę `/dashboard/blog`
-  - Wykonano:
-- [ ] 🔴 Dodać listę wpisów w panelu
-  - Wykonano:
-- [ ] 🔴 Dodać filtry: status, kategoria, autor, data
-  - Wykonano:
+- [x] 🔴 Dodać trasę `/dashboard/blog`
+  - Wykonano: 2026-06-03 — dodano klientową stronę
+    `apps/web/src/app/(dashboard)/dashboard/blog/page.tsx` oraz link `Blog` w
+    sidebarze dashboardu widoczny dla administratora.
+- [x] 🔴 Dodać listę wpisów w panelu
+  - Wykonano: 2026-06-03 — dodano listę wpisów z publicznym URL-em, statusem,
+    kategorią, autorem, datą publikacji/aktualizacji, stanem pustym,
+    odświeżaniem i paginacją.
+- [x] 🔴 Dodać filtry: status, kategoria, autor, data
+  - Wykonano: 2026-06-03 — dodano filtry statusu, kategorii, autora i
+    wyszukiwanie tekstowe. Filtr daty nie został dodany jako osobne pole, bo
+    backend Sprintu 1 nie ma jeszcze zakresów dat w `BlogPostQueryDto`; wróci
+    przy rozbudowie API filtrów.
 - [ ] 🔴 Dodać tworzenie nowego wpisu
   - Wykonano:
 - [ ] 🔴 Dodać edycję istniejącego wpisu
@@ -746,10 +753,17 @@ bazy danych.
   - Wykonano:
 - [ ] 🔴 Dodać walidację SEO przed publikacją
   - Wykonano:
-- [ ] 🔴 Dodać akcję `Publikuj`
-  - Wykonano:
-- [ ] 🔴 Dodać akcję `Wycofaj publikację`
-  - Wykonano:
+- [x] 🔴 Dodać akcję `Publikuj`
+  - Wykonano: 2026-06-03 — lista wpisów ma akcję publikacji wywołującą
+    `POST /api/admin/blog/posts/:id/publish` przez `publishBlogPostAdmin()`.
+- [x] 🔴 Dodać akcję `Wycofaj publikację`
+  - Wykonano: 2026-06-03 — lista wpisów ma akcję wycofania publikacji
+    wywołującą `POST /api/admin/blog/posts/:id/unpublish` przez
+    `unpublishBlogPostAdmin()`.
+- [x] 🟠 Dodać archiwizację wpisu z listy
+  - Wykonano: 2026-06-03 — lista wpisów ma akcję `Archiwizuj`, która wywołuje
+    `DELETE /api/admin/blog/posts/:id`; backend archiwizuje wpis zamiast usuwać
+    rekord z bazy.
 - [ ] 🔴 Dodać podgląd wpisu przed publikacją
   - Wykonano:
 - [ ] 🟠 Dodać planowanie publikacji po `publishedAt`

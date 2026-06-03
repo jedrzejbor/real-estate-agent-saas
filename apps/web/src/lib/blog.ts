@@ -9,6 +9,24 @@ export const BlogContentFormat = {
 export type BlogContentFormat =
   (typeof BlogContentFormat)[keyof typeof BlogContentFormat];
 
+export const BlogPostStatus = {
+  DRAFT: 'draft',
+  SCHEDULED: 'scheduled',
+  PUBLISHED: 'published',
+  ARCHIVED: 'archived',
+} as const;
+
+export type BlogPostStatus =
+  (typeof BlogPostStatus)[keyof typeof BlogPostStatus];
+
+export const BlogRobotsDirective = {
+  INDEX_FOLLOW: 'index_follow',
+  NOINDEX_FOLLOW: 'noindex_follow',
+} as const;
+
+export type BlogRobotsDirective =
+  (typeof BlogRobotsDirective)[keyof typeof BlogRobotsDirective];
+
 export interface BlogCategorySummary {
   id: string;
   name: string;
@@ -57,6 +75,23 @@ export interface PublicBlogPost extends PublicBlogPostListItem {
   contentFormat: BlogContentFormat;
 }
 
+export interface AdminBlogPost extends PublicBlogPost {
+  status: BlogPostStatus;
+  robots: BlogRobotsDirective;
+  createdBy?: string | null;
+  updatedBy?: string | null;
+  createdAt: string;
+}
+
+export interface AdminBlogCategory extends PublicBlogCategory {
+  sortOrder: number;
+}
+
+export interface AdminBlogAuthor extends BlogAuthorSummary {
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PublicBlogPostSitemapEntry {
   slug: string;
   updatedAt: string;
@@ -74,13 +109,27 @@ export interface PublicBlogPostsResponse {
   meta: PaginationMeta;
 }
 
+export interface AdminBlogPostsResponse {
+  data: AdminBlogPost[];
+  meta: PaginationMeta;
+}
+
 export interface PublicBlogPostsFilters {
   categoryId?: string;
   page?: number;
   limit?: number;
 }
 
-function buildQueryString(filters: PublicBlogPostsFilters): string {
+export interface AdminBlogPostsFilters {
+  status?: BlogPostStatus;
+  categoryId?: string;
+  authorId?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+function buildQueryString(filters: object): string {
   const params = new URLSearchParams();
 
   for (const [key, value] of Object.entries(filters)) {
@@ -100,6 +149,42 @@ export async function fetchPublicBlogPosts(
     `/public-blog/posts${buildQueryString(filters)}`,
     { skipAuth: true },
   );
+}
+
+export async function fetchBlogPostsAdmin(
+  filters: AdminBlogPostsFilters = {},
+): Promise<AdminBlogPostsResponse> {
+  return apiFetch<AdminBlogPostsResponse>(
+    `/admin/blog/posts${buildQueryString(filters)}`,
+  );
+}
+
+export async function fetchBlogCategoriesAdmin(): Promise<AdminBlogCategory[]> {
+  return apiFetch<AdminBlogCategory[]>('/admin/blog/categories');
+}
+
+export async function fetchBlogAuthorsAdmin(): Promise<AdminBlogAuthor[]> {
+  return apiFetch<AdminBlogAuthor[]>('/admin/blog/authors');
+}
+
+export async function publishBlogPostAdmin(id: string): Promise<AdminBlogPost> {
+  return apiFetch<AdminBlogPost>(`/admin/blog/posts/${id}/publish`, {
+    method: 'POST',
+  });
+}
+
+export async function unpublishBlogPostAdmin(
+  id: string,
+): Promise<AdminBlogPost> {
+  return apiFetch<AdminBlogPost>(`/admin/blog/posts/${id}/unpublish`, {
+    method: 'POST',
+  });
+}
+
+export async function archiveBlogPostAdmin(id: string): Promise<AdminBlogPost> {
+  return apiFetch<AdminBlogPost>(`/admin/blog/posts/${id}`, {
+    method: 'DELETE',
+  });
 }
 
 export async function fetchPublicBlogPost(
