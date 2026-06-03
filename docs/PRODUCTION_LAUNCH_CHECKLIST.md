@@ -18,43 +18,65 @@
 
 ### Serwer i domeny
 
-- [ ] 🔴 Wykupić domenę produkcyjną (np. `estateflow.pl`)
-- [ ] 🔴 Skonfigurować DNS (A record, CNAME, MX)
-- [ ] 🔴 Certyfikat SSL/TLS (Let's Encrypt lub Cloudflare)
-- [ ] 🔴 Wybrać i skonfigurować hosting (VPS / managed, np. Hetzner, OVH, DigitalOcean, Railway, Render)
-- [ ] 🟠 CDN dla frontendu i plików statycznych (Cloudflare, Vercel Edge)
-- [ ] 🟡 Subdomena `api.estateflow.pl` oddzielona od frontendu
-- [ ] 🟡 Subdomena `mailpit` → zablokować w prod, zastąpić prawdziwym SMTP
+> **Decyzja (3.06.2026):** VPS Linux na **home.pl**, min. 4 GB RAM / 2 vCPU / 40 GB SSD, system Ubuntu 22.04 LTS.
+
+- [ ] 🔴 Wykupić VPS na home.pl (min. 4 GB RAM, Ubuntu 22.04 LTS)
+- [ ] 🔴 Wykupić domenę produkcyjną na home.pl (np. `estateflow.pl`) lub przenieść z innego rejestratora
+- [ ] 🔴 Skonfigurować DNS w panelu home.pl: A record → IP serwera, MX → skrzynki email
+- [ ] 🔴 Certyfikat SSL/TLS — Certbot + Let's Encrypt (bezpłatny), odnawiany automatycznie
+- [ ] 🔴 Nginx jako reverse proxy (port 80/443 → kontenery Docker na portach 3000/4000)
+- [ ] 🟠 Cloudflare przed domeną — darmowy CDN, DDoS protection, cache statycznych plików
+- [ ] 🟡 Subdomena `api.estateflow.pl` oddzielona od frontendu w konfiguracji Nginx
+- [ ] 🟡 Subdomena `mailpit` → zablokować w prod (usunąć kontener mailpit z `docker-compose.prod.yml`)
 
 ### Docker i deployment
 
-- [ ] 🔴 Skonfigurować `docker-compose.prod.yml` (bez lokalnych zależności, bez `volumes` na dysk)
-- [ ] 🔴 Ustawić zmienne środowiskowe produkcyjne (`.env.production`) — NIE commitować do gita
+- [ ] 🔴 Zainstalować Docker + Docker Compose na VPS (`apt install docker.io docker-compose-plugin`)
+- [ ] 🔴 Sklonować repo na VPS (`git clone` lub `git pull` przez deploy key SSH)
+- [ ] 🔴 Skonfigurować `docker-compose.prod.yml` — bez kontenera `mailpit`, bez lokalnych `volumes` na upload
+- [ ] 🔴 Plik `.env.production` stworzony bezpośrednio na serwerze — NIE commitować do gita
 - [ ] 🔴 Zmienić `NODE_ENV=production` w kontenerach API i Web
-- [ ] 🟠 CI/CD pipeline (GitHub Actions) — automatyczny build i deploy na push do `main`
+- [ ] 🔴 Skonfigurować Nginx (`/etc/nginx/sites-available/estateflow`) z proxy do kontenerów
+- [ ] 🟠 Skrypt deploy: `git pull && docker compose -f docker-compose.prod.yml up --build -d`
+- [ ] 🟠 CI/CD pipeline (GitHub Actions) — automatyczny deploy na VPS po push do `main` przez SSH
 - [ ] 🟠 Health check endpoint `/api/health` sprawdzony i monitorowany
-- [ ] 🟡 Blue-green deployment lub rolling update żeby uniknąć downtime
+- [ ] 🟡 Automatyczny restart kontenerów po restarcie VPS (`restart: unless-stopped` w compose)
 
 ### Baza danych
 
-- [ ] 🔴 PostgreSQL na dedykowanym, zarządzanym serwerze (np. Supabase, Neon, RDS, Hetzner Managed DB)
-- [ ] 🔴 Backupy bazy — automatyczne, codzienne, retencja min. 7 dni
+> **Decyzja:** PostgreSQL w kontenerze Docker na tym samym VPS (wystarczy na start). Dane persystowane przez `docker volume`.
+
+- [ ] 🔴 PostgreSQL jako kontener w `docker-compose.prod.yml` z named volume (`db_data`)
+- [ ] 🔴 Backup bazy — cron job na VPS: `pg_dump` codziennie + wysyłka na zdalny storage lub email
+  ```bash
+  # przykład crona (codziennie o 3:00)
+  0 3 * * * docker exec real-estate-db pg_dump -U postgres real_estate_saas | gzip > /backups/db_$(date +\%Y\%m\%d).sql.gz
+  ```
+- [ ] 🔴 Retencja backupów min. 7 dni (stare pliki usuwać automatycznie)
 - [ ] 🔴 Uruchomić wszystkie migracje SQL na produkcji przed startem
 - [ ] 🔴 Zasilić tabelę `locations` danymi PRNG (124k rekordów) — patrz `LOCATION_IMPORT.md`
-- [ ] 🟠 Connection pooling (PgBouncer lub wbudowany)
 - [ ] 🟠 Oddzielny użytkownik DB z ograniczonymi uprawnieniami (nie `postgres`)
-- [ ] 🟡 Read replica jeśli spodziewany duży ruch na public catalog
+- [ ] 🟡 Przenieść na managed DB (Supabase/Neon) gdy ruch wzrośnie
 
 ### Storage plików (zdjęcia ogłoszeń)
 
-- [ ] 🔴 Przenieść storage z lokalnego `uploads/` na obiektowy:
-  - opcja A: **AWS S3** (lub Cloudflare R2 — tańsze, brak opłat za transfer)
-  - opcja B: **Backblaze B2**
-  - opcja C: **Hetzner Object Storage**
-- [ ] 🔴 Skonfigurować `STORAGE_DRIVER=s3` i zmienne `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`
-- [ ] 🔴 Signed URLs lub public bucket z ograniczeniami CORS
-- [ ] 🟠 CDN przed bucketem (Cloudflare lub CloudFront) dla szybkiego ładowania zdjęć
-- [ ] 🟠 Automatyczne czyszczenie tymczasowych zdjęć z niepotwierdzonych submissionów
+> **Decyzja:** Cloudflare R2 — brak opłat za transfer, darmowy tier do 10 GB, S3-kompatybilne API, CDN Cloudflare gratis.
+
+- [ ] 🔴 Założyć konto Cloudflare i aktywować R2 (free tier: 10 GB storage, 1M operacji/mies.)
+- [ ] 🔴 Stworzyć bucket `estateflow-uploads` w R2
+- [ ] 🔴 Wygenerować R2 API token (Access Key + Secret Key)
+- [ ] 🔴 Skonfigurować zmienne w `.env.production`:
+  ```env
+  STORAGE_DRIVER=s3
+  S3_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
+  S3_BUCKET=estateflow-uploads
+  S3_REGION=auto
+  S3_ACCESS_KEY=<r2-access-key>
+  S3_SECRET_KEY=<r2-secret-key>
+  S3_PUBLIC_URL=https://cdn.estateflow.pl
+  ```
+- [ ] 🔴 Podpiąć domenę `cdn.estateflow.pl` pod R2 bucket w Cloudflare
+- [ ] 🟠 Automatyczne czyszczenie tymczasowych zdjęć z niepotwierdzonych submissionów (lifecycle rule w R2)
 
 ---
 
@@ -272,25 +294,27 @@ Krok 6 — Monetyzacja (po launch)
 
 ## 12. Zmienne środowiskowe do ustawienia na produkcji
 
+> Plik `.env.production` tworzony **bezpośrednio na VPS** (`/opt/estateflow/.env.production`), nigdy nie commitowany do gita.
+
 ```env
 # App
 NODE_ENV=production
 FRONTEND_URL=https://estateflow.pl
 API_URL=https://api.estateflow.pl
 
-# Database
-DATABASE_HOST=<managed-db-host>
+# Database (PostgreSQL w kontenerze na tym samym VPS)
+DATABASE_HOST=db
 DATABASE_PORT=5432
 DATABASE_NAME=real_estate_saas
 DATABASE_USER=app_user
-DATABASE_PASSWORD=<silne-haslo>
+DATABASE_PASSWORD=<silne-haslo-min-32-znaki>
 
 # Auth
-JWT_SECRET=<min-64-znaki-losowy-string>
+JWT_SECRET=<min-64-znaki-losowy-string-wygenerowany-openssl-rand-hex-32>
 JWT_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 
-# Email (np. Resend)
+# Email (Resend — darmowy tier 3k emaili/mies.)
 EMAIL_DRIVER=smtp
 SMTP_HOST=smtp.resend.com
 SMTP_PORT=465
@@ -298,17 +322,88 @@ SMTP_USER=resend
 SMTP_PASS=<resend-api-key>
 EMAIL_FROM=noreply@estateflow.pl
 
-# Storage (np. Cloudflare R2)
+# Storage — Cloudflare R2
 STORAGE_DRIVER=s3
-S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+S3_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
 S3_BUCKET=estateflow-uploads
-S3_ACCESS_KEY=<key>
-S3_SECRET_KEY=<secret>
+S3_REGION=auto
+S3_ACCESS_KEY=<r2-access-key>
+S3_SECRET_KEY=<r2-secret-key>
 S3_PUBLIC_URL=https://cdn.estateflow.pl
 
 # CORS
 CORS_ORIGIN=https://estateflow.pl
 
-# Monitoring (np. Sentry)
+# Monitoring (Sentry — free tier)
 SENTRY_DSN=<dsn>
+```
+
+## 13. Konfiguracja Nginx na VPS (przykład)
+
+```nginx
+# /etc/nginx/sites-available/estateflow
+
+server {
+    listen 80;
+    server_name estateflow.pl www.estateflow.pl;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name estateflow.pl www.estateflow.pl;
+
+    ssl_certificate /etc/letsencrypt/live/estateflow.pl/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/estateflow.pl/privkey.pem;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name api.estateflow.pl;
+
+    ssl_certificate /etc/letsencrypt/live/api.estateflow.pl/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.estateflow.pl/privkey.pem;
+
+    location / {
+        proxy_pass http://localhost:4000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+## 14. Szybki start na VPS — kolejność komend
+
+```bash
+# 1. Instalacja Docker
+apt update && apt install -y docker.io docker-compose-plugin nginx certbot python3-certbot-nginx
+
+# 2. Klon repo
+mkdir -p /opt/estateflow && cd /opt/estateflow
+git clone https://github.com/jedrzejbor/real-estate-agent-saas.git .
+
+# 3. Stwórz .env.production (uzupełnij wartości)
+cp .env.example .env.production
+nano .env.production
+
+# 4. Uruchom kontenery
+docker compose -f docker-compose.prod.yml up -d
+
+# 5. Uruchom migracje
+docker exec real-estate-api pnpm --filter api migration:run
+
+# 6. Import lokacji
+docker exec real-estate-api pnpm --filter api import:locations:prng --source=prng
+
+# 7. SSL
+certbot --nginx -d estateflow.pl -d www.estateflow.pl -d api.estateflow.pl
+
+# 8. Nginx
+nginx -t && systemctl reload nginx
 ```
