@@ -83,8 +83,14 @@ export interface AdminBlogPost extends PublicBlogPost {
   createdAt: string;
 }
 
-export interface AdminBlogCategory extends PublicBlogCategory {
+export interface AdminBlogCategory extends BlogCategorySummary {
+  description?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  isIndexable: boolean;
   sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AdminBlogAuthor extends BlogAuthorSummary {
@@ -148,6 +154,26 @@ export interface BlogPostEditorInput {
   tags?: string[];
 }
 
+export interface BlogCategoryEditorInput {
+  name: string;
+  slug: string;
+  description?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  sortOrder?: number;
+  isIndexable?: boolean;
+}
+
+export interface BlogAuthorEditorInput {
+  displayName: string;
+  slug: string;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  role?: string | null;
+  expertise?: string | null;
+  sameAsLinks?: string[];
+}
+
 function buildQueryString(filters: object): string {
   const params = new URLSearchParams();
 
@@ -207,6 +233,44 @@ export async function fetchBlogCategoriesAdmin(): Promise<AdminBlogCategory[]> {
 
 export async function fetchBlogAuthorsAdmin(): Promise<AdminBlogAuthor[]> {
   return apiFetch<AdminBlogAuthor[]>('/admin/blog/authors');
+}
+
+export async function createBlogCategoryAdmin(
+  input: BlogCategoryEditorInput,
+): Promise<AdminBlogCategory> {
+  return apiFetch<AdminBlogCategory>('/admin/blog/categories', {
+    method: 'POST',
+    body: normalizeBlogCategoryEditorInput(input),
+  });
+}
+
+export async function updateBlogCategoryAdmin(
+  id: string,
+  input: BlogCategoryEditorInput,
+): Promise<AdminBlogCategory> {
+  return apiFetch<AdminBlogCategory>(`/admin/blog/categories/${id}`, {
+    method: 'PATCH',
+    body: normalizeBlogCategoryEditorInput(input),
+  });
+}
+
+export async function createBlogAuthorAdmin(
+  input: BlogAuthorEditorInput,
+): Promise<AdminBlogAuthor> {
+  return apiFetch<AdminBlogAuthor>('/admin/blog/authors', {
+    method: 'POST',
+    body: normalizeBlogAuthorEditorInput(input),
+  });
+}
+
+export async function updateBlogAuthorAdmin(
+  id: string,
+  input: BlogAuthorEditorInput,
+): Promise<AdminBlogAuthor> {
+  return apiFetch<AdminBlogAuthor>(`/admin/blog/authors/${id}`, {
+    method: 'PATCH',
+    body: normalizeBlogAuthorEditorInput(input),
+  });
 }
 
 export async function publishBlogPostAdmin(id: string): Promise<AdminBlogPost> {
@@ -286,6 +350,37 @@ function normalizeBlogPostEditorInput(input: BlogPostEditorInput) {
     canonicalUrl: normalizeOptionalString(input.canonicalUrl),
     publishedAt: normalizeOptionalString(input.publishedAt),
     tags: input.tags?.map((tag) => tag.trim()).filter(Boolean) ?? [],
+  };
+}
+
+function normalizeBlogCategoryEditorInput(input: BlogCategoryEditorInput) {
+  return {
+    ...input,
+    name: input.name.trim(),
+    slug: input.slug.trim(),
+    description: normalizeOptionalString(input.description),
+    seoTitle: normalizeOptionalString(input.seoTitle),
+    seoDescription: normalizeOptionalString(input.seoDescription),
+    sortOrder: Number.isFinite(input.sortOrder) ? input.sortOrder : 0,
+    isIndexable: input.isIndexable ?? true,
+  };
+}
+
+function normalizeBlogAuthorEditorInput(input: BlogAuthorEditorInput) {
+  return {
+    ...input,
+    displayName: input.displayName.trim(),
+    slug: input.slug.trim(),
+    bio: normalizeOptionalString(input.bio),
+    avatarUrl: normalizeOptionalString(input.avatarUrl),
+    role: normalizeOptionalString(input.role),
+    expertise: normalizeOptionalString(input.expertise),
+    sameAsLinks:
+      input.sameAsLinks
+        ?.map((link) => link.trim())
+        .filter(
+          (link) => link.startsWith('http://') || link.startsWith('https://'),
+        ) ?? [],
   };
 }
 

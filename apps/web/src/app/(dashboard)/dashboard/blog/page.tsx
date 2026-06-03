@@ -9,6 +9,7 @@ import {
   Eye,
   FileText,
   Filter,
+  FolderTree,
   RefreshCw,
   Search,
   Send,
@@ -246,26 +247,35 @@ export default function BlogDashboardPage() {
           </p>
         </div>
 
-        <Link
-          href="/dashboard/blog/new"
-          className="inline-flex h-8 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
-        >
-          <Plus className="h-4 w-4" />
-          Nowy wpis
-        </Link>
-        <Button
-          variant="outline"
-          className="gap-2 rounded-xl"
-          disabled={isLoading}
-          onClick={() => {
-            setIsLoading(true);
-            setError(null);
-            setRefreshToken((current) => current + 1);
-          }}
-        >
-          <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-          Odśwież
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/blog/taxonomy"
+            className="inline-flex h-8 items-center justify-center gap-2 rounded-xl border border-border px-3 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            <FolderTree className="h-4 w-4" />
+            Kategorie i autorzy
+          </Link>
+          <Link
+            href="/dashboard/blog/new"
+            className="inline-flex h-8 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+          >
+            <Plus className="h-4 w-4" />
+            Nowy wpis
+          </Link>
+          <Button
+            variant="outline"
+            className="gap-2 rounded-xl"
+            disabled={isLoading}
+            onClick={() => {
+              setIsLoading(true);
+              setError(null);
+              setRefreshToken((current) => current + 1);
+            }}
+          >
+            <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+            Odśwież
+          </Button>
+        </div>
       </div>
 
       <section className="rounded-2xl border border-border bg-white p-4 shadow-sm">
@@ -467,6 +477,13 @@ function BlogAdminCard({
             <Edit3 className="h-4 w-4" />
             Edytuj
           </Link>
+          <Link
+            href={`/dashboard/blog/${post.id}/preview`}
+            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border px-2.5 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            <Eye className="h-4 w-4" />
+            Roboczy
+          </Link>
           {post.status === BlogPostStatus.PUBLISHED ? (
             <Link
               href={publicHref}
@@ -474,7 +491,7 @@ function BlogAdminCard({
               className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border px-2.5 text-sm font-medium transition-colors hover:bg-muted"
             >
               <Eye className="h-4 w-4" />
-              Podgląd
+              Publiczny
             </Link>
           ) : null}
           {canPublish ? (

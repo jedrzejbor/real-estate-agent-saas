@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, FileText, Save, Send } from 'lucide-react';
+import { ArrowLeft, Eye, FileText, Save, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { InlineSelect } from '@/components/ui/inline-select';
 import { Input } from '@/components/ui/input';
@@ -185,6 +185,15 @@ export function BlogPostForm({ post }: BlogPostFormProps) {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          {post ? (
+            <Link
+              href={`/dashboard/blog/${post.id}/preview`}
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold transition-colors hover:bg-muted"
+            >
+              <Eye className="h-4 w-4" />
+              Podgląd roboczy
+            </Link>
+          ) : null}
           {post?.status === BlogPostStatus.PUBLISHED ? (
             <Link
               href={`/blog/${post.slug}`}

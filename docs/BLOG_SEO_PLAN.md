@@ -773,17 +773,33 @@ bazy danych.
   - Wykonano: 2026-06-03 — lista wpisów ma akcję `Archiwizuj`, która wywołuje
     `DELETE /api/admin/blog/posts/:id`; backend archiwizuje wpis zamiast usuwać
     rekord z bazy.
-- [ ] 🔴 Dodać podgląd wpisu przed publikacją
-  - Wykonano:
+- [x] 🔴 Dodać podgląd wpisu przed publikacją
+  - Wykonano: 2026-06-03 — dodano dashboardowy podgląd roboczy
+    `/dashboard/blog/[id]/preview`, dostępny po adminowym `id` wpisu. Podgląd
+    renderuje tytuł, lead, cover image, metadane, Markdown, spis treści i CTA,
+    niezależnie od statusu publikacji. Lista wpisów i formularz edycji mają link
+    do podglądu roboczego; opublikowane wpisy nadal mają osobny link publiczny
+    `/blog/[slug]`.
 - [x] 🟠 Dodać planowanie publikacji po `publishedAt`
   - Wykonano: 2026-06-03 — formularz ma pole `datetime-local` mapowane na
     `publishedAt`; status `scheduled` i data publikacji są zapisywane przez API.
 - [ ] 🟠 Dodać upload cover image do obecnego storage
-  - Wykonano:
-- [ ] 🟠 Dodać zarządzanie kategoriami
-  - Wykonano:
-- [ ] 🟡 Dodać zarządzanie autorami
-  - Wykonano:
+  - Wykonano: 2026-06-03 — sprawdzono istniejące uploady; obecnie są
+    powiązane z ofertami i zgłoszeniami publicznymi, a nie z blogiem. Zadanie
+    zostaje otwarte do osobnej iteracji, żeby dodać dedykowany storage/endpoint
+    blogowy zamiast podpinać cover image pod niepoprawny kontrakt ofert.
+- [x] 🟠 Dodać zarządzanie kategoriami
+  - Wykonano: 2026-06-03 — dodano trasę
+    `/dashboard/blog/taxonomy` z tworzeniem i edycją kategorii, walidacją sluga,
+    polami description, SEO title, SEO description, sort order i `isIndexable`.
+    Dodano funkcje `createBlogCategoryAdmin()` i `updateBlogCategoryAdmin()` w
+    kliencie API oraz link `Kategorie i autorzy` z listy wpisów.
+- [x] 🟡 Dodać zarządzanie autorami
+  - Wykonano: 2026-06-03 — na tej samej trasie
+    `/dashboard/blog/taxonomy` dodano tworzenie i edycję autorów z polami
+    display name, slug, bio, avatar URL, rola, ekspertyza i linki `sameAs`.
+    Dodano funkcje `createBlogAuthorAdmin()` i `updateBlogAuthorAdmin()` oraz
+    normalizację linków profilowych do bezpiecznych URL-i `http/https`.
 - [ ] 🟡 Dodać prosty raport wpisów bez linków wewnętrznych
   - Wykonano:
 
