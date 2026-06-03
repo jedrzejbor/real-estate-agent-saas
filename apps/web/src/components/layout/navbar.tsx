@@ -12,7 +12,7 @@ const navLinks = [
   { label: 'Oferty', href: '/oferty' },
   { label: 'Cechy', href: '#features' },
   { label: 'Cennik', href: '#pricing' },
-  { label: 'Blog', href: '#' },
+  { label: 'Blog', href: '/blog' },
 ] as const;
 
 /** Marketing top navigation bar. */

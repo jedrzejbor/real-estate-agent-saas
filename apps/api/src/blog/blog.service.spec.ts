@@ -60,11 +60,23 @@ function buildService(overrides: { post?: BlogPost | null } = {}) {
       ...value,
     })),
     findOne: jest.fn().mockResolvedValue(defaultPost),
+    count: jest.fn().mockResolvedValue(0),
     createQueryBuilder: jest.fn(),
   };
   const blogCategoryRepo = {
     find: jest.fn().mockResolvedValue([]),
-    findOne: jest.fn().mockResolvedValue(null),
+    findOne: jest.fn().mockResolvedValue({
+      id: 'category-1',
+      name: 'Sprzedaż',
+      slug: 'sprzedaz',
+      description: 'Poradniki o sprzedaży nieruchomości.',
+      seoTitle: 'Sprzedaż nieruchomości',
+      seoDescription: 'Poradniki o sprzedaży nieruchomości.',
+      sortOrder: 0,
+      isIndexable: true,
+      createdAt: new Date('2026-06-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-06-02T00:00:00.000Z'),
+    }),
     exist: jest.fn().mockResolvedValue(true),
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => ({ id: 'category-1', ...value })),
@@ -193,5 +205,26 @@ describe('BlogService', () => {
     await expect(service.findPostForAdmin('post-404')).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('returns public category indexability based on published post count', async () => {
+    const { service, blogPostRepo } = buildService();
+    blogPostRepo.count.mockResolvedValue(3);
+
+    const result = await service.findPublicCategoryBySlug('sprzedaz');
+
+    expect(blogPostRepo.count).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        categoryId: 'category-1',
+        status: BlogPostStatus.PUBLISHED,
+        publishedAt: expect.any(Object),
+      }),
+    });
+    expect(result).toMatchObject({
+      id: 'category-1',
+      slug: 'sprzedaz',
+      isIndexable: true,
+      publishedPostCount: 3,
+    });
   });
 });

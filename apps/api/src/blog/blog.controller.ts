@@ -38,6 +38,13 @@ export class PublicBlogController {
     return this.blogService.findPublicPosts(query);
   }
 
+  /** GET /api/public-blog/categories/:slug — get one public blog category by slug. */
+  @Public()
+  @Get('categories/:slug')
+  async findPublicCategory(@Param('slug') slug: string) {
+    return this.blogService.findPublicCategoryBySlug(slug);
+  }
+
   /** GET /api/public-blog/posts/:slug — get one published blog post by slug. */
   @Public()
   @Get('posts/:slug')

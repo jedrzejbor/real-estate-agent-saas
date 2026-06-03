@@ -303,6 +303,36 @@ export class BlogService {
     return this.toPublicPostDetailView(post);
   }
 
+  async findPublicCategoryBySlug(slug: string) {
+    const category = await this.blogCategoryRepo.findOne({
+      where: { slug: this.normalizeSlug(slug) },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Kategoria bloga nie znaleziona');
+    }
+
+    const publishedPostCount = await this.blogPostRepo.count({
+      where: {
+        categoryId: category.id,
+        status: BlogPostStatus.PUBLISHED,
+        publishedAt: LessThanOrEqual(new Date()),
+      },
+    });
+
+    return {
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      seoTitle: category.seoTitle,
+      seoDescription: category.seoDescription,
+      isIndexable: category.isIndexable && publishedPostCount > 0,
+      publishedPostCount,
+      updatedAt: category.updatedAt,
+    };
+  }
+
   async findCategories() {
     return this.blogCategoryRepo.find({
       order: { sortOrder: 'ASC', name: 'ASC' },

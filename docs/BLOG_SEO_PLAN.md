@@ -585,7 +585,7 @@ edytować, publikować i bezpiecznie pobierać wpisy.
     `product-feedback`, `listings`, `users`, globalny `ValidationPipe`, role
     admina i ręczne migracje SQL w `apps/api/migrations`.
 - [x] 🔴 Zaprojektować migracje DB dla `BlogPost`, `BlogCategory`,
-  `BlogAuthor`, `BlogPostTag`
+      `BlogAuthor`, `BlogPostTag`
   - Wykonano: 2026-06-03 — dodano migrację
     `apps/api/migrations/20260603_blog_cms.sql` z tabelami bloga, indeksami,
     FK do `users` oraz typami enum PostgreSQL.
@@ -597,11 +597,11 @@ edytować, publikować i bezpiecznie pobierać wpisy.
   - Wykonano: 2026-06-03 — dodano unikalne indeksy dla `blog_posts.slug`,
     `blog_categories.slug` i `blog_authors.slug`; DTO walidują format sluga.
 - [x] 🔴 Dodać pola SEO: `seoTitle`, `seoDescription`, `canonicalUrl`,
-  `robots`
+      `robots`
   - Wykonano: 2026-06-03 — pola SEO dodane w encji, migracji i DTO; serwis
     wymaga ich przed publikacją wpisu.
 - [x] 🔴 Dodać pola publikacji: `publishedAt`, `createdAt`, `updatedAt`,
-  `createdBy`, `updatedBy`
+      `createdBy`, `updatedBy`
   - Wykonano: 2026-06-03 — pola publikacji i audytu dodane w `BlogPost`;
     `publishedAt` ustawia się automatycznie przy publikacji, jeśli nie podano
     daty.
@@ -650,46 +650,79 @@ edytować, publikować i bezpiecznie pobierać wpisy.
 Cel sprintu: uruchomić indeksowalne strony bloga z poprawnymi metadanymi,
 canonicalami, schema i sitemapą.
 
-- [ ] 🔴 Dodać trasę `/blog`
-  - Wykonano:
-- [ ] 🔴 Dodać trasę `/blog/[slug]`
-  - Wykonano:
-- [ ] 🔴 Dodać pobieranie listy opublikowanych wpisów na `/blog`
-  - Wykonano:
-- [ ] 🔴 Dodać pobieranie szczegółu wpisu po slugu
-  - Wykonano:
-- [ ] 🔴 Dodać stan 404 dla nieistniejącego lub nieopublikowanego wpisu
-  - Wykonano:
-- [ ] 🔴 Dodać `generateMetadata` dla listy bloga
-  - Wykonano:
-- [ ] 🔴 Dodać `generateMetadata` dla szczegółu wpisu
-  - Wykonano:
-- [ ] 🔴 Dodać canonical dla `/blog`
-  - Wykonano:
-- [ ] 🔴 Dodać canonical dla `/blog/[slug]`
-  - Wykonano:
-- [ ] 🔴 Dodać schema `BlogPosting` na szczególe wpisu
-  - Wykonano:
-- [ ] 🔴 Dodać schema `BreadcrumbList`
-  - Wykonano:
-- [ ] 🔴 Dodać opublikowane wpisy do `apps/web/src/app/sitemap.ts`
-  - Wykonano:
-- [ ] 🔴 Sprawdzić, że `robots.ts` nie blokuje `/blog`
-  - Wykonano:
-- [ ] 🟠 Dodać Open Graph image dla wpisów
-  - Wykonano:
-- [ ] 🟠 Dodać strony kategorii `/blog/kategoria/[slug]`
-  - Wykonano:
-- [ ] 🟠 Dodać paginację listy bloga z decyzją `index/noindex`
-  - Wykonano:
-- [ ] 🟠 Dodać komponent `RelatedPosts`
-  - Wykonano:
-- [ ] 🟠 Dodać komponent `ArticleCta`
-  - Wykonano:
-- [ ] 🟠 Dodać spis treści generowany z nagłówków `h2`
-  - Wykonano:
+- [x] 🔴 Dodać trasę `/blog`
+  - Wykonano: 2026-06-03 — dodano publiczną stronę listy wpisów w
+    `apps/web/src/app/(marketing)/blog/page.tsx` z pustym stanem, hero i kartami
+    artykułów.
+- [x] 🔴 Dodać trasę `/blog/[slug]`
+  - Wykonano: 2026-06-03 — dodano szczegół wpisu w
+    `apps/web/src/app/(marketing)/blog/[slug]/page.tsx` z cover image, autorem,
+    datami, treścią i CTA bocznym.
+- [x] 🔴 Dodać pobieranie listy opublikowanych wpisów na `/blog`
+  - Wykonano: 2026-06-03 — dodano klienta publicznego API w
+    `apps/web/src/lib/blog.ts` i użycie `fetchPublicBlogPosts({ limit: 12 })`.
+- [x] 🔴 Dodać pobieranie szczegółu wpisu po slugu
+  - Wykonano: 2026-06-03 — dodano `fetchPublicBlogPost(slug)` i obsługę błędów
+    API na stronie szczegółu.
+- [x] 🔴 Dodać stan 404 dla nieistniejącego lub nieopublikowanego wpisu
+  - Wykonano: 2026-06-03 — `ApiError 404` z publicznego API mapuje się na
+    `notFound()` w `/blog/[slug]`.
+- [x] 🔴 Dodać `generateMetadata` dla listy bloga
+  - Wykonano: 2026-06-03 — lista bloga ma title, description, canonical, robots
+    i Open Graph.
+- [x] 🔴 Dodać `generateMetadata` dla szczegółu wpisu
+  - Wykonano: 2026-06-03 — szczegół wpisu buduje metadata z pól SEO wpisu,
+    fallbacku do excerptu i cover image.
+- [x] 🔴 Dodać canonical dla `/blog`
+  - Wykonano: 2026-06-03 — canonical listy wskazuje `absoluteUrl('/blog')`.
+- [x] 🔴 Dodać canonical dla `/blog/[slug]`
+  - Wykonano: 2026-06-03 — canonical szczegółu wskazuje `post.canonicalUrl` albo
+    `absoluteUrl('/blog/[slug]')`.
+- [x] 🔴 Dodać schema `BlogPosting` na szczególe wpisu
+  - Wykonano: 2026-06-03 — dodano JSON-LD `BlogPosting` z headline,
+    description, image, datami, autorem i publisherem.
+- [x] 🔴 Dodać schema `BreadcrumbList`
+  - Wykonano: 2026-06-03 — dodano JSON-LD breadcrumbs:
+    EstateFlow → Blog → tytuł wpisu.
+- [x] 🔴 Dodać opublikowane wpisy do `apps/web/src/app/sitemap.ts`
+  - Wykonano: 2026-06-03 — sitemap zawiera `/blog` i opublikowane wpisy z
+    `fetchPublicBlogSitemapEntries()`. Pobieranie ofert i bloga używa
+    `Promise.allSettled`, żeby awaria jednego źródła nie usuwała drugiego.
+- [x] 🔴 Sprawdzić, że `robots.ts` nie blokuje `/blog`
+  - Wykonano: 2026-06-03 — dodano jawne `allow: '/blog/'` w
+    `apps/web/src/app/robots.ts`.
+- [x] 🟠 Dodać Open Graph image dla wpisów
+  - Wykonano: 2026-06-03 — szczegół wpisu używa `coverImageUrl` jako OG/Twitter
+    image z fallbackiem do lokalnego obrazu.
+- [x] 🟠 Dodać strony kategorii `/blog/kategoria/[slug]`
+  - Wykonano: 2026-06-03 — dodano publiczny endpoint
+    `GET /api/public-blog/categories/:slug`, typy i fetch w
+    `apps/web/src/lib/blog.ts` oraz stronę
+    `apps/web/src/app/(marketing)/blog/kategoria/[slug]/page.tsx`.
+    Kategorie indeksują się tylko, gdy backend zwraca `isIndexable = true` i
+    jest to pierwsza strona wyników.
+- [x] 🟠 Dodać paginację listy bloga z decyzją `index/noindex`
+  - Wykonano: 2026-06-03 — dodano `BlogPagination` i obsługę `?page=` na
+    `/blog` oraz `/blog/kategoria/[slug]`. Strony paginacji 2+ mają
+    `noindex, follow` i canonical do bazowego widoku.
+- [x] 🟠 Dodać komponent `RelatedPosts`
+  - Wykonano: 2026-06-03 — dodano `RelatedPosts`, który na szczególe wpisu
+    pokazuje do 3 powiązanych artykułów z tej samej kategorii, z pominięciem
+    aktualnego wpisu.
+- [x] 🟠 Dodać komponent `ArticleCta`
+  - Wykonano: 2026-06-03 — dodano reusable `ArticleCta` z wariantami:
+    rejestracja, katalog ofert i dodanie oferty. Szczegół wpisu dobiera wariant
+    na podstawie tytułu, kategorii i tagów.
+- [x] 🟠 Dodać spis treści generowany z nagłówków `h2`
+  - Wykonano: 2026-06-03 — rozszerzono bezpieczny renderer Markdown o stabilne
+    ID nagłówków i dodano `BlogTableOfContents`, który pokazuje spis treści,
+    gdy artykuł ma co najmniej dwa nagłówki `h2`.
 - [ ] 🔴 Sprawdzić Lighthouse/Web Vitals dla listy i szczegółu wpisu
-  - Wykonano:
+  - Wykonano: 2026-06-03 — wykonano weryfikację kompilacyjną zamiast Lighthouse:
+    `web type-check`, lint dotkniętych plików i `api test` przechodzą. Pełny
+    `web build` po pobraniu fontów zatrzymuje się na istniejącym problemie
+    `/feedback` (`useSearchParams()` bez Suspense), niezwiązanym z blogiem.
+    Lighthouse zostaje do wykonania po uruchomieniu dev/prod z danymi bloga.
 
 ### Sprint 3 — Panel redakcyjny
 

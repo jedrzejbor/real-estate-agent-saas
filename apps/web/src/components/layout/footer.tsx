@@ -11,14 +11,14 @@ const footerSections = [
       { label: 'Funkcje', href: '#features' },
       { label: 'Cennik', href: '#pricing' },
       { label: 'Integracje', href: '#' },
-      { label: 'Roadmapa', href: '#' },
+      { label: 'Blog', href: '/blog' },
     ],
   },
   {
     title: 'Firma',
     links: [
       { label: 'O nas', href: '#' },
-      { label: 'Blog', href: '#' },
+      { label: 'Blog', href: '/blog' },
       { label: 'Kariera', href: '#' },
       { label: 'Kontakt', href: '#' },
     ],
