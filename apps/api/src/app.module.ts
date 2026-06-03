@@ -19,6 +19,7 @@ import { PublicLeadsModule } from './public-leads';
 import { PublicListingSubmissionsModule } from './public-listing-submissions';
 import { LocationsModule } from './locations';
 import { ProductFeedbackModule } from './product-feedback';
+import { BlogModule } from './blog';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { ProductFeedbackModule } from './product-feedback';
     PublicLeadsModule,
     PublicListingSubmissionsModule,
     ProductFeedbackModule,
+    BlogModule,
   ],
   controllers: [AppController],
   providers: [
