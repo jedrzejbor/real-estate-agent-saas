@@ -742,17 +742,26 @@ bazy danych.
     wyszukiwanie tekstowe. Filtr daty nie został dodany jako osobne pole, bo
     backend Sprintu 1 nie ma jeszcze zakresów dat w `BlogPostQueryDto`; wróci
     przy rozbudowie API filtrów.
-- [ ] 🔴 Dodać tworzenie nowego wpisu
-  - Wykonano:
-- [ ] 🔴 Dodać edycję istniejącego wpisu
-  - Wykonano:
-- [ ] 🔴 Dodać pola: title, slug, excerpt, content, cover image, category,
+- [x] 🔴 Dodać tworzenie nowego wpisu
+  - Wykonano: 2026-06-03 — dodano trasę `/dashboard/blog/new`, wspólny
+    formularz `BlogPostForm` i funkcję `createBlogPostAdmin()` wywołującą
+    `POST /api/admin/blog/posts`.
+- [x] 🔴 Dodać edycję istniejącego wpisu
+  - Wykonano: 2026-06-03 — dodano trasę `/dashboard/blog/[id]/edit`, pobieranie
+    wpisu przez `fetchBlogPostAdmin()` i zapis przez `updateBlogPostAdmin()`.
+    Lista wpisów ma link `Edytuj` przy każdym rekordzie.
+- [x] 🔴 Dodać pola: title, slug, excerpt, content, cover image, category,
       author
-  - Wykonano:
-- [ ] 🔴 Dodać pola SEO: seoTitle, seoDescription, canonicalUrl, robots
-  - Wykonano:
-- [ ] 🔴 Dodać walidację SEO przed publikacją
-  - Wykonano:
+  - Wykonano: 2026-06-03 — formularz obsługuje tytuł, slug z generowaniem,
+    lead, treść Markdown, cover image URL, alt obrazka, kategorię, autora, tagi
+    i datę publikacji.
+- [x] 🔴 Dodać pola SEO: seoTitle, seoDescription, canonicalUrl, robots
+  - Wykonano: 2026-06-03 — formularz ma sekcję SEO z `seoTitle`,
+    `seoDescription`, `canonicalUrl` i `robots`.
+- [x] 🔴 Dodać walidację SEO przed publikacją
+  - Wykonano: 2026-06-03 — dodano panel `Gotowość SEO`; próba zapisu ze statusem
+    `published` jest blokowana, jeśli brakuje leadu, treści, pól SEO, cover
+    image, alt albo treść zawiera H1.
 - [x] 🔴 Dodać akcję `Publikuj`
   - Wykonano: 2026-06-03 — lista wpisów ma akcję publikacji wywołującą
     `POST /api/admin/blog/posts/:id/publish` przez `publishBlogPostAdmin()`.
@@ -766,8 +775,9 @@ bazy danych.
     rekord z bazy.
 - [ ] 🔴 Dodać podgląd wpisu przed publikacją
   - Wykonano:
-- [ ] 🟠 Dodać planowanie publikacji po `publishedAt`
-  - Wykonano:
+- [x] 🟠 Dodać planowanie publikacji po `publishedAt`
+  - Wykonano: 2026-06-03 — formularz ma pole `datetime-local` mapowane na
+    `publishedAt`; status `scheduled` i data publikacji są zapisywane przez API.
 - [ ] 🟠 Dodać upload cover image do obecnego storage
   - Wykonano:
 - [ ] 🟠 Dodać zarządzanie kategoriami

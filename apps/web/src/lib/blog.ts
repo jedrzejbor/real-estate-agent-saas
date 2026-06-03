@@ -129,6 +129,25 @@ export interface AdminBlogPostsFilters {
   limit?: number;
 }
 
+export interface BlogPostEditorInput {
+  title: string;
+  slug: string;
+  excerpt?: string | null;
+  content?: string;
+  contentFormat?: BlogContentFormat;
+  coverImageUrl?: string | null;
+  coverImageAlt?: string | null;
+  status?: BlogPostStatus;
+  categoryId?: string | null;
+  authorId?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  canonicalUrl?: string | null;
+  robots?: BlogRobotsDirective;
+  publishedAt?: string | null;
+  tags?: string[];
+}
+
 function buildQueryString(filters: object): string {
   const params = new URLSearchParams();
 
@@ -157,6 +176,29 @@ export async function fetchBlogPostsAdmin(
   return apiFetch<AdminBlogPostsResponse>(
     `/admin/blog/posts${buildQueryString(filters)}`,
   );
+}
+
+export async function fetchBlogPostAdmin(id: string): Promise<AdminBlogPost> {
+  return apiFetch<AdminBlogPost>(`/admin/blog/posts/${id}`);
+}
+
+export async function createBlogPostAdmin(
+  input: BlogPostEditorInput,
+): Promise<AdminBlogPost> {
+  return apiFetch<AdminBlogPost>('/admin/blog/posts', {
+    method: 'POST',
+    body: normalizeBlogPostEditorInput(input),
+  });
+}
+
+export async function updateBlogPostAdmin(
+  id: string,
+  input: BlogPostEditorInput,
+): Promise<AdminBlogPost> {
+  return apiFetch<AdminBlogPost>(`/admin/blog/posts/${id}`, {
+    method: 'PATCH',
+    body: normalizeBlogPostEditorInput(input),
+  });
 }
 
 export async function fetchBlogCategoriesAdmin(): Promise<AdminBlogCategory[]> {
@@ -228,4 +270,26 @@ export function formatBlogDate(value: string | Date | null | undefined) {
 
 export function getBlogPageHref(page: number, basePath = '/blog') {
   return page <= 1 ? basePath : `${basePath}?page=${page}`;
+}
+
+function normalizeBlogPostEditorInput(input: BlogPostEditorInput) {
+  return {
+    ...input,
+    excerpt: normalizeOptionalString(input.excerpt),
+    content: input.content ?? '',
+    coverImageUrl: normalizeOptionalString(input.coverImageUrl),
+    coverImageAlt: normalizeOptionalString(input.coverImageAlt),
+    categoryId: normalizeOptionalString(input.categoryId),
+    authorId: normalizeOptionalString(input.authorId),
+    seoTitle: normalizeOptionalString(input.seoTitle),
+    seoDescription: normalizeOptionalString(input.seoDescription),
+    canonicalUrl: normalizeOptionalString(input.canonicalUrl),
+    publishedAt: normalizeOptionalString(input.publishedAt),
+    tags: input.tags?.map((tag) => tag.trim()).filter(Boolean) ?? [],
+  };
+}
+
+function normalizeOptionalString(value: string | null | undefined) {
+  const trimmedValue = value?.trim();
+  return trimmedValue ? trimmedValue : null;
 }

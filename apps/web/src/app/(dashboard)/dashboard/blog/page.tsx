@@ -5,12 +5,14 @@ import Link from 'next/link';
 import {
   AlertCircle,
   Archive,
+  Edit3,
   Eye,
   FileText,
   Filter,
   RefreshCw,
   Search,
   Send,
+  Plus,
   Undo2,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -244,6 +246,13 @@ export default function BlogDashboardPage() {
           </p>
         </div>
 
+        <Link
+          href="/dashboard/blog/new"
+          className="inline-flex h-8 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+        >
+          <Plus className="h-4 w-4" />
+          Nowy wpis
+        </Link>
         <Button
           variant="outline"
           className="gap-2 rounded-xl"
@@ -451,6 +460,13 @@ function BlogAdminCard({
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
+          <Link
+            href={`/dashboard/blog/${post.id}/edit`}
+            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border px-2.5 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            <Edit3 className="h-4 w-4" />
+            Edytuj
+          </Link>
           {post.status === BlogPostStatus.PUBLISHED ? (
             <Link
               href={publicHref}
