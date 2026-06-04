@@ -13,6 +13,7 @@ import { PublicSlugPipe } from '../common/public-param-security';
 import { AnalyticsService } from './analytics.service';
 import {
   CreateAnalyticsEventDto,
+  CreatePublicBlogAnalyticsEventDto,
   CreatePublicListingAnalyticsEventDto,
 } from './dto/create-analytics-event.dto';
 
@@ -40,5 +41,17 @@ export class AnalyticsController {
     @Body() dto: CreatePublicListingAnalyticsEventDto,
   ) {
     return this.analyticsService.trackPublicListing(slug, dto);
+  }
+
+  /** POST /api/analytics/public-blog/:slug/events — store public blog analytics. */
+  @Public()
+  @Post('public-blog/:slug/events')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @HttpCode(HttpStatus.ACCEPTED)
+  async trackPublicBlog(
+    @Param('slug', PublicSlugPipe) slug: string,
+    @Body() dto: CreatePublicBlogAnalyticsEventDto,
+  ) {
+    return this.analyticsService.trackPublicBlog(slug, dto);
   }
 }

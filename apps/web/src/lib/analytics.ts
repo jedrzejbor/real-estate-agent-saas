@@ -24,6 +24,8 @@ export const AnalyticsEventName = {
   PUBLIC_LEAD_ACCEPTED: 'public_lead_accepted',
   PUBLIC_LISTING_CLAIM_STARTED: 'public_listing_claim_started',
   PUBLIC_LISTING_CLAIM_COMPLETED: 'public_listing_claim_completed',
+  BLOG_ARTICLE_VIEWED: 'blog_article_viewed',
+  BLOG_CTA_CLICKED: 'blog_cta_clicked',
   CLIENT_CREATED: 'client_created',
   CLIENTS_IMPORTED: 'clients_imported',
   APPOINTMENT_CREATED: 'appointment_created',
@@ -97,6 +99,36 @@ export function trackPublicListingEvent({
   }).catch((error) => {
     if (process.env.NODE_ENV !== 'production') {
       console.warn('Public listing analytics event failed', name, error);
+    }
+  });
+}
+
+export function trackPublicBlogEvent({
+  slug,
+  name,
+  properties,
+  path,
+}: TrackAnalyticsEventInput & { slug: string }): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const payload = {
+    name,
+    path: path ?? `${window.location.pathname}${window.location.search}`,
+    properties: compactProperties({
+      referrer: document.referrer || null,
+      ...properties,
+    }),
+  };
+
+  void apiFetch(`/analytics/public-blog/${slug}/events`, {
+    method: 'POST',
+    skipAuth: true,
+    body: payload,
+  }).catch((error) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Public blog analytics event failed', name, error);
     }
   });
 }

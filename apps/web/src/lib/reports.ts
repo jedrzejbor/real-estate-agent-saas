@@ -265,6 +265,42 @@ export interface FreemiumMetricsReportResponse {
   notes: string[];
 }
 
+export interface BlogReportSummary {
+  articleViews: number;
+  ctaClicks: number;
+  submitListingClicks: number;
+  ctaClickThroughRate: number;
+  submitListingClickThroughRate: number;
+}
+
+export interface BlogReportItem {
+  key: string;
+  label: string;
+  views: number;
+  ctaClicks: number;
+  submitListingClicks: number;
+  ctaClickThroughRate: number;
+}
+
+export interface BlogReportCtaItem {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface BlogReportResponse {
+  generatedAt: string;
+  filtersApplied: {
+    dateFrom: string;
+    dateTo: string;
+    groupBy: ReportsGroupBy;
+  };
+  summary: BlogReportSummary;
+  topPosts: BlogReportItem[];
+  ctaVariants: BlogReportCtaItem[];
+  notes: string[];
+}
+
 export interface ReportsOverviewResponse {
   generatedAt: string;
   filtersApplied: {
@@ -411,6 +447,17 @@ export async function fetchReportsFreemiumMetrics(
   return apiFetch<FreemiumMetricsReportResponse>(
     `/reports/freemium-metrics?${params.toString()}`,
   );
+}
+
+export async function fetchReportsBlog(
+  filters: ReportsFilters,
+): Promise<BlogReportResponse> {
+  const params = new URLSearchParams();
+  params.set('dateFrom', filters.dateFrom);
+  params.set('dateTo', filters.dateTo);
+  params.set('groupBy', filters.groupBy);
+
+  return apiFetch<BlogReportResponse>(`/reports/blog?${params.toString()}`);
 }
 
 export function formatReportsDateRange(
