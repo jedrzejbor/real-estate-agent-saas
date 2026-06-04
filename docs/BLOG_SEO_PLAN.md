@@ -808,18 +808,33 @@ bazy danych.
 Cel sprintu: przygotować redaktorowi wygodne narzędzia do tworzenia artykułów,
 które są czytelne, bezpieczne i dobrze linkują do produktu.
 
-- [ ] 🔴 Wybrać format treści: Markdown, HTML albo JSON editor
-  - Wykonano:
-- [ ] 🔴 Dodać obsługę nagłówków `h2` i `h3`
-  - Wykonano:
-- [ ] 🔴 Dodać obsługę akapitów, list, cytatów i linków
-  - Wykonano:
-- [ ] 🔴 Dodać obsługę obrazów w treści z wymaganym `alt`
-  - Wykonano:
-- [ ] 🔴 Zablokować drugi `h1` wewnątrz treści
-  - Wykonano:
-- [ ] 🔴 Dodać czytelne renderowanie artykułu na mobile i desktop
-  - Wykonano:
+- [x] 🔴 Wybrać format treści: Markdown, HTML albo JSON editor
+  - Wykonano: 2026-06-03 — jako format redakcyjny wybrano Markdown. Formularz
+    wpisu zapisuje `contentFormat: markdown`, a publiczny artykuł i podgląd
+    roboczy renderują treść przez własny, ograniczony renderer
+    `BlogMarkdown`, bez wykonywania HTML.
+- [x] 🔴 Dodać obsługę nagłówków `h2` i `h3`
+  - Wykonano: 2026-06-03 — renderer obsługuje `##` jako H2 i `###` jako H3,
+    generuje stabilne `id` dla nagłówków oraz zasila spis treści przez
+    `getMarkdownHeadings()`.
+- [x] 🔴 Dodać obsługę akapitów, list, cytatów i linków
+  - Wykonano: 2026-06-03 — renderer obsługuje akapity, listy punktowane,
+    cytaty i linki Markdown. Linki są filtrowane do bezpiecznych adresów:
+    wewnętrzne ścieżki `/...` oraz zewnętrzne `http/https`; inne protokoły nie
+    są renderowane jako link.
+- [x] 🔴 Dodać obsługę obrazów w treści z wymaganym `alt`
+  - Wykonano: 2026-06-03 — dodano obsługę bloków `![alt](url)` w
+    `BlogMarkdown`. Obrazy są renderowane responsywnie z `loading="lazy"` i
+    podpisem z altu. Walidacja publikacji blokuje obraz bez altu, obraz z
+    błędną składnią oraz URL spoza bezpiecznych ścieżek `/...` i `http/https`.
+- [x] 🔴 Zablokować drugi `h1` wewnątrz treści
+  - Wykonano: 2026-06-03 — walidacja treści została przeniesiona do wspólnej
+    funkcji `getMarkdownContentIssues()`, która wykrywa `# H1` i `<h1>` w
+    Markdownie; formularz blokuje publikację wpisu z takim błędem.
+- [x] 🔴 Dodać czytelne renderowanie artykułu na mobile i desktop
+  - Wykonano: 2026-06-03 — artykuł publiczny i dashboardowy podgląd używają
+    tych samych komponentów renderujących: responsywny układ, czytelna
+    typografia, obraz 16:9, spis treści na desktopie i bezpieczne linki.
 - [ ] 🟠 Dodać blok CTA: rejestracja, kontakt, dodanie oferty, katalog ofert
   - Wykonano:
 - [ ] 🟠 Dodać blok wyróżnionych ofert

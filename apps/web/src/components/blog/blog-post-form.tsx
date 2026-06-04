@@ -9,6 +9,7 @@ import { InlineSelect } from '@/components/ui/inline-select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage } from '@/lib/api-client';
+import { getMarkdownContentIssues } from './blog-markdown';
 import {
   BlogContentFormat,
   BlogPostStatus,
@@ -294,7 +295,7 @@ export function BlogPostForm({ post }: BlogPostFormProps) {
                   }
                   rows={18}
                   maxLength={100_000}
-                  placeholder={`## Pierwsza sekcja\n\nTreść artykułu...\n\n- punkt listy\n- kolejny punkt`}
+                  placeholder={`## Pierwsza sekcja\n\nTreść artykułu...\n\n![Opisowy alt obrazu](/images/blog/przyklad.jpg)\n\n- punkt listy\n- kolejny punkt`}
                   className="w-full rounded-xl border border-border bg-white px-3 py-2 font-mono text-sm leading-6 shadow-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
                 />
               </FormField>
@@ -556,11 +557,8 @@ function validateSeoReadiness(form: BlogPostEditorInput): SeoValidationIssue[] {
     }
   }
 
-  if (form.content && /(^|\n)\s*#\s+|<h1\b/i.test(form.content)) {
-    issues.push({
-      field: 'content',
-      message: 'Usuń nagłówek H1 z treści artykułu.',
-    });
+  if (form.content) {
+    issues.push(...getMarkdownContentIssues(form.content));
   }
 
   return issues;
