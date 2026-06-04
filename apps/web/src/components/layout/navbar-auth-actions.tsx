@@ -69,13 +69,15 @@ export function NavbarMobileAuthAction() {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return <div className="h-9 w-20 rounded-full bg-muted md:hidden" />;
+    return (
+      <div className="hidden h-9 w-14 rounded-full bg-muted sm:block md:hidden" />
+    );
   }
 
   return (
     <Link
       href={user ? getDefaultAuthenticatedPath(user) : '/login'}
-      className="inline-flex h-9 items-center justify-center rounded-full border border-border px-3 text-sm font-semibold text-[#44403C] transition-colors hover:border-primary hover:text-primary md:hidden"
+      className="hidden h-9 items-center justify-center rounded-full border border-border px-2 text-xs font-semibold text-[#44403C] transition-colors hover:border-primary hover:text-primary sm:inline-flex md:hidden"
     >
       {user ? 'Panel' : 'Login'}
     </Link>

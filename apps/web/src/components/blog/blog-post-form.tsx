@@ -17,11 +17,13 @@ import {
   createBlogPostAdmin,
   fetchBlogAuthorsAdmin,
   fetchBlogCategoriesAdmin,
+  fetchPublicBlogPosts,
   updateBlogPostAdmin,
   type AdminBlogAuthor,
   type AdminBlogCategory,
   type AdminBlogPost,
   type BlogPostEditorInput,
+  type PublicBlogPostListItem,
 } from '@/lib/blog';
 import { cn } from '@/lib/utils';
 
@@ -53,6 +55,10 @@ export function BlogPostForm({ post }: BlogPostFormProps) {
   const [categories, setCategories] = useState<AdminBlogCategory[]>([]);
   const [authors, setAuthors] = useState<AdminBlogAuthor[]>([]);
   const [isMetadataLoading, setIsMetadataLoading] = useState(true);
+  const [relatedPosts, setRelatedPosts] = useState<PublicBlogPostListItem[]>(
+    [],
+  );
+  const [areRelatedPostsLoading, setAreRelatedPostsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [form, setForm] = useState<BlogPostEditorInput>(() =>
@@ -88,6 +94,41 @@ export function BlogPostForm({ post }: BlogPostFormProps) {
       isMounted = false;
     };
   }, [showErrorToast]);
+
+  useEffect(() => {
+    if (!form.categoryId) {
+      setRelatedPosts([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadRelatedPosts() {
+      try {
+        setAreRelatedPostsLoading(true);
+        const response = await fetchPublicBlogPosts({
+          categoryId: form.categoryId ?? undefined,
+          limit: 4,
+        });
+
+        if (!isMounted) return;
+        setRelatedPosts(
+          response.data.filter((item) => item.slug !== form.slug).slice(0, 3),
+        );
+      } catch {
+        if (!isMounted) return;
+        setRelatedPosts([]);
+      } finally {
+        if (isMounted) setAreRelatedPostsLoading(false);
+      }
+    }
+
+    loadRelatedPosts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [form.categoryId, form.slug]);
 
   const categoryOptions = useMemo(
     () =>
@@ -295,13 +336,14 @@ export function BlogPostForm({ post }: BlogPostFormProps) {
                   }
                   rows={18}
                   maxLength={100_000}
-                  placeholder={`## Pierwsza sekcja\n\nTreść artykułu...\n\n![Opisowy alt obrazu](/images/blog/przyklad.jpg)\n\n::cta register\n\n:::faq\n### Jakie pytanie zadaje klient?\nKrótka, konkretna odpowiedź.\n:::\n\n- punkt listy\n- kolejny punkt`}
+                  placeholder={`## Pierwsza sekcja\n\nTreść artykułu...\n\n![Opisowy alt obrazu](/images/blog/przyklad.jpg)\n\n::cta register\n\n::featured-listings\n\n:::faq\n### Jakie pytanie zadaje klient?\nKrótka, konkretna odpowiedź.\n:::\n\n- punkt listy\n- kolejny punkt`}
                   className="w-full rounded-xl border border-border bg-white px-3 py-2 font-mono text-sm leading-6 shadow-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
                 />
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
                   Dostępne CTA: `::cta register`, `::cta contact`, `::cta
                   submit-listing`, `::cta listings`. FAQ zapisuj między `:::faq`
-                  i `:::`, używając `### Pytanie`.
+                  i `:::`, używając `### Pytanie`. Wyróżnione oferty:
+                  `::featured-listings`.
                 </p>
               </FormField>
             </div>
@@ -434,6 +476,13 @@ export function BlogPostForm({ post }: BlogPostFormProps) {
           </FormSection>
 
           <SeoReadinessPanel issues={seoIssues} />
+          <InternalLinkSuggestions
+            category={categories.find(
+              (category) => category.id === form.categoryId,
+            )}
+            relatedPosts={relatedPosts}
+            isLoading={areRelatedPostsLoading}
+          />
         </aside>
       </div>
     </form>
@@ -470,6 +519,74 @@ function SeoReadinessPanel({ issues }: { issues: SeoValidationIssue[] }) {
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+function InternalLinkSuggestions({
+  category,
+  relatedPosts,
+  isLoading,
+}: {
+  category?: AdminBlogCategory;
+  relatedPosts: PublicBlogPostListItem[];
+  isLoading: boolean;
+}) {
+  const suggestions = [
+    {
+      label: 'Katalog ofert',
+      markdown: '[aktualne oferty nieruchomości](/oferty)',
+    },
+    {
+      label: 'Dodanie oferty',
+      markdown: '[dodaj ofertę nieruchomości](/dodaj-oferte)',
+    },
+    {
+      label: 'Rejestracja',
+      markdown: '[załóż konto w EstateFlow](/register)',
+    },
+    ...(category
+      ? [
+          {
+            label: `Kategoria: ${category.name}`,
+            markdown: `[${category.name}](/blog/kategoria/${category.slug})`,
+          },
+        ]
+      : []),
+    ...relatedPosts.map((relatedPost) => ({
+      label: relatedPost.title,
+      markdown: `[${relatedPost.title}](/blog/${relatedPost.slug})`,
+    })),
+  ];
+
+  return (
+    <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+      <h2 className="font-heading text-base font-semibold">
+        Sugestie linkowania
+      </h2>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        Wklej wybrany link w treści artykułu jako Markdown.
+      </p>
+      <div className="mt-4 space-y-3">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">
+            Szukam powiązanych wpisów...
+          </p>
+        ) : null}
+        {suggestions.map((suggestion) => (
+          <div
+            key={suggestion.markdown}
+            className="rounded-xl border border-border bg-muted/30 p-3"
+          >
+            <p className="text-xs font-semibold text-muted-foreground">
+              {suggestion.label}
+            </p>
+            <code className="mt-1 block break-all text-xs leading-5 text-foreground">
+              {suggestion.markdown}
+            </code>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

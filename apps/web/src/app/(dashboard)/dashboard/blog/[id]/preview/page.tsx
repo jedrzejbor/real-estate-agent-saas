@@ -9,7 +9,10 @@ import {
   BlogMarkdown,
   BlogTableOfContents,
 } from '@/components/blog';
-import { getMarkdownHeadings } from '@/components/blog/blog-markdown';
+import {
+  getMarkdownHeadings,
+  hasMarkdownFeaturedListingsBlock,
+} from '@/components/blog/blog-markdown';
 import { Badge } from '@/components/ui/badge';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
@@ -98,6 +101,9 @@ export default function BlogPreviewPage({ params }: BlogPreviewPageProps) {
   const publishedDate = formatBlogDate(post.publishedAt);
   const updatedDate = formatBlogDate(post.updatedAt);
   const headings = getMarkdownHeadings(post.content);
+  const shouldShowFeaturedListings = hasMarkdownFeaturedListingsBlock(
+    post.content,
+  );
 
   return (
     <article className="space-y-6">
@@ -172,7 +178,17 @@ export default function BlogPreviewPage({ params }: BlogPreviewPageProps) {
 
       <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
         <div className="rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
-          <BlogMarkdown content={post.content} />
+          <BlogMarkdown
+            content={post.content}
+            featuredListingsSlot={
+              shouldShowFeaturedListings ? (
+                <div className="rounded-2xl border border-dashed border-border bg-muted/40 p-5 text-sm leading-6 text-muted-foreground">
+                  W tym miejscu publiczny artykuł pokaże blok wyróżnionych ofert
+                  z katalogu EstateFlow.
+                </div>
+              ) : null
+            }
+          />
           <div className="mt-8">
             <ArticleCta variant={getArticleCtaVariant(post)} />
           </div>

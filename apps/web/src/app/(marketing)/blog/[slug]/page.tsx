@@ -20,8 +20,10 @@ import {
 import {
   getMarkdownFaqItems,
   getMarkdownHeadings,
+  hasMarkdownFeaturedListingsBlock,
   type BlogFaqItem,
 } from '@/components/blog/blog-markdown';
+import { FeaturedListingsBlock } from '@/components/blog/featured-listings-block';
 
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
@@ -109,6 +111,9 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const updatedDate = formatBlogDate(post.updatedAt);
   const headings = getMarkdownHeadings(post.content);
   const faqItems = getMarkdownFaqItems(post.content);
+  const shouldShowFeaturedListings = hasMarkdownFeaturedListingsBlock(
+    post.content,
+  );
   const relatedPosts = await getRelatedPosts(post);
   const jsonLd = buildBlogPostJsonLd(post, canonicalUrl, imageUrl);
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(post, canonicalUrl);
@@ -188,7 +193,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_280px]">
           <div className="rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
-            <BlogMarkdown content={post.content} />
+            <BlogMarkdown
+              content={post.content}
+              featuredListingsSlot={
+                shouldShowFeaturedListings ? <FeaturedListingsBlock /> : null
+              }
+            />
             <div className="mt-8">
               <ArticleCta variant={getArticleCtaVariant(post)} />
             </div>

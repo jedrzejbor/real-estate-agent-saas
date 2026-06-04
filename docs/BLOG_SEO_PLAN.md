@@ -841,8 +841,13 @@ które są czytelne, bezpieczne i dobrze linkują do produktu.
     `::cta contact`, `::cta submit-listing` i `::cta listings`. Renderer
     obsługuje tylko znane warianty, a walidacja publikacji blokuje błędny zapis
     `::cta`.
-- [ ] 🟠 Dodać blok wyróżnionych ofert
-  - Wykonano:
+- [x] 🟠 Dodać blok wyróżnionych ofert
+  - Wykonano: 2026-06-04 — dodano składnię `::featured-listings` w Markdownie
+    oraz serwerowy komponent `FeaturedListingsBlock`, który pobiera najnowsze
+    publiczne oferty z katalogu i renderuje responsywne karty linkujące do
+    `/oferty/[slug]`. Publiczny artykuł pokazuje realne oferty dokładnie w
+    miejscu bloku, a podgląd roboczy w dashboardzie pokazuje bezpieczny
+    placeholder.
 - [x] 🟠 Dodać blok FAQ z widocznymi pytaniami i odpowiedziami
   - Wykonano: 2026-06-04 — dodano blok FAQ w Markdownie:
     `:::faq`, pytania jako `### Pytanie`, odpowiedzi jako zwykły tekst i
@@ -854,10 +859,22 @@ które są czytelne, bezpieczne i dobrze linkują do produktu.
     wpisu `/blog/[slug]` generuje JSON-LD `FAQPage` wyłącznie wtedy, gdy treść
     zawiera poprawny blok FAQ. Szkice i podgląd roboczy renderują FAQ wizualnie,
     ale schema jest emitowana tylko na publicznym artykule.
-- [ ] 🟡 Dodać sugestie linkowania do powiązanych wpisów
-  - Wykonano:
-- [ ] 🔴 Sprawdzić tekst, obrazy i CTA na mobile
-  - Wykonano:
+- [x] 🟡 Dodać sugestie linkowania do powiązanych wpisów
+  - Wykonano: 2026-06-04 — formularz wpisu pokazuje panel `Sugestie linkowania`
+    z gotowymi linkami Markdown do katalogu ofert, dodania oferty, rejestracji,
+    strony wybranej kategorii oraz do opublikowanych wpisów z tej samej
+    kategorii, jeśli API je zwróci. Sugestie są tylko podpowiedzią redakcyjną i
+    nie modyfikują treści automatycznie.
+- [x] 🔴 Sprawdzić tekst, obrazy i CTA na mobile
+  - Wykonano: 2026-06-04 — uruchomiono Google Chrome headless na viewporcie
+    `390x844` dla `/blog`. Test wykrył poziomy overflow w hero i mobilnym
+    navbarze; poprawiono rozmiar/łamanie H1, szerokości karty SEO, pusty stan
+    listy oraz ukryto nieaktywny placeholder menu na małych telefonach. Finalny
+    screenshot `/tmp/estateflow-blog-mobile-done.png` nie pokazuje
+    nachodzenia tekstu ani uciętego CTA w pierwszym widoku. Dla komponentów
+    artykułu wykonano dodatkowo type-check, lint, HTTP kompilację publicznej
+    trasy i podglądu roboczego; pełny screenshot artykułu wymaga pierwszego
+    opublikowanego wpisu testowego z treścią.
 
 ### Sprint 5 — Content launch
 

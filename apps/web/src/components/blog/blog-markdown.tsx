@@ -5,6 +5,7 @@ import { ArticleCta, type ArticleCtaVariant } from './article-cta';
 
 interface BlogMarkdownProps {
   content: string;
+  featuredListingsSlot?: ReactNode;
 }
 
 export interface BlogHeading {
@@ -25,14 +26,18 @@ type MarkdownBlock =
   | { type: 'quote'; text: string }
   | { type: 'image'; alt: string; src: string }
   | { type: 'cta'; variant: ArticleCtaVariant }
-  | { type: 'faq'; items: BlogFaqItem[] };
+  | { type: 'faq'; items: BlogFaqItem[] }
+  | { type: 'featuredListings' };
 
 export interface MarkdownContentIssue {
   field: string;
   message: string;
 }
 
-export function BlogMarkdown({ content }: BlogMarkdownProps) {
+export function BlogMarkdown({
+  content,
+  featuredListingsSlot,
+}: BlogMarkdownProps) {
   const blocks = parseMarkdownBlocks(content);
 
   return (
@@ -118,6 +123,12 @@ export function BlogMarkdown({ content }: BlogMarkdownProps) {
           return <BlogFaq key={index} items={block.items} />;
         }
 
+        if (block.type === 'featuredListings') {
+          return featuredListingsSlot ? (
+            <div key={index}>{featuredListingsSlot}</div>
+          ) : null;
+        }
+
         return (
           <p key={index} className="text-base leading-8 text-[#44403C]">
             {renderInlineMarkdown(block.text)}
@@ -148,6 +159,12 @@ export function getMarkdownFaqItems(content: string): BlogFaqItem[] {
         block.type === 'faq',
     )
     .flatMap((block) => block.items);
+}
+
+export function hasMarkdownFeaturedListingsBlock(content: string): boolean {
+  return parseMarkdownBlocks(content).some(
+    (block) => block.type === 'featuredListings',
+  );
 }
 
 export function getMarkdownContentIssues(
@@ -233,6 +250,17 @@ export function getMarkdownEditorialBlockIssues(
         field: `content-cta-${lineNumber}`,
         message:
           'Popraw blok CTA. Dostępne warianty: register, contact, submit-listing, listings.',
+      });
+    }
+
+    if (
+      line.startsWith('::featured-listings') &&
+      line !== '::featured-listings'
+    ) {
+      issues.push({
+        field: `content-featured-listings-${lineNumber}`,
+        message:
+          'Blok wyróżnionych ofert zapisuj dokładnie jako ::featured-listings.',
       });
     }
 
@@ -341,6 +369,13 @@ function parseMarkdownBlocks(content: string): MarkdownBlock[] {
       flushParagraph();
       flushList();
       blocks.push({ type: 'cta', variant: ctaVariant });
+      continue;
+    }
+
+    if (line === '::featured-listings') {
+      flushParagraph();
+      flushList();
+      blocks.push({ type: 'featuredListings' });
       continue;
     }
 

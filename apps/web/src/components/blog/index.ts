@@ -1,4 +1,5 @@
 export { ArticleCta } from './article-cta';
+export { FeaturedListingsBlock } from './featured-listings-block';
 export { BlogMarkdown } from './blog-markdown';
 export { BlogPagination } from './blog-pagination';
 export { BlogPostCard } from './blog-post-card';
