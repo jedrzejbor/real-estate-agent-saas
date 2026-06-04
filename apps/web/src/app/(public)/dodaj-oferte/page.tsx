@@ -289,6 +289,8 @@ export default function PublicListingSubmissionWizardPage() {
       formStartedAt: formStartedAt.current,
       sourceUrl: window.location.href,
       referrer: document.referrer || undefined,
+      entrySource: urlSearchParams.get('source') ?? undefined,
+      blogPost: urlSearchParams.get('blogPost') ?? undefined,
       utmSource: urlSearchParams.get('utm_source') ?? undefined,
       utmMedium: urlSearchParams.get('utm_medium') ?? undefined,
       utmCampaign: urlSearchParams.get('utm_campaign') ?? undefined,
@@ -1365,6 +1367,8 @@ function buildSubmissionPayload(
     formStartedAt: number;
     sourceUrl?: string;
     referrer?: string;
+    entrySource?: string;
+    blogPost?: string;
     utmSource?: string;
     utmMedium?: string;
     utmCampaign?: string;
@@ -1444,6 +1448,8 @@ function buildSubmissionPayload(
     metadata: {
       uiVersion: 'public-listing-wizard-v1',
       imageCount: draft.images.length,
+      entrySource: context.entrySource,
+      blogPost: context.blogPost,
       rentAdministrativeFee: visibleTransactionFields.has(
         'rentAdministrativeFee',
       )

@@ -13,6 +13,7 @@ import {
 import { absoluteUrl, compactJsonLd, getSiteUrl } from '@/lib/seo';
 import {
   ArticleCta,
+  BlogArticleAnalytics,
   BlogMarkdown,
   BlogTableOfContents,
   RelatedPosts,
@@ -118,9 +119,16 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const jsonLd = buildBlogPostJsonLd(post, canonicalUrl, imageUrl);
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(post, canonicalUrl);
   const faqJsonLd = buildFaqJsonLd(faqItems);
+  const blogContext = { slug: post.slug, title: post.title };
 
   return (
     <article className="bg-[#FAFAF9]">
+      <BlogArticleAnalytics
+        slug={post.slug}
+        title={post.title}
+        category={post.category?.name}
+        author={post.author?.displayName}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -198,9 +206,13 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               featuredListingsSlot={
                 shouldShowFeaturedListings ? <FeaturedListingsBlock /> : null
               }
+              blogContext={blogContext}
             />
             <div className="mt-8">
-              <ArticleCta variant={getArticleCtaVariant(post)} />
+              <ArticleCta
+                variant={getArticleCtaVariant(post)}
+                blogContext={blogContext}
+              />
             </div>
           </div>
 

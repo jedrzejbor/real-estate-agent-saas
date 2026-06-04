@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   BarChart3,
+  BookOpenText,
   Building2,
   CalendarRange,
   Gauge,
@@ -17,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ReportsAppointmentsSection } from '@/components/reports/reports-appointments-section';
+import { ReportsBlogSection } from '@/components/reports/reports-blog-section';
 import { ReportsClientsSection } from '@/components/reports/reports-clients-section';
 import { ReportsFilterBar } from '@/components/reports/reports-filter-bar';
 import { ReportsFreemiumSection } from '@/components/reports/reports-freemium-section';
@@ -27,6 +29,7 @@ import { ReportSectionCard } from '@/components/reports/report-section-card';
 import { ReportsTrendCard } from '@/components/reports/reports-trend-card';
 import {
   useReportsAppointments,
+  useReportsBlog,
   useReportsClients,
   useReportsFreemiumMetrics,
   useReportsListings,
@@ -52,10 +55,10 @@ export default function ReportsPage() {
   const showPremiumReportsUpsell =
     releaseFlags.freemiumUpsellEnabled && releaseFlags.premiumReportsEnabled;
   const reportsDescription = canAccessAppointmentsReport
-    ? 'Widok przeglądu oraz dedykowane raporty Oferty, Klienci i Spotkania, z zachowaniem wspólnych filtrów i bezpiecznego scope danych.'
+    ? 'Widok przeglądu oraz dedykowane raporty Oferty, Klienci, Growth, Blog i Spotkania, z zachowaniem wspólnych filtrów i bezpiecznego scope danych.'
     : showPremiumReportsUpsell
-      ? 'Widok przeglądu oraz darmowe raporty Oferty i Klienci. Raport Spotkania jest dostępny w płatnych planach.'
-      : 'Widok przeglądu oraz darmowe raporty Oferty i Klienci, bez dodatkowych premium entry pointów.';
+      ? 'Widok przeglądu oraz darmowe raporty Oferty, Klienci, Growth i Blog. Raport Spotkania jest dostępny w płatnych planach.'
+      : 'Widok przeglądu oraz darmowe raporty Oferty, Klienci, Growth i Blog, bez dodatkowych premium entry pointów.';
 
   const filters = useMemo(
     () => parseReportsFilters(searchParams),
@@ -90,6 +93,12 @@ export default function ReportsPage() {
     refresh: refreshFreemium,
   } = useReportsFreemiumMetrics(filters);
   const {
+    data: blogData,
+    isLoading: isBlogLoading,
+    error: blogError,
+    refresh: refreshBlog,
+  } = useReportsBlog(filters);
+  const {
     data: appointmentsData,
     isLoading: isAppointmentsLoading,
     error: appointmentsError,
@@ -103,6 +112,7 @@ export default function ReportsPage() {
     refreshListings();
     refreshClients();
     refreshFreemium();
+    refreshBlog();
 
     if (canAccessAppointmentsReport) {
       refreshAppointments();
@@ -137,16 +147,20 @@ export default function ReportsPage() {
     isListingsLoading ||
     isClientsLoading ||
     isFreemiumLoading ||
+    isBlogLoading ||
     (canAccessAppointmentsReport && isAppointmentsLoading);
   const tabs = getReportsTabs({
     canAccessAppointmentsReport,
     showPremiumReportsUpsell,
     overviewCount: data
-      ? data.summary.newListings + data.summary.newClients + data.summary.appointments
+      ? data.summary.newListings +
+        data.summary.newClients +
+        data.summary.appointments
       : undefined,
     listingsCount: listingsData?.summary.totalListings,
     clientsCount: clientsData?.summary.totalClients,
     freemiumCount: freemiumData?.summary.upgradeClicks,
+    blogCount: blogData?.summary.articleViews,
     appointmentsCount: appointmentsData?.summary.totalAppointments,
   });
   const selectedTab =
@@ -219,7 +233,7 @@ export default function ReportsPage() {
         <section className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
           <div className="border-b border-border bg-muted/20 p-2">
             <div
-              className="grid gap-2 lg:grid-cols-5"
+              className="grid gap-2 lg:grid-cols-6"
               role="tablist"
               aria-label="Typ raportu"
             >
@@ -311,7 +325,9 @@ export default function ReportsPage() {
                 hasData={!!clientsData}
                 onRetry={refreshClients}
               >
-                {clientsData ? <ReportsClientsSection data={clientsData} /> : null}
+                {clientsData ? (
+                  <ReportsClientsSection data={clientsData} />
+                ) : null}
               </ReportDataState>
             ) : null}
 
@@ -325,6 +341,17 @@ export default function ReportsPage() {
                 {freemiumData ? (
                   <ReportsFreemiumSection data={freemiumData} />
                 ) : null}
+              </ReportDataState>
+            ) : null}
+
+            {selectedTab.id === 'blog' ? (
+              <ReportDataState
+                error={blogError}
+                isLoading={isBlogLoading}
+                hasData={!!blogData}
+                onRetry={refreshBlog}
+              >
+                {blogData ? <ReportsBlogSection data={blogData} /> : null}
               </ReportDataState>
             ) : null}
 
@@ -359,6 +386,7 @@ type ReportsTabId =
   | 'listings'
   | 'clients'
   | 'freemium'
+  | 'blog'
   | 'appointments';
 
 interface ReportsTab {
@@ -377,6 +405,7 @@ function isReportsTabId(value: string | null): value is ReportsTabId {
     value === 'listings' ||
     value === 'clients' ||
     value === 'freemium' ||
+    value === 'blog' ||
     value === 'appointments'
   );
 }
@@ -388,6 +417,7 @@ function getReportsTabs({
   listingsCount,
   clientsCount,
   freemiumCount,
+  blogCount,
   appointmentsCount,
 }: {
   canAccessAppointmentsReport: boolean;
@@ -396,6 +426,7 @@ function getReportsTabs({
   listingsCount?: number;
   clientsCount?: number;
   freemiumCount?: number;
+  blogCount?: number;
   appointmentsCount?: number;
 }): ReportsTab[] {
   return [
@@ -426,6 +457,13 @@ function getReportsTabs({
       description: 'Aktywacja, publiczne oferty i upgrade intent.',
       icon: MousePointerClick,
       badge: freemiumCount !== undefined ? String(freemiumCount) : undefined,
+    },
+    {
+      id: 'blog',
+      label: 'Blog',
+      description: 'Ruch SEO, CTA i intencja dodania oferty.',
+      icon: BookOpenText,
+      badge: blogCount !== undefined ? String(blogCount) : undefined,
     },
     {
       id: 'appointments',
@@ -544,7 +582,11 @@ function OverviewReportContent({
               label="Dostępni agenci"
               value={String(data.scope.availableAgents.length)}
             />
-            <InfoRow icon={BarChart3} label="Rola użytkownika" value={userRole} />
+            <InfoRow
+              icon={BarChart3}
+              label="Rola użytkownika"
+              value={userRole}
+            />
           </div>
         </ReportSectionCard>
       </div>

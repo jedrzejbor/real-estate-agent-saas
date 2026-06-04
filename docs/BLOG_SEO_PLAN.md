@@ -881,45 +881,91 @@ które są czytelne, bezpieczne i dobrze linkują do produktu.
 Cel sprintu: uruchomić blog z pierwszymi jakościowymi artykułami, kategoriami i
 podstawowym pomiarem SEO.
 
-- [ ] 🟠 Wybrać główne frazy dla pierwszych 12 artykułów
-  - Wykonano:
-- [ ] 🟠 Przygotować opisy kategorii bloga
-  - Wykonano:
-- [ ] 🟠 Napisać artykuł 1: `Jak przygotować mieszkanie do sprzedaży krok po
+- [x] 🟠 Wybrać główne frazy dla pierwszych 12 artykułów
+  - Wykonano: 2026-06-04 — przygotowano pierwszy plan fraz i tematów pod
+    content launch:
+    1. `jak przygotować mieszkanie do sprzedaży`
+    2. `jak wycenić mieszkanie przed sprzedażą`
+    3. `jak napisać opis ogłoszenia nieruchomości`
+    4. `zdjęcia mieszkania do sprzedaży`
+    5. `home staging mieszkania przed sprzedażą`
+    6. `jak sprzedać mieszkanie bez pośrednika`
+    7. `jak sprawdzić ogłoszenie nieruchomości`
+    8. `pytania przy oglądaniu mieszkania`
+    9. `jak przygotować dom do sprzedaży`
+    10. `CRM dla agenta nieruchomości`
+    11. `jak obsługiwać leady z ogłoszeń nieruchomości`
+    12. `jak promować ofertę nieruchomości online`
+- [x] 🟠 Przygotować opisy kategorii bloga
+  - Wykonano: 2026-06-04 — dodano idempotentny seed
+    `apps/api/migrations/20260604_blog_content_launch_seed.sql` z kategoriami:
+    `Sprzedaż nieruchomości`, `Wycena nieruchomości`, `Marketing ofert`,
+    `Kupno i wynajem` oraz `Praca agenta`. Każda kategoria ma opis, SEO title,
+    SEO description, sort order i `isIndexable=true`; publiczny endpoint nadal
+    zwraca `isIndexable=false`, dopóki kategoria nie ma opublikowanych wpisów.
+- [x] 🟠 Napisać artykuł 1: `Jak przygotować mieszkanie do sprzedaży krok po
 kroku`
-  - Wykonano:
-- [ ] 🟠 Napisać artykuł 2: `Jak wycenić mieszkanie przed wystawieniem
+  - Wykonano: 2026-06-04 — dodano pierwszy artykuł jako szkic w seedzie:
+    `jak-przygotowac-mieszkanie-do-sprzedazy-krok-po-kroku`. Wpis ma lead,
+    SEO title, SEO description, cover image, alt, FAQ, CTA, blok
+    `::featured-listings` i linki do pozostałych pierwszych artykułów.
+- [x] 🟠 Napisać artykuł 2: `Jak wycenić mieszkanie przed wystawieniem
 ogłoszenia`
-  - Wykonano:
-- [ ] 🟠 Napisać artykuł 3: `Jak napisać skuteczny opis ogłoszenia
+  - Wykonano: 2026-06-04 — dodano drugi artykuł jako szkic w seedzie:
+    `jak-wycenic-mieszkanie-przed-wystawieniem-ogloszenia`. Wpis ma lead, SEO,
+    cover image, alt, FAQ, CTA `contact`, blok wyróżnionych ofert i link do
+    artykułu o przygotowaniu mieszkania.
+- [x] 🟠 Napisać artykuł 3: `Jak napisać skuteczny opis ogłoszenia
 nieruchomości`
-  - Wykonano:
-- [ ] 🟠 Przygotować minimum 3 cover images z opisowymi altami
-  - Wykonano:
-- [ ] 🟠 Ustawić linkowanie wewnętrzne między pierwszymi artykułami
-  - Wykonano:
-- [ ] 🟠 Dodać CTA do każdego pierwszego artykułu
-  - Wykonano:
+  - Wykonano: 2026-06-04 — dodano trzeci artykuł jako szkic w seedzie:
+    `jak-napisac-skuteczny-opis-ogloszenia-nieruchomosci`. Wpis ma lead, SEO,
+    cover image, alt, FAQ, CTA `submit-listing`, blok wyróżnionych ofert i
+    linki do artykułów o przygotowaniu mieszkania oraz wycenie.
+- [x] 🟠 Przygotować minimum 3 cover images z opisowymi altami
+  - Wykonano: 2026-06-04 — pierwsze 3 szkice korzystają z istniejących assetów:
+    `/images/hero/interior-1.jpg`, `/images/hero/interior-2.jpg` i
+    `/images/hero/house-1.jpg`. Każdy wpis ma osobny opisowy `coverImageAlt`.
+- [x] 🟠 Ustawić linkowanie wewnętrzne między pierwszymi artykułami
+  - Wykonano: 2026-06-04 — treści szkiców linkują między sobą oraz do
+    `/oferty`, `/dodaj-oferte` i powiązanych ścieżek produktowych. Linkowanie
+    używa bezpiecznej składni Markdown obsługiwanej przez `BlogMarkdown`.
+- [x] 🟠 Dodać CTA do każdego pierwszego artykułu
+  - Wykonano: 2026-06-04 — każdy z pierwszych 3 szkiców ma blok CTA:
+    `::cta submit-listing` albo `::cta contact`, zgodny z rendererem Sprintu 4.
 - [ ] 🟠 Skonfigurować Google Search Console
   - Wykonano:
 - [ ] 🟠 Zgłosić sitemap w Search Console
   - Wykonano:
 - [ ] 🟠 Sprawdzić indeksację pierwszych URL po publikacji
   - Wykonano:
-- [ ] 🔴 Zweryfikować, że drafty i preview nie są w sitemapie
-  - Wykonano:
+- [x] 🔴 Zweryfikować, że drafty i preview nie są w sitemapie
+  - Wykonano: 2026-06-04 — seed zapisuje pierwsze artykuły jako `draft` i
+    `robots=noindex_follow`. `sitemap.ts` pobiera wpisy przez
+    `fetchPublicBlogSitemapEntries()`, a publiczny endpoint bloga zwraca tylko
+    `status=published` z `publishedAt <= now`. `robots.ts` blokuje
+    `/dashboard/`, więc dashboardowe preview nie jest ścieżką do indeksowania.
 
 ### Sprint 6 — Analityka i optymalizacja po publikacji
 
 Cel sprintu: mierzyć skuteczność bloga i poprawiać treści na podstawie danych,
 nie intuicji.
 
-- [ ] 🟠 Dodać eventy kliknięć CTA z artykułów
-  - Wykonano:
-- [ ] 🟠 Oznaczyć leady pochodzące z bloga
-  - Wykonano:
-- [ ] 🟠 Dodać podstawowy raport wejść i konwersji z bloga
-  - Wykonano:
+- [x] 🟠 Dodać eventy kliknięć CTA z artykułów
+  - Wykonano: 2026-06-04 — dodano publiczne eventy
+    `blog_article_viewed` i `blog_cta_clicked` w module analytics. Artykuł
+    publiczny rejestruje odsłonę raz na sesję przeglądarki, a `ArticleCta`
+    zapisuje kliknięcia razem z wariantem CTA, etykietą, docelowym linkiem,
+    slugiem i tytułem wpisu.
+- [x] 🟠 Oznaczyć leady pochodzące z bloga
+  - Wykonano: 2026-06-04 — linki CTA z artykułów do ścieżek aplikacji dostają
+    parametry `source=blog` i `blogPost=<slug>`. Formularz `/dodaj-oferte`
+    zapisuje te wartości w `metadata.entrySource` i `metadata.blogPost`, a
+    `sourceUrl` nadal przechowuje pełny URL wejścia.
+- [x] 🟠 Dodać podstawowy raport wejść i konwersji z bloga
+  - Wykonano: 2026-06-04 — dodano endpoint `GET /reports/blog`, typy klienta
+    web, hook `useReportsBlog` oraz zakładkę `Blog` w `/dashboard/reports`.
+    Raport pokazuje odsłony artykułów, kliknięcia CTA, CTR, kliknięcia
+    `submit-listing`, top artykuły i rozbicie wariantów CTA.
 - [ ] 🟡 Dodać miesięczną listę artykułów do aktualizacji
   - Wykonano:
 - [ ] 🟡 Przejrzeć Search Console po pierwszych 2 tygodniach
