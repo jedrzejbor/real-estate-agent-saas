@@ -28,6 +28,8 @@ export const ANALYTICS_EVENT_NAMES = [
   'public_lead_accepted',
   'public_listing_claim_started',
   'public_listing_claim_completed',
+  'blog_article_viewed',
+  'blog_cta_clicked',
   'product_feedback_submitted',
   'client_created',
   'clients_imported',
@@ -53,6 +55,14 @@ export const PUBLIC_LISTING_ANALYTICS_EVENT_NAMES = [
 export type PublicListingAnalyticsEventName =
   (typeof PUBLIC_LISTING_ANALYTICS_EVENT_NAMES)[number];
 
+export const PUBLIC_BLOG_ANALYTICS_EVENT_NAMES = [
+  'blog_article_viewed',
+  'blog_cta_clicked',
+] as const;
+
+export type PublicBlogAnalyticsEventName =
+  (typeof PUBLIC_BLOG_ANALYTICS_EVENT_NAMES)[number];
+
 export class CreateAnalyticsEventDto {
   @IsIn(ANALYTICS_EVENT_NAMES)
   name: AnalyticsEventName;
@@ -70,6 +80,20 @@ export class CreateAnalyticsEventDto {
 export class CreatePublicListingAnalyticsEventDto {
   @IsIn(PUBLIC_LISTING_ANALYTICS_EVENT_NAMES)
   name: PublicListingAnalyticsEventName;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  path?: string;
+
+  @IsOptional()
+  @IsObject()
+  properties?: Record<string, unknown>;
+}
+
+export class CreatePublicBlogAnalyticsEventDto {
+  @IsIn(PUBLIC_BLOG_ANALYTICS_EVENT_NAMES)
+  name: PublicBlogAnalyticsEventName;
 
   @IsOptional()
   @IsString()

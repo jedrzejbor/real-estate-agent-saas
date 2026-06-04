@@ -6,9 +6,11 @@ import { ListingPublicationStatus } from '../common/enums';
 import { Listing } from '../listings/entities/listing.entity';
 import { MonitoringService } from '../monitoring';
 import { Agent } from '../users/entities/agent.entity';
+import { BlogPost, BlogPostStatus } from '../blog/entities/blog-post.entity';
 import { AnalyticsEvent } from './entities/analytics-event.entity';
 import {
   CreateAnalyticsEventDto,
+  CreatePublicBlogAnalyticsEventDto,
   CreatePublicListingAnalyticsEventDto,
 } from './dto/create-analytics-event.dto';
 
@@ -23,6 +25,8 @@ export class AnalyticsService {
     private readonly listingRepo: Repository<Listing>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    @InjectRepository(BlogPost)
+    private readonly blogPostRepo: Repository<BlogPost>,
     private readonly usersService: UsersService,
     private readonly monitoringService: MonitoringService,
   ) {}
@@ -64,6 +68,17 @@ export class AnalyticsService {
         context: { publicSlug: slug, eventName: dto.name },
       },
       () => this.trackPublicListingCore(slug, dto),
+    );
+  }
+
+  async trackPublicBlog(slug: string, dto: CreatePublicBlogAnalyticsEventDto) {
+    return this.monitoringService.monitor(
+      {
+        flow: 'public_blog_analytics_event',
+        failureEvent: 'event_track_failed',
+        context: { blogSlug: slug, eventName: dto.name },
+      },
+      () => this.trackPublicBlogCore(slug, dto),
     );
   }
 
@@ -122,6 +137,49 @@ export class AnalyticsService {
         },
       );
     }
+
+    return {
+      id: savedEvent.id,
+      name: savedEvent.name,
+      createdAt: savedEvent.createdAt,
+    };
+  }
+
+  private async trackPublicBlogCore(
+    slug: string,
+    dto: CreatePublicBlogAnalyticsEventDto,
+  ) {
+    const post = await this.blogPostRepo.findOne({
+      where: {
+        slug,
+        status: BlogPostStatus.PUBLISHED,
+      },
+    });
+
+    if (!post?.publishedAt || post.publishedAt.getTime() > Date.now()) {
+      throw new NotFoundException('Wpis blogowy nie znaleziony');
+    }
+
+    const event = this.analyticsEventRepo.create({
+      name: dto.name,
+      userId: null,
+      agentId: null,
+      agencyId: null,
+      planCode: null,
+      path: dto.path ?? `/blog/${post.slug}`,
+      properties: {
+        ...dto.properties,
+        postId: post.id,
+        postSlug: post.slug,
+        postTitle: post.title,
+      },
+    });
+
+    const savedEvent = await this.analyticsEventRepo.save(event);
+
+    this.logger.debug(
+      `Public blog analytics event tracked: ${savedEvent.name} (${savedEvent.id})`,
+    );
 
     return {
       id: savedEvent.id,
