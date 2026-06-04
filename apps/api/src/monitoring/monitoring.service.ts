@@ -11,7 +11,8 @@ export type MonitoredFlow =
   | 'public_submission_resend'
   | 'public_submission_verify'
   | 'public_submission_claim'
-  | 'public_analytics_event';
+  | 'public_analytics_event'
+  | 'public_blog_analytics_event';
 
 type MonitoringStatus = 'success' | 'failure' | 'warning';
 

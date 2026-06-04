@@ -281,6 +281,42 @@ export interface FreemiumMetricsReportResponse {
   notes: string[];
 }
 
+export interface BlogReportSummary {
+  articleViews: number;
+  ctaClicks: number;
+  submitListingClicks: number;
+  ctaClickThroughRate: number;
+  submitListingClickThroughRate: number;
+}
+
+export interface BlogReportItem {
+  key: string;
+  label: string;
+  views: number;
+  ctaClicks: number;
+  submitListingClicks: number;
+  ctaClickThroughRate: number;
+}
+
+export interface BlogReportCtaItem {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface BlogReportResponse {
+  generatedAt: string;
+  filtersApplied: {
+    dateFrom: string;
+    dateTo: string;
+    groupBy: ReportsGroupBy;
+  };
+  summary: BlogReportSummary;
+  topPosts: BlogReportItem[];
+  ctaVariants: BlogReportCtaItem[];
+  notes: string[];
+}
+
 export interface ReportsOverviewResponse {
   generatedAt: string;
   filtersApplied: {
@@ -607,6 +643,36 @@ export class ReportsService {
         'Współczynniki są liczone jako proste relacje eventów w wybranym okresie, dlatego pokazują trend produktu, a nie pełną kohortową analitykę atrybucji.',
         'Upgrade intent bazuje na kliknięciach `upgrade_cta_clicked` i właściwościach `upsellId` oraz `source` przesyłanych z kart upsell.',
         'Post-launch health używa progów operacyjnych MVP. Ma wskazywać, gdzie zespół powinien reagować po starcie, a nie zastępować analizę kohortową.',
+      ],
+    };
+  }
+
+  async getBlogReport(
+    user: ReportsUserContext,
+    filters: ReportFiltersDto,
+  ): Promise<BlogReportResponse> {
+    void user;
+    const normalizedFilters = this.normalizeFilters(filters);
+    const [summary, topPosts, ctaVariants] = await Promise.all([
+      this.buildBlogSummary(normalizedFilters),
+      this.buildBlogTopPosts(normalizedFilters),
+      this.buildBlogCtaVariants(normalizedFilters),
+    ]);
+
+    return {
+      generatedAt: new Date().toISOString(),
+      filtersApplied: {
+        dateFrom: normalizedFilters.dateFrom.toISOString(),
+        dateTo: normalizedFilters.dateTo.toISOString(),
+        groupBy: normalizedFilters.groupBy,
+      },
+      summary,
+      topPosts,
+      ctaVariants,
+      notes: [
+        'Raport Blog agreguje eventy `blog_article_viewed` i `blog_cta_clicked` zapisane w `analytics_events`.',
+        'Centralny blog EstateFlow jest globalny, dlatego raport nie filtruje po agencji ani agencie.',
+        'Kliknięcia prowadzące do formularza dodania oferty są liczone po wariancie CTA `submit-listing`.',
       ],
     };
   }
@@ -1443,6 +1509,118 @@ export class ReportsService {
     };
   }
 
+  private async buildBlogSummary(
+    filters: NormalizedFilters,
+  ): Promise<BlogReportSummary> {
+    const row = await this.createBlogAnalyticsBaseQuery(filters)
+      .select(
+        `COUNT(*) FILTER (WHERE event.name = 'blog_article_viewed')::int`,
+        'articleViews',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE event.name = 'blog_cta_clicked')::int`,
+        'ctaClicks',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (
+          WHERE event.name = 'blog_cta_clicked'
+          AND event.properties ->> 'ctaVariant' = 'submit-listing'
+        )::int`,
+        'submitListingClicks',
+      )
+      .getRawOne<{
+        articleViews?: string;
+        ctaClicks?: string;
+        submitListingClicks?: string;
+      }>();
+
+    const articleViews = Number(row?.articleViews ?? 0);
+    const ctaClicks = Number(row?.ctaClicks ?? 0);
+    const submitListingClicks = Number(row?.submitListingClicks ?? 0);
+
+    return {
+      articleViews,
+      ctaClicks,
+      submitListingClicks,
+      ctaClickThroughRate: this.percentage(ctaClicks, articleViews),
+      submitListingClickThroughRate: this.percentage(
+        submitListingClicks,
+        articleViews,
+      ),
+    };
+  }
+
+  private async buildBlogTopPosts(
+    filters: NormalizedFilters,
+  ): Promise<BlogReportItem[]> {
+    const rows = await this.createBlogAnalyticsBaseQuery(filters)
+      .select("COALESCE(event.properties ->> 'postSlug', 'unknown')", 'key')
+      .addSelect(
+        "COALESCE(MAX(event.properties ->> 'postTitle'), COALESCE(event.properties ->> 'postSlug', 'unknown'))",
+        'label',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE event.name = 'blog_article_viewed')::int`,
+        'views',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE event.name = 'blog_cta_clicked')::int`,
+        'ctaClicks',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (
+          WHERE event.name = 'blog_cta_clicked'
+          AND event.properties ->> 'ctaVariant' = 'submit-listing'
+        )::int`,
+        'submitListingClicks',
+      )
+      .groupBy("COALESCE(event.properties ->> 'postSlug', 'unknown')")
+      .orderBy(
+        `COUNT(*) FILTER (WHERE event.name = 'blog_article_viewed')`,
+        'DESC',
+      )
+      .limit(10)
+      .getRawMany<{
+        key: string;
+        label: string;
+        views: string;
+        ctaClicks: string;
+        submitListingClicks: string;
+      }>();
+
+    return rows.map((row) => {
+      const views = Number(row.views);
+      const ctaClicks = Number(row.ctaClicks);
+
+      return {
+        key: row.key,
+        label: row.label,
+        views,
+        ctaClicks,
+        submitListingClicks: Number(row.submitListingClicks),
+        ctaClickThroughRate: this.percentage(ctaClicks, views),
+      };
+    });
+  }
+
+  private async buildBlogCtaVariants(
+    filters: NormalizedFilters,
+  ): Promise<BlogReportCtaItem[]> {
+    const rows = await this.createBlogAnalyticsBaseQuery(filters)
+      .andWhere('event.name = :eventName', { eventName: 'blog_cta_clicked' })
+      .select("COALESCE(event.properties ->> 'ctaVariant', 'unknown')", 'key')
+      .addSelect('COUNT(*)::int', 'count')
+      .groupBy("COALESCE(event.properties ->> 'ctaVariant', 'unknown')")
+      .orderBy('COUNT(*)', 'DESC')
+      .getRawMany<{ key: string; count: string }>();
+
+    return rows.map((row) => ({
+      key: row.key,
+      label: BLOG_CTA_LABELS[row.key] ?? row.key,
+      count: Number(row.count),
+    }));
+  }
+
   private async buildClientsSourceBreakdown(
     filters: NormalizedFilters,
     scope: ResolvedScope,
@@ -1871,6 +2049,20 @@ export class ReportsService {
       });
   }
 
+  private createBlogAnalyticsBaseQuery(
+    filters: Pick<NormalizedFilters, 'dateFrom' | 'dateTo'>,
+  ): SelectQueryBuilder<AnalyticsEvent> {
+    return this.analyticsEventRepo
+      .createQueryBuilder('event')
+      .where('event.createdAt BETWEEN :dateFrom AND :dateTo', {
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+      })
+      .andWhere('event.name IN (:...eventNames)', {
+        eventNames: ['blog_article_viewed', 'blog_cta_clicked'],
+      });
+  }
+
   private async countPublicListingViews(
     filters: NormalizedFilters,
     scope: ResolvedScope,
@@ -2041,4 +2233,12 @@ const FREEMIUM_UPSELL_LABELS: Record<string, string> = {
   'growth-automation': 'Automatyzacje',
   'higher-limits': 'Większe limity',
   unknown: 'Nieznany upsell',
+};
+
+const BLOG_CTA_LABELS: Record<string, string> = {
+  register: 'Rejestracja',
+  contact: 'Kontakt',
+  listings: 'Katalog ofert',
+  'submit-listing': 'Dodanie oferty',
+  unknown: 'Nieznane CTA',
 };

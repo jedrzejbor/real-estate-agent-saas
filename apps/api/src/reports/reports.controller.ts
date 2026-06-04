@@ -73,4 +73,17 @@ export class ReportsController {
   ) {
     return this.reportsService.getFreemiumMetricsReport(user, filters);
   }
+
+  /**
+   * GET /api/reports/blog
+   * Central blog performance report: article views and CTA clicks.
+   */
+  @Get('blog')
+  async getBlog(
+    @CurrentUser()
+    user: { id: string; email: string; role: UserRole },
+    @Query() filters: ReportFiltersDto,
+  ) {
+    return this.reportsService.getBlogReport(user, filters);
+  }
 }

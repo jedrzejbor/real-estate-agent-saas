@@ -16,8 +16,8 @@ export class AnalyticsEvent {
   @Column({ type: 'varchar', length: 100 })
   name: string;
 
-  @Column({ type: 'uuid', name: 'user_id' })
-  userId: string;
+  @Column({ type: 'uuid', name: 'user_id', nullable: true })
+  userId?: string | null;
 
   @Column({ type: 'uuid', name: 'agent_id', nullable: true })
   agentId?: string | null;
