@@ -1,11 +1,8 @@
 import Link from 'next/link';
-import { Menu } from 'lucide-react';
 import { Logo } from '@/components/common/logo';
 import { Container } from '@/components/layout/container';
-import {
-  NavbarAuthActions,
-  NavbarMobileAuthAction,
-} from '@/components/layout/navbar-auth-actions';
+import { NavbarAuthActions } from '@/components/layout/navbar-auth-actions';
+import { NavbarMobileMenu } from '@/components/layout/navbar-mobile-menu';
 
 const navLinks = [
   { label: 'Home', href: '/' },
@@ -44,23 +41,7 @@ export function Navbar() {
         {/* CTA */}
         <NavbarAuthActions />
 
-        <div className="flex shrink-0 items-center gap-1 md:hidden">
-          <Link
-            href="/oferty"
-            className="inline-flex h-9 items-center justify-center rounded-full border border-border px-2 text-xs font-semibold text-[#44403C] transition-colors hover:border-primary hover:text-primary"
-          >
-            Oferty
-          </Link>
-          <NavbarMobileAuthAction />
-
-          {/* Mobile hamburger — placeholder for future client component */}
-          <button
-            className="hidden h-10 w-10 items-center justify-center rounded-lg text-[#44403C] sm:inline-flex md:hidden"
-            aria-label="Menu"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-        </div>
+        <NavbarMobileMenu />
       </Container>
     </header>
   );
