@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchReportsAppointments,
+  fetchReportsBlog,
   fetchReportsClients,
   fetchReportsFreemiumMetrics,
   fetchReportsListings,
   fetchReportsOverview,
   type AppointmentsReportResponse,
+  type BlogReportResponse,
   type ClientsReportResponse,
   type FreemiumMetricsReportResponse,
   type ListingsReportResponse,
@@ -246,6 +248,51 @@ export function useReportsFreemiumMetrics(
           err instanceof Error
             ? err.message
             : 'Nie udało się pobrać raportu freemium',
+        );
+      }
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [filters]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return { data, isLoading, error, refresh: load };
+}
+
+interface UseReportsBlogResult {
+  data: BlogReportResponse | null;
+  isLoading: boolean;
+  error: string | null;
+  refresh: () => void;
+}
+
+export function useReportsBlog(filters: ReportsFilters): UseReportsBlogResult {
+  const [data, setData] = useState<BlogReportResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
+
+  const load = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await fetchReportsBlog(filters);
+      if (requestId === requestIdRef.current) {
+        setData(result);
+      }
+    } catch (err) {
+      if (requestId === requestIdRef.current) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Nie udało się pobrać raportu bloga',
         );
       }
     } finally {

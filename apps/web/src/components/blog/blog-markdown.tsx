@@ -6,6 +6,10 @@ import { ArticleCta, type ArticleCtaVariant } from './article-cta';
 interface BlogMarkdownProps {
   content: string;
   featuredListingsSlot?: ReactNode;
+  blogContext?: {
+    slug: string;
+    title: string;
+  };
 }
 
 export interface BlogHeading {
@@ -37,6 +41,7 @@ export interface MarkdownContentIssue {
 export function BlogMarkdown({
   content,
   featuredListingsSlot,
+  blogContext,
 }: BlogMarkdownProps) {
   const blocks = parseMarkdownBlocks(content);
 
@@ -116,7 +121,13 @@ export function BlogMarkdown({
         }
 
         if (block.type === 'cta') {
-          return <ArticleCta key={index} variant={block.variant} />;
+          return (
+            <ArticleCta
+              key={index}
+              variant={block.variant}
+              blogContext={blogContext}
+            />
+          );
         }
 
         if (block.type === 'faq') {

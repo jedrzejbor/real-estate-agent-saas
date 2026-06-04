@@ -1,5 +1,8 @@
+'use client';
+
 import Link from 'next/link';
 import { ArrowRight, Home, Mail, PlusCircle, UserPlus } from 'lucide-react';
+import { AnalyticsEventName, trackPublicBlogEvent } from '@/lib/analytics';
 
 export type ArticleCtaVariant =
   | 'register'
@@ -9,6 +12,10 @@ export type ArticleCtaVariant =
 
 interface ArticleCtaProps {
   variant?: ArticleCtaVariant;
+  blogContext?: {
+    slug: string;
+    title: string;
+  };
 }
 
 const ctaCopy = {
@@ -46,9 +53,30 @@ const ctaCopy = {
   },
 } as const;
 
-export function ArticleCta({ variant = 'register' }: ArticleCtaProps) {
+export function ArticleCta({
+  variant = 'register',
+  blogContext,
+}: ArticleCtaProps) {
   const cta = ctaCopy[variant];
   const Icon = cta.icon;
+  const href = getTrackedHref(cta.href, blogContext?.slug);
+
+  function handleClick() {
+    if (!blogContext) {
+      return;
+    }
+
+    trackPublicBlogEvent({
+      slug: blogContext.slug,
+      name: AnalyticsEventName.BLOG_CTA_CLICKED,
+      properties: {
+        ctaVariant: variant,
+        ctaLabel: cta.label,
+        targetHref: href,
+        postTitle: blogContext.title,
+      },
+    });
+  }
 
   return (
     <section className="rounded-2xl border border-[#059669]/20 bg-[#ECFDF5] p-6">
@@ -67,7 +95,8 @@ export function ArticleCta({ variant = 'register' }: ArticleCtaProps) {
           </div>
         </div>
         <Link
-          href={cta.href}
+          href={href}
+          onClick={handleClick}
           className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
         >
           {cta.label}
@@ -76,4 +105,17 @@ export function ArticleCta({ variant = 'register' }: ArticleCtaProps) {
       </div>
     </section>
   );
+}
+
+function getTrackedHref(href: string, blogSlug: string | undefined) {
+  if (!blogSlug || !href.startsWith('/')) {
+    return href;
+  }
+
+  const [pathname, queryString] = href.split('?');
+  const params = new URLSearchParams(queryString);
+  params.set('source', 'blog');
+  params.set('blogPost', blogSlug);
+
+  return `${pathname}?${params.toString()}`;
 }
