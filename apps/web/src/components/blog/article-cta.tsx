@@ -1,8 +1,14 @@
 import Link from 'next/link';
-import { ArrowRight, Home, PlusCircle, UserPlus } from 'lucide-react';
+import { ArrowRight, Home, Mail, PlusCircle, UserPlus } from 'lucide-react';
+
+export type ArticleCtaVariant =
+  | 'register'
+  | 'contact'
+  | 'listings'
+  | 'submit-listing';
 
 interface ArticleCtaProps {
-  variant?: 'register' | 'listings' | 'submit-listing';
+  variant?: ArticleCtaVariant;
 }
 
 const ctaCopy = {
@@ -13,6 +19,14 @@ const ctaCopy = {
       'Prowadź oferty, klientów i zapytania z jednego panelu stworzonego dla rynku nieruchomości.',
     href: '/register',
     label: 'Załóż konto',
+  },
+  contact: {
+    icon: Mail,
+    title: 'Porozmawiajmy o wdrożeniu EstateFlow',
+    description:
+      'Napisz do nas, jeśli chcesz dopasować EstateFlow do pracy Twojego biura lub zespołu sprzedaży.',
+    href: 'mailto:legal@estateflow.pl',
+    label: 'Skontaktuj się',
   },
   listings: {
     icon: Home,

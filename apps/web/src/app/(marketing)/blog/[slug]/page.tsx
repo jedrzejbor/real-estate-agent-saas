@@ -17,7 +17,11 @@ import {
   BlogTableOfContents,
   RelatedPosts,
 } from '@/components/blog';
-import { getMarkdownHeadings } from '@/components/blog/blog-markdown';
+import {
+  getMarkdownFaqItems,
+  getMarkdownHeadings,
+  type BlogFaqItem,
+} from '@/components/blog/blog-markdown';
 
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
@@ -104,9 +108,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const publishedDate = formatBlogDate(post.publishedAt);
   const updatedDate = formatBlogDate(post.updatedAt);
   const headings = getMarkdownHeadings(post.content);
+  const faqItems = getMarkdownFaqItems(post.content);
   const relatedPosts = await getRelatedPosts(post);
   const jsonLd = buildBlogPostJsonLd(post, canonicalUrl, imageUrl);
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(post, canonicalUrl);
+  const faqJsonLd = buildFaqJsonLd(faqItems);
 
   return (
     <article className="bg-[#FAFAF9]">
@@ -118,6 +124,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
+      {faqJsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        />
+      ) : null}
 
       <header className="border-b border-border bg-white">
         <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:px-10">
@@ -332,5 +344,24 @@ function buildBreadcrumbJsonLd(post: PublicBlogPost, canonicalUrl: string) {
         item: canonicalUrl,
       },
     ],
+  });
+}
+
+function buildFaqJsonLd(items: BlogFaqItem[]) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return compactJsonLd({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer,
+      },
+    })),
   });
 }

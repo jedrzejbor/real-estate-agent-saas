@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { ArticleCta, type ArticleCtaVariant } from './article-cta';
 
 interface BlogMarkdownProps {
   content: string;
@@ -12,12 +13,19 @@ export interface BlogHeading {
   text: string;
 }
 
+export interface BlogFaqItem {
+  question: string;
+  answer: string;
+}
+
 type MarkdownBlock =
   | { type: 'heading'; level: 2 | 3; text: string }
   | { type: 'paragraph'; text: string }
   | { type: 'list'; items: string[] }
   | { type: 'quote'; text: string }
-  | { type: 'image'; alt: string; src: string };
+  | { type: 'image'; alt: string; src: string }
+  | { type: 'cta'; variant: ArticleCtaVariant }
+  | { type: 'faq'; items: BlogFaqItem[] };
 
 export interface MarkdownContentIssue {
   field: string;
@@ -102,6 +110,14 @@ export function BlogMarkdown({ content }: BlogMarkdownProps) {
           );
         }
 
+        if (block.type === 'cta') {
+          return <ArticleCta key={index} variant={block.variant} />;
+        }
+
+        if (block.type === 'faq') {
+          return <BlogFaq key={index} items={block.items} />;
+        }
+
         return (
           <p key={index} className="text-base leading-8 text-[#44403C]">
             {renderInlineMarkdown(block.text)}
@@ -125,6 +141,15 @@ export function getMarkdownHeadings(content: string): BlogHeading[] {
     }));
 }
 
+export function getMarkdownFaqItems(content: string): BlogFaqItem[] {
+  return parseMarkdownBlocks(content)
+    .filter(
+      (block): block is Extract<MarkdownBlock, { type: 'faq' }> =>
+        block.type === 'faq',
+    )
+    .flatMap((block) => block.items);
+}
+
 export function getMarkdownContentIssues(
   content: string,
 ): MarkdownContentIssue[] {
@@ -138,6 +163,10 @@ export function getMarkdownContentIssues(
   }
 
   for (const issue of getMarkdownImageIssues(content)) {
+    issues.push(issue);
+  }
+
+  for (const issue of getMarkdownEditorialBlockIssues(content)) {
     issues.push(issue);
   }
 
@@ -189,6 +218,51 @@ export function getMarkdownImageIssues(
   return issues;
 }
 
+export function getMarkdownEditorialBlockIssues(
+  content: string,
+): MarkdownContentIssue[] {
+  const issues: MarkdownContentIssue[] = [];
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
+
+  lines.forEach((rawLine, index) => {
+    const line = rawLine.trim();
+    const lineNumber = index + 1;
+
+    if (line.startsWith('::cta') && !parseCtaLine(line)) {
+      issues.push({
+        field: `content-cta-${lineNumber}`,
+        message:
+          'Popraw blok CTA. Dostępne warianty: register, contact, submit-listing, listings.',
+      });
+    }
+
+    if (line === ':::faq') {
+      const endIndex = lines
+        .slice(index + 1)
+        .findIndex((candidate) => candidate.trim() === ':::');
+
+      if (endIndex === -1) {
+        issues.push({
+          field: `content-faq-${lineNumber}`,
+          message: `Zamknij blok FAQ rozpoczęty w linii ${lineNumber} znacznikiem :::.`,
+        });
+        return;
+      }
+
+      const faqLines = lines.slice(index + 1, index + 1 + endIndex);
+      if (parseFaqItems(faqLines).length === 0) {
+        issues.push({
+          field: `content-faq-empty-${lineNumber}`,
+          message:
+            'Dodaj pytania FAQ w formacie ### Pytanie oraz odpowiedź pod pytaniem.',
+        });
+      }
+    }
+  });
+
+  return issues;
+}
+
 function parseMarkdownBlocks(content: string): MarkdownBlock[] {
   const lines = content.replace(/\r\n/g, '\n').split('\n');
   const blocks: MarkdownBlock[] = [];
@@ -209,7 +283,8 @@ function parseMarkdownBlocks(content: string): MarkdownBlock[] {
     }
   }
 
-  for (const rawLine of lines) {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const rawLine = lines[lineIndex];
     const line = rawLine.trim();
 
     if (!line) {
@@ -261,6 +336,45 @@ function parseMarkdownBlocks(content: string): MarkdownBlock[] {
       continue;
     }
 
+    const ctaVariant = parseCtaLine(line);
+    if (ctaVariant) {
+      flushParagraph();
+      flushList();
+      blocks.push({ type: 'cta', variant: ctaVariant });
+      continue;
+    }
+
+    if (line === ':::faq') {
+      flushParagraph();
+      flushList();
+      const faqLines: string[] = [];
+      let faqEndIndex = -1;
+
+      for (
+        let nestedIndex = lineIndex + 1;
+        nestedIndex < lines.length;
+        nestedIndex += 1
+      ) {
+        if (lines[nestedIndex].trim() === ':::') {
+          faqEndIndex = nestedIndex;
+          break;
+        }
+        faqLines.push(lines[nestedIndex]);
+      }
+
+      if (faqEndIndex !== -1) {
+        const items = parseFaqItems(faqLines);
+        if (items.length > 0) {
+          blocks.push({ type: 'faq', items });
+        }
+
+        lineIndex = faqEndIndex;
+      } else {
+        paragraph.push(line);
+      }
+      continue;
+    }
+
     flushList();
     paragraph.push(line);
   }
@@ -269,6 +383,68 @@ function parseMarkdownBlocks(content: string): MarkdownBlock[] {
   flushList();
 
   return blocks;
+}
+
+function BlogFaq({ items }: { items: BlogFaqItem[] }) {
+  return (
+    <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+      <h2 className="font-heading text-2xl font-semibold leading-tight text-[#1C1917]">
+        Najczęstsze pytania
+      </h2>
+      <div className="mt-4 divide-y divide-border">
+        {items.map((item) => (
+          <details key={item.question} className="group py-4" open>
+            <summary className="cursor-pointer list-none font-heading text-base font-semibold text-[#1C1917]">
+              <span>{renderInlineMarkdown(item.question)}</span>
+            </summary>
+            <p className="mt-3 text-base leading-8 text-[#44403C]">
+              {renderInlineMarkdown(item.answer)}
+            </p>
+          </details>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function parseCtaLine(line: string): ArticleCtaVariant | null {
+  const match = line.match(
+    /^::cta\s+(register|contact|submit-listing|listings)$/,
+  );
+  return match ? (match[1] as ArticleCtaVariant) : null;
+}
+
+function parseFaqItems(lines: string[]): BlogFaqItem[] {
+  const items: BlogFaqItem[] = [];
+  let question: string | null = null;
+  let answerLines: string[] = [];
+
+  function flushItem() {
+    const answer = answerLines.join(' ').trim();
+    if (question && answer) {
+      items.push({ question, answer });
+    }
+    answerLines = [];
+  }
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    const questionMatch = line.match(/^###\s+(.+)$/);
+
+    if (questionMatch) {
+      flushItem();
+      question = questionMatch[1].trim();
+      continue;
+    }
+
+    if (question && line) {
+      answerLines.push(line);
+    }
+  }
+
+  flushItem();
+
+  return items;
 }
 
 function renderInlineMarkdown(text: string) {

@@ -835,14 +835,25 @@ które są czytelne, bezpieczne i dobrze linkują do produktu.
   - Wykonano: 2026-06-03 — artykuł publiczny i dashboardowy podgląd używają
     tych samych komponentów renderujących: responsywny układ, czytelna
     typografia, obraz 16:9, spis treści na desktopie i bezpieczne linki.
-- [ ] 🟠 Dodać blok CTA: rejestracja, kontakt, dodanie oferty, katalog ofert
-  - Wykonano:
+- [x] 🟠 Dodać blok CTA: rejestracja, kontakt, dodanie oferty, katalog ofert
+  - Wykonano: 2026-06-04 — rozszerzono `ArticleCta` o wariant `contact` oraz
+    dodano obsługę bloków CTA bezpośrednio w Markdownie: `::cta register`,
+    `::cta contact`, `::cta submit-listing` i `::cta listings`. Renderer
+    obsługuje tylko znane warianty, a walidacja publikacji blokuje błędny zapis
+    `::cta`.
 - [ ] 🟠 Dodać blok wyróżnionych ofert
   - Wykonano:
-- [ ] 🟠 Dodać blok FAQ z widocznymi pytaniami i odpowiedziami
-  - Wykonano:
-- [ ] 🟠 Dodać automatyczne generowanie schema `FAQPage` tylko dla wpisów z FAQ
-  - Wykonano:
+- [x] 🟠 Dodać blok FAQ z widocznymi pytaniami i odpowiedziami
+  - Wykonano: 2026-06-04 — dodano blok FAQ w Markdownie:
+    `:::faq`, pytania jako `### Pytanie`, odpowiedzi jako zwykły tekst i
+    zamknięcie `:::`. `BlogMarkdown` renderuje widoczną sekcję FAQ, a formularz
+    pokazuje przykład składni i blokuje niedomknięte lub puste FAQ przed
+    publikacją.
+- [x] 🟠 Dodać automatyczne generowanie schema `FAQPage` tylko dla wpisów z FAQ
+  - Wykonano: 2026-06-04 — dodano `getMarkdownFaqItems()` i publiczna strona
+    wpisu `/blog/[slug]` generuje JSON-LD `FAQPage` wyłącznie wtedy, gdy treść
+    zawiera poprawny blok FAQ. Szkice i podgląd roboczy renderują FAQ wizualnie,
+    ale schema jest emitowana tylko na publicznym artykule.
 - [ ] 🟡 Dodać sugestie linkowania do powiązanych wpisów
   - Wykonano:
 - [ ] 🔴 Sprawdzić tekst, obrazy i CTA na mobile
