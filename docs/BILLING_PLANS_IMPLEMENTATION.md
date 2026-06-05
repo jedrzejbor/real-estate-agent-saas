@@ -1,7 +1,7 @@
 # Wdrożenie planów i billingowego — specyfikacja techniczna
 
 > Data: 5 czerwca 2026  
-> Status: Iteracja 0 zakończona — kontrakt danych zatwierdzony, do rozpoczęcia Iteracji 1  
+> Status: Iteracja 1 zakończona — fundament entitlementów i baza planów gotowe
 > Kontekst: Aktualnie plany są hardcodowane w `switch/case` w `AgencyPlanService`. Brak custom planów, brak cen, brak checkout flow.
 
 ---
@@ -402,15 +402,32 @@ Cel: ustalić stabilny model danych przed implementacją panelu i billingu.
 
 Cel: usunąć hardcoded `switch/case` jako główne źródło prawdy i przygotować backend pod konfigurację z bazy.
 
-- [ ] **I1.1** — Dodać `CUSTOM = 'custom'` do `AgencyPlan` w `apps/api/src/common/enums/index.ts`
-- [ ] **I1.2** — Stworzyć migrację `20260605_agency_billing_and_custom_plan.sql` z polami `plan_overrides`, `billing_customer_id`, `billing_subscription_id`, `billing_interval`, `current_period_end`, `trial_ends_at`, `plan_changed_at`
-- [ ] **I1.3** — Stworzyć tabelę `plan_catalog` z polami: `code`, `label`, `description`, `price_monthly_pln`, `price_yearly_pln`, `stripe_price_id_monthly`, `stripe_price_id_yearly`, `limits`, `features`, `is_public`, `sort_order`, `created_at`, `updated_at`
-- [ ] **I1.4** — Dodać seed danych dla Free, Starter, Professional i Enterprise
-- [ ] **I1.5** — Zaktualizować `Agency` entity o `planOverrides` i pola billingowe
-- [ ] **I1.6** — Zaktualizować `AgencyPlanLimits`, `AgencyPlanFeatures` i dodać `AgencyPlanOverrides`
-- [ ] **I1.7** — Przebudować `AgencyPlanService`, żeby liczył entitlements przez `plan_catalog + agency.plan_overrides`
-- [ ] **I1.8** — Dodać fallback awaryjny na statyczny katalog planów, jeśli `plan_catalog` nie jest dostępny podczas startu lub testów
-- [ ] **I1.9** — Dodać testy dla planu standardowego, Enterprise bez limitów i Custom z override limitów/funkcji
+- [x] **I1.1** — Dodać `CUSTOM = 'custom'` do `AgencyPlan` w `apps/api/src/common/enums/index.ts`
+- [x] **I1.2** — Stworzyć migrację `20260605_agency_billing_and_custom_plan.sql` z polami `plan_overrides`, `billing_customer_id`, `billing_subscription_id`, `billing_interval`, `current_period_end`, `trial_ends_at`, `plan_changed_at`
+- [x] **I1.3** — Stworzyć tabelę `plan_catalog` z polami: `code`, `label`, `description`, `price_monthly_pln`, `price_yearly_pln`, `stripe_price_id_monthly`, `stripe_price_id_yearly`, `limits`, `features`, `is_public`, `sort_order`, `created_at`, `updated_at`
+- [x] **I1.4** — Dodać seed danych dla Free, Starter, Professional i Enterprise
+- [x] **I1.5** — Zaktualizować `Agency` entity o `planOverrides` i pola billingowe
+- [x] **I1.6** — Zaktualizować `AgencyPlanLimits`, `AgencyPlanFeatures` i dodać `AgencyPlanOverrides`
+- [x] **I1.7** — Przebudować `AgencyPlanService`, żeby liczył entitlements przez `plan_catalog + agency.plan_overrides`
+- [x] **I1.8** — Dodać fallback awaryjny na statyczny katalog planów, jeśli `plan_catalog` nie jest dostępny podczas startu lub testów
+- [x] **I1.9** — Dodać testy dla planu standardowego, Enterprise bez limitów i Custom z override limitów/funkcji
+
+#### Wykonane w Iteracji 1
+
+1. Dodano `AgencyPlan.CUSTOM`, pola billingowe i `planOverrides` w encji `Agency`.
+2. Dodano migrację `apps/api/migrations/20260605_agency_billing_and_custom_plan.sql`, która tworzy pola billingowe, `plan_catalog`, constrainty bezpieczeństwa i seed planów standardowych.
+3. Dodano encję `PlanCatalog` w `apps/api/src/plans/entities/plan-catalog.entity.ts`.
+4. Wyciągnięto typy planów do `apps/api/src/users/agency-plan.types.ts`, żeby unikać cyklicznych importów między encją `Agency` i `AgencyPlanService`.
+5. Przebudowano `AgencyPlanService` tak, żeby przy starcie ładował `plan_catalog` do cache, a synchroniczne `getEntitlements()` nadal było kompatybilne z obecnymi modułami.
+6. Dodano fallback `DEFAULT_PLAN_CATALOG`, używany tylko awaryjnie i w testach.
+7. Dodano defensywną normalizację JSONB: nieznane klucze są ignorowane, limity muszą być integer `>= 0` albo `null`, a feature flags muszą być boolean.
+8. Dodano testy jednostkowe `apps/api/src/users/agency-plan.service.spec.ts` dla fallbacku, planu z katalogu, Enterprise bez limitów, Custom overrides i niepoprawnych wartości JSONB.
+
+#### Weryfikacja Iteracji 1
+
+- [x] `pnpm --filter api type-check`
+- [x] `pnpm --filter api test -- agency-plan.service.spec.ts`
+- [x] `pnpm --filter api test`
 
 ### Iteracja 2 — Admin API dla globalnych planów
 
@@ -572,7 +589,7 @@ Content-Type: application/json
 ### Krytyczne przed launch
 
 - [x] **Must have** — Iteracja 0: decyzje techniczne i kontrakt danych
-- [ ] **Must have** — Iteracja 1: `plan_catalog`, `plan_overrides`, entitlements z bazy
+- [x] **Must have** — Iteracja 1: `plan_catalog`, `plan_overrides`, entitlements z bazy
 - [ ] **Must have** — Iteracja 3: ręczne przypisanie agencji do planu standardowego lub custom
 - [ ] **Must have** — Iteracja 4: egzekwowanie limitów i funkcji
 

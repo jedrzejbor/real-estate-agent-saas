@@ -4,6 +4,7 @@ import { User, Agent, Agency } from './entities';
 import { Listing } from '../listings/entities/listing.entity';
 import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
+import { PlanCatalog } from '../plans';
 import { AgencyPlanService } from './agency-plan.service';
 import { UsersService } from './users.service';
 
@@ -16,6 +17,7 @@ import { UsersService } from './users.service';
       Listing,
       Client,
       Appointment,
+      PlanCatalog,
     ]),
   ],
   providers: [UsersService, AgencyPlanService],

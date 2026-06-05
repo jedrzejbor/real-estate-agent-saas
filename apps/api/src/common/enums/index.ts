@@ -15,6 +15,7 @@ export enum AgencyPlan {
   STARTER = 'starter',
   PROFESSIONAL = 'professional',
   ENTERPRISE = 'enterprise',
+  CUSTOM = 'custom',
 }
 
 export enum SubscriptionStatus {
