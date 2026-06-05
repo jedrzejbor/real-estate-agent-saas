@@ -1,7 +1,7 @@
 # Wdrożenie planów i billingowego — specyfikacja techniczna
 
 > Data: 5 czerwca 2026  
-> Status: Iteracja 2 zakończona — admin API dla globalnych planów gotowe
+> Status: Iteracja 3 zakończona — admin API dla planów agencji i custom planów gotowe
 > Kontekst: Aktualnie plany są hardcodowane w `switch/case` w `AgencyPlanService`. Brak custom planów, brak cen, brak checkout flow.
 
 ---
@@ -467,13 +467,34 @@ Cel: admin może edytować ceny, limity, funkcje i widoczność standardowych pl
 
 Cel: admin może przypisać agencji plan standardowy albo zdefiniować indywidualny plan.
 
-- [ ] **I3.1** — Dodać `GET /api/admin/agencies/:id/plan` — aktualny plan, override, efektywne entitlements i usage
-- [ ] **I3.2** — Dodać `PATCH /api/admin/agencies/:id/plan` — zmiana planu agencji
-- [ ] **I3.3** — Dodać obsługę `planOverrides.label`, `priceMonthlyPln`, `priceYearlyPln`, `limits`, `features`
-- [ ] **I3.4** — Dodać `POST /api/admin/agencies/:id/plan/reset-overrides` — powrót do standardowej konfiguracji planu
-- [ ] **I3.5** — Przy zmianie limitów zwracać ostrzeżenie, jeśli aktualne zużycie przekracza nowy limit
-- [ ] **I3.6** — Aktualizować `plan_changed_at` przy każdej zmianie planu
-- [ ] **I3.7** — Dodać testy przypisania planu standardowego, custom planu i resetu override
+- [x] **I3.1** — Dodać `GET /api/admin/agencies/:id/plan` — aktualny plan, override, efektywne entitlements i usage
+- [x] **I3.2** — Dodać `PATCH /api/admin/agencies/:id/plan` — zmiana planu agencji
+- [x] **I3.3** — Dodać obsługę `planOverrides.label`, `priceMonthlyPln`, `priceYearlyPln`, `limits`, `features`
+- [x] **I3.4** — Dodać `POST /api/admin/agencies/:id/plan/reset-overrides` — powrót do standardowej konfiguracji planu
+- [x] **I3.5** — Przy zmianie limitów zwracać ostrzeżenie, jeśli aktualne zużycie przekracza nowy limit
+- [x] **I3.6** — Aktualizować `plan_changed_at` przy każdej zmianie planu
+- [x] **I3.7** — Dodać testy przypisania planu standardowego, custom planu i resetu override
+
+#### Wykonane w Iteracji 3
+
+1. Dodano `AdminAgencyPlansController` z endpointami:
+   - `GET /api/admin/agencies/:id/plan`
+   - `PATCH /api/admin/agencies/:id/plan`
+   - `POST /api/admin/agencies/:id/plan/reset-overrides`
+2. Endpointy są chronione przez `@Roles(UserRole.ADMIN)` i przyjmują `id` agencji przez `ParseUUIDPipe`.
+3. Dodano `AdminAgencyPlansService`, który pobiera agencję, jej agentów, usage, wynikowe entitlements i ostrzeżenia limitów.
+4. Dodano `UpdateAgencyPlanDto` z jawną walidacją `planOverrides`: dozwolone są tylko znane klucze limitów i feature flags.
+5. Dla planów standardowych override’y są czyszczone. Próba ustawienia `planOverrides` na planie innym niż `custom` jest odrzucana.
+6. Dla planu `custom` obsługiwane są `label`, `priceMonthlyPln`, `priceYearlyPln`, `limits` i `features`.
+7. Przy każdej zmianie planu albo resecie override’ów aktualizowane jest `planChangedAt`.
+8. Odpowiedź admin API zawiera `limitWarnings`, jeśli aktualne użycie przekracza nowy limit. Ostrzeżenie nie blokuje zapisu.
+9. Agencje bez agentów zwracają usage równe zero bez budowania zapytań z pustym `IN`.
+
+#### Weryfikacja Iteracji 3
+
+- [x] `pnpm --filter api type-check`
+- [x] `pnpm --filter api test -- admin-agency-plans.service.spec.ts update-agency-plan.dto.spec.ts`
+- [x] `pnpm --filter api test`
 
 ### Iteracja 4 — Egzekwowanie limitów i funkcji w aplikacji
 
@@ -611,7 +632,7 @@ Content-Type: application/json
 
 - [x] **Must have** — Iteracja 0: decyzje techniczne i kontrakt danych
 - [x] **Must have** — Iteracja 1: `plan_catalog`, `plan_overrides`, entitlements z bazy
-- [ ] **Must have** — Iteracja 3: ręczne przypisanie agencji do planu standardowego lub custom
+- [x] **Must have** — Iteracja 3: ręczne przypisanie agencji do planu standardowego lub custom
 - [ ] **Must have** — Iteracja 4: egzekwowanie limitów i funkcji
 
 Bez tego można mieć cennik, ale system nie będzie realnie kontrolował dostępu, limitów i indywidualnych warunków klientów.
