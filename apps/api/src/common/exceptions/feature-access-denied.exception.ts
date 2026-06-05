@@ -13,6 +13,7 @@ export class FeatureAccessDeniedException extends ForbiddenException {
       error: 'Forbidden',
       code: 'FEATURE_NOT_AVAILABLE',
       feature: options.feature,
+      requiredFeature: options.feature,
       planCode: options.planCode,
       upgradeRequired: true,
       message: options.message,

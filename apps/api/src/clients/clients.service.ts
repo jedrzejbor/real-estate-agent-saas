@@ -446,6 +446,7 @@ export class ClientsService {
           resource: 'clients',
           limit,
           currentUsage,
+          attemptedUsage: currentUsage + 1,
           planCode: access.entitlements.plan.code,
           message:
             'Osiągnięto limit klientów w Twoim planie. Przejdź na wyższy plan, aby dodać kolejnego klienta.',
@@ -481,6 +482,7 @@ export class ClientsService {
           resource: 'clients',
           limit,
           currentUsage,
+          attemptedUsage: currentUsage + requestedCount,
           planCode: access.entitlements.plan.code,
           message:
             'Import przekroczyłby limit klientów w Twoim planie. Zmniejsz liczbę wierszy albo przejdź na wyższy plan.',

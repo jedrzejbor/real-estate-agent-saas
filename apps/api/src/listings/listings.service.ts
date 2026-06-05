@@ -418,6 +418,7 @@ export class ListingsService {
         resource: 'images',
         limit: imageLimit,
         currentUsage: currentImages.length,
+        attemptedUsage: currentImages.length + files.length,
         planCode: access.entitlements.plan.code,
         message:
           'Osiągnięto limit zdjęć dla tej oferty. Usuń zdjęcie albo przejdź na wyższy plan.',
@@ -1048,6 +1049,7 @@ export class ListingsService {
           resource: 'listings',
           limit,
           currentUsage,
+          attemptedUsage: currentUsage + 1,
           planCode: access.entitlements.plan.code,
           message:
             'Osiągnięto limit aktywnych ofert w Twoim planie. Przejdź na wyższy plan, aby dodać kolejną ofertę.',

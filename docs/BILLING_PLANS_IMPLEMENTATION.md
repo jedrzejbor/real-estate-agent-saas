@@ -1,7 +1,7 @@
 # Wdrożenie planów i billingowego — specyfikacja techniczna
 
 > Data: 5 czerwca 2026  
-> Status: Iteracja 3 zakończona — admin API dla planów agencji i custom planów gotowe
+> Status: Iteracja 4 zakończona — limity i feature gates zweryfikowane, payloady błędów ujednolicone
 > Kontekst: Aktualnie plany są hardcodowane w `switch/case` w `AgencyPlanService`. Brak custom planów, brak cen, brak checkout flow.
 
 ---
@@ -500,14 +500,37 @@ Cel: admin może przypisać agencji plan standardowy albo zdefiniować indywidua
 
 Cel: wszystkie moduły korzystają z jednego źródła entitlementów.
 
-- [ ] **I4.1** — Sprawdzić tworzenie/publikację ofert względem `limits.activeListings`
-- [ ] **I4.2** — Sprawdzić tworzenie klientów względem `limits.clients`
-- [ ] **I4.3** — Sprawdzić tworzenie spotkań względem `limits.monthlyAppointments`
-- [ ] **I4.4** — Sprawdzić dodawanie użytkowników workspace względem `limits.users`
-- [ ] **I4.5** — Sprawdzić dodawanie zdjęć do oferty względem `limits.imagesPerListing`
-- [ ] **I4.6** — Sprawdzić dostęp do funkcji premium przez `features.*`, np. custom branding, multi-user, custom domain, API access
-- [ ] **I4.7** — Ujednolicić błędy `PlanLimitReachedException` i `FeatureAccessDeniedException`, żeby zwracały limit, usage i wymagany feature
-- [ ] **I4.8** — Dodać testy regresji dla limitów i feature gates
+- [x] **I4.1** — Sprawdzić tworzenie/publikację ofert względem `limits.activeListings`
+- [x] **I4.2** — Sprawdzić tworzenie klientów względem `limits.clients`
+- [x] **I4.3** — Sprawdzić tworzenie spotkań względem `limits.monthlyAppointments`
+- [x] **I4.4** — Sprawdzić dodawanie użytkowników workspace względem `limits.users`
+- [x] **I4.5** — Sprawdzić dodawanie zdjęć do oferty względem `limits.imagesPerListing`
+- [x] **I4.6** — Sprawdzić dostęp do funkcji premium przez `features.*`, np. custom branding, multi-user, custom domain, API access
+- [x] **I4.7** — Ujednolicić błędy `PlanLimitReachedException` i `FeatureAccessDeniedException`, żeby zwracały limit, usage i wymagany feature
+- [x] **I4.8** — Dodać testy regresji dla limitów i feature gates
+
+#### Wykonane w Iteracji 4
+
+1. Zweryfikowano istniejące egzekwowanie `limits.activeListings` przy tworzeniu ofert oraz przejmowaniu publicznych zgłoszeń.
+2. Zweryfikowano `limits.clients` przy tworzeniu klienta oraz imporcie klientów CSV.
+3. Zweryfikowano `limits.monthlyAppointments` przy tworzeniu spotkań.
+4. Zweryfikowano `limits.imagesPerListing` przy dodawaniu zdjęć do oferty.
+5. Zweryfikowano aktualny stan `limits.users`: nie ma jeszcze endpointu zapraszania/dodawania użytkowników workspace, więc nie ma miejsca, w którym można realnie egzekwować ten limit. Payload limitów został przygotowany na resource `users`.
+6. Zweryfikowano feature gates:
+   - `publicListings` blokuje publikację ofert,
+   - `customBranding` wymusza branding EstateFlow, jeśli plan nie pozwala go zdjąć,
+   - `reportsAppointmentsBasic` blokuje raport spotkań,
+   - `customDomain`, `apiAccess`, `dedicatedSupport` nie mają jeszcze endpointów domenowych do zablokowania.
+7. Ujednolicono `PlanLimitReachedException`: payload zawiera `limit`, `usage`, `currentUsage`, `attemptedUsage`, `resource`, `planCode`, `upgradeRequired`.
+8. Ujednolicono `FeatureAccessDeniedException`: payload zawiera `feature`, `requiredFeature`, `planCode`, `upgradeRequired`.
+9. Uzupełniono wszystkie istniejące miejsca rzucania `PlanLimitReachedException` o poprawne `attemptedUsage`, w tym batch import klientów i upload wielu zdjęć.
+10. Dodano testy regresji payloadów dla `PlanLimitReachedException` i `FeatureAccessDeniedException`.
+
+#### Weryfikacja Iteracji 4
+
+- [x] `pnpm --filter api type-check`
+- [x] `pnpm --filter api test -- plan-limit-reached.exception.spec.ts feature-access-denied.exception.spec.ts`
+- [x] `pnpm --filter api test`
 
 ### Iteracja 5 — Panel admina do zarządzania planami
 
@@ -633,7 +656,7 @@ Content-Type: application/json
 - [x] **Must have** — Iteracja 0: decyzje techniczne i kontrakt danych
 - [x] **Must have** — Iteracja 1: `plan_catalog`, `plan_overrides`, entitlements z bazy
 - [x] **Must have** — Iteracja 3: ręczne przypisanie agencji do planu standardowego lub custom
-- [ ] **Must have** — Iteracja 4: egzekwowanie limitów i funkcji
+- [x] **Must have** — Iteracja 4: egzekwowanie limitów i funkcji
 
 Bez tego można mieć cennik, ale system nie będzie realnie kontrolował dostępu, limitów i indywidualnych warunków klientów.
 

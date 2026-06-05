@@ -198,6 +198,7 @@ export class AppointmentsService {
           resource: 'appointments',
           limit,
           currentUsage,
+          attemptedUsage: currentUsage + 1,
           planCode: access.entitlements.plan.code,
           message:
             'Osiągnięto miesięczny limit spotkań w Twoim planie. Przejdź na wyższy plan, aby zaplanować kolejne spotkanie.',

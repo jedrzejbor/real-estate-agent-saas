@@ -1371,6 +1371,7 @@ export class PublicListingSubmissionsService {
         resource: 'listings',
         limit,
         currentUsage,
+        attemptedUsage: currentUsage + 1,
         planCode: access.entitlements.plan.code,
         message:
           'Osiągnięto limit aktywnych ofert w Twoim planie. Przejdź na wyższy plan, aby przejąć kolejną ofertę.',
