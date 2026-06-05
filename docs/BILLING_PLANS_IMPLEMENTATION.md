@@ -1,0 +1,602 @@
+# Wdrożenie planów i billingowego — specyfikacja techniczna
+
+> Data: 5 czerwca 2026  
+> Status: Do wdrożenia — ostatni krok przed produkcyjnym launch'em  
+> Kontekst: Aktualnie plany są hardcodowane w `switch/case` w `AgencyPlanService`. Brak custom planów, brak cen, brak checkout flow.
+
+---
+
+## 1. Matryca planów
+
+### 1.1 Limity zasobów
+
+| Zasób | Free | Starter | Professional | Enterprise | Custom |
+|-------|-----:|--------:|-------------:|-----------:|--------|
+| Aktywne oferty | **5** | **25** | **200** | ∞ | per agencja |
+| Klienci | **25** | **250** | **2 500** | ∞ | per agencja |
+| Spotkania / mies. | **20** | **150** | **1 000** | ∞ | per agencja |
+| Użytkownicy w workspace | **1** | **1** | **5** | ∞ | per agencja |
+| Zdjęcia na ofertę | **15** | **30** | **50** | ∞ | per agencja |
+
+> `∞` = `null` w bazie = brak limitu  
+> `Custom` = wartości pobierane z `agency.planOverrides`, nie z hardcoded switch
+
+### 1.2 Funkcje (feature flags)
+
+| Funkcja | Free | Starter | Professional | Enterprise | Custom |
+|---------|:----:|:-------:|:------------:|:----------:|--------|
+| Dashboard i CRM | ✅ | ✅ | ✅ | ✅ | konfigurowalny |
+| Publiczne oferty | ✅ | ✅ | ✅ | ✅ | konfigurowalny |
+| Formularze leadowe | ✅ | ✅ | ✅ | ✅ | konfigurowalny |
+| Raport overview | ✅ | ✅ | ✅ | ✅ | konfigurowalny |
+| Raport oferty (basic) | ✅ | ✅ | ✅ | ✅ | konfigurowalny |
+| Raport klienci (basic) | ✅ | ✅ | ✅ | ✅ | konfigurowalny |
+| Raport spotkania (basic) | ❌ | ✅ | ✅ | ✅ | konfigurowalny |
+| Custom branding | ❌ | ❌ | ✅ | ✅ | konfigurowalny |
+| Multi-user workspace | ❌ | ❌ | ✅ | ✅ | konfigurowalny |
+| Własna domena (brandowa strona) | ❌ | ❌ | ❌ | ✅ | konfigurowalny |
+| API access | ❌ | ❌ | ❌ | ✅ | konfigurowalny |
+| Dedykowany opiekun | ❌ | ❌ | ❌ | ✅ | konfigurowalny |
+
+### 1.3 Cennik (PLN, rozliczenie miesięczne)
+
+| Plan | Cena mies. | Cena rocznie (rabat) | Stripe Price ID |
+|------|----------:|---------------------:|-----------------|
+| Free | **0 zł** | 0 zł | — |
+| Starter | **99 zł** | 990 zł (–16%) | `price_starter_monthly` / `price_starter_yearly` |
+| Professional | **249 zł** | 2 490 zł (–16%) | `price_professional_monthly` / `price_professional_yearly` |
+| Enterprise | **na zapytanie** | na zapytanie | — (manual) |
+| Custom | **indywidualny** | indywidualny | — (manual) |
+
+> Ceny i Stripe Price ID konfigurowane przez zmienne środowiskowe lub tabelę `plan_catalog` w bazie.
+
+---
+
+## 2. Architektura — stan aktualny vs docelowy
+
+### Stan aktualny ❌
+
+```
+Agency.plan = "free" | "starter" | "professional" | "enterprise"
+                ↓
+AgencyPlanService.getLimits(plan) → switch/case hardcoded
+AgencyPlanService.getFeatures(plan) → switch/case hardcoded
+```
+
+**Problemy:**
+- zmiana limitu wymaga deploy'u kodu
+- brak custom planu per agencja
+- brak cen w systemie
+- brak billing pól (`billingCustomerId`, `currentPeriodEnd` itp.)
+
+### Stan docelowy ✅
+
+```
+Agency.plan = "free" | "starter" | "professional" | "enterprise" | "custom"
+Agency.planOverrides = { limits: {...}, features: {...} }  ← JSONB, nullable
+Agency.billingCustomerId = "cus_xxx"                       ← Stripe customer
+Agency.billingSubscriptionId = "sub_xxx"                   ← Stripe subscription
+Agency.currentPeriodEnd = Date                             ← kiedy wygasa
+Agency.trialEndsAt = Date                                  ← kiedy kończy trial
+                ↓
+AgencyPlanService.getEntitlements(agency):
+  1. pobierz bazowe limity/features z PLAN_CATALOG[agency.plan]
+  2. jeśli agency.planOverrides → merge (override ma priorytet)
+  3. zwróć wynikowe entitlements
+```
+
+---
+
+## 3. Wymagane zmiany w bazie danych
+
+### 3.1 Migracja — nowe pola na tabeli `agencies`
+
+```sql
+-- Migracja: 20260605_agency_billing_and_custom_plan.sql
+
+BEGIN;
+
+-- Plan custom i overrides
+ALTER TABLE agencies
+  ADD COLUMN IF NOT EXISTS plan_overrides jsonb DEFAULT NULL;
+
+-- Billing fields (Stripe / PayU)
+ALTER TABLE agencies
+  ADD COLUMN IF NOT EXISTS billing_customer_id varchar(255) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS billing_subscription_id varchar(255) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS billing_interval varchar(20) DEFAULT NULL,  -- 'monthly' | 'yearly'
+  ADD COLUMN IF NOT EXISTS current_period_end timestamptz DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS trial_ends_at timestamptz DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS plan_changed_at timestamptz DEFAULT NULL;
+
+-- Indeksy
+CREATE INDEX IF NOT EXISTS idx_agencies_billing_customer ON agencies(billing_customer_id);
+CREATE INDEX IF NOT EXISTS idx_agencies_billing_subscription ON agencies(billing_subscription_id);
+
+COMMIT;
+```
+
+### 3.2 Nowa tabela `plan_catalog` (opcjonalna, dla pełnej konfigurowalności)
+
+```sql
+-- Opcjonalne: jeśli chcemy edytować plany przez UI admina bez deploy'u
+
+CREATE TABLE IF NOT EXISTS plan_catalog (
+  code varchar(50) PRIMARY KEY,           -- 'free', 'starter', 'professional', 'enterprise'
+  label varchar(100) NOT NULL,
+  price_monthly_pln int DEFAULT 0,        -- cena w groszach (99 zł = 9900)
+  price_yearly_pln int DEFAULT 0,
+  stripe_price_id_monthly varchar(255),
+  stripe_price_id_yearly varchar(255),
+  limits jsonb NOT NULL DEFAULT '{}',     -- { activeListings: 5, clients: 25, ... }
+  features jsonb NOT NULL DEFAULT '{}',   -- { customBranding: false, multiUser: false, ... }
+  is_public boolean DEFAULT true,         -- czy pokazywać na stronie cennik
+  sort_order int DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Seed danych
+INSERT INTO plan_catalog (code, label, price_monthly_pln, price_yearly_pln, limits, features, sort_order) VALUES
+('free', 'Free', 0, 0,
+  '{"activeListings":5,"clients":25,"monthlyAppointments":20,"users":1,"imagesPerListing":15}',
+  '{"reportsOverview":true,"reportsListingsBasic":true,"reportsClientsBasic":true,"reportsAppointmentsBasic":false,"publicListings":true,"publicLeadForms":true,"customBranding":false,"multiUser":false,"customDomain":false,"apiAccess":false}',
+  0),
+('starter', 'Starter', 9900, 99000,
+  '{"activeListings":25,"clients":250,"monthlyAppointments":150,"users":1,"imagesPerListing":30}',
+  '{"reportsOverview":true,"reportsListingsBasic":true,"reportsClientsBasic":true,"reportsAppointmentsBasic":true,"publicListings":true,"publicLeadForms":true,"customBranding":false,"multiUser":false,"customDomain":false,"apiAccess":false}',
+  1),
+('professional', 'Professional', 24900, 249000,
+  '{"activeListings":200,"clients":2500,"monthlyAppointments":1000,"users":5,"imagesPerListing":50}',
+  '{"reportsOverview":true,"reportsListingsBasic":true,"reportsClientsBasic":true,"reportsAppointmentsBasic":true,"publicListings":true,"publicLeadForms":true,"customBranding":true,"multiUser":true,"customDomain":false,"apiAccess":false}',
+  2),
+('enterprise', 'Enterprise', 0, 0,
+  '{"activeListings":null,"clients":null,"monthlyAppointments":null,"users":null,"imagesPerListing":null}',
+  '{"reportsOverview":true,"reportsListingsBasic":true,"reportsClientsBasic":true,"reportsAppointmentsBasic":true,"publicListings":true,"publicLeadForms":true,"customBranding":true,"multiUser":true,"customDomain":true,"apiAccess":true}',
+  3)
+ON CONFLICT (code) DO NOTHING;
+```
+
+---
+
+## 4. Zmiany w kodzie backendowym
+
+### 4.1 Aktualizacja `Agency` entity
+
+**Plik:** `apps/api/src/users/entities/agency.entity.ts`
+
+Dodać pola:
+```typescript
+@Column({ type: 'jsonb', name: 'plan_overrides', nullable: true })
+planOverrides?: AgencyPlanOverrides | null;
+
+@Column({ type: 'varchar', length: 255, name: 'billing_customer_id', nullable: true })
+billingCustomerId?: string | null;
+
+@Column({ type: 'varchar', length: 255, name: 'billing_subscription_id', nullable: true })
+billingSubscriptionId?: string | null;
+
+@Column({ type: 'varchar', length: 20, name: 'billing_interval', nullable: true })
+billingInterval?: 'monthly' | 'yearly' | null;
+
+@Column({ type: 'timestamptz', name: 'current_period_end', nullable: true })
+currentPeriodEnd?: Date | null;
+
+@Column({ type: 'timestamptz', name: 'trial_ends_at', nullable: true })
+trialEndsAt?: Date | null;
+```
+
+### 4.2 Nowy interfejs `AgencyPlanOverrides`
+
+**Plik:** `apps/api/src/users/agency-plan.service.ts`
+
+```typescript
+export interface AgencyPlanOverrides {
+  limits?: Partial<AgencyPlanLimits>;
+  features?: Partial<AgencyPlanFeatures>;
+  label?: string;           // np. "Plan Kowalski Nieruchomości"
+  priceMonthlyPln?: number; // w groszach
+}
+```
+
+### 4.3 Refaktor `AgencyPlanService` — zastąpienie switch/case centralnym PLAN_CATALOG
+
+**Plik:** `apps/api/src/users/agency-plan.service.ts`
+
+```typescript
+// Zamiast switch/case — centralny obiekt konfiguracyjny
+const PLAN_CATALOG: Record<AgencyPlan, { limits: AgencyPlanLimits; features: AgencyPlanFeatures; label: string }> = {
+  [AgencyPlan.FREE]: {
+    label: 'Free',
+    limits: { activeListings: 5, clients: 25, monthlyAppointments: 20, users: 1, imagesPerListing: 15 },
+    features: { reportsOverview: true, reportsListingsBasic: true, reportsClientsBasic: true, reportsAppointmentsBasic: false, publicListings: true, publicLeadForms: true, customBranding: false, multiUser: false, customDomain: false, apiAccess: false },
+  },
+  [AgencyPlan.STARTER]: {
+    label: 'Starter',
+    limits: { activeListings: 25, clients: 250, monthlyAppointments: 150, users: 1, imagesPerListing: 30 },
+    features: { reportsOverview: true, reportsListingsBasic: true, reportsClientsBasic: true, reportsAppointmentsBasic: true, publicListings: true, publicLeadForms: true, customBranding: false, multiUser: false, customDomain: false, apiAccess: false },
+  },
+  [AgencyPlan.PROFESSIONAL]: {
+    label: 'Professional',
+    limits: { activeListings: 200, clients: 2_500, monthlyAppointments: 1_000, users: 5, imagesPerListing: 50 },
+    features: { reportsOverview: true, reportsListingsBasic: true, reportsClientsBasic: true, reportsAppointmentsBasic: true, publicListings: true, publicLeadForms: true, customBranding: true, multiUser: true, customDomain: false, apiAccess: false },
+  },
+  [AgencyPlan.ENTERPRISE]: {
+    label: 'Enterprise',
+    limits: { activeListings: null, clients: null, monthlyAppointments: null, users: null, imagesPerListing: null },
+    features: { reportsOverview: true, reportsListingsBasic: true, reportsClientsBasic: true, reportsAppointmentsBasic: true, publicListings: true, publicLeadForms: true, customBranding: true, multiUser: true, customDomain: true, apiAccess: true },
+  },
+  [AgencyPlan.CUSTOM]: {
+    label: 'Custom',
+    limits: { activeListings: 10, clients: 100, monthlyAppointments: 50, users: 2, imagesPerListing: 20 }, // bazowe, zawsze nadpisywane przez planOverrides
+    features: { reportsOverview: true, reportsListingsBasic: true, reportsClientsBasic: true, reportsAppointmentsBasic: true, publicListings: true, publicLeadForms: true, customBranding: false, multiUser: false, customDomain: false, apiAccess: false },
+  },
+};
+
+// Nowa logika getEntitlements z merge overrides
+getEntitlements(agency?: Agency | null): AgencyEntitlements {
+  const plan = this.getPlanCode(agency?.plan);
+  const status = this.getSubscriptionStatus(agency?.subscription);
+  const base = PLAN_CATALOG[plan];
+  const overrides = agency?.planOverrides ?? {};
+
+  return {
+    plan: {
+      code: plan,
+      label: overrides.label ?? base.label,
+      status,
+    },
+    limits: { ...base.limits, ...(overrides.limits ?? {}) },
+    features: { ...base.features, ...(overrides.features ?? {}) },
+  };
+}
+```
+
+### 4.4 Dodać `CUSTOM` do enuma
+
+**Plik:** `apps/api/src/common/enums/index.ts`
+
+```typescript
+export enum AgencyPlan {
+  FREE = 'free',
+  STARTER = 'starter',
+  PROFESSIONAL = 'professional',
+  ENTERPRISE = 'enterprise',
+  CUSTOM = 'custom',   // ← dodać
+}
+```
+
+### 4.5 Endpoint admina do ustawiania custom planu
+
+**Plik:** `apps/api/src/users/users.controller.ts` (lub nowy `admin.controller.ts`)
+
+```
+PATCH /api/admin/agencies/:id/plan
+Body: {
+  plan: "custom" | "free" | "starter" | "professional" | "enterprise",
+  planOverrides?: {
+    label?: string,
+    limits?: { activeListings?: number, clients?: number, ... },
+    features?: { customBranding?: boolean, multiUser?: boolean, ... }
+  }
+}
+```
+
+---
+
+## 5. Zmiany w kodzie frontendowym
+
+### 5.1 Aktualizacja typu `AuthUser`
+
+**Plik:** `apps/web/src/lib/auth.ts`
+
+Dodać do `entitlements.features`:
+```typescript
+features: {
+  // ... istniejące ...
+  customDomain: boolean;    // ← dodać
+  apiAccess: boolean;       // ← dodać
+};
+```
+
+Dodać do `agency`:
+```typescript
+agency: {
+  // ... istniejące ...
+  billingInterval: 'monthly' | 'yearly' | null;
+  currentPeriodEnd: string | null;
+  trialEndsAt: string | null;
+} | null;
+```
+
+### 5.2 Strona `/dashboard/upgrade` — pełna z cenami
+
+Aktualnie pokazuje tylko formularz intencji. Docelowo:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              Wybierz plan dla swojego biura                      │
+│                                                                  │
+│  [Miesięcznie]  [Rocznie -16%]      ← toggle                   │
+│                                                                  │
+│  ┌───────────┐  ┌───────────┐  ┌─────────────┐  ┌───────────┐ │
+│  │   FREE    │  │  STARTER  │  │ PROFESSIONAL│  │ ENTERPRISE│ │
+│  │   0 zł    │  │  99 zł    │  │   249 zł    │  │ Kontakt   │ │
+│  │ /mies.    │  │ /mies.    │  │   /mies.    │  │           │ │
+│  │           │  │           │  │  ★ Polecany │  │           │ │
+│  │ 5 ofert   │  │ 25 ofert  │  │ 200 ofert   │  │ Bez limitu│ │
+│  │ 25 kl.    │  │ 250 kl.   │  │ 2500 kl.    │  │           │ │
+│  │           │  │           │  │ custom brand│  │           │ │
+│  │[Aktualny] │  │ [Wybierz] │  │  [Wybierz]  │  │[Kontakt]  │ │
+│  └───────────┘  └───────────┘  └─────────────┘  └───────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 6. Billing provider — wybór i integracja
+
+### Rekomendacja: Przelewy24 + Stripe (dwa tryby)
+
+| Tryb | Kiedy | Provider |
+|------|-------|----------|
+| B2C polscy konsumenci (BLIK, przelew) | Małe biura, agenci solo | **Przelewy24** |
+| B2B karty, faktury | Większe biura, Enterprise | **Stripe** |
+| MVP self-service | Starter + Professional | **Stripe** (obsługuje PLN) |
+
+**Decyzja MVP:** Stripe jako pierwszy, bo ma gotowe komponenty (Stripe Checkout, Billing Portal), webhooks są łatwe do wdrożenia, obsługuje PLN.
+
+### Konfiguracja Stripe
+
+```env
+STRIPE_SECRET_KEY=sk_live_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+STRIPE_PRICE_STARTER_MONTHLY=price_xxx
+STRIPE_PRICE_STARTER_YEARLY=price_xxx
+STRIPE_PRICE_PROFESSIONAL_MONTHLY=price_xxx
+STRIPE_PRICE_PROFESSIONAL_YEARLY=price_xxx
+```
+
+### Webhook events do obsługi
+
+```
+checkout.session.completed        → aktywuj plan, zapisz subscription_id
+customer.subscription.updated     → aktualizuj plan / current_period_end
+customer.subscription.deleted     → wróć na free, subscription = canceled
+invoice.payment_failed            → subscription = past_due, email do klienta
+invoice.payment_succeeded         → przedłuż current_period_end
+```
+
+---
+
+## 7. Plan wdrożenia w iteracjach
+
+Docelowo system planów ma być zarządzalny z panelu admina. Oznacza to, że `plan_catalog` jest źródłem prawdy dla standardowych planów, a `agency.plan_overrides` służy do indywidualnych warunków dla konkretnej agencji.
+
+### Iteracja 0 — Decyzje techniczne i kontrakt danych
+
+Cel: ustalić stabilny model danych przed implementacją panelu i billingu.
+
+- [ ] **I0.1** — Potwierdzić, że standardowe plany (`free`, `starter`, `professional`, `enterprise`) są przechowywane w tabeli `plan_catalog`
+- [ ] **I0.2** — Potwierdzić, że plan indywidualny działa przez `agency.plan = 'custom'` oraz `agency.plan_overrides`
+- [ ] **I0.3** — Ustalić stałą listę kluczy limitów: `activeListings`, `clients`, `monthlyAppointments`, `users`, `imagesPerListing`
+- [ ] **I0.4** — Ustalić stałą listę feature flags: `reportsOverview`, `reportsListingsBasic`, `reportsClientsBasic`, `reportsAppointmentsBasic`, `publicListings`, `publicLeadForms`, `customBranding`, `multiUser`, `customDomain`, `apiAccess`, `dedicatedSupport`
+- [ ] **I0.5** — Ustalić zasadę cen: zmiana ceny w `plan_catalog` dotyczy nowych checkoutów, a aktywne subskrypcje zmieniamy osobną akcją admina
+- [ ] **I0.6** — Ustalić, że `null` w limitach oznacza brak limitu
+
+### Iteracja 1 — Fundament entitlementów i baza danych
+
+Cel: usunąć hardcoded `switch/case` jako główne źródło prawdy i przygotować backend pod konfigurację z bazy.
+
+- [ ] **I1.1** — Dodać `CUSTOM = 'custom'` do `AgencyPlan` w `apps/api/src/common/enums/index.ts`
+- [ ] **I1.2** — Stworzyć migrację `20260605_agency_billing_and_custom_plan.sql` z polami `plan_overrides`, `billing_customer_id`, `billing_subscription_id`, `billing_interval`, `current_period_end`, `trial_ends_at`, `plan_changed_at`
+- [ ] **I1.3** — Stworzyć tabelę `plan_catalog` z polami: `code`, `label`, `description`, `price_monthly_pln`, `price_yearly_pln`, `stripe_price_id_monthly`, `stripe_price_id_yearly`, `limits`, `features`, `is_public`, `sort_order`, `created_at`, `updated_at`
+- [ ] **I1.4** — Dodać seed danych dla Free, Starter, Professional i Enterprise
+- [ ] **I1.5** — Zaktualizować `Agency` entity o `planOverrides` i pola billingowe
+- [ ] **I1.6** — Zaktualizować `AgencyPlanLimits`, `AgencyPlanFeatures` i dodać `AgencyPlanOverrides`
+- [ ] **I1.7** — Przebudować `AgencyPlanService`, żeby liczył entitlements przez `plan_catalog + agency.plan_overrides`
+- [ ] **I1.8** — Dodać fallback awaryjny na statyczny katalog planów, jeśli `plan_catalog` nie jest dostępny podczas startu lub testów
+- [ ] **I1.9** — Dodać testy dla planu standardowego, Enterprise bez limitów i Custom z override limitów/funkcji
+
+### Iteracja 2 — Admin API dla globalnych planów
+
+Cel: admin może edytować ceny, limity, funkcje i widoczność standardowych planów bez deployu.
+
+- [ ] **I2.1** — Dodać moduł/kontroler admina dla planów, np. `apps/api/src/admin/admin-plans.controller.ts`
+- [ ] **I2.2** — Dodać `GET /api/admin/plans` — lista planów z sortowaniem
+- [ ] **I2.3** — Dodać `GET /api/admin/plans/:code` — szczegóły planu
+- [ ] **I2.4** — Dodać `PATCH /api/admin/plans/:code` — edycja ceny, limitów, funkcji, Stripe Price ID, widoczności i kolejności
+- [ ] **I2.5** — Dodać walidację DTO: cena w groszach, `null` jako brak limitu, komplet wymaganych feature keys
+- [ ] **I2.6** — Zablokować usuwanie wymaganych planów systemowych (`free`, `starter`, `professional`, `enterprise`)
+- [ ] **I2.7** — Dodać zasadę: Free musi mieć cenę `0`, a płatny plan publiczny powinien mieć Stripe Price ID przed checkoutem
+- [ ] **I2.8** — Dodać testy API dla edycji planu i walidacji niepoprawnych limitów/funkcji
+
+### Iteracja 3 — Admin API dla planów indywidualnych per agencja
+
+Cel: admin może przypisać agencji plan standardowy albo zdefiniować indywidualny plan.
+
+- [ ] **I3.1** — Dodać `GET /api/admin/agencies/:id/plan` — aktualny plan, override, efektywne entitlements i usage
+- [ ] **I3.2** — Dodać `PATCH /api/admin/agencies/:id/plan` — zmiana planu agencji
+- [ ] **I3.3** — Dodać obsługę `planOverrides.label`, `priceMonthlyPln`, `priceYearlyPln`, `limits`, `features`
+- [ ] **I3.4** — Dodać `POST /api/admin/agencies/:id/plan/reset-overrides` — powrót do standardowej konfiguracji planu
+- [ ] **I3.5** — Przy zmianie limitów zwracać ostrzeżenie, jeśli aktualne zużycie przekracza nowy limit
+- [ ] **I3.6** — Aktualizować `plan_changed_at` przy każdej zmianie planu
+- [ ] **I3.7** — Dodać testy przypisania planu standardowego, custom planu i resetu override
+
+### Iteracja 4 — Egzekwowanie limitów i funkcji w aplikacji
+
+Cel: wszystkie moduły korzystają z jednego źródła entitlementów.
+
+- [ ] **I4.1** — Sprawdzić tworzenie/publikację ofert względem `limits.activeListings`
+- [ ] **I4.2** — Sprawdzić tworzenie klientów względem `limits.clients`
+- [ ] **I4.3** — Sprawdzić tworzenie spotkań względem `limits.monthlyAppointments`
+- [ ] **I4.4** — Sprawdzić dodawanie użytkowników workspace względem `limits.users`
+- [ ] **I4.5** — Sprawdzić dodawanie zdjęć do oferty względem `limits.imagesPerListing`
+- [ ] **I4.6** — Sprawdzić dostęp do funkcji premium przez `features.*`, np. custom branding, multi-user, custom domain, API access
+- [ ] **I4.7** — Ujednolicić błędy `PlanLimitReachedException` i `FeatureAccessDeniedException`, żeby zwracały limit, usage i wymagany feature
+- [ ] **I4.8** — Dodać testy regresji dla limitów i feature gates
+
+### Iteracja 5 — Panel admina do zarządzania planami
+
+Cel: admin może konfigurować plany bez dotykania bazy i bez deployu.
+
+- [ ] **I5.1** — Dodać widok listy planów w panelu admina
+- [ ] **I5.2** — Dodać formularz edycji planu standardowego: nazwa, opis, ceny, Stripe Price ID, widoczność, kolejność
+- [ ] **I5.3** — Dodać edytor limitów: inputy numeryczne + opcja "bez limitu" (`null`)
+- [ ] **I5.4** — Dodać edytor funkcji: toggles dla wszystkich feature flags
+- [ ] **I5.5** — Dodać podgląd karty planu tak, jak będzie wyglądała w cenniku
+- [ ] **I5.6** — Dodać widok agencji z aktualnym planem, statusem subskrypcji i usage
+- [ ] **I5.7** — Dodać konfigurator planu indywidualnego dla agencji
+- [ ] **I5.8** — Dodać podgląd efektywnych entitlementów po merge `plan_catalog + plan_overrides`
+
+### Iteracja 6 — Publiczny cennik i upgrade flow
+
+Cel: frontend użytkownika korzysta z planów z bazy, a nie z hardcoded danych.
+
+- [ ] **I6.1** — Dodać publiczny endpoint `GET /api/plans` zwracający tylko `is_public = true`
+- [ ] **I6.2** — Przepisać `/dashboard/upgrade`, żeby pobierał plany z API
+- [ ] **I6.3** — Dodać publiczną stronę `/cennik`
+- [ ] **I6.4** — Dodać toggle miesięcznie/rocznie
+- [ ] **I6.5** — Oznaczyć aktualny plan użytkownika
+- [ ] **I6.6** — Ukrywać Custom z publicznego cennika
+- [ ] **I6.7** — Enterprise pokazywać jako "Kontakt" zamiast checkoutu
+- [ ] **I6.8** — Zaktualizować `AuthUser` na froncie o nowe pola features i billing info
+
+### Iteracja 7 — Stripe checkout i billing portal
+
+Cel: podłączyć automatyczne płatności dla planów self-service.
+
+- [ ] **I7.1** — Zainstalować Stripe SDK w API: `pnpm --filter api add stripe`
+- [ ] **I7.2** — Dodać konfigurację ENV: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, URL sukcesu i anulowania
+- [ ] **I7.3** — Dodać `POST /api/billing/checkout` — tworzy Stripe Checkout Session na podstawie `plan_catalog.stripe_price_id_*`
+- [ ] **I7.4** — Dodać `POST /api/billing/webhook` — obsługa webhooków z signature verification
+- [ ] **I7.5** — Dodać `POST /api/billing/portal` — Stripe Billing Portal
+- [ ] **I7.6** — Dodać `/dashboard/upgrade/success` i `/dashboard/upgrade/cancel`
+- [ ] **I7.7** — Po `checkout.session.completed` zapisać `Agency.plan`, `billingCustomerId`, `billingSubscriptionId`, `billingInterval`, `currentPeriodEnd`
+- [ ] **I7.8** — Po `customer.subscription.updated` aktualizować plan, status i `currentPeriodEnd`
+- [ ] **I7.9** — Po `customer.subscription.deleted` wracać na `plan = 'free'` i `subscription = 'canceled'`
+- [ ] **I7.10** — Po `invoice.payment_failed` ustawiać `subscription = 'past_due'` i wysyłać powiadomienie
+
+### Iteracja 8 — Faktury VAT, audyt i produkcyjne zabezpieczenia
+
+Cel: przygotować system do realnej obsługi klientów i zmian administracyjnych.
+
+- [ ] **I8.1** — Zbierać dane firmowe/NIP w checkout lub profilu rozliczeniowym
+- [ ] **I8.2** — Zdecydować: Stripe Tax, Fakturownia, InFakt albo ręczna obsługa faktur na MVP
+- [ ] **I8.3** — Dodać email z fakturą lub linkiem do faktury po płatności
+- [ ] **I8.4** — Dodać tabelę `plan_change_audit`
+- [ ] **I8.5** — Logować każdą zmianę globalnego planu i planu agencji: kto, kiedy, before, after, reason
+- [ ] **I8.6** — Dodać monitoring błędów webhooków
+- [ ] **I8.7** — Dodać alert dla nieobsłużonych eventów Stripe
+- [ ] **I8.8** — Dodać checklistę testów produkcyjnych dla upgrade, downgrade, anulowania i past due
+
+---
+
+## 8. Jak definiować custom plan dla konkretnego biura
+
+Po wdrożeniu iteracji 1-3 admin może przez panel, API albo awaryjnie bezpośrednio przez bazę przypisać agencji plan indywidualny.
+
+```sql
+-- Przykład: custom plan dla "Kowalski Nieruchomości"
+UPDATE agencies
+SET 
+  plan = 'custom',
+  plan_overrides = '{
+    "label": "Plan Premium Kowalski",
+    "priceMonthlyPln": 19900,
+    "priceYearlyPln": 199000,
+    "limits": {
+      "activeListings": 50,
+      "clients": 500,
+      "monthlyAppointments": 300,
+      "users": 3,
+      "imagesPerListing": 40
+    },
+    "features": {
+      "customBranding": true,
+      "multiUser": true,
+      "customDomain": false,
+      "apiAccess": false
+    }
+  }'::jsonb
+WHERE name = 'Kowalski Nieruchomości';
+```
+
+Lub przez endpoint admina:
+```http
+PATCH /api/admin/agencies/UUID/plan
+Authorization: Bearer <admin-token>
+Content-Type: application/json
+
+{
+  "plan": "custom",
+  "planOverrides": {
+    "label": "Plan Premium Kowalski",
+    "priceMonthlyPln": 19900,
+    "priceYearlyPln": 199000,
+    "limits": {
+      "activeListings": 50,
+      "clients": 500,
+      "monthlyAppointments": 300,
+      "users": 3,
+      "imagesPerListing": 40
+    },
+    "features": {
+      "customBranding": true,
+      "multiUser": true,
+      "customDomain": false,
+      "apiAccess": false
+    }
+  }
+}
+```
+
+---
+
+## 9. Kolejność wdrożenia vs. launch
+
+### Krytyczne przed launch
+
+- [ ] **Must have** — Iteracja 0: decyzje techniczne i kontrakt danych
+- [ ] **Must have** — Iteracja 1: `plan_catalog`, `plan_overrides`, entitlements z bazy
+- [ ] **Must have** — Iteracja 3: ręczne przypisanie agencji do planu standardowego lub custom
+- [ ] **Must have** — Iteracja 4: egzekwowanie limitów i funkcji
+
+Bez tego można mieć cennik, ale system nie będzie realnie kontrolował dostępu, limitów i indywidualnych warunków klientów.
+
+### Ważne na launch
+
+- [ ] **Should have** — Iteracja 2: admin API dla globalnych planów
+- [ ] **Should have** — Iteracja 5: podstawowy panel admina dla planów i agencji
+- [ ] **Should have** — Iteracja 6: publiczny cennik i `/dashboard/upgrade`
+
+To umożliwia sprzedaż i obsługę klientów bez deployu przy każdej zmianie oferty.
+
+### Po launch / gdy pojawią się płatni klienci
+
+- [ ] **Can follow** — Iteracja 7: Stripe checkout i billing portal
+- [ ] **Can follow** — Iteracja 8: faktury VAT, audyt i produkcyjne zabezpieczenia
+
+Stripe powinien być warstwą płatności nad modelem planów, nie źródłem prawdy o limitach i funkcjach.
+
+---
+
+## 10. Pliki do modyfikacji — podsumowanie
+
+| Plik | Zmiana |
+|------|--------|
+| `apps/api/src/common/enums/index.ts` | Dodać `CUSTOM = 'custom'` do `AgencyPlan` |
+| `apps/api/src/users/agency-plan.service.ts` | Pobierać bazę planu z `plan_catalog`, dodać merge `agency.planOverrides` |
+| `apps/api/src/users/entities/agency.entity.ts` | Dodać `planOverrides`, billing fields |
+| `apps/api/migrations/20260605_agency_billing_and_custom_plan.sql` | Nowa migracja |
+| `apps/api/src/plans/entities/plan-catalog.entity.ts` | Nowa encja `PlanCatalog` |
+| `apps/api/src/plans/plans.service.ts` | Publiczny odczyt planów i helpery dla entitlementów |
+| `apps/api/src/admin/admin-plans.controller.ts` | Admin API do edycji globalnych planów |
+| `apps/api/src/admin/admin-agency-plans.controller.ts` | Admin API do przypisywania planów agencjom |
+| `apps/api/src/admin/dto/*` | DTO i walidacja edycji planów oraz custom override |
+| `apps/api/src/admin/entities/plan-change-audit.entity.ts` | Audyt zmian planów |
+| `apps/web/src/lib/auth.ts` | Zaktualizować `AuthUser` |
+| `apps/web/src/app/(admin)/admin/plans/*` | Panel admina do zarządzania globalnymi planami |
+| `apps/web/src/app/(admin)/admin/agencies/*` | Panel admina do przypisywania planów agencjom |
+| `apps/web/src/app/(dashboard)/dashboard/upgrade/page.tsx` | Przepisać na pełny cennik |
+| `apps/web/src/app/(public)/cennik/page.tsx` | Nowa strona publiczna |
