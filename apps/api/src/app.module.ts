@@ -20,6 +20,7 @@ import { PublicListingSubmissionsModule } from './public-listing-submissions';
 import { LocationsModule } from './locations';
 import { ProductFeedbackModule } from './product-feedback';
 import { BlogModule } from './blog';
+import { AdminModule } from './admin';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { BlogModule } from './blog';
     PublicListingSubmissionsModule,
     ProductFeedbackModule,
     BlogModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [

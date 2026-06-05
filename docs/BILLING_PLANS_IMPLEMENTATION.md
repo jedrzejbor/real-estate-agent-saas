@@ -1,7 +1,7 @@
 # Wdrożenie planów i billingowego — specyfikacja techniczna
 
 > Data: 5 czerwca 2026  
-> Status: Iteracja 1 zakończona — fundament entitlementów i baza planów gotowe
+> Status: Iteracja 2 zakończona — admin API dla globalnych planów gotowe
 > Kontekst: Aktualnie plany są hardcodowane w `switch/case` w `AgencyPlanService`. Brak custom planów, brak cen, brak checkout flow.
 
 ---
@@ -433,14 +433,35 @@ Cel: usunąć hardcoded `switch/case` jako główne źródło prawdy i przygotow
 
 Cel: admin może edytować ceny, limity, funkcje i widoczność standardowych planów bez deployu.
 
-- [ ] **I2.1** — Dodać moduł/kontroler admina dla planów, np. `apps/api/src/admin/admin-plans.controller.ts`
-- [ ] **I2.2** — Dodać `GET /api/admin/plans` — lista planów z sortowaniem
-- [ ] **I2.3** — Dodać `GET /api/admin/plans/:code` — szczegóły planu
-- [ ] **I2.4** — Dodać `PATCH /api/admin/plans/:code` — edycja ceny, limitów, funkcji, Stripe Price ID, widoczności i kolejności
-- [ ] **I2.5** — Dodać walidację DTO: cena w groszach, `null` jako brak limitu, komplet wymaganych feature keys
-- [ ] **I2.6** — Zablokować usuwanie wymaganych planów systemowych (`free`, `starter`, `professional`, `enterprise`)
-- [ ] **I2.7** — Dodać zasadę: Free musi mieć cenę `0`, a płatny plan publiczny powinien mieć Stripe Price ID przed checkoutem
-- [ ] **I2.8** — Dodać testy API dla edycji planu i walidacji niepoprawnych limitów/funkcji
+- [x] **I2.1** — Dodać moduł/kontroler admina dla planów, np. `apps/api/src/admin/admin-plans.controller.ts`
+- [x] **I2.2** — Dodać `GET /api/admin/plans` — lista planów z sortowaniem
+- [x] **I2.3** — Dodać `GET /api/admin/plans/:code` — szczegóły planu
+- [x] **I2.4** — Dodać `PATCH /api/admin/plans/:code` — edycja ceny, limitów, funkcji, Stripe Price ID, widoczności i kolejności
+- [x] **I2.5** — Dodać walidację DTO: cena w groszach, `null` jako brak limitu, komplet wymaganych feature keys
+- [x] **I2.6** — Zablokować usuwanie wymaganych planów systemowych (`free`, `starter`, `professional`, `enterprise`)
+- [x] **I2.7** — Dodać zasadę: Free musi mieć cenę `0`, a płatny plan publiczny powinien mieć Stripe Price ID przed checkoutem
+- [x] **I2.8** — Dodać testy API dla edycji planu i walidacji niepoprawnych limitów/funkcji
+
+#### Wykonane w Iteracji 2
+
+1. Dodano `AdminModule` i podłączono go do `AppModule`.
+2. Dodano `AdminPlansController` z endpointami:
+   - `GET /api/admin/plans`
+   - `GET /api/admin/plans/:code`
+   - `PATCH /api/admin/plans/:code`
+3. Endpointy są chronione przez `@Roles(UserRole.ADMIN)`.
+4. Dodano `AdminPlansService`, który edytuje wyłącznie systemowe plany: `free`, `starter`, `professional`, `enterprise`.
+5. Po aktualizacji planu serwis wywołuje `AgencyPlanService.refreshCatalog()`, więc cache entitlementów odświeża się bez restartu API.
+6. Dodano `UpdatePlanDto` z jawną walidacją dozwolonych pól `limits` i `features`. Nieznane klucze są odrzucane przez globalny `ValidationPipe`.
+7. Dodano regułę, że `free` musi mieć cenę `0` i nie może mieć Stripe Price ID.
+8. Dla publicznych płatnych planów bez Stripe Price ID odpowiedź admin API zwraca `billingReady: false` i `billingWarnings`. Twarda blokada checkoutu zostanie dodana w Iteracji 7, gdy checkout będzie już istnieć.
+9. Nie dodano endpointu usuwania planów, więc systemowe plany nie mogą zostać usunięte przez admin API.
+
+#### Weryfikacja Iteracji 2
+
+- [x] `pnpm --filter api type-check`
+- [x] `pnpm --filter api test -- admin-plans.service.spec.ts update-plan.dto.spec.ts`
+- [x] `pnpm --filter api test`
 
 ### Iteracja 3 — Admin API dla planów indywidualnych per agencja
 
@@ -597,7 +618,7 @@ Bez tego można mieć cennik, ale system nie będzie realnie kontrolował dostę
 
 ### Ważne na launch
 
-- [ ] **Should have** — Iteracja 2: admin API dla globalnych planów
+- [x] **Should have** — Iteracja 2: admin API dla globalnych planów
 - [ ] **Should have** — Iteracja 5: podstawowy panel admina dla planów i agencji
 - [ ] **Should have** — Iteracja 6: publiczny cennik i `/dashboard/upgrade`
 
