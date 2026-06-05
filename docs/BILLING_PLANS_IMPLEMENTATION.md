@@ -1,7 +1,7 @@
 # Wdrożenie planów i billingowego — specyfikacja techniczna
 
 > Data: 5 czerwca 2026  
-> Status: Do wdrożenia — ostatni krok przed produkcyjnym launch'em  
+> Status: Iteracja 0 zakończona — kontrakt danych zatwierdzony, do rozpoczęcia Iteracji 1  
 > Kontekst: Aktualnie plany są hardcodowane w `switch/case` w `AgencyPlanService`. Brak custom planów, brak cen, brak checkout flow.
 
 ---
@@ -48,7 +48,7 @@
 | Enterprise | **na zapytanie** | na zapytanie | — (manual) |
 | Custom | **indywidualny** | indywidualny | — (manual) |
 
-> Ceny i Stripe Price ID konfigurowane przez zmienne środowiskowe lub tabelę `plan_catalog` w bazie.
+> Ceny i Stripe Price ID są przechowywane w tabeli `plan_catalog`. Zmienne środowiskowe służą tylko do sekretów providerów płatności, np. `STRIPE_SECRET_KEY`, nie do definicji planów.
 
 ---
 
@@ -116,14 +116,15 @@ CREATE INDEX IF NOT EXISTS idx_agencies_billing_subscription ON agencies(billing
 COMMIT;
 ```
 
-### 3.2 Nowa tabela `plan_catalog` (opcjonalna, dla pełnej konfigurowalności)
+### 3.2 Nowa tabela `plan_catalog` (źródło prawdy dla standardowych planów)
 
 ```sql
--- Opcjonalne: jeśli chcemy edytować plany przez UI admina bez deploy'u
+-- Wymagane: plany standardowe muszą być edytowalne przez panel admina bez deploy'u.
 
 CREATE TABLE IF NOT EXISTS plan_catalog (
   code varchar(50) PRIMARY KEY,           -- 'free', 'starter', 'professional', 'enterprise'
   label varchar(100) NOT NULL,
+  description text,
   price_monthly_pln int DEFAULT 0,        -- cena w groszach (99 zł = 9900)
   price_yearly_pln int DEFAULT 0,
   stripe_price_id_monthly varchar(255),
@@ -140,19 +141,19 @@ CREATE TABLE IF NOT EXISTS plan_catalog (
 INSERT INTO plan_catalog (code, label, price_monthly_pln, price_yearly_pln, limits, features, sort_order) VALUES
 ('free', 'Free', 0, 0,
   '{"activeListings":5,"clients":25,"monthlyAppointments":20,"users":1,"imagesPerListing":15}',
-  '{"reportsOverview":true,"reportsListingsBasic":true,"reportsClientsBasic":true,"reportsAppointmentsBasic":false,"publicListings":true,"publicLeadForms":true,"customBranding":false,"multiUser":false,"customDomain":false,"apiAccess":false}',
+  '{"reportsOverview":true,"reportsListingsBasic":true,"reportsClientsBasic":true,"reportsAppointmentsBasic":false,"publicListings":true,"publicLeadForms":true,"customBranding":false,"multiUser":false,"customDomain":false,"apiAccess":false,"dedicatedSupport":false}',
   0),
 ('starter', 'Starter', 9900, 99000,
   '{"activeListings":25,"clients":250,"monthlyAppointments":150,"users":1,"imagesPerListing":30}',
-  '{"reportsOverview":true,"reportsListingsBasic":true,"reportsClientsBasic":true,"reportsAppointmentsBasic":true,"publicListings":true,"publicLeadForms":true,"customBranding":false,"multiUser":false,"customDomain":false,"apiAccess":false}',
+  '{"reportsOverview":true,"reportsListingsBasic":true,"reportsClientsBasic":true,"reportsAppointmentsBasic":true,"publicListings":true,"publicLeadForms":true,"customBranding":false,"multiUser":false,"customDomain":false,"apiAccess":false,"dedicatedSupport":false}',
   1),
 ('professional', 'Professional', 24900, 249000,
   '{"activeListings":200,"clients":2500,"monthlyAppointments":1000,"users":5,"imagesPerListing":50}',
-  '{"reportsOverview":true,"reportsListingsBasic":true,"reportsClientsBasic":true,"reportsAppointmentsBasic":true,"publicListings":true,"publicLeadForms":true,"customBranding":true,"multiUser":true,"customDomain":false,"apiAccess":false}',
+  '{"reportsOverview":true,"reportsListingsBasic":true,"reportsClientsBasic":true,"reportsAppointmentsBasic":true,"publicListings":true,"publicLeadForms":true,"customBranding":true,"multiUser":true,"customDomain":false,"apiAccess":false,"dedicatedSupport":false}',
   2),
 ('enterprise', 'Enterprise', 0, 0,
   '{"activeListings":null,"clients":null,"monthlyAppointments":null,"users":null,"imagesPerListing":null}',
-  '{"reportsOverview":true,"reportsListingsBasic":true,"reportsClientsBasic":true,"reportsAppointmentsBasic":true,"publicListings":true,"publicLeadForms":true,"customBranding":true,"multiUser":true,"customDomain":true,"apiAccess":true}',
+  '{"reportsOverview":true,"reportsListingsBasic":true,"reportsClientsBasic":true,"reportsAppointmentsBasic":true,"publicListings":true,"publicLeadForms":true,"customBranding":true,"multiUser":true,"customDomain":true,"apiAccess":true,"dedicatedSupport":true}',
   3)
 ON CONFLICT (code) DO NOTHING;
 ```
@@ -377,12 +378,25 @@ Docelowo system planów ma być zarządzalny z panelu admina. Oznacza to, że `p
 
 Cel: ustalić stabilny model danych przed implementacją panelu i billingu.
 
-- [ ] **I0.1** — Potwierdzić, że standardowe plany (`free`, `starter`, `professional`, `enterprise`) są przechowywane w tabeli `plan_catalog`
-- [ ] **I0.2** — Potwierdzić, że plan indywidualny działa przez `agency.plan = 'custom'` oraz `agency.plan_overrides`
-- [ ] **I0.3** — Ustalić stałą listę kluczy limitów: `activeListings`, `clients`, `monthlyAppointments`, `users`, `imagesPerListing`
-- [ ] **I0.4** — Ustalić stałą listę feature flags: `reportsOverview`, `reportsListingsBasic`, `reportsClientsBasic`, `reportsAppointmentsBasic`, `publicListings`, `publicLeadForms`, `customBranding`, `multiUser`, `customDomain`, `apiAccess`, `dedicatedSupport`
-- [ ] **I0.5** — Ustalić zasadę cen: zmiana ceny w `plan_catalog` dotyczy nowych checkoutów, a aktywne subskrypcje zmieniamy osobną akcją admina
-- [ ] **I0.6** — Ustalić, że `null` w limitach oznacza brak limitu
+- [x] **I0.1** — Potwierdzić, że standardowe plany (`free`, `starter`, `professional`, `enterprise`) są przechowywane w tabeli `plan_catalog`
+- [x] **I0.2** — Potwierdzić, że plan indywidualny działa przez `agency.plan = 'custom'` oraz `agency.plan_overrides`
+- [x] **I0.3** — Ustalić stałą listę kluczy limitów: `activeListings`, `clients`, `monthlyAppointments`, `users`, `imagesPerListing`
+- [x] **I0.4** — Ustalić stałą listę feature flags: `reportsOverview`, `reportsListingsBasic`, `reportsClientsBasic`, `reportsAppointmentsBasic`, `publicListings`, `publicLeadForms`, `customBranding`, `multiUser`, `customDomain`, `apiAccess`, `dedicatedSupport`
+- [x] **I0.5** — Ustalić zasadę cen: zmiana ceny w `plan_catalog` dotyczy nowych checkoutów, a aktywne subskrypcje zmieniamy osobną akcją admina
+- [x] **I0.6** — Ustalić, że `null` w limitach oznacza brak limitu
+
+#### Ustalenia po Iteracji 0
+
+1. `plan_catalog` jest obowiązkowym źródłem prawdy dla standardowych planów. Nie używamy ENV do definicji cen, limitów, funkcji ani Stripe Price ID, bo to blokowałoby edycję planów z panelu admina.
+2. `Agency.plan` przechowuje wyłącznie kod bazowego planu: `free`, `starter`, `professional`, `enterprise` albo `custom`.
+3. Plan indywidualny nie tworzy osobnego rekordu w `plan_catalog`. Jest liczony jako `custom` + `agency.plan_overrides`, żeby warunki klienta były izolowane per agencja.
+4. `agency.plan_overrides` może nadpisywać tylko znane klucze `limits` i `features`. Backend musi odrzucać nieznane klucze, żeby nie dopuścić do literówek typu `activeListing` lub niekontrolowanych feature flags.
+5. Limity są liczbą całkowitą `>= 0` albo `null`. `null` oznacza brak limitu. Wartość `0` oznacza realny limit równy zero, np. funkcjonalność zasobu całkowicie zablokowana.
+6. Ceny są przechowywane w groszach jako integer, np. `9900` = 99 zł. Enterprise i Custom mogą mieć cenę `0`, jeśli są obsługiwane manualnie.
+7. Zmiana ceny w `plan_catalog` nie aktualizuje automatycznie aktywnych subskrypcji Stripe. Aktywne subskrypcje zmieniamy osobną akcją billingową/adminową, żeby uniknąć przypadkowych zmian umów z klientami.
+8. Publiczny cennik pobiera tylko plany z `is_public = true`. `custom` nie jest planem publicznym.
+9. `AgencyPlanService` pozostaje centralnym resolverem entitlementów. Kontrolery i serwisy domenowe mają pytać o wynikowe entitlements, a nie czytać `plan_catalog` bezpośrednio.
+10. Fallback statyczny w kodzie może istnieć tylko jako zabezpieczenie testowe/awaryjne. Nie może być miejscem codziennej konfiguracji oferty.
 
 ### Iteracja 1 — Fundament entitlementów i baza danych
 
@@ -557,7 +571,7 @@ Content-Type: application/json
 
 ### Krytyczne przed launch
 
-- [ ] **Must have** — Iteracja 0: decyzje techniczne i kontrakt danych
+- [x] **Must have** — Iteracja 0: decyzje techniczne i kontrakt danych
 - [ ] **Must have** — Iteracja 1: `plan_catalog`, `plan_overrides`, entitlements z bazy
 - [ ] **Must have** — Iteracja 3: ręczne przypisanie agencji do planu standardowego lub custom
 - [ ] **Must have** — Iteracja 4: egzekwowanie limitów i funkcji
