@@ -48,6 +48,8 @@ export class AdminPlansService {
   ) {}
 
   async findPlans(): Promise<AdminPlanResponse[]> {
+    await this.agencyPlanService.ensureSystemPlanCatalog();
+
     const plans = await this.planCatalogRepo.find({
       order: { sortOrder: 'ASC', code: 'ASC' },
     });

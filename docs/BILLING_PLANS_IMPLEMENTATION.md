@@ -599,12 +599,14 @@ Cel: frontend użytkownika korzysta z planów z bazy, a nie z hardcoded danych.
    - nadal zapisywał intencję upgrade w analityce.
 10. Dodano publiczną stronę `/cennik` w marketingowym layoucie, pobierającą plany z API bez autoryzacji.
 11. Dla Enterprise w publicznym cenniku ustawiono akcję kontaktową zamiast checkoutu, bo checkout Stripe jest dopiero w Iteracji 7.
+12. Po weryfikacji panelu admina dodano defensywne dosiewanie brakujących planów systemowych do `plan_catalog`. Jeśli baza została utworzona przez `synchronize` albo migracja seedująca nie została uruchomiona, API tworzy brakujące rekordy `free`, `starter`, `professional`, `enterprise` bez nadpisywania istniejących edycji admina.
 
 #### Weryfikacja Iteracji 6
 
 - [x] `pnpm --filter api type-check`
 - [x] `pnpm --filter api test -- plans.service.spec.ts`
 - [x] `pnpm --filter api test`
+- [x] `pnpm --filter api test -- agency-plan.service.spec.ts admin-plans.service.spec.ts`
 - [x] `pnpm --filter web type-check`
 - [x] `pnpm --filter web build` (wymaga dostępu sieciowego do Google Fonts używanych przez `next/font`)
 - [x] `git diff --check`

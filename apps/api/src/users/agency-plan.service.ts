@@ -21,6 +21,50 @@ export type {
 } from './agency-plan.types';
 
 const PLAN_CODES = new Set<string>(Object.values(AgencyPlan));
+const SYSTEM_PLAN_CODES = [
+  AgencyPlan.FREE,
+  AgencyPlan.STARTER,
+  AgencyPlan.PROFESSIONAL,
+  AgencyPlan.ENTERPRISE,
+] as const;
+
+const DEFAULT_PLAN_CATALOG_METADATA: Record<
+  (typeof SYSTEM_PLAN_CODES)[number],
+  {
+    description: string;
+    priceMonthlyPln: number;
+    priceYearlyPln: number;
+    sortOrder: number;
+  }
+> = {
+  [AgencyPlan.FREE]: {
+    description: 'Plan startowy dla nowych agentów i małych testów produktu.',
+    priceMonthlyPln: 0,
+    priceYearlyPln: 0,
+    sortOrder: 0,
+  },
+  [AgencyPlan.STARTER]: {
+    description:
+      'Plan dla solo agenta, który zaczął realnie pracować na pipeline.',
+    priceMonthlyPln: 9_900,
+    priceYearlyPln: 99_000,
+    sortOrder: 1,
+  },
+  [AgencyPlan.PROFESSIONAL]: {
+    description:
+      'Plan dla agentów i małych biur, które aktywnie publikują oferty i obsługują leady.',
+    priceMonthlyPln: 24_900,
+    priceYearlyPln: 249_000,
+    sortOrder: 2,
+  },
+  [AgencyPlan.ENTERPRISE]: {
+    description:
+      'Plan dla większych zespołów, sieci biur i wdrożeń z indywidualnymi wymaganiami.',
+    priceMonthlyPln: 0,
+    priceYearlyPln: 0,
+    sortOrder: 3,
+  },
+};
 
 export const DEFAULT_PLAN_CATALOG: Record<AgencyPlan, AgencyPlanDefinition> = {
   [AgencyPlan.FREE]: {
@@ -158,7 +202,28 @@ export class AgencyPlanService implements OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
+    await this.ensureSystemPlanCatalog();
     await this.refreshCatalog();
+  }
+
+  async ensureSystemPlanCatalog(): Promise<void> {
+    const existingPlans = await this.planCatalogRepo.find({
+      select: ['code'],
+    });
+    const existingCodes = new Set(existingPlans.map((plan) => plan.code));
+    const missingPlans = SYSTEM_PLAN_CODES.filter(
+      (code) => !existingCodes.has(code),
+    );
+
+    if (missingPlans.length === 0) {
+      return;
+    }
+
+    const planRows = missingPlans.map((code) =>
+      this.planCatalogRepo.create(this.buildDefaultPlanCatalogRow(code)),
+    );
+
+    await this.planCatalogRepo.save(planRows);
   }
 
   async refreshCatalog(): Promise<void> {
@@ -195,6 +260,27 @@ export class AgencyPlanService implements OnModuleInit {
         }`,
       );
     }
+  }
+
+  private buildDefaultPlanCatalogRow(
+    code: (typeof SYSTEM_PLAN_CODES)[number],
+  ): Partial<PlanCatalog> {
+    const definition = DEFAULT_PLAN_CATALOG[code];
+    const metadata = DEFAULT_PLAN_CATALOG_METADATA[code];
+
+    return {
+      code,
+      label: definition.label,
+      description: metadata.description,
+      priceMonthlyPln: metadata.priceMonthlyPln,
+      priceYearlyPln: metadata.priceYearlyPln,
+      stripePriceIdMonthly: null,
+      stripePriceIdYearly: null,
+      limits: definition.limits,
+      features: definition.features,
+      isPublic: true,
+      sortOrder: metadata.sortOrder,
+    };
   }
 
   getEntitlements(agency?: Agency | null): AgencyEntitlements {

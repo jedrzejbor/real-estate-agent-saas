@@ -9,6 +9,8 @@ import {
 function buildRepo(rows: Partial<PlanCatalog>[] = []) {
   return {
     find: jest.fn().mockResolvedValue(rows),
+    create: jest.fn((row) => row),
+    save: jest.fn(async (row) => row),
   };
 }
 
@@ -77,6 +79,41 @@ describe('AgencyPlanService', () => {
     });
     expect(entitlements.features.customBranding).toBe(true);
     expect(entitlements.features.multiUser).toBe(false);
+  });
+
+  it('seeds missing system plans without overwriting existing rows', async () => {
+    const repo = buildRepo([
+      {
+        code: AgencyPlan.FREE,
+      },
+      {
+        code: AgencyPlan.STARTER,
+      },
+    ]);
+    const service = new AgencyPlanService(repo as never);
+
+    await service.ensureSystemPlanCatalog();
+
+    expect(repo.create).toHaveBeenCalledTimes(2);
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: AgencyPlan.PROFESSIONAL,
+        label: 'Professional',
+        priceMonthlyPln: 24_900,
+        priceYearlyPln: 249_000,
+        sortOrder: 2,
+      }),
+    );
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: AgencyPlan.ENTERPRISE,
+        limits: expect.objectContaining({ activeListings: null }),
+      }),
+    );
+    expect(repo.save).toHaveBeenCalledWith([
+      expect.objectContaining({ code: AgencyPlan.PROFESSIONAL }),
+      expect.objectContaining({ code: AgencyPlan.ENTERPRISE }),
+    ]);
   });
 
   it('supports enterprise plans with unlimited limits represented as null', () => {

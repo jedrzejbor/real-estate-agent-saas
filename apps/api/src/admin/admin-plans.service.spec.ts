@@ -49,6 +49,7 @@ function buildService(plans: PlanCatalog[] = [buildPlan()]) {
     save: jest.fn(async (plan) => plan),
   };
   const agencyPlanService = {
+    ensureSystemPlanCatalog: jest.fn().mockResolvedValue(undefined),
     refreshCatalog: jest.fn().mockResolvedValue(undefined),
   };
 
