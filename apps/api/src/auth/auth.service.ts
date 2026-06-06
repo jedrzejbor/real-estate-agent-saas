@@ -312,6 +312,9 @@ export class AuthService {
             plan: access.agency.plan,
             subscription: access.agency.subscription,
             ownerId: access.agency.ownerId,
+            billingInterval: access.agency.billingInterval ?? null,
+            currentPeriodEnd: access.agency.currentPeriodEnd ?? null,
+            trialEndsAt: access.agency.trialEndsAt ?? null,
           }
         : null,
       entitlements: access.entitlements,

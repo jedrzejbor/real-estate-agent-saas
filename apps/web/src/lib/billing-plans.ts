@@ -47,6 +47,17 @@ export interface AdminPlan {
   updatedAt: string;
 }
 
+export interface PublicPlan {
+  code: AgencyPlanCode;
+  label: string;
+  description: string | null;
+  priceMonthlyPln: number;
+  priceYearlyPln: number;
+  limits: AgencyPlanLimits;
+  features: AgencyPlanFeatures;
+  sortOrder: number;
+}
+
 export interface AdminAgencyListItem {
   id: string;
   name: string;
@@ -121,6 +132,10 @@ export interface UpdateAgencyPlanInput {
 
 export function fetchAdminPlans(): Promise<AdminPlan[]> {
   return apiFetch<AdminPlan[]>('/admin/plans');
+}
+
+export function fetchPublicPlans(): Promise<PublicPlan[]> {
+  return apiFetch<PublicPlan[]>('/plans', { skipAuth: true });
 }
 
 export function updateAdminPlan(

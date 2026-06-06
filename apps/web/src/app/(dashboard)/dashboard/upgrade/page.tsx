@@ -1,84 +1,41 @@
 'use client';
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
   Crown,
+  Loader2,
   Sparkles,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
+import {
+  fetchPublicPlans,
+  type AgencyPlanCode,
+  type PublicPlan,
+} from '@/lib/billing-plans';
 import { isPrivateSellerUser } from '@/lib/auth';
 import {
   GROWTH_UPSELLS,
   type GrowthUpsellId,
   type UpgradePlanCode,
 } from '@/lib/growth-upsells';
+import {
+  formatPlanPrice,
+  getPlanFallbackDescription,
+  getPlanHighlights,
+  getPriceHelper,
+  type BillingInterval,
+} from '@/lib/public-pricing';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
-
-interface UpgradePlan {
-  code: UpgradePlanCode;
-  name: string;
-  priceLabel: string;
-  description: string;
-  bestFor: string;
-  features: string[];
-  highlighted?: boolean;
-}
-
-const upgradePlans: UpgradePlan[] = [
-  {
-    code: 'starter',
-    name: 'Starter',
-    priceLabel: '49 PLN / mies.',
-    description:
-      'Większe limity dla solo agentów i pierwszego realnego pipeline.',
-    bestFor: 'Gdy Free zaczyna blokować nowe oferty, klientów albo spotkania.',
-    features: [
-      'Do 25 aktywnych ofert',
-      'Więcej klientów i spotkań miesięcznie',
-      'Większy limit zdjęć oferty',
-      'Podstawowe publiczne strony ofert',
-    ],
-  },
-  {
-    code: 'professional',
-    name: 'Professional',
-    priceLabel: '149 PLN / mies.',
-    description:
-      'Growth i raportowanie dla agentów, którzy aktywnie publikują oferty.',
-    bestFor: 'Gdy chcesz mocniej używać publicznych ofert, leadów i raportów.',
-    highlighted: true,
-    features: [
-      'Własny branding publicznych stron',
-      'Rozbudowane profile agentów i biur',
-      'Raport spotkań i głębsza analityka',
-      'Automatyzacje po leadzie',
-    ],
-  },
-  {
-    code: 'enterprise',
-    name: 'Enterprise',
-    priceLabel: 'Wycena indywidualna',
-    description:
-      'Dla większych zespołów, white-label i wdrożeń z własnymi zasadami.',
-    bestFor:
-      'Gdy potrzebujesz wielu użytkowników, własnej domeny albo wsparcia wdrożeniowego.',
-    features: [
-      'Nielimitowane lub indywidualne limity',
-      'White-label i własna domena',
-      'Zaawansowane role i workspace zespołowy',
-      'Dedykowany rollout i wsparcie',
-    ],
-  },
-];
 
 const resourceLabels: Record<string, string> = {
   listings: 'limit ofert',
@@ -113,6 +70,11 @@ export default function UpgradePage() {
   const source = searchParams.get('source') || 'upgrade_page_direct';
   const resource = searchParams.get('resource') || undefined;
   const initialPlan = getPlanCode(searchParams.get('plan'));
+  const [plans, setPlans] = useState<PublicPlan[]>([]);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
+  const [plansError, setPlansError] = useState<string | null>(null);
+  const [billingInterval, setBillingInterval] =
+    useState<BillingInterval>('monthly');
   const [selectedPlan, setSelectedPlan] = useState<UpgradePlanCode>(
     initialPlan ??
       (upsellId ? GROWTH_UPSELLS[upsellId].recommendedPlan : 'professional'),
@@ -121,21 +83,59 @@ export default function UpgradePage() {
   const [submitted, setSubmitted] = useState(false);
 
   const selectedUpsell = upsellId ? GROWTH_UPSELLS[upsellId] : null;
+  const currentPlanCode = user?.entitlements.plan.code as
+    | AgencyPlanCode
+    | undefined;
+
+  const publicPlans = useMemo(
+    () => plans.filter((plan) => plan.code !== 'custom'),
+    [plans],
+  );
+
   const contextLabel = useMemo(() => {
     if (selectedUpsell) return selectedUpsell.title;
     if (resource) return resourceLabels[resource] ?? 'upgrade planu';
     return 'upgrade planu';
   }, [resource, selectedUpsell]);
 
-  function trackPlanSelection(plan: UpgradePlanCode) {
-    setSelectedPlan(plan);
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchPublicPlans()
+      .then((response) => {
+        if (!isMounted) return;
+        setPlans(response);
+        setPlansError(null);
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        setPlansError(
+          error instanceof Error
+            ? error.message
+            : 'Nie udało się pobrać planów',
+        );
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingPlans(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  function trackPlanSelection(plan: PublicPlan) {
+    if (!isSelectableUpgradePlan(plan.code)) return;
+
+    setSelectedPlan(plan.code);
     trackAnalyticsEvent({
       name: AnalyticsEventName.UPGRADE_CTA_CLICKED,
       properties: {
         source,
         upsellId,
         resource,
-        selectedPlan: plan,
+        selectedPlan: plan.code,
+        billingInterval,
         action: 'plan_selected',
       },
     });
@@ -150,6 +150,7 @@ export default function UpgradePage() {
         upsellId,
         resource,
         selectedPlan,
+        billingInterval,
         priority,
         action: 'upgrade_interest_submitted',
       },
@@ -173,9 +174,8 @@ export default function UpgradePage() {
               <Badge variant="gold">Premium</Badge>
             </div>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Wybierz kolejny krok dla EstateFlow. Ten ekran zbiera intencję
-              upgrade i jasno pokazuje, co odblokowuje wyższy plan, zanim
-              wdrożymy pełny checkout self-service.
+              Wybierz plan dla swojego workspace. Ceny, limity i funkcje są
+              pobierane z katalogu planów zarządzanego w panelu admina.
             </p>
           </div>
           <Button
@@ -193,80 +193,143 @@ export default function UpgradePage() {
           </Button>
         </div>
 
-        <div className="mt-5 rounded-xl border border-[#D4A853]/25 bg-[#FFF9E6]/45 p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#B8922F] ring-1 ring-[#D4A853]/25">
-              <Sparkles className="h-5 w-5" />
+        <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="rounded-xl border border-[#D4A853]/25 bg-[#FFF9E6]/45 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#B8922F] ring-1 ring-[#D4A853]/25">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Kontekst: {contextLabel}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Obecny plan: {user.entitlements.plan.label}. Zmiana planu na
+                  tym etapie zapisuje intencję dla zespołu.
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                Kontekst: {contextLabel}
-              </p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Kliknięcie upgrade zapisujemy jako `upgrade_cta_clicked` z
-                informacją o źródle, upsellu, zasobie limitu i wybranym planie.
-              </p>
-            </div>
+          </div>
+
+          <div className="inline-flex rounded-xl border border-border bg-muted/30 p-1">
+            <button
+              type="button"
+              onClick={() => setBillingInterval('monthly')}
+              className={cn(
+                'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                billingInterval === 'monthly'
+                  ? 'bg-white text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Miesięcznie
+            </button>
+            <button
+              type="button"
+              onClick={() => setBillingInterval('yearly')}
+              className={cn(
+                'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                billingInterval === 'yearly'
+                  ? 'bg-white text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Rocznie
+            </button>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-3">
-        {upgradePlans.map((plan) => (
-          <article
-            key={plan.code}
-            className={cn(
-              'flex flex-col rounded-2xl border bg-white p-5 shadow-sm',
-              plan.highlighted
-                ? 'border-[#D4A853]/50 ring-2 ring-[#D4A853]/15'
-                : 'border-border',
-              selectedPlan === plan.code &&
-                'border-primary ring-2 ring-primary/15',
-            )}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-heading text-xl font-semibold text-foreground">
-                    {plan.name}
-                  </h2>
-                  {plan.highlighted ? (
-                    <Badge variant="gold">Rekomendowany</Badge>
-                  ) : null}
+      {plansError ? (
+        <div className="flex items-center gap-2 rounded-xl border border-destructive/25 bg-destructive/5 p-4 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4" />
+          {plansError}
+        </div>
+      ) : null}
+
+      <section className="grid gap-4 xl:grid-cols-4">
+        {isLoadingPlans ? (
+          <div className="col-span-full flex items-center justify-center rounded-2xl border border-border bg-white p-10 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Ładowanie planów
+          </div>
+        ) : (
+          publicPlans.map((plan) => {
+            const isCurrent = currentPlanCode === plan.code;
+            const isEnterprise = plan.code === 'enterprise';
+            const isSelected = selectedPlan === plan.code;
+
+            return (
+              <article
+                key={plan.code}
+                className={cn(
+                  'flex flex-col rounded-2xl border bg-white p-5 shadow-sm',
+                  plan.code === 'professional'
+                    ? 'border-[#D4A853]/50 ring-2 ring-[#D4A853]/15'
+                    : 'border-border',
+                  isSelected && 'border-primary ring-2 ring-primary/15',
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="font-heading text-xl font-semibold text-foreground">
+                        {plan.label}
+                      </h2>
+                      {isCurrent ? (
+                        <Badge variant="success">Aktualny</Badge>
+                      ) : null}
+                      {plan.code === 'professional' ? (
+                        <Badge variant="gold">Polecany</Badge>
+                      ) : null}
+                    </div>
+                    <p className="mt-2 min-h-[3rem] text-sm leading-6 text-muted-foreground">
+                      {plan.description ?? getPlanFallbackDescription(plan)}
+                    </p>
+                  </div>
+                  <Crown className="h-5 w-5 text-brand-gold-dark" />
                 </div>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {plan.description}
-                </p>
-              </div>
-              <Crown className="h-5 w-5 text-brand-gold-dark" />
-            </div>
 
-            <p className="mt-5 font-heading text-2xl font-semibold text-foreground">
-              {plan.priceLabel}
-            </p>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              {plan.bestFor}
-            </p>
+                <div className="mt-5">
+                  <p className="font-heading text-2xl font-semibold text-foreground">
+                    {formatPlanPrice(plan, billingInterval)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {getPriceHelper(plan, billingInterval)}
+                  </p>
+                </div>
 
-            <ul className="mt-5 flex-1 space-y-3">
-              {plan.features.map((feature) => (
-                <li key={feature} className="flex items-start gap-2 text-sm">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  <span className="text-muted-foreground">{feature}</span>
-                </li>
-              ))}
-            </ul>
+                <ul className="mt-5 flex-1 space-y-3">
+                  {getPlanHighlights(plan).map((feature) => (
+                    <li
+                      key={feature}
+                      className="flex items-start gap-2 text-sm"
+                    >
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <span className="text-muted-foreground">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
 
-            <Button
-              type="button"
-              variant={selectedPlan === plan.code ? 'default' : 'outline'}
-              className="mt-6 w-full rounded-xl"
-              onClick={() => trackPlanSelection(plan.code)}
-            >
-              {selectedPlan === plan.code ? 'Wybrany plan' : 'Wybierz plan'}
-            </Button>
-          </article>
-        ))}
+                <Button
+                  type="button"
+                  variant={isSelected || isCurrent ? 'default' : 'outline'}
+                  className="mt-6 w-full rounded-xl"
+                  disabled={isCurrent}
+                  onClick={() => trackPlanSelection(plan)}
+                >
+                  {isCurrent
+                    ? 'Aktualny plan'
+                    : isEnterprise
+                      ? 'Kontakt'
+                      : isSelected
+                        ? 'Wybrany plan'
+                        : 'Wybierz plan'}
+                </Button>
+              </article>
+            );
+          })
+        )}
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
@@ -276,13 +339,13 @@ export default function UpgradePage() {
           </h2>
           <div className="mt-4 space-y-4 text-sm leading-6 text-muted-foreground">
             <p>
-              Na tym etapie nie uruchamiamy automatycznego billing engine.
-              Zapisujemy intencję upgrade w analityce produktu, żeby zespół mógł
-              ręcznie skontaktować się z workspace i potwierdzić właściwy plan.
+              Na tym etapie zapisujemy intencję upgrade i kontekst wyboru.
+              Obecny plan pozostaje bez zmian, dopóki nie zostanie obsłużony
+              ręcznie albo przez checkout w kolejnej iteracji.
             </p>
             <p>
-              Do czasu wdrożenia checkoutu obecny plan pozostaje bez zmian, a
-              istniejące dane nie są ukrywane ani usuwane.
+              Enterprise i indywidualne warunki są obsługiwane manualnie przez
+              konfigurację planu agencji w panelu admina.
             </p>
           </div>
         </div>
@@ -319,8 +382,8 @@ export default function UpgradePage() {
               </span>
               <Input
                 value={
-                  upgradePlans.find((plan) => plan.code === selectedPlan)
-                    ?.name ?? ''
+                  publicPlans.find((plan) => plan.code === selectedPlan)
+                    ?.label ?? selectedPlan
                 }
                 readOnly
                 className="h-10 rounded-xl"
@@ -358,8 +421,8 @@ export default function UpgradePage() {
 
           {submitted ? (
             <div className="mt-5 rounded-xl border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-sm leading-6 text-[#166534]">
-              Dzięki, zapisaliśmy intencję upgrade. To wystarczy dla MVP: event
-              zawiera źródło, plan, priorytet i kontekst kliknięcia.
+              Dzięki, zapisaliśmy intencję upgrade z wybranym planem i trybem
+              rozliczenia.
             </div>
           ) : null}
 
@@ -379,13 +442,15 @@ function getUpsellId(value: string | null): GrowthUpsellId | undefined {
 }
 
 function getPlanCode(value: string | null): UpgradePlanCode | undefined {
-  if (
+  return isSelectableUpgradePlan(value) ? value : undefined;
+}
+
+function isSelectableUpgradePlan(
+  value: string | null | undefined,
+): value is UpgradePlanCode {
+  return (
     value === 'starter' ||
     value === 'professional' ||
     value === 'enterprise'
-  ) {
-    return value;
-  }
-
-  return undefined;
+  );
 }

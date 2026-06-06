@@ -21,6 +21,7 @@ import { LocationsModule } from './locations';
 import { ProductFeedbackModule } from './product-feedback';
 import { BlogModule } from './blog';
 import { AdminModule } from './admin';
+import { PlansModule } from './plans';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { AdminModule } from './admin';
     PublicListingSubmissionsModule,
     ProductFeedbackModule,
     BlogModule,
+    PlansModule,
     AdminModule,
   ],
   controllers: [AppController],

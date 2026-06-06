@@ -1,7 +1,7 @@
 # Wdrożenie planów i billingowego — specyfikacja techniczna
 
 > Data: 5 czerwca 2026  
-> Status: Iteracja 5 zakończona — panel admina do zarządzania planami gotowy
+> Status: Iteracja 6 zakończona — publiczny cennik i upgrade flow korzystają z katalogu planów
 > Kontekst: Aktualnie plany są hardcodowane w `switch/case` w `AgencyPlanService`. Brak custom planów, brak cen, brak checkout flow.
 
 ---
@@ -571,14 +571,43 @@ Cel: admin może konfigurować plany bez dotykania bazy i bez deployu.
 
 Cel: frontend użytkownika korzysta z planów z bazy, a nie z hardcoded danych.
 
-- [ ] **I6.1** — Dodać publiczny endpoint `GET /api/plans` zwracający tylko `is_public = true`
-- [ ] **I6.2** — Przepisać `/dashboard/upgrade`, żeby pobierał plany z API
-- [ ] **I6.3** — Dodać publiczną stronę `/cennik`
-- [ ] **I6.4** — Dodać toggle miesięcznie/rocznie
-- [ ] **I6.5** — Oznaczyć aktualny plan użytkownika
-- [ ] **I6.6** — Ukrywać Custom z publicznego cennika
-- [ ] **I6.7** — Enterprise pokazywać jako "Kontakt" zamiast checkoutu
-- [ ] **I6.8** — Zaktualizować `AuthUser` na froncie o nowe pola features i billing info
+- [x] **I6.1** — Dodać publiczny endpoint `GET /api/plans` zwracający tylko `is_public = true`
+- [x] **I6.2** — Przepisać `/dashboard/upgrade`, żeby pobierał plany z API
+- [x] **I6.3** — Dodać publiczną stronę `/cennik`
+- [x] **I6.4** — Dodać toggle miesięcznie/rocznie
+- [x] **I6.5** — Oznaczyć aktualny plan użytkownika
+- [x] **I6.6** — Ukrywać Custom z publicznego cennika
+- [x] **I6.7** — Enterprise pokazywać jako "Kontakt" zamiast checkoutu
+- [x] **I6.8** — Zaktualizować `AuthUser` na froncie o nowe pola features i billing info
+
+#### Wykonane w Iteracji 6
+
+1. Dodano `PlansModule`, `PlansController` i `PlansService` w API.
+2. Dodano publiczny endpoint `GET /api/plans`, oznaczony `@Public()`, który zwraca tylko rekordy `plan_catalog.is_public = true`.
+3. Publiczna odpowiedź planów nie wystawia `stripePriceIdMonthly`, `stripePriceIdYearly`, `isPublic`, `createdAt` ani `updatedAt`; Stripe Price ID pozostają tylko po stronie admin API.
+4. Dodano test `apps/api/src/plans/plans.service.spec.ts`, który sprawdza filtrowanie publicznego katalogu i brak provider-specific billing identifiers w odpowiedzi.
+5. Rozszerzono `AuthService.serializeUser()` o pola `agency.billingInterval`, `agency.currentPeriodEnd` i `agency.trialEndsAt`.
+6. Rozszerzono frontendowy `AuthUser` o billing fields oraz feature flags: `customDomain`, `apiAccess`, `dedicatedSupport`.
+7. Dodano `fetchPublicPlans()` w `apps/web/src/lib/billing-plans.ts` z `skipAuth: true`.
+8. Dodano wspólne helpery prezentacji publicznych planów w `apps/web/src/lib/public-pricing.ts`.
+9. Przepisano `/dashboard/upgrade`, żeby:
+   - pobierał ceny, limity i funkcje z `GET /api/plans`,
+   - obsługiwał przełącznik miesięcznie/rocznie,
+   - oznaczał aktualny plan użytkownika,
+   - ukrywał `custom`,
+   - pokazywał Enterprise jako kontakt,
+   - nadal zapisywał intencję upgrade w analityce.
+10. Dodano publiczną stronę `/cennik` w marketingowym layoucie, pobierającą plany z API bez autoryzacji.
+11. Dla Enterprise w publicznym cenniku ustawiono akcję kontaktową zamiast checkoutu, bo checkout Stripe jest dopiero w Iteracji 7.
+
+#### Weryfikacja Iteracji 6
+
+- [x] `pnpm --filter api type-check`
+- [x] `pnpm --filter api test -- plans.service.spec.ts`
+- [x] `pnpm --filter api test`
+- [x] `pnpm --filter web type-check`
+- [x] `pnpm --filter web build` (wymaga dostępu sieciowego do Google Fonts używanych przez `next/font`)
+- [x] `git diff --check`
 
 ### Iteracja 7 — Stripe checkout i billing portal
 
@@ -686,7 +715,7 @@ Bez tego można mieć cennik, ale system nie będzie realnie kontrolował dostę
 
 - [x] **Should have** — Iteracja 2: admin API dla globalnych planów
 - [x] **Should have** — Iteracja 5: podstawowy panel admina dla planów i agencji
-- [ ] **Should have** — Iteracja 6: publiczny cennik i `/dashboard/upgrade`
+- [x] **Should have** — Iteracja 6: publiczny cennik i `/dashboard/upgrade`
 
 To umożliwia sprzedaż i obsługę klientów bez deployu przy każdej zmianie oferty.
 
@@ -708,7 +737,7 @@ Stripe powinien być warstwą płatności nad modelem planów, nie źródłem pr
 | `apps/api/src/users/entities/agency.entity.ts` | Dodać `planOverrides`, billing fields |
 | `apps/api/migrations/20260605_agency_billing_and_custom_plan.sql` | Nowa migracja |
 | `apps/api/src/plans/entities/plan-catalog.entity.ts` | Nowa encja `PlanCatalog` |
-| `apps/api/src/plans/plans.service.ts` | Publiczny odczyt planów i helpery dla entitlementów |
+| `apps/api/src/plans/plans.service.ts` | Publiczny odczyt planów |
 | `apps/api/src/admin/admin-plans.controller.ts` | Admin API do edycji globalnych planów |
 | `apps/api/src/admin/admin-agency-plans.controller.ts` | Admin API do przypisywania planów agencjom |
 | `apps/api/src/admin/dto/*` | DTO i walidacja edycji planów oraz custom override |
@@ -717,4 +746,4 @@ Stripe powinien być warstwą płatności nad modelem planów, nie źródłem pr
 | `apps/web/src/app/(admin)/admin/plans/*` | Panel admina do zarządzania globalnymi planami |
 | `apps/web/src/app/(admin)/admin/agencies/*` | Panel admina do przypisywania planów agencjom |
 | `apps/web/src/app/(dashboard)/dashboard/upgrade/page.tsx` | Przepisać na pełny cennik |
-| `apps/web/src/app/(public)/cennik/page.tsx` | Nowa strona publiczna |
+| `apps/web/src/app/(marketing)/cennik/page.tsx` | Nowa strona publiczna |

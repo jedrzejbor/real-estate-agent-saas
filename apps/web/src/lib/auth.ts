@@ -18,6 +18,9 @@ export interface AuthUser {
     plan: string;
     subscription: string;
     ownerId: string | null;
+    billingInterval: 'monthly' | 'yearly' | null;
+    currentPeriodEnd: string | null;
+    trialEndsAt: string | null;
   } | null;
   entitlements: {
     plan: {
@@ -41,6 +44,9 @@ export interface AuthUser {
       publicLeadForms: boolean;
       customBranding: boolean;
       multiUser: boolean;
+      customDomain: boolean;
+      apiAccess: boolean;
+      dedicatedSupport: boolean;
     };
   };
   releaseFlags: ReleaseFlags;

@@ -93,6 +93,21 @@ const featureConfig: FeatureConfig[] = [
     label: 'Praca zespołowa',
     description: 'Dodawanie kolejnych użytkowników i współpraca w workspace.',
   },
+  {
+    key: 'customDomain',
+    label: 'Własna domena',
+    description: 'Publikacja brandowych stron pod domeną biura.',
+  },
+  {
+    key: 'apiAccess',
+    label: 'Dostęp API',
+    description: 'Integracje systemowe i eksport danych przez API.',
+  },
+  {
+    key: 'dedicatedSupport',
+    label: 'Dedykowane wsparcie',
+    description: 'Priorytetowa obsługa wdrożenia i zmian dla zespołu.',
+  },
 ];
 
 export function getPlanUsageMetrics(user: AuthUser): PlanUsageMetric[] {
