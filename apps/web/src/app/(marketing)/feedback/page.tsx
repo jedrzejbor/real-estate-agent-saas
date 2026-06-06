@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { ArrowLeft, MessageSquare, ShieldCheck } from 'lucide-react';
 import { Container } from '@/components/layout';
 import { FeatureSurveyList } from '@/components/feedback/feature-survey-list';
@@ -56,10 +57,14 @@ export default function FeedbackPage() {
           </div>
         </section>
 
-        <PublicProductFeedbackForm />
+        <Suspense fallback={null}>
+          <PublicProductFeedbackForm />
+        </Suspense>
       </div>
 
-      <FeatureSurveyList publicMode className="mt-8" />
+      <Suspense fallback={null}>
+        <FeatureSurveyList publicMode className="mt-8" />
+      </Suspense>
     </Container>
   );
 }

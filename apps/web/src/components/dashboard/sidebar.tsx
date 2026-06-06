@@ -14,6 +14,7 @@ import {
   LogOut,
   ThumbsUp,
   Newspaper,
+  CreditCard,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -71,6 +72,11 @@ export function DashboardSidebar() {
             label: 'Moderacja ofert',
             href: '/dashboard/admin/submissions',
             icon: ClipboardList,
+          },
+          {
+            label: 'Plany',
+            href: '/dashboard/admin/plans',
+            icon: CreditCard,
           },
         ]
       : navItems;

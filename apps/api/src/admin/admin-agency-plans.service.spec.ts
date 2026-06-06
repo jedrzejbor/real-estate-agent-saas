@@ -67,6 +67,7 @@ function buildService(params: {
   const agencyRepo = {
     findOne: jest.fn().mockResolvedValue(agency),
     save: jest.fn(async (entity) => entity),
+    createQueryBuilder: jest.fn(),
   };
   const agentRepo = {
     find: jest.fn().mockResolvedValue(agents),
@@ -110,6 +111,14 @@ function buildService(params: {
     })),
   };
 
+  const queryBuilder = {
+    orderBy: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    getMany: jest.fn().mockResolvedValue(agency ? [agency] : []),
+  };
+  agencyRepo.createQueryBuilder.mockReturnValue(queryBuilder);
+
   return {
     service: new AdminAgencyPlansService(
       agencyRepo as never,
@@ -122,6 +131,7 @@ function buildService(params: {
     usersService,
     agencyPlanService,
     agency,
+    queryBuilder,
   };
 }
 
@@ -147,6 +157,30 @@ describe('AdminAgencyPlansService', () => {
         limit: 5,
         message: 'Aktualne użycie activeListings (6) przekracza nowy limit (5)',
       },
+    ]);
+  });
+
+  it('lists agencies for admin selection with optional search', async () => {
+    const { service, agencyRepo, queryBuilder } = buildService();
+
+    const agencies = await service.findAgencies({ search: 'kowalski' });
+
+    expect(agencyRepo.createQueryBuilder).toHaveBeenCalledWith('agency');
+    expect(queryBuilder.orderBy).toHaveBeenCalledWith(
+      'agency.createdAt',
+      'DESC',
+    );
+    expect(queryBuilder.limit).toHaveBeenCalledWith(100);
+    expect(queryBuilder.where).toHaveBeenCalledWith(
+      'agency.name ILIKE :search',
+      { search: '%kowalski%' },
+    );
+    expect(agencies).toEqual([
+      expect.objectContaining({
+        id: 'agency-1',
+        name: 'Kowalski Real Estate',
+        plan: AgencyPlan.FREE,
+      }),
     ]);
   });
 

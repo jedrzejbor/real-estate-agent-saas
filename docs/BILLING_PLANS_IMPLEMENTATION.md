@@ -1,7 +1,7 @@
 # Wdrożenie planów i billingowego — specyfikacja techniczna
 
 > Data: 5 czerwca 2026  
-> Status: Iteracja 4 zakończona — limity i feature gates zweryfikowane, payloady błędów ujednolicone
+> Status: Iteracja 5 zakończona — panel admina do zarządzania planami gotowy
 > Kontekst: Aktualnie plany są hardcodowane w `switch/case` w `AgencyPlanService`. Brak custom planów, brak cen, brak checkout flow.
 
 ---
@@ -536,14 +536,36 @@ Cel: wszystkie moduły korzystają z jednego źródła entitlementów.
 
 Cel: admin może konfigurować plany bez dotykania bazy i bez deployu.
 
-- [ ] **I5.1** — Dodać widok listy planów w panelu admina
-- [ ] **I5.2** — Dodać formularz edycji planu standardowego: nazwa, opis, ceny, Stripe Price ID, widoczność, kolejność
-- [ ] **I5.3** — Dodać edytor limitów: inputy numeryczne + opcja "bez limitu" (`null`)
-- [ ] **I5.4** — Dodać edytor funkcji: toggles dla wszystkich feature flags
-- [ ] **I5.5** — Dodać podgląd karty planu tak, jak będzie wyglądała w cenniku
-- [ ] **I5.6** — Dodać widok agencji z aktualnym planem, statusem subskrypcji i usage
-- [ ] **I5.7** — Dodać konfigurator planu indywidualnego dla agencji
-- [ ] **I5.8** — Dodać podgląd efektywnych entitlementów po merge `plan_catalog + plan_overrides`
+- [x] **I5.1** — Dodać widok listy planów w panelu admina
+- [x] **I5.2** — Dodać formularz edycji planu standardowego: nazwa, opis, ceny, Stripe Price ID, widoczność, kolejność
+- [x] **I5.3** — Dodać edytor limitów: inputy numeryczne + opcja "bez limitu" (`null`)
+- [x] **I5.4** — Dodać edytor funkcji: toggles dla wszystkich feature flags
+- [x] **I5.5** — Dodać podgląd karty planu tak, jak będzie wyglądała w cenniku
+- [x] **I5.6** — Dodać widok agencji z aktualnym planem, statusem subskrypcji i usage
+- [x] **I5.7** — Dodać konfigurator planu indywidualnego dla agencji
+- [x] **I5.8** — Dodać podgląd efektywnych entitlementów po merge `plan_catalog + plan_overrides`
+
+#### Wykonane w Iteracji 5
+
+1. Dodano panel `/dashboard/admin/plans` dostępny z dashboardowego sidebara dla roli `admin`.
+2. Dodano frontendowy klient `apps/web/src/lib/billing-plans.ts` dla admin API planów i planów agencji.
+3. Dodano listę globalnych planów z informacją o cenie i gotowości billingowej.
+4. Dodano formularz edycji planu globalnego: nazwa, opis, ceny, Stripe Price ID, widoczność publiczna i kolejność.
+5. Dodano edytor limitów z obsługą `null` jako "bez limitu".
+6. Dodano edytor feature flags dla wszystkich znanych funkcji.
+7. Dodano listę agencji z wyszukiwaniem i aktualnym planem.
+8. Dodano konfigurator planu agencji: wybór planu standardowego albo `custom`, custom label, cena i override limitów/funkcji.
+9. Dodano podgląd usage i ostrzeżeń limitów dla wybranej agencji.
+10. Dodano backendowy endpoint pomocniczy `GET /api/admin/agencies`, żeby panel nie wymagał ręcznego wpisywania UUID agencji.
+11. Naprawiono build web przez owinięcie publicznych komponentów feedbacku w `Suspense`, bo Next 16 wymaga boundary dla `useSearchParams()`.
+
+#### Weryfikacja Iteracji 5
+
+- [x] `pnpm --filter api type-check`
+- [x] `pnpm --filter api test -- admin-agency-plans.service.spec.ts`
+- [x] `pnpm --filter api test`
+- [x] `pnpm --filter web type-check`
+- [x] `pnpm --filter web build` (wymaga dostępu sieciowego do Google Fonts używanych przez `next/font`)
 
 ### Iteracja 6 — Publiczny cennik i upgrade flow
 
@@ -663,7 +685,7 @@ Bez tego można mieć cennik, ale system nie będzie realnie kontrolował dostę
 ### Ważne na launch
 
 - [x] **Should have** — Iteracja 2: admin API dla globalnych planów
-- [ ] **Should have** — Iteracja 5: podstawowy panel admina dla planów i agencji
+- [x] **Should have** — Iteracja 5: podstawowy panel admina dla planów i agencji
 - [ ] **Should have** — Iteracja 6: publiczny cennik i `/dashboard/upgrade`
 
 To umożliwia sprzedaż i obsługę klientów bez deployu przy każdej zmianie oferty.

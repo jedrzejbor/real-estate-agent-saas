@@ -14,7 +14,7 @@ import {
 } from '../users/agency-plan.types';
 import { Agency, Agent } from '../users/entities';
 import { AgencyUsageSummary } from '../users/users.service';
-import { UpdateAgencyPlanDto } from './dto';
+import { AdminAgenciesQueryDto, UpdateAgencyPlanDto } from './dto';
 
 export interface LimitWarning {
   resource: keyof AgencyPlanLimits;
@@ -37,6 +37,17 @@ export interface AdminAgencyPlanResponse {
   limitWarnings: LimitWarning[];
 }
 
+export interface AdminAgencyListItem {
+  id: string;
+  name: string;
+  plan: string;
+  subscription: string;
+  ownerId: string | null;
+  planChangedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 @Injectable()
 export class AdminAgencyPlansService {
   constructor(
@@ -47,6 +58,32 @@ export class AdminAgencyPlansService {
     private readonly usersService: UsersService,
     private readonly agencyPlanService: AgencyPlanService,
   ) {}
+
+  async findAgencies(
+    query: AdminAgenciesQueryDto = {},
+  ): Promise<AdminAgencyListItem[]> {
+    const qb = this.agencyRepo
+      .createQueryBuilder('agency')
+      .orderBy('agency.createdAt', 'DESC')
+      .limit(100);
+
+    const search = query.search?.trim();
+    if (search) {
+      qb.where('agency.name ILIKE :search', { search: `%${search}%` });
+    }
+
+    const agencies = await qb.getMany();
+    return agencies.map((agency) => ({
+      id: agency.id,
+      name: agency.name,
+      plan: agency.plan,
+      subscription: agency.subscription,
+      ownerId: agency.ownerId ?? null,
+      planChangedAt: agency.planChangedAt ?? null,
+      createdAt: agency.createdAt,
+      updatedAt: agency.updatedAt,
+    }));
+  }
 
   async findAgencyPlan(agencyId: string): Promise<AdminAgencyPlanResponse> {
     const agency = await this.findAgency(agencyId);
