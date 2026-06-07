@@ -122,6 +122,9 @@ export const registerSchema = z.object({
   accountType: z.enum(['agent', 'private_seller'], {
     message: 'Wybierz typ konta',
   }),
+  selectedPlan: z
+    .enum(['free', 'starter', 'professional', 'enterprise'])
+    .optional(),
   email: z
     .string()
     .min(1, 'Email jest wymagany')

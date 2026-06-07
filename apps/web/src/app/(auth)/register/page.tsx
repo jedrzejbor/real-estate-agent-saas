@@ -3,7 +3,13 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Building2, Home } from 'lucide-react';
+import {
+  AlertCircle,
+  Building2,
+  CheckCircle2,
+  Home,
+  Loader2,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import {
   getAuthenticatedRedirectPath,
@@ -13,6 +19,16 @@ import {
 } from '@/lib/auth';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
+  fetchPublicPlans,
+  type AgencyPlanCode,
+  type PublicPlan,
+} from '@/lib/billing-plans';
+import {
+  formatPlanPrice,
+  getPlanFallbackDescription,
+  getPlanHighlights,
+} from '@/lib/public-pricing';
+import {
   buildClaimAuthPath,
   claimPublicListingSubmission,
 } from '@/lib/public-listing-submissions';
@@ -20,6 +36,11 @@ import { useAuthForm } from '@/hooks/use-auth-form';
 import { Button } from '@/components/ui/button';
 import { AuthFormField } from '@/components/auth/auth-form-field';
 import { AuthRedirectLoading } from '@/components/auth/auth-redirect-loading';
+import { cn } from '@/lib/utils';
+
+type RegisterPlan = PublicPlan & {
+  code: Exclude<AgencyPlanCode, 'custom'>;
+};
 
 export default function RegisterPage() {
   return (
@@ -34,10 +55,53 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const claimToken = searchParams.get('claimToken');
+  const initialPlan = getRegisterPlan(searchParams.get('plan'));
   const hasClaimedAuthenticatedTokenRef = useRef(false);
+  const [accountType, setAccountType] = useState<'agent' | 'private_seller'>(
+    claimToken ? 'private_seller' : 'agent',
+  );
+  const [selectedPlan, setSelectedPlan] = useState<
+    Exclude<AgencyPlanCode, 'custom'>
+  >(initialPlan ?? 'free');
+  const [plans, setPlans] = useState<RegisterPlan[]>([]);
+  const [plansError, setPlansError] = useState<string | null>(null);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [authenticatedClaimError, setAuthenticatedClaimError] = useState<
     string | null
   >(null);
+
+  useEffect(() => {
+    if (claimToken || accountType !== 'agent') return;
+
+    let isMounted = true;
+    setIsLoadingPlans(true);
+
+    fetchPublicPlans()
+      .then((response) => {
+        if (!isMounted) return;
+        const registerPlans = response.filter(isRegisterPlan);
+        setPlans(registerPlans);
+        setPlansError(null);
+
+        setSelectedPlan((currentPlan) =>
+          registerPlans.length > 0 &&
+          !registerPlans.some((plan) => plan.code === currentPlan)
+            ? registerPlans[0].code
+            : currentPlan,
+        );
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        setPlansError(getApiErrorMessage(error));
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingPlans(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accountType, claimToken]);
 
   useEffect(() => {
     if (isAuthLoading || !user) return;
@@ -140,6 +204,7 @@ function RegisterForm() {
                   value="agent"
                   defaultChecked={!claimToken}
                   disabled={Boolean(claimToken)}
+                  onChange={() => setAccountType('agent')}
                   className="peer sr-only"
                 />
                 <span className="flex items-start gap-3">
@@ -163,6 +228,7 @@ function RegisterForm() {
                   name="accountType"
                   value="private_seller"
                   defaultChecked={Boolean(claimToken)}
+                  onChange={() => setAccountType('private_seller')}
                   className="peer sr-only"
                 />
                 <span className="flex items-start gap-3">
@@ -192,6 +258,84 @@ function RegisterForm() {
               </p>
             ) : null}
           </div>
+
+          {accountType === 'agent' && !claimToken ? (
+            <div>
+              <input type="hidden" name="selectedPlan" value={selectedPlan} />
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-foreground">
+                  Pakiet startowy
+                </p>
+                <Link
+                  href="/cennik"
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Porównaj plany
+                </Link>
+              </div>
+
+              {plansError ? (
+                <div className="mb-3 flex items-center gap-2 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-xs text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  {plansError}
+                </div>
+              ) : null}
+
+              {isLoadingPlans ? (
+                <div className="flex items-center justify-center rounded-xl border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Ładowanie planów
+                </div>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {plans.map((plan) => (
+                    <button
+                      key={plan.code}
+                      type="button"
+                      onClick={() => setSelectedPlan(plan.code)}
+                      className={cn(
+                        'rounded-xl border p-4 text-left transition-colors',
+                        selectedPlan === plan.code
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border bg-white hover:bg-muted/30',
+                      )}
+                    >
+                      <span className="flex items-start justify-between gap-3">
+                        <span>
+                          <span className="block text-sm font-semibold text-foreground">
+                            {plan.label}
+                          </span>
+                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                            {plan.description ??
+                              getPlanFallbackDescription(plan)}
+                          </span>
+                        </span>
+                        {selectedPlan === plan.code ? (
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                        ) : null}
+                      </span>
+                      <span className="mt-3 block font-heading text-xl font-semibold text-foreground">
+                        {formatPlanPrice(plan, 'monthly')}
+                      </span>
+                      <span className="mt-2 block text-xs leading-5 text-muted-foreground">
+                        {getPlanHighlights(plan).slice(0, 3).join(' · ')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Płatności Stripe wdrożymy w kolejnym etapie. Teraz wybór
+                pakietu ustawia konfigurację startową workspace.
+              </p>
+              {getFieldError('selectedPlan') ? (
+                <p className="mt-2 text-xs text-destructive">
+                  {getFieldError('selectedPlan')}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-2 gap-3">
             <AuthFormField
@@ -252,5 +396,26 @@ function RegisterForm() {
         </Link>
       </p>
     </>
+  );
+}
+
+function getRegisterPlan(
+  value: string | null,
+): Exclude<AgencyPlanCode, 'custom'> | undefined {
+  return isRegisterPlanCode(value) ? value : undefined;
+}
+
+function isRegisterPlan(plan: PublicPlan): plan is RegisterPlan {
+  return isRegisterPlanCode(plan.code);
+}
+
+function isRegisterPlanCode(
+  value: string | null | undefined,
+): value is Exclude<AgencyPlanCode, 'custom'> {
+  return (
+    value === 'free' ||
+    value === 'starter' ||
+    value === 'professional' ||
+    value === 'enterprise'
   );
 }

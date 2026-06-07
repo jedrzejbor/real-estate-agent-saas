@@ -80,6 +80,7 @@ export class UsersService {
     firstName?: string;
     lastName?: string;
     role?: UserRole;
+    initialPlan?: AgencyPlan;
   }): Promise<User> {
     const existing = await this.findByEmail(params.email);
     if (existing) {
@@ -108,7 +109,7 @@ export class UsersService {
           params.lastName,
         ),
         ownerId: savedUser.id,
-        plan: AgencyPlan.FREE,
+        plan: params.initialPlan ?? AgencyPlan.FREE,
         subscription: SubscriptionStatus.ACTIVE,
       });
 

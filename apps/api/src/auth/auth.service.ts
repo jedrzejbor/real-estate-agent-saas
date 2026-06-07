@@ -26,6 +26,7 @@ import {
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../common/enums';
+import { AgencyPlan } from '../common/enums';
 
 const BCRYPT_ROUNDS = 12;
 const PASSWORD_RESET_TOKEN_BYTES = 32;
@@ -57,6 +58,10 @@ export class AuthService {
         dto.accountType === RegisterAccountType.PRIVATE_SELLER
           ? UserRole.VIEWER
           : UserRole.AGENT,
+      initialPlan:
+        dto.accountType === RegisterAccountType.PRIVATE_SELLER
+          ? AgencyPlan.FREE
+          : (dto.selectedPlan ?? AgencyPlan.FREE),
     });
 
     const user = await this.usersService.ensureAgencyForUser(createdUser.id);

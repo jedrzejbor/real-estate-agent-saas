@@ -8,6 +8,7 @@ import {
   Matches,
   IsIn,
 } from 'class-validator';
+import { AgencyPlan } from '../../common/enums';
 
 export const RegisterAccountType = {
   AGENT: 'agent',
@@ -23,6 +24,20 @@ export class RegisterDto {
     message: 'Nieprawidłowy typ konta',
   })
   accountType?: RegisterAccountType;
+
+  @IsOptional()
+  @IsIn(
+    [
+      AgencyPlan.FREE,
+      AgencyPlan.STARTER,
+      AgencyPlan.PROFESSIONAL,
+      AgencyPlan.ENTERPRISE,
+    ],
+    {
+      message: 'Nieprawidłowy plan',
+    },
+  )
+  selectedPlan?: Exclude<AgencyPlan, AgencyPlan.CUSTOM>;
 
   @IsEmail({}, { message: 'Nieprawidłowy adres email' })
   @IsNotEmpty({ message: 'Email jest wymagany' })
