@@ -19,9 +19,9 @@ import {
 import { Container, Section, SectionHeader } from '@/components/layout';
 import {
   FeatureCard,
+  HomePricingSection,
   HowItWorksStep,
   TestimonialCard,
-  PricingCard,
 } from '@/components/marketing';
 import { HeroPhotoGrid } from '@/components/marketing/hero-photo-grid';
 import type { HeroImage } from '@/components/marketing/hero-photo-grid';
@@ -152,51 +152,6 @@ const testimonials = [
     authorName: 'Maria Wiśniewska',
     authorRole: 'Senior Agent, Gdańsk',
     rating: 5,
-  },
-];
-
-const pricingPlans = [
-  {
-    name: 'Starter',
-    price: 49,
-    description: 'Idealny na start dla agentów indywidualnych',
-    features: [
-      'Do 25 aktywnych ofert',
-      '1 konto agenta',
-      'Zarządzanie ofertami',
-      'Baza klientów',
-      'Kalendarz spotkań',
-      'Wsparcie email',
-    ],
-  },
-  {
-    name: 'Professional',
-    price: 149,
-    description: 'Dla rozwijających się biur nieruchomości',
-    features: [
-      'Do 200 aktywnych ofert',
-      'Do 5 kont agentów',
-      'Wszystko ze Starter +',
-      'Raporty i analityka',
-      'Automatyzacje',
-      'Eksport PDF',
-      'Priorytetowe wsparcie',
-    ],
-    isPopular: true,
-  },
-  {
-    name: 'Enterprise',
-    price: 399,
-    description: 'Pełna moc dla dużych biur nieruchomości',
-    features: [
-      'Nielimitowane oferty',
-      'Nielimitowani agenci',
-      'Wszystko z Professional +',
-      'Dostęp do API',
-      'White-label branding',
-      'Własna domena',
-      'Dedykowany opiekun',
-    ],
   },
 ];
 
@@ -520,13 +475,9 @@ export default function Home() {
           <SectionHeader
             badge="💰 Cennik"
             title="Prosty i przejrzysty cennik"
-            description="Bez ukrytych opłat. Zmień plan lub anuluj w dowolnym momencie."
+            description="Nazwy, ceny, limity i funkcje są zgodne z aktualną konfiguracją planów."
           />
-          <div className="mx-auto grid max-w-5xl items-stretch gap-6 pt-8 md:grid-cols-3">
-            {pricingPlans.map((plan) => (
-              <PricingCard key={plan.name} {...plan} />
-            ))}
-          </div>
+          <HomePricingSection />
         </Container>
       </Section>
 
