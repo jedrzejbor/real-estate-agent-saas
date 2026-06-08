@@ -57,8 +57,8 @@ export function BlogMarkdown({
               id={getHeadingId(block.text)}
               className={
                 block.level === 2
-                  ? 'pt-4 font-heading text-2xl font-semibold leading-tight text-[#1C1917] sm:text-3xl'
-                  : 'pt-2 font-heading text-xl font-semibold leading-tight text-[#1C1917]'
+                  ? 'scroll-mt-2 pt-4 font-heading text-2xl font-semibold leading-tight text-[#1C1917] sm:text-3xl lg:scroll-mt-20'
+                  : 'scroll-mt-2 pt-2 font-heading text-xl font-semibold leading-tight text-[#1C1917] lg:scroll-mt-20'
               }
             >
               {renderInlineMarkdown(block.text)}
