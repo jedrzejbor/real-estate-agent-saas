@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, type ElementType } from 'react';
 import Link from 'next/link';
 import {
+  Activity,
   Building2,
   Users,
   CalendarCheck,
@@ -14,6 +16,9 @@ import {
   User,
   Home,
   BarChart3,
+  ClipboardList,
+  LayoutDashboard,
+  MessageSquareText,
   Percent,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -40,6 +45,7 @@ import {
 export default function DashboardPage() {
   const { user } = useAuth();
   const { stats, isLoading, error, refresh } = useDashboard();
+  const [activeTab, setActiveTab] = useState<DashboardTabId>('overview');
 
   const firstName = user?.agent?.firstName?.trim() ?? '';
 
@@ -52,6 +58,15 @@ export default function DashboardPage() {
   const hasUsageWarning = usageCards.some(({ usage, limit }) =>
     isUsageWarning(usage, limit),
   );
+  const tabs = stats
+    ? getDashboardTabs({
+        stats,
+        hasUsageWarning,
+        planLabel: user?.entitlements.plan.label,
+      })
+    : [];
+  const selectedTab =
+    tabs.find((tab) => tab.id === activeTab && !tab.disabled) ?? tabs[0];
 
   return (
     <div className="space-y-6">
@@ -103,120 +118,295 @@ export default function DashboardPage() {
 
       {/* Dashboard content */}
       {stats && (
-        <>
-          {user ? (
-            <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant={
-                        user.entitlements.plan.code === 'free'
-                          ? 'muted'
-                          : 'gold'
-                      }
-                    >
-                      Plan {user.entitlements.plan.label}
-                    </Badge>
-                    {hasUsageWarning ? (
-                      <Badge variant="warning">Zbliżasz się do limitu</Badge>
-                    ) : null}
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Monitoruj wykorzystanie limitów, aby uniknąć blokady przy
-                    tworzeniu nowych rekordów.
-                  </p>
-                </div>
-                <Link
-                  href="/dashboard/settings"
-                  className="text-sm font-medium text-primary hover:underline"
-                >
-                  Zobacz plan i limity
-                </Link>
-              </div>
+        <section className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+          <div className="border-b border-border bg-muted/20 p-2">
+            <div
+              className="grid gap-2 md:grid-cols-2 xl:grid-cols-6"
+              role="tablist"
+              aria-label="Widok dashboardu"
+            >
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = selectedTab.id === tab.id;
 
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
-                {usageCards.map(({ key, ...item }) => (
-                  <PlanUsageCard key={key} {...item} />
-                ))}
-              </div>
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    disabled={tab.disabled}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`min-h-20 rounded-xl border px-3 py-3 text-left transition-colors ${
+                      isActive
+                        ? 'border-primary bg-white text-foreground shadow-sm'
+                        : 'border-transparent bg-transparent text-muted-foreground hover:bg-white/70 hover:text-foreground'
+                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-semibold">
+                          {tab.label}
+                        </span>
+                      </div>
+                      {tab.badge ? (
+                        <Badge
+                          variant={tab.badgeVariant ?? 'secondary'}
+                          className="rounded-full"
+                        >
+                          {tab.badge}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p className="mt-2 text-xs leading-5">{tab.description}</p>
+                  </button>
+                );
+              })}
             </div>
-          ) : null}
-
-          <OnboardingChecklist stats={stats} />
-
-          <FeatureSurveyList />
-
-          {/* Stat cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              label="Aktywne oferty"
-              value={String(stats.listings.active)}
-              subtitle={`${stats.listings.total} łącznie`}
-              icon={Building2}
-              color="text-brand-emerald"
-              bg="bg-brand-emerald-light"
-              href="/dashboard/listings"
-            />
-            <StatCard
-              label="Klienci"
-              value={String(stats.clients.total)}
-              subtitle={`${stats.clients.new} nowych`}
-              icon={Users}
-              color="text-brand-gold-dark"
-              bg="bg-brand-gold-light"
-              href="/dashboard/clients"
-            />
-            <StatCard
-              label="Spotkania (ten tydzień)"
-              value={String(stats.appointments.thisWeek)}
-              subtitle={`${stats.appointments.today} dzisiaj`}
-              icon={CalendarCheck}
-              color="text-status-info"
-              bg="bg-status-info-bg"
-              href="/dashboard/calendar"
-            />
-            <ConversionCard
-              conversionRate={stats.clients.conversionRate}
-              closedWon={stats.clients.closedWon}
-              closedLost={stats.clients.closedLost}
-            />
           </div>
 
-          {/* Revenue row */}
-          <div className="grid gap-4 sm:grid-cols-3">
-            <RevenueCard
-              label="Wartość aktywnych ofert"
-              value={formatPricePL(stats.revenue.totalListedValue)}
-              icon={DollarSign}
-            />
-            <RevenueCard
-              label="Średnia cena oferty"
-              value={formatPricePL(stats.revenue.avgPrice)}
-              icon={BarChart3}
-            />
-            <RevenueCard
-              label="Wartość sprzedaży"
-              value={formatPricePL(stats.revenue.soldValue)}
-              icon={Percent}
-            />
+          <div className="border-b border-border px-5 py-4">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Aktywny widok
+                </p>
+                <h2 className="mt-1 font-heading text-xl font-semibold text-foreground">
+                  {selectedTab.label}
+                </h2>
+              </div>
+              <Badge variant="outline" className="w-fit rounded-full">
+                {selectedTab.badge ?? 'Workspace'}
+              </Badge>
+            </div>
           </div>
 
-          {/* Two-column: Activity + Upcoming */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <RecentActivityCard activities={stats.recentActivity} />
-            <UpcomingAppointmentsCard
-              appointments={stats.upcomingAppointments}
-            />
-          </div>
+          <div className="min-h-[560px] bg-[#FAFAF9] p-5">
+            {selectedTab.id === 'overview' ? (
+              <DashboardOverviewContent stats={stats} />
+            ) : null}
 
-          {/* Status breakdown */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <ListingStatusBreakdown stats={stats.listings} />
-            <ClientPipelineBreakdown stats={stats.clients} />
+            {selectedTab.id === 'onboarding' ? (
+              <OnboardingChecklist stats={stats} />
+            ) : null}
+
+            {selectedTab.id === 'activity' ? (
+              <div className="grid gap-6 lg:grid-cols-2">
+                <RecentActivityCard activities={stats.recentActivity} />
+                <UpcomingAppointmentsCard
+                  appointments={stats.upcomingAppointments}
+                />
+              </div>
+            ) : null}
+
+            {selectedTab.id === 'pipeline' ? (
+              <div className="grid gap-6 lg:grid-cols-2">
+                <ListingStatusBreakdown stats={stats.listings} />
+                <ClientPipelineBreakdown stats={stats.clients} />
+              </div>
+            ) : null}
+
+            {selectedTab.id === 'plan' ? (
+              <DashboardPlanContent
+                user={user}
+                usageCards={usageCards}
+                hasUsageWarning={hasUsageWarning}
+              />
+            ) : null}
+
+            {selectedTab.id === 'feedback' ? (
+              <FeatureSurveyList emptyState />
+            ) : null}
           </div>
-        </>
+        </section>
       )}
+    </div>
+  );
+}
+
+type DashboardTabId =
+  | 'overview'
+  | 'onboarding'
+  | 'activity'
+  | 'pipeline'
+  | 'plan'
+  | 'feedback';
+
+interface DashboardTab {
+  id: DashboardTabId;
+  label: string;
+  description: string;
+  icon: ElementType;
+  badge?: string;
+  badgeVariant?: React.ComponentProps<typeof Badge>['variant'];
+  disabled?: boolean;
+}
+
+function getDashboardTabs({
+  stats,
+  hasUsageWarning,
+  planLabel,
+}: {
+  stats: DashboardStats;
+  hasUsageWarning: boolean;
+  planLabel?: string;
+}): DashboardTab[] {
+  return [
+    {
+      id: 'overview',
+      label: 'Przegląd',
+      description: 'Najważniejsze liczby CRM i wartości portfela.',
+      icon: LayoutDashboard,
+      badge: String(
+        stats.listings.active + stats.clients.total + stats.appointments.thisWeek,
+      ),
+    },
+    {
+      id: 'onboarding',
+      label: 'Start',
+      description: 'Checklista pierwszych działań w workspace.',
+      icon: ClipboardList,
+      badge: 'Kroki',
+    },
+    {
+      id: 'activity',
+      label: 'Aktywność',
+      description: 'Ostatnie działania i nadchodzące spotkania.',
+      icon: Activity,
+      badge: String(stats.recentActivity.length + stats.upcomingAppointments.length),
+    },
+    {
+      id: 'pipeline',
+      label: 'Pipeline',
+      description: 'Statusy ofert i lejek klientów.',
+      icon: TrendingUp,
+      badge: `${stats.clients.conversionRate}%`,
+    },
+    {
+      id: 'plan',
+      label: 'Plan',
+      description: 'Limity i wykorzystanie aktualnego pakietu.',
+      icon: BarChart3,
+      badge: hasUsageWarning ? 'Limit' : planLabel,
+      badgeVariant: hasUsageWarning ? 'warning' : 'secondary',
+    },
+    {
+      id: 'feedback',
+      label: 'Feedback',
+      description: 'Aktywne ankiety produktowe i głos użytkownika.',
+      icon: MessageSquareText,
+      badge: 'Ankiety',
+    },
+  ];
+}
+
+function DashboardOverviewContent({ stats }: { stats: DashboardStats }) {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Aktywne oferty"
+          value={String(stats.listings.active)}
+          subtitle={`${stats.listings.total} łącznie`}
+          icon={Building2}
+          color="text-brand-emerald"
+          bg="bg-brand-emerald-light"
+          href="/dashboard/listings"
+        />
+        <StatCard
+          label="Klienci"
+          value={String(stats.clients.total)}
+          subtitle={`${stats.clients.new} nowych`}
+          icon={Users}
+          color="text-brand-gold-dark"
+          bg="bg-brand-gold-light"
+          href="/dashboard/clients"
+        />
+        <StatCard
+          label="Spotkania (ten tydzień)"
+          value={String(stats.appointments.thisWeek)}
+          subtitle={`${stats.appointments.today} dzisiaj`}
+          icon={CalendarCheck}
+          color="text-status-info"
+          bg="bg-status-info-bg"
+          href="/dashboard/calendar"
+        />
+        <ConversionCard
+          conversionRate={stats.clients.conversionRate}
+          closedWon={stats.clients.closedWon}
+          closedLost={stats.clients.closedLost}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <RevenueCard
+          label="Wartość aktywnych ofert"
+          value={formatPricePL(stats.revenue.totalListedValue)}
+          icon={DollarSign}
+        />
+        <RevenueCard
+          label="Średnia cena oferty"
+          value={formatPricePL(stats.revenue.avgPrice)}
+          icon={BarChart3}
+        />
+        <RevenueCard
+          label="Wartość sprzedaży"
+          value={formatPricePL(stats.revenue.soldValue)}
+          icon={Percent}
+        />
+      </div>
+    </div>
+  );
+}
+
+function DashboardPlanContent({
+  user,
+  usageCards,
+  hasUsageWarning,
+}: {
+  user: ReturnType<typeof useAuth>['user'];
+  usageCards: ReturnType<typeof getPlanUsageMetrics>;
+  hasUsageWarning: boolean;
+}) {
+  if (!user) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <Badge
+              variant={
+                user.entitlements.plan.code === 'free' ? 'muted' : 'gold'
+              }
+            >
+              Plan {user.entitlements.plan.label}
+            </Badge>
+            {hasUsageWarning ? (
+              <Badge variant="warning">Zbliżasz się do limitu</Badge>
+            ) : null}
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Monitoruj wykorzystanie limitów, aby uniknąć blokady przy tworzeniu
+            nowych rekordów.
+          </p>
+        </div>
+        <Link
+          href="/dashboard/settings"
+          className="text-sm font-medium text-primary hover:underline"
+        >
+          Zobacz plan i limity
+        </Link>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        {usageCards.map(({ key, ...item }) => (
+          <PlanUsageCard key={key} {...item} />
+        ))}
+      </div>
     </div>
   );
 }
