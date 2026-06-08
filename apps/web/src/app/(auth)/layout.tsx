@@ -12,7 +12,7 @@ export default function AuthLayout({
       <Link href="/" className="mb-8" aria-label="Strona główna">
         <Logo size="lg" />
       </Link>
-      <div className="w-full max-w-md">{children}</div>
+      <div className="w-full max-w-6xl">{children}</div>
       <p className="mt-8 text-center text-sm text-muted-foreground">
         &copy; {new Date().getFullYear()} EstateFlow. Wszelkie prawa
         zastrzeżone.

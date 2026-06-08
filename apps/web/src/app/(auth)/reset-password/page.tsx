@@ -40,7 +40,7 @@ function ResetPasswordForm() {
   const isTokenMissing = !token;
 
   return (
-    <>
+    <div className="mx-auto w-full max-w-md">
       <div className="mb-6 text-center">
         <h1 className="font-heading text-2xl font-bold text-foreground">
           Ustaw nowe hasło
@@ -105,6 +105,6 @@ function ResetPasswordForm() {
           Wróć do logowania
         </Link>
       </p>
-    </>
+    </div>
   );
 }

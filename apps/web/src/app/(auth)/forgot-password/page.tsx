@@ -27,7 +27,7 @@ export default function ForgotPasswordPage() {
   });
 
   return (
-    <>
+    <div className="mx-auto w-full max-w-md">
       <div className="mb-6 text-center">
         <h1 className="font-heading text-2xl font-bold text-foreground">
           Przypomnij hasło
@@ -79,6 +79,6 @@ export default function ForgotPasswordPage() {
           Zaloguj się
         </Link>
       </p>
-    </>
+    </div>
   );
 }

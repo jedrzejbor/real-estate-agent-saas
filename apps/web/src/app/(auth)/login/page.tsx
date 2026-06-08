@@ -58,7 +58,7 @@ function LoginForm() {
   }
 
   return (
-    <>
+    <div className="mx-auto w-full max-w-md">
       <div className="mb-6 text-center">
         <h1 className="font-heading text-2xl font-bold text-foreground">
           Witaj ponownie
@@ -135,6 +135,6 @@ function LoginForm() {
           Zarejestruj się
         </Link>
       </p>
-    </>
+    </div>
   );
 }
