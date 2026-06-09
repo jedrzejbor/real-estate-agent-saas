@@ -57,6 +57,14 @@ export function PublicListingCatalog({
     [filters],
   );
   const formKey = buildCatalogQueryString(filters) || 'base-catalog';
+  const initialStateKey =
+    buildCatalogQueryString(initialFilters) || 'base-catalog';
+
+  useEffect(() => {
+    setFilters(initialFilters);
+    setCatalog(initialCatalog);
+    setError(initialError);
+  }, [initialStateKey, initialCatalog, initialError, initialFilters]);
 
   function loadCatalog(
     nextFilters: PublicListingCatalogFilters,
