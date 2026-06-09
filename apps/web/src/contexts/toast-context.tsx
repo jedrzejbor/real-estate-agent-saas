@@ -114,7 +114,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           return (
             <div
               key={toast.id}
-              className="pointer-events-auto rounded-2xl border border-border bg-white/95 p-4 shadow-lg ring-1 ring-black/5 backdrop-blur-sm animate-in slide-in-from-top-2 fade-in-0"
+              className="pointer-events-auto rounded-2xl border border-border bg-card/95 p-4 shadow-lg ring-1 ring-black/5 backdrop-blur-sm animate-in slide-in-from-top-2 fade-in-0"
               role="status"
               aria-live="polite"
             >

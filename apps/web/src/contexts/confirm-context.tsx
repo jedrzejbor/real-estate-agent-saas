@@ -111,7 +111,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             aria-label="Zamknij modal"
             onClick={() => closeDialog(false)}
           />
-          <div className="relative z-10 w-full max-w-md rounded-3xl border border-border bg-white p-6 shadow-2xl">
+          <div className="relative z-10 w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-2xl">
             <button
               type="button"
               onClick={() => closeDialog(false)}

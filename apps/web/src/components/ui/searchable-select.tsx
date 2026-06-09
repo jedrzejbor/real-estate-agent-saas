@@ -196,7 +196,7 @@ export function SearchableSelect({
           onClick={open}
           onKeyDown={handleKeyDown}
           className={cn(
-            'flex h-10 w-full items-center justify-between gap-2 rounded-xl border bg-white px-3 text-sm shadow-sm transition-colors outline-none cursor-pointer',
+            'flex h-10 w-full items-center justify-between gap-2 rounded-xl border bg-card px-3 text-sm shadow-sm transition-colors outline-none cursor-pointer',
             error
               ? 'border-destructive focus-within:ring-destructive/50'
               : 'border-border/80 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50',
@@ -228,7 +228,7 @@ export function SearchableSelect({
         // ── Search input ──
         <div
           className={cn(
-            'flex h-10 w-full items-center gap-2 rounded-xl border bg-white px-3 shadow-sm transition-colors',
+            'flex h-10 w-full items-center gap-2 rounded-xl border bg-card px-3 shadow-sm transition-colors',
             isOpen
               ? 'border-ring ring-3 ring-ring/50'
               : error
@@ -258,7 +258,7 @@ export function SearchableSelect({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-border bg-white shadow-lg">
+        <div className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-border bg-card shadow-lg">
           {isLoading && options.length === 0 ? (
             <div className="flex items-center justify-center gap-2 px-3 py-4 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
