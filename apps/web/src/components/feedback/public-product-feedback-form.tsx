@@ -147,7 +147,7 @@ export function PublicProductFeedbackForm() {
 
   if (submittedId) {
     return (
-      <section className="rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <MessageSquare className="h-6 w-6" />
         </div>
@@ -178,7 +178,7 @@ export function PublicProductFeedbackForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-6"
+      className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6"
     >
       <div className="grid gap-3 sm:grid-cols-2">
         {TYPE_OPTIONS.map((option) => {
@@ -193,7 +193,7 @@ export function PublicProductFeedbackForm() {
                 'min-h-28 rounded-xl border p-4 text-left transition-colors',
                 isSelected
                   ? 'border-primary bg-primary/10'
-                  : 'border-border bg-white hover:bg-muted',
+                  : 'border-border bg-card hover:bg-muted',
               )}
               onClick={() => setType(option.value)}
             >
@@ -219,7 +219,7 @@ export function PublicProductFeedbackForm() {
           <span className="text-sm font-medium text-foreground">Obszar</span>
           <select
             value={category}
-            className="h-10 w-full rounded-xl border border-border/80 bg-white px-3 text-sm shadow-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="h-10 w-full rounded-xl border border-border/80 bg-card px-3 text-sm shadow-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             onChange={(event) =>
               setCategory(event.target.value as ProductFeedbackCategoryValue)
             }
@@ -264,7 +264,7 @@ export function PublicProductFeedbackForm() {
           maxLength={5000}
           rows={7}
           placeholder="Opisz, co się stało, czego brakuje albo co warto poprawić."
-          className="w-full resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="w-full resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           onChange={(event) => setDescription(event.target.value)}
         />
         <span className="block text-xs leading-5 text-muted-foreground">

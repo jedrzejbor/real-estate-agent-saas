@@ -122,7 +122,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const blogContext = { slug: post.slug, title: post.title };
 
   return (
-    <article className="bg-[#FAFAF9]">
+    <article className="bg-background">
       <BlogArticleAnalytics
         slug={post.slug}
         title={post.title}
@@ -144,7 +144,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         />
       ) : null}
 
-      <header className="border-b border-border bg-white">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:px-10">
           <Link
             href="/blog"
@@ -157,19 +157,19 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <div className="mt-8">
             <div className="flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
               {post.category ? (
-                <span className="rounded-full border border-[#059669]/20 bg-[#ECFDF5] px-3 py-1 text-[#059669]">
+                <span className="rounded-full border border-primary/20 bg-brand-emerald-light px-3 py-1 text-primary">
                   {post.category.name}
                 </span>
               ) : null}
               {publishedDate ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1">
                   <CalendarDays className="h-3.5 w-3.5" />
                   {publishedDate}
                 </span>
               ) : null}
             </div>
 
-            <h1 className="mt-4 max-w-4xl font-heading text-4xl font-bold leading-tight text-[#1C1917] sm:text-5xl">
+            <h1 className="mt-4 max-w-4xl font-heading text-4xl font-bold leading-tight text-foreground sm:text-5xl">
               {post.title}
             </h1>
 
@@ -200,7 +200,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         />
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_280px]">
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
             <BlogMarkdown
               content={post.content}
               featuredListingsSlot={
@@ -267,8 +267,8 @@ function getArticleCtaVariant(
 function SidebarCta() {
   return (
     <>
-      <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-        <p className="text-sm font-semibold text-[#1C1917]">EstateFlow</p>
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <p className="text-sm font-semibold text-foreground">EstateFlow</p>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Zarządzaj ofertami, klientami i leadami z jednego panelu CRM dla rynku
           nieruchomości.
@@ -280,8 +280,8 @@ function SidebarCta() {
           Załóż konto
         </Link>
       </div>
-      <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-        <p className="text-sm font-semibold text-[#1C1917]">Szukasz ofert?</p>
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <p className="text-sm font-semibold text-foreground">Szukasz ofert?</p>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Przejdź do publicznego katalogu nieruchomości.
         </p>

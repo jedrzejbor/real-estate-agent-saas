@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         {isSubmitted ? (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-950">
             Jeśli konto z tym adresem istnieje, wysłaliśmy link do resetu hasła.

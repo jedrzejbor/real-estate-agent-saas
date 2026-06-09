@@ -129,7 +129,7 @@ export function PublicListingCatalog({
           key={formKey}
           action="/oferty"
           onSubmit={handleSubmit}
-          className="rounded-2xl border border-border bg-white p-4 shadow-sm"
+          className="rounded-2xl border border-border bg-card p-4 shadow-sm"
         >
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="h-5 w-5 text-primary" />
@@ -142,7 +142,7 @@ export function PublicListingCatalog({
                 name="q"
                 defaultValue={filters.q ?? ''}
                 placeholder="np. ogród, centrum"
-                className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition focus:border-primary"
               />
             </Field>
 
@@ -158,7 +158,7 @@ export function PublicListingCatalog({
                 <select
                   name="propertyType"
                   defaultValue={filters.propertyType ?? ''}
-                  className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition focus:border-primary"
                 >
                   <option value="">Dowolny</option>
                   {Object.values(PropertyType).map((type) => (
@@ -173,7 +173,7 @@ export function PublicListingCatalog({
                 <select
                   name="transactionType"
                   defaultValue={filters.transactionType ?? ''}
-                  className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition focus:border-primary"
                 >
                   <option value="">Dowolna</option>
                   {Object.values(TransactionType).map((type) => (
@@ -192,7 +192,7 @@ export function PublicListingCatalog({
                   type="number"
                   min="0"
                   defaultValue={filters.priceMin ?? ''}
-                  className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition focus:border-primary"
                 />
               </Field>
               <Field label="Cena do">
@@ -201,7 +201,7 @@ export function PublicListingCatalog({
                   type="number"
                   min="0"
                   defaultValue={filters.priceMax ?? ''}
-                  className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition focus:border-primary"
                 />
               </Field>
             </div>
@@ -213,7 +213,7 @@ export function PublicListingCatalog({
                   type="number"
                   min="0"
                   defaultValue={filters.areaMin ?? ''}
-                  className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition focus:border-primary"
                 />
               </Field>
               <Field label="Metraż do">
@@ -222,7 +222,7 @@ export function PublicListingCatalog({
                   type="number"
                   min="0"
                   defaultValue={filters.areaMax ?? ''}
-                  className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition focus:border-primary"
                 />
               </Field>
             </div>
@@ -235,7 +235,7 @@ export function PublicListingCatalog({
                   min="1"
                   max="20"
                   defaultValue={filters.roomsMin ?? ''}
-                  className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition focus:border-primary"
                 />
               </Field>
               <Field label="Pokoje do">
@@ -245,7 +245,7 @@ export function PublicListingCatalog({
                   min="1"
                   max="20"
                   defaultValue={filters.roomsMax ?? ''}
-                  className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition focus:border-primary"
                 />
               </Field>
             </div>
@@ -254,7 +254,7 @@ export function PublicListingCatalog({
               <select
                 name="sort"
                 defaultValue={filters.sort ?? PublicListingCatalogSort.NEWEST}
-                className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition focus:border-primary"
               >
                 <option value={PublicListingCatalogSort.NEWEST}>Najnowsze</option>
                 <option value={PublicListingCatalogSort.PRICE_ASC}>
@@ -296,7 +296,7 @@ export function PublicListingCatalog({
 
       <div className="relative min-w-0">
         {isPending ? (
-          <div className="pointer-events-none absolute inset-0 z-10 rounded-2xl bg-white/45" />
+          <div className="pointer-events-none absolute inset-0 z-10 rounded-2xl bg-card/45" />
         ) : null}
 
         {error ? (
@@ -320,14 +320,14 @@ export function PublicListingCatalog({
                   <button
                     type="button"
                     onClick={clearBbox}
-                    className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold transition-colors hover:bg-muted"
+                    className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-semibold transition-colors hover:bg-muted"
                   >
                     Wyczyść obszar
                   </button>
                 ) : null}
                 <a
                   href="#mapa"
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold transition-colors hover:bg-muted"
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-semibold transition-colors hover:bg-muted"
                 >
                   <MapIcon className="h-4 w-4" />
                   Mapa
@@ -393,7 +393,7 @@ function ListingCard({
   const agencyName = listing.agent?.agency?.name;
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <article className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <PublicListingCatalogResultLink
         slug={listing.slug}
         listingId={listing.id}
@@ -515,7 +515,7 @@ function EmptyState({
     : 'Nie znaleźliśmy wyników dla wybranych parametrów. Zmień filtry albo dodaj ofertę, żeby pojawiła się w publicznym katalogu.';
 
   return (
-    <section className="rounded-2xl border border-border bg-white p-6 text-center shadow-sm sm:p-8">
+    <section className="rounded-2xl border border-border bg-card p-6 text-center shadow-sm sm:p-8">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
         <Search className="h-6 w-6" />
       </div>
@@ -559,7 +559,7 @@ function ErrorState({
   onRetry: () => void;
 }) {
   return (
-    <section className="rounded-2xl border border-destructive/20 bg-white p-8 text-center shadow-sm">
+    <section className="rounded-2xl border border-destructive/20 bg-card p-8 text-center shadow-sm">
       <h2 className="font-heading text-2xl font-semibold">
         Nie udało się pobrać ofert
       </h2>
@@ -622,7 +622,7 @@ function PaginationButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-white px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:pointer-events-none disabled:text-muted-foreground disabled:opacity-50"
+      className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-card px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:pointer-events-none disabled:text-muted-foreground disabled:opacity-50"
     >
       {children}
     </button>

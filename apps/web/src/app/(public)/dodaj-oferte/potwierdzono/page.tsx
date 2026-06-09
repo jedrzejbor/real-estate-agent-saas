@@ -125,7 +125,7 @@ function VerificationShell({ state }: { state: VerificationState }) {
   const isPrivateSeller = Boolean(user && isPrivateSellerUser(user));
 
   return (
-    <main className="min-h-screen bg-[#F7F3EA] px-4 py-10 text-foreground">
+    <main className="min-h-screen bg-muted px-4 py-10 text-foreground">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         <Link
           href="/"
@@ -135,7 +135,7 @@ function VerificationShell({ state }: { state: VerificationState }) {
           <ArrowRight className="h-4 w-4" />
         </Link>
 
-        <section className="rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
           {state.status === 'idle' ||
           state.status === 'loading' ||
           state.status === 'claiming' ? (

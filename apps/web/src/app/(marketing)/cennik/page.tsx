@@ -54,7 +54,7 @@ export default function PricingPage() {
   }, []);
 
   return (
-    <div className="bg-[#F7F3EA]">
+    <div className="bg-muted">
       <section className="mx-auto flex min-h-[42vh] max-w-7xl flex-col justify-end px-4 pb-10 pt-20 sm:px-6 lg:px-8">
         <div className="max-w-3xl">
           <Badge variant="gold">Cennik</Badge>
@@ -69,7 +69,7 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section className="border-y border-border bg-white">
+      <section className="border-y border-border bg-card">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
           <div>
             <h2 className="font-heading text-2xl font-semibold text-foreground">
@@ -87,7 +87,7 @@ export default function PricingPage() {
               className={cn(
                 'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 billingInterval === 'monthly'
-                  ? 'bg-white text-foreground shadow-sm'
+                  ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -99,7 +99,7 @@ export default function PricingPage() {
               className={cn(
                 'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 billingInterval === 'yearly'
-                  ? 'bg-white text-foreground shadow-sm'
+                  ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -111,14 +111,14 @@ export default function PricingPage() {
 
       <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {error ? (
-          <div className="mb-4 flex items-center gap-2 rounded-xl border border-destructive/25 bg-white p-4 text-sm text-destructive">
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-destructive/25 bg-card p-4 text-sm text-destructive">
             <AlertCircle className="h-4 w-4" />
             {error}
           </div>
         ) : null}
 
         {isLoading ? (
-          <div className="flex items-center justify-center rounded-2xl border border-border bg-white p-10 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center rounded-2xl border border-border bg-card p-10 text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Ładowanie cennika
           </div>
@@ -131,9 +131,9 @@ export default function PricingPage() {
                 <article
                   key={plan.code}
                   className={cn(
-                    'flex flex-col rounded-2xl border bg-white p-5 shadow-sm',
+                    'flex flex-col rounded-2xl border bg-card p-5 shadow-sm',
                     plan.code === 'professional'
-                      ? 'border-[#D4A853]/50 ring-2 ring-[#D4A853]/15'
+                      ? 'border-brand-gold/50 ring-2 ring-[#D4A853]/15'
                       : 'border-border',
                   )}
                 >

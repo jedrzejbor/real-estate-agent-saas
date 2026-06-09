@@ -188,7 +188,7 @@ export function PublicListingContactForm({
           rows={4}
           defaultValue={`Dzień dobry, interesuje mnie oferta: ${listingTitle}. Proszę o kontakt.`}
           className={cn(
-            'w-full min-w-0 resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm transition-colors outline-none',
+            'w-full min-w-0 resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm transition-colors outline-none',
             'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
           )}
         />
@@ -228,7 +228,7 @@ export function PublicListingContactForm({
         </span>
       </label>
 
-      <label className="flex gap-3 rounded-xl border border-border bg-white p-3 text-xs leading-5 text-muted-foreground">
+      <label className="flex gap-3 rounded-xl border border-border bg-card p-3 text-xs leading-5 text-muted-foreground">
         <input
           type="checkbox"
           name="marketingConsent"

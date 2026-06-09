@@ -14,7 +14,7 @@ export function BlogPostCard({ post, priority = false }: BlogPostCardProps) {
   const imageAlt = post.coverImageAlt ?? post.title;
 
   return (
-    <article className="grid overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md md:grid-cols-[240px_1fr]">
+    <article className="grid overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md md:grid-cols-[240px_1fr]">
       <Link href={`/blog/${post.slug}`} className="block bg-muted">
         <img
           src={imageUrl}
@@ -29,20 +29,20 @@ export function BlogPostCard({ post, priority = false }: BlogPostCardProps) {
           {post.category ? (
             <Link
               href={`/blog/kategoria/${post.category.slug}`}
-              className="rounded-full border border-[#059669]/20 bg-[#ECFDF5] px-3 py-1 text-[#059669] transition-colors hover:bg-[#D1FAE5]"
+              className="rounded-full border border-primary/20 bg-brand-emerald-light px-3 py-1 text-primary transition-colors hover:bg-brand-emerald-light"
             >
               {post.category.name}
             </Link>
           ) : null}
           {publishedDate ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1">
               <CalendarDays className="h-3.5 w-3.5" />
               {publishedDate}
             </span>
           ) : null}
         </div>
 
-        <h2 className="mt-4 font-heading text-2xl font-semibold leading-tight text-[#1C1917]">
+        <h2 className="mt-4 font-heading text-2xl font-semibold leading-tight text-foreground">
           <Link
             href={`/blog/${post.slug}`}
             className="transition-colors hover:text-primary"

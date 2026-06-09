@@ -198,7 +198,7 @@ export function CityAutocomplete({
       </div>
 
       {isOpen && value.trim().length >= 2 ? (
-        <div className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-border bg-white shadow-lg">
+        <div className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-border bg-card shadow-lg">
           {suggestions.length === 0 && !isLoading ? (
             <div className="px-3 py-4 text-center text-sm text-muted-foreground">
               Brak miejscowości w katalogu

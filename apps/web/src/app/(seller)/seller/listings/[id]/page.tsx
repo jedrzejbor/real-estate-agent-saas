@@ -141,7 +141,7 @@ export default function SellerListingDetailPage() {
 
   if (isLoading || isFetching || !user || !isPrivateSeller || !submission) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#FAFAF9]">
+      <main className="flex min-h-screen items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </main>
     );
@@ -161,8 +161,8 @@ export default function SellerListingDetailPage() {
   const primaryImage = submission.images[0]?.url ?? submission.primaryImageUrl;
 
   return (
-    <main className="min-h-screen bg-[#FAFAF9] text-[#1C1917]">
-      <header className="border-b border-border bg-white">
+    <main className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link href="/seller" aria-label="Panel właściciela EstateFlow">
             <Logo size="sm" />
@@ -178,7 +178,7 @@ export default function SellerListingDetailPage() {
       </header>
 
       <div className="mx-auto grid max-w-6xl gap-6 px-5 py-8 sm:px-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <div
             className="min-h-72 bg-muted"
             style={
@@ -243,7 +243,7 @@ export default function SellerListingDetailPage() {
         </section>
 
         <aside className="space-y-4">
-          <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <h2 className="font-heading text-lg font-semibold">Status</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {getStatusDescription(submission)}
@@ -262,7 +262,7 @@ export default function SellerListingDetailPage() {
             </dl>
           </section>
 
-          <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <h2 className="font-heading text-lg font-semibold">Akcje</h2>
             <div className="mt-4 grid gap-2">
               <Link

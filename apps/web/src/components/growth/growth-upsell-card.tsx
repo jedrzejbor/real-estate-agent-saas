@@ -42,7 +42,7 @@ export function GrowthUpsellCard({
   return (
     <article
       className={cn(
-        'flex min-w-0 flex-col rounded-xl border border-[#D4A853]/25 bg-[#FFF9E6]/40',
+        'flex min-w-0 flex-col rounded-xl border border-brand-gold/25 bg-brand-gold-light/40',
         compact ? 'p-3 sm:p-4' : 'p-4',
         className,
       )}
@@ -50,7 +50,7 @@ export function GrowthUpsellCard({
       <div className="flex min-w-0 items-start gap-3">
         <div
           className={cn(
-            'flex shrink-0 items-center justify-center rounded-xl bg-white text-[#B8922F] ring-1 ring-[#D4A853]/25',
+            'flex shrink-0 items-center justify-center rounded-xl bg-card text-brand-gold-dark ring-1 ring-[#D4A853]/25',
             compact ? 'h-9 w-9' : 'h-10 w-10',
           )}
         >
@@ -90,7 +90,7 @@ export function GrowthUpsellCard({
         )}
       >
         <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-          <LockKeyhole className="h-3.5 w-3.5 text-[#B8922F]" />
+          <LockKeyhole className="h-3.5 w-3.5 text-brand-gold-dark" />
           Plan płatny
         </span>
         <Button

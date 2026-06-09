@@ -57,8 +57,8 @@ export function BlogMarkdown({
               id={getHeadingId(block.text)}
               className={
                 block.level === 2
-                  ? 'scroll-mt-2 pt-4 font-heading text-2xl font-semibold leading-tight text-[#1C1917] sm:text-3xl lg:scroll-mt-20'
-                  : 'scroll-mt-2 pt-2 font-heading text-xl font-semibold leading-tight text-[#1C1917] lg:scroll-mt-20'
+                  ? 'scroll-mt-2 pt-4 font-heading text-2xl font-semibold leading-tight text-foreground sm:text-3xl lg:scroll-mt-20'
+                  : 'scroll-mt-2 pt-2 font-heading text-xl font-semibold leading-tight text-foreground lg:scroll-mt-20'
               }
             >
               {renderInlineMarkdown(block.text)}
@@ -70,7 +70,7 @@ export function BlogMarkdown({
           return (
             <ul
               key={index}
-              className="list-disc space-y-2 pl-6 text-base leading-8 text-[#44403C]"
+              className="list-disc space-y-2 pl-6 text-base leading-8 text-foreground"
             >
               {block.items.map((item, itemIndex) => (
                 <li key={itemIndex}>{renderInlineMarkdown(item)}</li>
@@ -83,7 +83,7 @@ export function BlogMarkdown({
           return (
             <blockquote
               key={index}
-              className="border-l-4 border-primary bg-[#ECFDF5] px-5 py-4 text-base leading-8 text-[#1C1917]"
+              className="border-l-4 border-primary bg-brand-emerald-light px-5 py-4 text-base leading-8 text-foreground"
             >
               {renderInlineMarkdown(block.text)}
             </blockquote>
@@ -141,7 +141,7 @@ export function BlogMarkdown({
         }
 
         return (
-          <p key={index} className="text-base leading-8 text-[#44403C]">
+          <p key={index} className="text-base leading-8 text-foreground">
             {renderInlineMarkdown(block.text)}
           </p>
         );
@@ -433,17 +433,17 @@ function parseMarkdownBlocks(content: string): MarkdownBlock[] {
 
 function BlogFaq({ items }: { items: BlogFaqItem[] }) {
   return (
-    <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-      <h2 className="font-heading text-2xl font-semibold leading-tight text-[#1C1917]">
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <h2 className="font-heading text-2xl font-semibold leading-tight text-foreground">
         Najczęstsze pytania
       </h2>
       <div className="mt-4 divide-y divide-border">
         {items.map((item) => (
           <details key={item.question} className="group py-4" open>
-            <summary className="cursor-pointer list-none font-heading text-base font-semibold text-[#1C1917]">
+            <summary className="cursor-pointer list-none font-heading text-base font-semibold text-foreground">
               <span>{renderInlineMarkdown(item.question)}</span>
             </summary>
-            <p className="mt-3 text-base leading-8 text-[#44403C]">
+            <p className="mt-3 text-base leading-8 text-foreground">
               {renderInlineMarkdown(item.answer)}
             </p>
           </details>

@@ -256,7 +256,7 @@ export function PublicListingCatalogMap({
   return (
     <section
       id="mapa"
-      className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm"
+      className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
       aria-label="Mapa ofert"
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
@@ -335,7 +335,7 @@ export function PublicListingCatalogMap({
         />
 
         {markers.length === 0 ? (
-          <div className="absolute inset-x-4 top-4 rounded-xl border border-border bg-white/95 p-4 shadow-sm backdrop-blur">
+          <div className="absolute inset-x-4 top-4 rounded-xl border border-border bg-card/95 p-4 shadow-sm backdrop-blur">
             <div className="flex gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <LocateFixed className="h-5 w-5" />
@@ -360,7 +360,7 @@ export function PublicListingCatalogMap({
           Dokładny punkt
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-[#D4A853]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-brand-gold" />
           Lokalizacja przybliżona
         </span>
       </div>

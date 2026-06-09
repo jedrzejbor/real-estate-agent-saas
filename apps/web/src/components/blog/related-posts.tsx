@@ -16,7 +16,7 @@ export function RelatedPosts({ posts }: RelatedPostsProps) {
         <p className="text-sm font-semibold uppercase text-primary">
           Czytaj dalej
         </p>
-        <h2 className="mt-1 font-heading text-2xl font-semibold text-[#1C1917]">
+        <h2 className="mt-1 font-heading text-2xl font-semibold text-foreground">
           Powiązane artykuły
         </h2>
       </div>

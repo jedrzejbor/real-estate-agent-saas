@@ -14,9 +14,9 @@ export function BlogTableOfContents({ headings }: BlogTableOfContentsProps) {
   return (
     <nav
       aria-label="Spis treści artykułu"
-      className="rounded-2xl border border-border bg-white p-5 shadow-sm"
+      className="rounded-2xl border border-border bg-card p-5 shadow-sm"
     >
-      <p className="text-sm font-semibold text-[#1C1917]">Spis treści</p>
+      <p className="text-sm font-semibold text-foreground">Spis treści</p>
       <ol className="mt-3 space-y-2">
         {h2Headings.map((heading) => (
           <li key={heading.id}>

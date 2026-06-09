@@ -40,7 +40,7 @@ export default function FeedbackPage() {
             decyzji roadmapowych.
           </p>
 
-          <div className="mt-6 rounded-2xl border border-border bg-white p-5 shadow-sm">
+          <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
               <div>

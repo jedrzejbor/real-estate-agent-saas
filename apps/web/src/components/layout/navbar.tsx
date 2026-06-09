@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Logo } from '@/components/common/logo';
+import { ThemeToggle } from '@/components/common/theme-toggle';
 import { Container } from '@/components/layout/container';
 import { NavbarAuthActions } from '@/components/layout/navbar-auth-actions';
 import { NavbarMobileMenu } from '@/components/layout/navbar-mobile-menu';
@@ -15,7 +16,7 @@ const navLinks = [
 /** Marketing top navigation bar. */
 export function Navbar() {
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
       <Container className="flex h-16 min-w-0 items-center justify-between gap-2 lg:h-20">
         <Link
           href="/"
@@ -31,7 +32,7 @@ export function Navbar() {
             <Link
               key={link.label}
               href={link.href}
-              className="text-sm font-medium text-[#44403C] transition-colors hover:text-primary"
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
             >
               {link.label}
             </Link>
@@ -39,7 +40,10 @@ export function Navbar() {
         </nav>
 
         {/* CTA */}
-        <NavbarAuthActions />
+        <div className="hidden items-center gap-2 md:flex">
+          <ThemeToggle />
+          <NavbarAuthActions />
+        </div>
 
         <NavbarMobileMenu />
       </Container>

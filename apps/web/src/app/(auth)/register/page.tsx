@@ -156,7 +156,7 @@ function RegisterForm() {
 
   if (isAuthLoading || user) {
     return authenticatedClaimError ? (
-      <div className="rounded-2xl border border-destructive/20 bg-white p-6 text-sm text-destructive shadow-sm">
+      <div className="rounded-2xl border border-destructive/20 bg-card p-6 text-sm text-destructive shadow-sm">
         {authenticatedClaimError}
       </div>
     ) : (
@@ -177,7 +177,7 @@ function RegisterForm() {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-white p-5 shadow-sm lg:p-6">
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm lg:p-6">
         {claimToken && (
           <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
             Oferta jest już zweryfikowana. Po rejestracji automatycznie dodamy
@@ -202,7 +202,7 @@ function RegisterForm() {
               Typ konta
             </p>
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="relative block cursor-pointer rounded-xl border border-border bg-white p-4 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+              <label className="relative block cursor-pointer rounded-xl border border-border bg-card p-4 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
                 <input
                   type="radio"
                   name="accountType"
@@ -227,7 +227,7 @@ function RegisterForm() {
                 </span>
               </label>
 
-              <label className="relative block cursor-pointer rounded-xl border border-border bg-white p-4 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+              <label className="relative block cursor-pointer rounded-xl border border-border bg-card p-4 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
                 <input
                   type="radio"
                   name="accountType"
@@ -302,7 +302,7 @@ function RegisterForm() {
                         'flex min-h-[220px] flex-col rounded-xl border p-4 text-left transition-colors',
                         selectedPlan === plan.code
                           ? 'border-primary bg-primary/5'
-                          : 'border-border bg-white hover:bg-muted/30',
+                          : 'border-border bg-card hover:bg-muted/30',
                       )}
                     >
                       <span className="flex items-start justify-between gap-3">

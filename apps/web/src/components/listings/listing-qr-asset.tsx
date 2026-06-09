@@ -76,7 +76,7 @@ export function ListingQrAsset({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-white p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">Kod QR</p>
@@ -93,7 +93,7 @@ export function ListingQrAsset({
           <img
             src={qrDataUrl}
             alt={`Kod QR: ${title}`}
-            className="h-40 w-40 rounded-lg bg-white"
+            className="h-40 w-40 rounded-lg bg-card"
           />
         ) : (
           <div className="text-center text-xs leading-5 text-muted-foreground">

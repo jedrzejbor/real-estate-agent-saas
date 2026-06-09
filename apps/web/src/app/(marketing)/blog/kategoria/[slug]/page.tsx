@@ -98,8 +98,8 @@ export default async function BlogCategoryPage({
   const basePath = `/blog/kategoria/${category.slug}`;
 
   return (
-    <div className="bg-[#FAFAF9]">
-      <section className="border-b border-border bg-white">
+    <div className="bg-background">
+      <section className="border-b border-border bg-card">
         <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 lg:px-10">
           <Link
             href="/blog"
@@ -114,7 +114,7 @@ export default async function BlogCategoryPage({
               <FolderOpen className="h-4 w-4" />
               Kategoria
             </p>
-            <h1 className="mt-3 font-heading text-4xl font-bold leading-tight text-[#1C1917] sm:text-5xl">
+            <h1 className="mt-3 font-heading text-4xl font-bold leading-tight text-foreground sm:text-5xl">
               {category.name}
             </h1>
             {category.description ? (
@@ -128,12 +128,12 @@ export default async function BlogCategoryPage({
 
       <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8 lg:px-10 lg:py-14">
         {result.error ? (
-          <div className="rounded-2xl border border-border bg-white p-6 text-sm text-muted-foreground shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground shadow-sm">
             Nie udało się pobrać wpisów z tej kategorii. Spróbuj ponownie
             później.
           </div>
         ) : posts.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-white p-8 text-center shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
             <h2 className="font-heading text-2xl font-semibold">
               Brak opublikowanych wpisów
             </h2>

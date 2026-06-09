@@ -66,8 +66,8 @@ export default async function BlogIndexPage({
   const regularPosts = posts.slice(1);
 
   return (
-    <div className="overflow-x-hidden bg-[#FAFAF9]">
-      <section className="border-b border-border bg-white">
+    <div className="overflow-x-hidden bg-background">
+      <section className="border-b border-border bg-card">
         <div className="mx-auto max-w-7xl px-5 py-14 sm:px-8 lg:px-10 lg:py-18">
           <div className="grid min-w-0 gap-8 lg:grid-cols-[1fr_360px] lg:items-end">
             <div className="min-w-0 max-w-[320px] sm:max-w-none">
@@ -75,7 +75,7 @@ export default async function BlogIndexPage({
                 <BookOpen className="h-4 w-4" />
                 Blog EstateFlow
               </p>
-              <h1 className="mt-3 max-w-4xl break-words font-heading text-2xl font-bold leading-tight text-[#1C1917] sm:text-5xl">
+              <h1 className="mt-3 max-w-4xl break-words font-heading text-2xl font-bold leading-tight text-foreground sm:text-5xl">
                 Poradniki nieruchomości dla sprzedających, kupujących i agentów
               </h1>
               <p className="mt-5 max-w-3xl break-words text-base leading-7 text-muted-foreground sm:text-lg">
@@ -85,13 +85,13 @@ export default async function BlogIndexPage({
               </p>
             </div>
 
-            <div className="max-w-[320px] rounded-2xl border border-border bg-[#F5F0EB] p-5 sm:max-w-none">
+            <div className="max-w-[320px] rounded-2xl border border-border bg-muted p-5 sm:max-w-none">
               <div className="flex items-start gap-3">
-                <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-primary">
+                <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card text-primary">
                   <Search className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[#1C1917]">
+                  <p className="text-sm font-semibold text-foreground">
                     Content hub SEO
                   </p>
                   <p className="mt-1 break-words text-sm leading-6 text-muted-foreground">
@@ -107,11 +107,11 @@ export default async function BlogIndexPage({
 
       <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8 lg:px-10 lg:py-14">
         {result.error ? (
-          <div className="rounded-2xl border border-border bg-white p-6 text-sm text-muted-foreground shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground shadow-sm">
             Nie udało się pobrać wpisów blogowych. Spróbuj ponownie później.
           </div>
         ) : posts.length === 0 ? (
-          <div className="overflow-hidden rounded-2xl border border-border bg-white p-8 text-center shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
             <h2 className="font-heading text-2xl font-semibold">
               Pierwsze artykuły są w przygotowaniu
             </h2>

@@ -49,7 +49,7 @@ export function ListingCard({ listing }: ListingCardProps) {
   return (
     <Link
       href={`/dashboard/listings/${id}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all hover:shadow-md hover:border-primary/20"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:shadow-md hover:border-primary/20"
     >
       {/* Header with type badge & status */}
       <div className="flex items-center justify-between border-b border-border/50 px-5 py-3">

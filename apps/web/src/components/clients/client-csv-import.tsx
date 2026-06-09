@@ -197,7 +197,7 @@ export function ClientCsvImport({ onImported }: ClientCsvImportProps) {
       </Button>
 
       {isOpen ? (
-        <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">

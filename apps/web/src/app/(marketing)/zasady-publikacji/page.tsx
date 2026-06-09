@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function PublicationRulesPage() {
   return (
     <Container className="py-12 lg:py-16">
-      <article className="mx-auto max-w-3xl rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
+      <article className="mx-auto max-w-3xl rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <p className="text-sm font-medium text-primary">Publiczne oferty</p>
         <h1 className="mt-2 font-heading text-3xl font-bold text-foreground">
           Zasady publikacji ofert

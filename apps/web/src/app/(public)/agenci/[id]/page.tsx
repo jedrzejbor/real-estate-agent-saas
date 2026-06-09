@@ -104,13 +104,13 @@ export default async function PublicAgentProfilePage({
   const profileCatalogUrl = getProfileCatalogUrl(profile.id);
 
   return (
-    <main className="min-h-screen bg-[#FAFAF9] text-[#1C1917]">
+    <main className="min-h-screen bg-background text-foreground">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <section className="border-b border-border bg-white">
+      <section className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-6 sm:px-8 lg:px-10">
           <div className="flex items-center justify-between gap-4">
             <Link
@@ -174,7 +174,7 @@ export default async function PublicAgentProfilePage({
               ) : null}
               <Link
                 href={profileCatalogUrl}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-semibold transition-colors hover:bg-muted"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold transition-colors hover:bg-muted"
               >
                 <ListFilter className="h-4 w-4" />
                 Oferty w katalogu
@@ -216,7 +216,7 @@ export default async function PublicAgentProfilePage({
         </div>
 
         <aside id="kontakt" className="lg:sticky lg:top-6 lg:self-start">
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <p className="text-sm font-medium text-muted-foreground">Kontakt</p>
             <h2 className="mt-2 font-heading text-2xl font-semibold">
               Napisz do profilu
@@ -254,7 +254,7 @@ function ListingCard({ listing }: { listing: PublicAgentProfileListing }) {
   return (
     <Link
       href={`/oferty/${listing.slug}`}
-      className="group overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-colors hover:border-primary/40"
+      className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-primary/40"
     >
       <img
         src={listing.imageUrl || FALLBACK_LISTING_IMAGE}

@@ -196,7 +196,7 @@ export function FeatureSurveyList({
         return (
           <section
             key={survey.id}
-            className="rounded-2xl border border-border bg-white p-5 shadow-sm"
+            className="rounded-2xl border border-border bg-card p-5 shadow-sm"
           >
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
@@ -411,7 +411,7 @@ function SurveyQuestionResults({
                     {option.percentage}% · {option.count}
                   </span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-white ring-1 ring-border">
+                <div className="h-2 overflow-hidden rounded-full bg-card ring-1 ring-border">
                   <div
                     className={cn(
                       'h-full rounded-full',
@@ -461,7 +461,7 @@ function SurveyQuestionResults({
                     {item.percentage}%
                   </span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-white ring-1 ring-border">
+                <div className="h-2 overflow-hidden rounded-full bg-card ring-1 ring-border">
                   <div
                     className={cn(
                       'h-full rounded-full',
@@ -492,7 +492,7 @@ function FeatureSurveyEmptyState({ className }: { className?: string }) {
   return (
     <section
       className={cn(
-        'rounded-2xl border border-border bg-white p-8 text-center shadow-sm',
+        'rounded-2xl border border-border bg-card p-8 text-center shadow-sm',
         className,
       )}
     >
@@ -532,7 +532,7 @@ function SurveyQuestionField({
           value={typeof value === 'string' ? value : ''}
           rows={4}
           maxLength={2000}
-          className="w-full resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="w-full resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           onChange={(event) => onChange(event.target.value)}
         />
       </label>
@@ -584,7 +584,7 @@ function SurveyQuestionField({
                   'flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm transition-colors',
                   checked
                     ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border bg-white text-foreground hover:bg-muted',
+                    : 'border-border bg-card text-foreground hover:bg-muted',
                 )}
               >
                 <input
@@ -621,7 +621,7 @@ function SurveyQuestionField({
                 'min-h-12 rounded-xl border px-3 py-2 text-left text-sm transition-colors',
                 checked
                   ? 'border-primary bg-primary/10 font-medium text-primary'
-                  : 'border-border bg-white text-foreground hover:bg-muted',
+                  : 'border-border bg-card text-foreground hover:bg-muted',
               )}
               onClick={() => onChange(option.value)}
             >
@@ -656,7 +656,7 @@ function SegmentedNumberPicker({
               'h-10 min-w-10 rounded-xl border px-3 text-sm font-medium transition-colors',
               value === item
                 ? 'border-primary bg-primary text-white'
-                : 'border-border bg-white text-foreground hover:bg-muted',
+                : 'border-border bg-card text-foreground hover:bg-muted',
             )}
             onClick={() => onChange(item)}
           >

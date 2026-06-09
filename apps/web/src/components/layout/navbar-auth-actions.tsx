@@ -17,21 +17,21 @@ export function NavbarAuthActions() {
       <div className="hidden items-center gap-2 md:flex">
         <Link
           href="/dodaj-oferte"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-[#047857]"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <PlusCircle className="h-4 w-4" />
           Dodaj ofertę
         </Link>
         <Link
           href="/login"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-border px-4 text-sm font-semibold text-[#44403C] transition-colors hover:border-primary hover:text-primary"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
         >
           <LogIn className="h-4 w-4" />
           Logowanie
         </Link>
         <Link
           href="/register"
-          className="inline-flex h-10 items-center justify-center rounded-full border-2 border-primary bg-transparent px-5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+          className="inline-flex h-10 items-center justify-center rounded-full border-2 border-primary bg-transparent px-5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
         >
           Darmowe konto
         </Link>
@@ -41,21 +41,21 @@ export function NavbarAuthActions() {
 
   return (
     <div className="hidden items-center gap-4 md:flex">
-      <span className="inline-flex min-w-0 max-w-52 items-center gap-2 text-sm font-medium text-[#44403C]">
+      <span className="inline-flex min-w-0 max-w-52 items-center gap-2 text-sm font-medium text-foreground">
         <UserCircle className="h-4 w-4 shrink-0 text-primary" />
         <span className="truncate">Witaj, {getUserDisplayName(user)}</span>
       </span>
       <div className="flex items-center gap-2">
         <Link
           href="/dodaj-oferte"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-[#047857]"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <PlusCircle className="h-4 w-4" />
           Dodaj ofertę
         </Link>
         <Link
           href={getDefaultAuthenticatedPath(user)}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-full border-2 border-primary bg-transparent px-5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-full border-2 border-primary bg-transparent px-5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
         >
           <LayoutDashboard className="h-4 w-4" />
           Panel
@@ -77,7 +77,7 @@ export function NavbarMobileAuthAction() {
   return (
     <Link
       href={user ? getDefaultAuthenticatedPath(user) : '/login'}
-      className="hidden h-9 items-center justify-center rounded-full border border-border px-2 text-xs font-semibold text-[#44403C] transition-colors hover:border-primary hover:text-primary sm:inline-flex md:hidden"
+      className="hidden h-9 items-center justify-center rounded-full border border-border px-2 text-xs font-semibold text-foreground transition-colors hover:border-primary hover:text-primary sm:inline-flex md:hidden"
     >
       {user ? 'Panel' : 'Login'}
     </Link>

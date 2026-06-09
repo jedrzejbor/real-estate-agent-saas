@@ -20,9 +20,9 @@ export function Section({
       id={id}
       className={cn(
         'py-16 lg:py-24',
-        variant === 'muted' && 'bg-[#F5F0EB]',
+        variant === 'muted' && 'bg-muted',
         variant === 'gradient' &&
-          'bg-gradient-to-b from-[#FAFAF9] to-[#F5F0EB]',
+          'bg-gradient-to-b from-background to-muted',
         className,
       )}
     >

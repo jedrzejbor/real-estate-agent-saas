@@ -62,8 +62,8 @@ export default async function PublicListingLeadFormPage({
       .join(' ') || 'Opiekun oferty';
 
   return (
-    <main className="min-h-screen bg-[#FAFAF9] px-4 py-5 text-[#1C1917]">
-      <section className="mx-auto max-w-xl rounded-2xl border border-border bg-white p-5 shadow-sm">
+    <main className="min-h-screen bg-background px-4 py-5 text-foreground">
+      <section className="mx-auto max-w-xl rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div className="border-b border-border pb-4">
           <div className="flex items-start justify-between gap-3">
             <div>

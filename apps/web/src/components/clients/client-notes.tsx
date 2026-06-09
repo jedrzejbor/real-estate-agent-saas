@@ -82,7 +82,7 @@ export function ClientNotes({
           rows={3}
           placeholder="Dodaj notatkę o kliencie..."
           className={cn(
-            'w-full min-w-0 rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm transition-colors outline-none',
+            'w-full min-w-0 rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm transition-colors outline-none',
             'placeholder:text-muted-foreground',
             'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
             'resize-y',
@@ -120,7 +120,7 @@ export function ClientNotes({
           {notes.map((note) => (
             <div
               key={note.id}
-              className="group relative rounded-xl border border-border bg-white p-4 shadow-sm transition-colors hover:border-border/80"
+              className="group relative rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-border/80"
             >
               <p className="whitespace-pre-line text-sm text-foreground leading-relaxed pr-8">
                 {note.content}

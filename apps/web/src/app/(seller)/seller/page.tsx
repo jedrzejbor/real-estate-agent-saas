@@ -194,15 +194,15 @@ export default function SellerDashboardPage() {
 
   if (isLoading || !user || !isPrivateSeller) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#FAFAF9]">
+      <main className="flex min-h-screen items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#FAFAF9] text-[#1C1917]">
-      <header className="border-b border-border bg-white">
+    <main className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link href="/seller" aria-label="Panel właściciela EstateFlow">
             <Logo size="sm" />
@@ -242,7 +242,7 @@ export default function SellerDashboardPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <p className="text-sm font-semibold text-foreground">
               Konto: {user.email}
             </p>
@@ -309,11 +309,11 @@ function SellerInquiriesSection({
       </div>
 
       {error ? (
-        <div className="rounded-2xl border border-destructive/20 bg-white p-6 text-sm text-destructive shadow-sm">
+        <div className="rounded-2xl border border-destructive/20 bg-card p-6 text-sm text-destructive shadow-sm">
           {error}
         </div>
       ) : inquiries.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-white p-6 text-center shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <MessageSquareText className="h-6 w-6" />
           </div>
@@ -379,7 +379,7 @@ function SellerInquiryCard({
   }
 
   return (
-    <article className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+    <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row">
           <div
@@ -536,7 +536,7 @@ function ContactValueRow({
         <button
           type="button"
           onClick={onCopy}
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold transition-colors hover:bg-muted"
+          className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-semibold transition-colors hover:bg-muted"
         >
           <Copy className="h-4 w-4" />
           Kopiuj
@@ -544,7 +544,7 @@ function ContactValueRow({
         <a
           href={href}
           onClick={onOpen}
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border bg-white px-3 text-sm font-semibold transition-colors hover:bg-muted"
+          className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-semibold transition-colors hover:bg-muted"
         >
           <Icon className="h-4 w-4" />
           {actionLabel}
@@ -623,7 +623,7 @@ function SellerSubmissionCard({
   const canUnpublish = Boolean(submission.publishedListingId && isPublished);
 
   return (
-    <article className="grid overflow-hidden rounded-2xl border border-border bg-white shadow-sm md:grid-cols-[180px_1fr]">
+    <article className="grid overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:grid-cols-[180px_1fr]">
       <div
         className="min-h-40 bg-muted"
         style={
@@ -785,15 +785,15 @@ function SellerUpgradeCallout({ href }: { href: string }) {
   ];
 
   return (
-    <section className="mt-8 overflow-hidden rounded-2xl border border-[#D4A853]/30 bg-[#FFFCF5] shadow-sm">
+    <section className="mt-8 overflow-hidden rounded-2xl border border-brand-gold/30 bg-brand-gold-light shadow-sm">
       <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="p-5 sm:p-6 lg:py-6 lg:pl-6 lg:pr-8">
           <div className="flex items-start gap-4">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-[#B8922F] ring-1 ring-[#D4A853]/30">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-card text-brand-gold-dark ring-1 ring-brand-gold/30">
               <Building2 className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-wide text-[#8A6A1F]">
+              <p className="text-xs font-bold uppercase tracking-wide text-brand-gold-dark">
                 Chcesz więcej?
               </p>
               <h2 className="mt-1 font-heading text-2xl font-semibold leading-tight text-foreground">
@@ -808,7 +808,7 @@ function SellerUpgradeCallout({ href }: { href: string }) {
           </div>
         </div>
 
-        <div className="border-t border-[#D4A853]/25 bg-white/70 p-5 sm:p-6 lg:border-l lg:border-t-0">
+        <div className="border-t border-brand-gold/25 bg-card/70 p-5 sm:p-6 lg:border-l lg:border-t-0">
           <ul className="grid gap-3 text-sm text-muted-foreground">
             {benefits.map((benefit) => (
               <li key={benefit} className="flex items-start gap-3">
@@ -833,7 +833,7 @@ function SellerUpgradeCallout({ href }: { href: string }) {
 
 function SellerSubmissionsLoading() {
   return (
-    <section className="mt-8 rounded-2xl border border-border bg-white p-8 text-center shadow-sm">
+    <section className="mt-8 rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
       <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
       <p className="mt-3 text-sm font-medium text-muted-foreground">
         Pobieramy Twoje ogłoszenia...
@@ -844,7 +844,7 @@ function SellerSubmissionsLoading() {
 
 function SellerSubmissionsError({ message }: { message: string }) {
   return (
-    <section className="mt-8 rounded-2xl border border-destructive/20 bg-white p-8 text-center shadow-sm">
+    <section className="mt-8 rounded-2xl border border-destructive/20 bg-card p-8 text-center shadow-sm">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
         <AlertCircle className="h-6 w-6" />
       </div>
@@ -860,7 +860,7 @@ function SellerSubmissionsError({ message }: { message: string }) {
 
 function SellerEmptyState() {
   return (
-    <section className="mt-8 rounded-2xl border border-border bg-white p-6 text-center shadow-sm sm:p-10">
+    <section className="mt-8 rounded-2xl border border-border bg-card p-6 text-center shadow-sm sm:p-10">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
         <Home className="h-7 w-7" />
       </div>

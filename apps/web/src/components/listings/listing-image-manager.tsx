@@ -228,7 +228,7 @@ export function ListingImageManager({
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+    <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -300,7 +300,7 @@ export function ListingImageManager({
             return (
               <article
                 key={image.id}
-                className="overflow-hidden rounded-xl border border-border bg-white"
+                className="overflow-hidden rounded-xl border border-border bg-card"
               >
                 <div className="relative aspect-[4/3] bg-muted">
                   <img

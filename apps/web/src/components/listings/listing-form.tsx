@@ -376,7 +376,7 @@ export function ListingForm({
                 rows={isGuidedCreate ? 4 : 5}
                 placeholder="Opisz nieruchomość..."
                 className={cn(
-                  'w-full min-w-0 rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm transition-colors outline-none',
+                  'w-full min-w-0 rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm transition-colors outline-none',
                   'placeholder:text-muted-foreground',
                   'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
                   'resize-y',
@@ -397,7 +397,7 @@ export function ListingForm({
           title="Widoczność publiczna"
           description="Te ustawienia będą użyte po opublikowaniu publicznej strony oferty."
         >
-          <label className="flex items-start gap-3 rounded-xl border border-border bg-white p-4 shadow-sm">
+          <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
             <input type="hidden" name="showPublicViewCount" value="false" />
             <input
               type="checkbox"
@@ -718,7 +718,7 @@ function CreateListingImagesSection({
       <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-muted-foreground ring-1 ring-border">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card text-muted-foreground ring-1 ring-border">
               <ImageIcon className="h-5 w-5" />
             </div>
             <div>
@@ -751,7 +751,7 @@ function CreateListingImagesSection({
             <label
               htmlFor="create-listing-images"
               className={cn(
-                'inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-medium text-foreground shadow-sm transition-colors',
+                'inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-medium text-foreground shadow-sm transition-colors',
                 'hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
                 isAtLimit && 'pointer-events-none opacity-50',
               )}
@@ -767,7 +767,7 @@ function CreateListingImagesSection({
             {files.map((file, index) => (
               <div
                 key={`${file.name}-${file.lastModified}-${index}`}
-                className="flex items-center gap-3 rounded-lg border border-border bg-white px-3 py-2"
+                className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2"
               >
                 <ImageIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0 flex-1">
@@ -815,7 +815,7 @@ function GuidedCreateIntro() {
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-muted-foreground ring-1 ring-border">
+        <div className="flex shrink-0 items-center gap-2 rounded-lg bg-card px-3 py-2 text-xs font-medium text-muted-foreground ring-1 ring-border">
           <Clock3 className="h-3.5 w-3.5" />
           Około 2 min
         </div>

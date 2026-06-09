@@ -70,7 +70,7 @@ function LoginForm() {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         {claimToken && (
           <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
             Po logowaniu automatycznie przypniemy zweryfikowaną ofertę do

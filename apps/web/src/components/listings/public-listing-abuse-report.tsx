@@ -119,7 +119,7 @@ export function PublicListingAbuseReport({
                 <label
                   key={item.value}
                   className={cn(
-                    'flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-sm',
+                    'flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm',
                     reason === item.value
                       ? 'border-primary bg-primary/5 text-foreground'
                       : 'text-muted-foreground',
@@ -153,7 +153,7 @@ export function PublicListingAbuseReport({
               rows={3}
               placeholder="Dodaj krótki kontekst zgłoszenia"
               className={cn(
-                'w-full min-w-0 resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm transition-colors outline-none',
+                'w-full min-w-0 resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm transition-colors outline-none',
                 'placeholder:text-muted-foreground',
                 'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
               )}

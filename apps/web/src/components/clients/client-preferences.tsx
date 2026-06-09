@@ -17,7 +17,7 @@ export function ClientPreferencesCard({
 }: ClientPreferencesCardProps) {
   if (!preference) {
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-white p-6">
+      <div className="rounded-2xl border border-dashed border-border bg-card p-6">
         <h2 className="font-heading text-base font-semibold text-foreground">
           Preferencje
         </h2>
@@ -75,7 +75,7 @@ export function ClientPreferencesCard({
 
   if (items.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-white p-6">
+      <div className="rounded-2xl border border-dashed border-border bg-card p-6">
         <h2 className="font-heading text-base font-semibold text-foreground">
           Preferencje
         </h2>
@@ -87,7 +87,7 @@ export function ClientPreferencesCard({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
       <h2 className="font-heading text-base font-semibold text-foreground">
         Preferencje
       </h2>

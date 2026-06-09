@@ -50,7 +50,7 @@ function ResetPasswordForm() {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         {isTokenMissing ? (
           <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
             Link resetu hasła jest nieprawidłowy albo niekompletny.

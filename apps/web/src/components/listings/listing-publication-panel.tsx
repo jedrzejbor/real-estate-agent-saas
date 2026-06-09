@@ -274,7 +274,7 @@ export function ListingPublicationPanel({
   return (
     <section
       className={cn(
-        'rounded-2xl border border-border bg-white shadow-sm',
+        'rounded-2xl border border-border bg-card shadow-sm',
         density === 'compact' ? 'p-5' : 'p-6',
       )}
     >
@@ -493,7 +493,7 @@ export function ListingPublicationPanel({
               rows={4}
               placeholder="Jeśli zostawisz puste, strona użyje opisu z oferty."
               className={cn(
-                'w-full min-w-0 resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm transition-colors outline-none',
+                'w-full min-w-0 resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm transition-colors outline-none',
                 'placeholder:text-muted-foreground',
                 'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
               )}
@@ -595,12 +595,12 @@ export function ListingPublicationPanel({
           value={embedCode || 'Kod iframe pojawi się po publikacji oferty.'}
           readOnly
           rows={3}
-          className="mt-3 w-full min-w-0 resize-none rounded-xl border border-border/80 bg-white px-3 py-2 font-mono text-xs leading-5 text-muted-foreground shadow-sm outline-none"
+          className="mt-3 w-full min-w-0 resize-none rounded-xl border border-border/80 bg-card px-3 py-2 font-mono text-xs leading-5 text-muted-foreground shadow-sm outline-none"
         />
       </div>
 
       {showGrowthUpsells ? (
-        <div className="mt-6 rounded-2xl border border-[#D4A853]/25 bg-white p-4 shadow-sm">
+        <div className="mt-6 rounded-2xl border border-brand-gold/25 bg-card p-4 shadow-sm">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h3 className="font-heading text-sm font-semibold text-foreground">
@@ -677,7 +677,7 @@ function CheckboxOption({
   description: string;
 }) {
   return (
-    <label className="flex gap-3 rounded-xl border border-border bg-white p-3 text-sm">
+    <label className="flex gap-3 rounded-xl border border-border bg-card p-3 text-sm">
       <input
         type="checkbox"
         name={name}

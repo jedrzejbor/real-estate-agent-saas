@@ -129,7 +129,7 @@ export default async function PublicListingPage({
   const details = getPublicListingDetails(listing);
 
   return (
-    <main className="min-h-screen bg-[#FAFAF9] text-[#1C1917]">
+    <main className="min-h-screen bg-background text-foreground">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -160,7 +160,7 @@ export default async function PublicListingPage({
 
           <div className="max-w-4xl pb-6">
             <div className="mb-4 flex flex-wrap gap-2">
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-stone-900">
+              <span className="rounded-full bg-card px-3 py-1 text-xs font-semibold text-stone-900">
                 {PROPERTY_TYPE_LABELS[listing.propertyType]}
               </span>
               <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25">
@@ -189,7 +189,7 @@ export default async function PublicListingPage({
               </div>
               <a
                 href="#kontakt"
-                className="inline-flex h-11 items-center justify-center rounded-xl bg-white px-5 text-sm font-semibold text-stone-950 transition-colors hover:bg-stone-100"
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-card px-5 text-sm font-semibold text-stone-950 transition-colors hover:bg-stone-100"
               >
                 Skontaktuj się
               </a>
@@ -214,7 +214,7 @@ export default async function PublicListingPage({
           </div>
 
           {listing.description ? (
-            <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+            <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
               <h2 className="font-heading text-2xl font-semibold">
                 Opis nieruchomości
               </h2>
@@ -224,7 +224,7 @@ export default async function PublicListingPage({
             </section>
           ) : null}
 
-          <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <h2 className="font-heading text-2xl font-semibold">Szczegóły</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {details.map((detail) => (
@@ -244,7 +244,7 @@ export default async function PublicListingPage({
         </div>
 
         <aside id="kontakt" className="lg:sticky lg:top-6 lg:self-start">
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <p className="text-sm font-medium text-muted-foreground">
               Opiekun oferty
             </p>
@@ -562,7 +562,7 @@ function Fact({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
       <Icon className="h-5 w-5 text-primary" />
       <p className="mt-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
         {label}
@@ -585,7 +585,7 @@ function Detail({
 }) {
   return (
     <div className="flex items-center gap-3 rounded-xl bg-muted/30 px-3 py-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-primary ring-1 ring-border">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-card text-primary ring-1 ring-border">
         <Icon className="h-4 w-4" />
       </div>
       <div>

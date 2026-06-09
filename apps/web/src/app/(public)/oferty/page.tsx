@@ -106,8 +106,8 @@ export default async function PublicListingsIndexPage({
   const activeSeoCity = getPublicCatalogSeoCity(filters.city);
 
   return (
-    <main className="min-h-screen bg-[#FAFAF9] text-[#1C1917]">
-      <section className="border-b border-border bg-white">
+    <main className="min-h-screen bg-background text-foreground">
+      <section className="border-b border-border bg-card">
         <div className="mx-auto max-w-7xl px-5 py-6 sm:px-8 lg:px-10">
           <Link
             href="/"
@@ -199,7 +199,7 @@ function PopularCityLinks({ activeCity }: { activeCity?: string }) {
               className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${
                 isActive
                   ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-white text-foreground hover:bg-muted'
+                  : 'border-border bg-card text-foreground hover:bg-muted'
               }`}
             >
               <MapPin className="h-3.5 w-3.5 shrink-0" />

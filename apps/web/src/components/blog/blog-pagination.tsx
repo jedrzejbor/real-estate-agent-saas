@@ -21,7 +21,7 @@ export function BlogPagination({
   return (
     <nav
       aria-label="Paginacja wpisów blogowych"
-      className="flex flex-col gap-3 rounded-2xl border border-border bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
     >
       <p className="text-sm text-muted-foreground">
         Strona {meta.page} z {meta.totalPages}

@@ -20,10 +20,10 @@ export async function FeaturedListingsBlock() {
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-heading text-2xl font-semibold leading-tight text-[#1C1917]">
+          <h2 className="font-heading text-2xl font-semibold leading-tight text-foreground">
             Wyróżnione oferty
           </h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -75,7 +75,7 @@ function FeaturedListingCard({
   return (
     <Link
       href={`/oferty/${listing.slug}`}
-      className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-white transition-colors hover:border-primary/40"
+      className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/40"
     >
       <div className="aspect-[4/3] bg-muted">
         {image?.url ? (
@@ -96,7 +96,7 @@ function FeaturedListingCard({
         <p className="text-xs font-semibold uppercase tracking-normal text-primary">
           {TRANSACTION_TYPE_LABELS[listing.transactionType]}
         </p>
-        <h3 className="mt-2 line-clamp-2 font-heading text-base font-semibold leading-snug text-[#1C1917] transition-colors group-hover:text-primary">
+        <h3 className="mt-2 line-clamp-2 font-heading text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
           {listing.title}
         </h3>
 

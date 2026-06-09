@@ -26,7 +26,7 @@ export function ActivityHistoryCard({
   fieldLabels,
 }: ActivityHistoryCardProps) {
   return (
-    <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <History className="h-4 w-4 text-primary" />
@@ -88,7 +88,7 @@ export function ActivityHistoryCard({
                         {fieldLabels[change.field] ?? change.field}
                       </span>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-muted-foreground">
-                        <span className="rounded-md bg-white px-2 py-1 text-xs">
+                        <span className="rounded-md bg-card px-2 py-1 text-xs">
                           {formatActivityValue(
                             change.field,
                             change.oldValue,
@@ -96,7 +96,7 @@ export function ActivityHistoryCard({
                           )}
                         </span>
                         <span>→</span>
-                        <span className="rounded-md bg-white px-2 py-1 text-xs text-foreground">
+                        <span className="rounded-md bg-card px-2 py-1 text-xs text-foreground">
                           {formatActivityValue(
                             change.field,
                             change.newValue,

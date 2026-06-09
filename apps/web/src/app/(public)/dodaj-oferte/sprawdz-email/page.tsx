@@ -18,7 +18,7 @@ export default async function PublicListingSubmissionCheckEmailPage({
   const isPrivateSeller = params.account === 'private_seller';
 
   return (
-    <main className="min-h-screen bg-[#F7F3EA] px-4 py-10 text-foreground">
+    <main className="min-h-screen bg-muted px-4 py-10 text-foreground">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         <Link
           href="/"
@@ -28,7 +28,7 @@ export default async function PublicListingSubmissionCheckEmailPage({
           <ArrowRight className="h-4 w-4" />
         </Link>
 
-        <section className="rounded-2xl border border-border bg-white p-6 text-center shadow-sm sm:p-8">
+        <section className="rounded-2xl border border-border bg-card p-6 text-center shadow-sm sm:p-8">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
             <MailCheck className="h-7 w-7" />
           </div>

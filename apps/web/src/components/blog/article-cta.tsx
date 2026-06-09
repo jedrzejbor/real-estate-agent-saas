@@ -79,17 +79,17 @@ export function ArticleCta({
   }
 
   return (
-    <section className="rounded-2xl border border-[#059669]/20 bg-[#ECFDF5] p-6">
+    <section className="rounded-2xl border border-primary/20 bg-brand-emerald-light p-6">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-4">
-          <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-primary shadow-sm">
+          <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-card text-primary shadow-sm">
             <Icon className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="font-heading text-xl font-semibold text-[#1C1917]">
+            <h2 className="font-heading text-xl font-semibold text-foreground">
               {cta.title}
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#44403C]">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground">
               {cta.description}
             </p>
           </div>

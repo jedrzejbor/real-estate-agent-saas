@@ -76,7 +76,7 @@ export function LimitUpgradeBanner({
           type="button"
           variant="outline"
           size="sm"
-          className="h-9 shrink-0 rounded-xl bg-white"
+          className="h-9 shrink-0 rounded-xl bg-card"
           onClick={handleClick}
           render={<Link href={href} />}
         >

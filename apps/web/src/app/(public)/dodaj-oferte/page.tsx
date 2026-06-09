@@ -345,7 +345,7 @@ export default function PublicListingSubmissionWizardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F3EA] text-foreground">
+    <main className="min-h-screen bg-muted text-foreground">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
         <Link
           href="/"
@@ -355,7 +355,7 @@ export default function PublicListingSubmissionWizardPage() {
           EstateFlow
         </Link>
 
-        <section className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <div className="border-b border-border px-5 py-5 sm:px-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
@@ -734,7 +734,7 @@ function StepImages({
           {draft.images.map((image, index) => (
             <article
               key={`${image.url}-${index}`}
-              className="overflow-hidden rounded-xl border border-border bg-white"
+              className="overflow-hidden rounded-xl border border-border bg-card"
             >
               <div className="relative aspect-[4/3] bg-muted">
                 <img
@@ -1056,7 +1056,7 @@ function TextAreaField({
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={Boolean(error)}
         className={cn(
-          'w-full min-w-0 resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm transition-colors outline-none',
+          'w-full min-w-0 resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm transition-colors outline-none',
           'placeholder:text-muted-foreground',
           'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
           error ? 'border-destructive ring-3 ring-destructive/20' : '',
@@ -1088,7 +1088,7 @@ function SelectField({
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={Boolean(error)}
         className={cn(
-          'h-10 w-full rounded-xl border border-border/80 bg-white px-3 text-sm shadow-sm outline-none transition-colors',
+          'h-10 w-full rounded-xl border border-border/80 bg-card px-3 text-sm shadow-sm outline-none transition-colors',
           'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
           error ? 'border-destructive ring-3 ring-destructive/20' : '',
         )}
@@ -1121,7 +1121,7 @@ function CheckboxField({
   return (
     <label
       className={cn(
-        'flex gap-3 rounded-xl border border-border bg-white p-3',
+        'flex gap-3 rounded-xl border border-border bg-card p-3',
         error ? 'border-destructive bg-destructive/5' : '',
       )}
     >

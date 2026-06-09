@@ -314,15 +314,15 @@ export default function SellerListingEditPage() {
 
   if (isLoading || isFetching || !user || !isPrivateSeller || !draft) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#FAFAF9]">
+      <main className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#FAFAF9] text-[#1C1917]">
-      <header className="border-b border-border bg-white">
+    <main className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link href="/seller" aria-label="Panel właściciela EstateFlow">
             <Logo size="sm" />
@@ -393,7 +393,7 @@ export default function SellerListingEditPage() {
             </section>
           ) : null}
 
-          <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <SectionHeader
               icon={Home}
               title="Podstawowe dane"
@@ -454,7 +454,7 @@ export default function SellerListingEditPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <SectionHeader
               icon={Building2}
               title="Parametry i opis"
@@ -519,7 +519,7 @@ export default function SellerListingEditPage() {
             />
           </section>
 
-          <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <SectionHeader
               icon={ImagePlus}
               title="Zdjęcia"
@@ -559,7 +559,7 @@ export default function SellerListingEditPage() {
                 {draft.images.map((image, index) => (
                   <article
                     key={`${image.url}-${index}`}
-                    className="overflow-hidden rounded-xl border border-border bg-white"
+                    className="overflow-hidden rounded-xl border border-border bg-card"
                   >
                     <div
                       className="relative aspect-[4/3] bg-muted bg-cover bg-center"
@@ -872,7 +872,7 @@ function TextAreaField({
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={Boolean(error)}
         className={cn(
-          'w-full min-w-0 resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm transition-colors outline-none',
+          'w-full min-w-0 resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm transition-colors outline-none',
           'placeholder:text-muted-foreground',
           'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
           error ? 'border-destructive ring-3 ring-destructive/20' : '',
@@ -904,7 +904,7 @@ function SelectField({
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={Boolean(error)}
         className={cn(
-          'h-10 w-full rounded-xl border border-border/80 bg-white px-3 text-sm shadow-sm outline-none transition-colors',
+          'h-10 w-full rounded-xl border border-border/80 bg-card px-3 text-sm shadow-sm outline-none transition-colors',
           'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
           error ? 'border-destructive ring-3 ring-destructive/20' : '',
         )}

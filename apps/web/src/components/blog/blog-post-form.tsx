@@ -320,7 +320,7 @@ export function BlogPostForm({ post }: BlogPostFormProps) {
                   rows={3}
                   maxLength={500}
                   placeholder="Krótki opis artykułu widoczny na liście i w metadata fallback."
-                  className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm leading-6 shadow-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
+                  className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm leading-6 shadow-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
                 />
               </FormField>
 
@@ -337,7 +337,7 @@ export function BlogPostForm({ post }: BlogPostFormProps) {
                   rows={18}
                   maxLength={100_000}
                   placeholder={`## Pierwsza sekcja\n\nTreść artykułu...\n\n![Opisowy alt obrazu](/images/blog/przyklad.jpg)\n\n::cta register\n\n::featured-listings\n\n:::faq\n### Jakie pytanie zadaje klient?\nKrótka, konkretna odpowiedź.\n:::\n\n- punkt listy\n- kolejny punkt`}
-                  className="w-full rounded-xl border border-border bg-white px-3 py-2 font-mono text-sm leading-6 shadow-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
+                  className="w-full rounded-xl border border-border bg-card px-3 py-2 font-mono text-sm leading-6 shadow-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
                 />
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
                   Dostępne CTA: `::cta register`, `::cta contact`, `::cta
@@ -385,7 +385,7 @@ export function BlogPostForm({ post }: BlogPostFormProps) {
                   rows={3}
                   maxLength={180}
                   placeholder="Opis do wyników wyszukiwania, najlepiej do ok. 150-160 znaków."
-                  className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm leading-6 shadow-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
+                  className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm leading-6 shadow-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
                 />
               </FormField>
               <FormField label="Canonical URL" className="sm:col-span-2">
@@ -495,7 +495,7 @@ function SeoReadinessPanel({ issues }: { issues: SeoValidationIssue[] }) {
   return (
     <section
       className={cn(
-        'rounded-2xl border bg-white p-5 shadow-sm',
+        'rounded-2xl border bg-card p-5 shadow-sm',
         isReady ? 'border-emerald-200' : 'border-amber-200',
       )}
     >
@@ -560,7 +560,7 @@ function InternalLinkSuggestions({
   ];
 
   return (
-    <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <h2 className="font-heading text-base font-semibold">
         Sugestie linkowania
       </h2>
@@ -599,7 +599,7 @@ function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+    <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
       <h2 className="font-heading text-lg font-semibold text-foreground">
         {title}
       </h2>

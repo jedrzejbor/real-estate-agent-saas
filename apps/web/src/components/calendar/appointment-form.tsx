@@ -315,7 +315,7 @@ export function AppointmentForm({ appointment }: AppointmentFormProps) {
             rows={3}
             placeholder="Dodatkowe informacje o spotkaniu..."
             className={cn(
-              'w-full min-w-0 rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm transition-colors outline-none',
+              'w-full min-w-0 rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm transition-colors outline-none',
               'placeholder:text-muted-foreground',
               'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
               'resize-y',

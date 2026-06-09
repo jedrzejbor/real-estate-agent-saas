@@ -30,13 +30,13 @@ export function SectionHeader({
           {badge}
         </Badge>
       )}
-      <h2 className="font-heading text-3xl font-bold tracking-tight text-[#1C1917] lg:text-4xl">
+      <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground lg:text-4xl">
         {title}
       </h2>
       {description && (
         <p
           className={cn(
-            'mt-4 text-lg text-[#78716C]',
+            'mt-4 text-lg text-muted-foreground',
             align === 'center' && 'mx-auto max-w-2xl',
           )}
         >
