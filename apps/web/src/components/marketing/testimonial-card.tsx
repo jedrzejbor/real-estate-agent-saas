@@ -21,7 +21,7 @@ export function TestimonialCard({
   return (
     <Card
       className={cn(
-        'border-[#E7E5E4] bg-white',
+        'border-border bg-card',
         'shadow-[0_1px_3px_rgba(28,25,23,0.06),0_1px_2px_rgba(28,25,23,0.04)]',
         className,
       )}
@@ -32,18 +32,18 @@ export function TestimonialCard({
           {Array.from({ length: rating }).map((_, i) => (
             <Star
               key={i}
-              className="h-4 w-4 fill-[#D4A853] text-[#D4A853]"
+              className="h-4 w-4 fill-brand-gold text-brand-gold"
             />
           ))}
         </div>
 
-        <blockquote className="text-sm leading-relaxed text-[#44403C]">
+        <blockquote className="text-sm leading-relaxed text-foreground">
           &ldquo;{quote}&rdquo;
         </blockquote>
 
-        <div className="mt-4 border-t border-[#E7E5E4] pt-4">
-          <p className="text-sm font-semibold text-[#1C1917]">{authorName}</p>
-          <p className="text-xs text-[#78716C]">{authorRole}</p>
+        <div className="mt-4 border-t border-border pt-4">
+          <p className="text-sm font-semibold text-foreground">{authorName}</p>
+          <p className="text-xs text-muted-foreground">{authorRole}</p>
         </div>
       </CardContent>
     </Card>
