@@ -15,6 +15,7 @@ import {
   ThumbsUp,
   Newspaper,
   CreditCard,
+  BookOpenCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -29,6 +30,11 @@ const navItems = [
   { label: 'Zapytania', href: '/dashboard/inquiries', icon: MessageSquareText },
   { label: 'Kalendarz', href: '/dashboard/calendar', icon: CalendarCheck },
   { label: 'Raporty', href: '/dashboard/reports', icon: BarChart3 },
+  {
+    label: 'Samouczek',
+    href: '/dashboard/tutorial',
+    icon: BookOpenCheck,
+  },
   {
     label: 'Moje zgłoszenia',
     href: '/dashboard/feedback',
