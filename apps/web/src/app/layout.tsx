@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { Outfit, Inter } from 'next/font/google';
 import { AuthProvider } from '@/contexts/auth-context';
 import { ConfirmProvider } from '@/contexts/confirm-context';
+import { ThemeProvider } from '@/contexts/theme-context';
 import { ToastProvider } from '@/contexts/toast-context';
 import './globals.css';
 
@@ -19,6 +21,19 @@ const inter = Inter({
   weight: ['400', '500', '600'],
 });
 
+const themeInitScript = `
+  (function () {
+    try {
+      var theme = window.localStorage.getItem('estateflow-theme') || 'light';
+      if (theme !== 'dark' && theme !== 'light') theme = 'light';
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+      document.documentElement.dataset.theme = theme;
+    } catch (_) {
+      document.documentElement.dataset.theme = 'light';
+    }
+  })();
+`;
+
 export const metadata: Metadata = {
   title: 'EstateFlow — Platforma dla agentów nieruchomości',
   description:
@@ -33,14 +48,20 @@ export default function RootLayout({
   return (
     <html
       lang="pl"
+      suppressHydrationWarning
       className={`${outfit.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans bg-[#FAFAF9] text-[#1C1917]">
-        <ToastProvider>
-          <ConfirmProvider>
-            <AuthProvider>{children}</AuthProvider>
-          </ConfirmProvider>
-        </ToastProvider>
+      <body className="flex min-h-full flex-col bg-background font-sans text-foreground">
+        <Script id="theme-init" strategy="beforeInteractive">
+          {themeInitScript}
+        </Script>
+        <ThemeProvider>
+          <ToastProvider>
+            <ConfirmProvider>
+              <AuthProvider>{children}</AuthProvider>
+            </ConfirmProvider>
+          </ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

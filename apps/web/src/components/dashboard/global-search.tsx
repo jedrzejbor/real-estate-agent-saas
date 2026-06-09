@@ -80,7 +80,7 @@ export function GlobalSearch() {
           }}
           onFocus={() => setIsOpen(true)}
           placeholder="Szukaj ofert, klientów i spotkań..."
-          className="h-10 rounded-xl border-border bg-white pl-9 pr-16"
+          className="h-10 rounded-xl border-border bg-card pl-9 pr-16"
           aria-label="Wyszukiwarka globalna"
         />
         <div className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-1 text-[10px] font-medium text-muted-foreground md:flex">
@@ -90,7 +90,7 @@ export function GlobalSearch() {
       </div>
 
       {shouldShow ? (
-        <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-border bg-white shadow-xl ring-1 ring-black/5">
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl ring-1 ring-black/5">
           {trimmedQuery.length < 2 ? (
             <div className="px-4 py-5 text-sm text-muted-foreground">
               Wpisz minimum 2 znaki, aby wyszukać rekordy w całym systemie.

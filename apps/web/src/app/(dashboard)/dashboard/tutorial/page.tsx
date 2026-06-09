@@ -299,7 +299,7 @@ export default function DashboardTutorialPage() {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-3 rounded-2xl border border-border bg-white p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary/5"
+              className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary/5"
             >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Icon className="h-5 w-5" />
@@ -312,7 +312,7 @@ export default function DashboardTutorialPage() {
         })}
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <div className="border-b border-border bg-muted/20 p-2">
           <div
             className="grid gap-2 md:grid-cols-2 xl:grid-cols-7"
@@ -333,8 +333,8 @@ export default function DashboardTutorialPage() {
                   className={cn(
                     'min-h-20 rounded-xl border px-3 py-3 text-left transition-colors',
                     isActive
-                      ? 'border-primary bg-white text-foreground shadow-sm'
-                      : 'border-transparent bg-transparent text-muted-foreground hover:bg-white/70 hover:text-foreground',
+                      ? 'border-primary bg-card text-foreground shadow-sm'
+                      : 'border-transparent bg-transparent text-muted-foreground hover:bg-card/70 hover:text-foreground',
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -368,12 +368,12 @@ export default function DashboardTutorialPage() {
           </h2>
         </div>
 
-        <div className="grid gap-5 bg-[#FAFAF9] p-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-5 bg-background p-5 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-4">
             {activeSection.steps.map((step, index) => (
               <article
                 key={step.title}
-                className="rounded-2xl border border-border bg-white p-5 shadow-sm"
+                className="rounded-2xl border border-border bg-card p-5 shadow-sm"
               >
                 <div className="flex gap-4">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-bold text-primary">
@@ -403,7 +403,7 @@ export default function DashboardTutorialPage() {
           </div>
 
           <aside className="space-y-4">
-            <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center gap-2">
                 <BookOpenCheck className="h-5 w-5 text-primary" />
                 <h3 className="font-heading text-base font-semibold text-foreground">
@@ -428,7 +428,7 @@ export default function DashboardTutorialPage() {
               </ul>
             </div>
 
-            <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center gap-2">
                 <ClipboardList className="h-5 w-5 text-primary" />
                 <h3 className="font-heading text-base font-semibold text-foreground">
@@ -446,7 +446,7 @@ export default function DashboardTutorialPage() {
                     key={label}
                     className="flex items-center gap-3 rounded-xl bg-muted/30 px-3 py-2"
                   >
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-primary ring-1 ring-border">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-card text-xs font-bold text-primary ring-1 ring-border">
                       {index + 1}
                     </span>
                     <span className="text-sm font-medium text-foreground">

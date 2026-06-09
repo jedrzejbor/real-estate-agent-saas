@@ -118,7 +118,7 @@ export default function DashboardPage() {
 
       {/* Dashboard content */}
       {stats && (
-        <section className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <div className="border-b border-border bg-muted/20 p-2">
             <div
               className="grid gap-2 md:grid-cols-2 xl:grid-cols-6"
@@ -139,8 +139,8 @@ export default function DashboardPage() {
                     onClick={() => setActiveTab(tab.id)}
                     className={`min-h-20 rounded-xl border px-3 py-3 text-left transition-colors ${
                       isActive
-                        ? 'border-primary bg-white text-foreground shadow-sm'
-                        : 'border-transparent bg-transparent text-muted-foreground hover:bg-white/70 hover:text-foreground'
+                        ? 'border-primary bg-card text-foreground shadow-sm'
+                        : 'border-transparent bg-transparent text-muted-foreground hover:bg-card/70 hover:text-foreground'
                     } disabled:cursor-not-allowed disabled:opacity-60`}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -182,7 +182,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="min-h-[560px] bg-[#FAFAF9] p-5">
+          <div className="min-h-[560px] bg-background p-5">
             {selectedTab.id === 'overview' ? (
               <DashboardOverviewContent stats={stats} />
             ) : null}
@@ -374,7 +374,7 @@ function DashboardPlanContent({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -431,7 +431,7 @@ function StatCard({
   href?: string;
 }) {
   const content = (
-    <div className="rounded-2xl border border-border bg-white p-5 shadow-sm transition-all hover:shadow-md">
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:shadow-md">
       <div className="flex items-center justify-between">
         <span className="text-sm text-muted-foreground">{label}</span>
         <div
@@ -490,7 +490,7 @@ function ConversionCard({
   );
 
   const content = (
-    <div className="rounded-2xl border border-border bg-white p-5 shadow-sm transition-all hover:shadow-md">
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:shadow-md">
       <div className="flex items-center justify-between">
         <span className="text-sm text-muted-foreground">Konwersja</span>
         <Tooltip content={tooltipContent} delay={300}>
@@ -525,7 +525,7 @@ function RevenueCard({
   icon: React.ElementType;
 }) {
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-border bg-white p-5 shadow-sm">
+    <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
         <Icon className="h-5 w-5 text-primary" />
       </div>
@@ -555,7 +555,7 @@ function RecentActivityCard({ activities }: { activities: RecentActivity[] }) {
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-lg font-semibold text-foreground">
           Ostatnia aktywność
@@ -621,7 +621,7 @@ function UpcomingAppointmentsCard({
   appointments: UpcomingAppointment[];
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-lg font-semibold text-foreground">
           Nadchodzące spotkania
@@ -704,7 +704,7 @@ function ListingStatusBreakdown({
   ];
 
   return (
-    <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-lg font-semibold text-foreground">
           Oferty wg statusu
@@ -788,7 +788,7 @@ function ClientPipelineBreakdown({
   ];
 
   return (
-    <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-lg font-semibold text-foreground">
           Pipeline klientów

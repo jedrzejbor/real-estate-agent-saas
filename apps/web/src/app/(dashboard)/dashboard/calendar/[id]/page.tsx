@@ -167,7 +167,7 @@ export default function AppointmentDetailPage({
       {/* Details */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Info Card */}
-        <div className="space-y-4 rounded-2xl border border-border bg-white p-6">
+        <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
           <h2 className="font-heading text-base font-semibold text-foreground">
             Szczegóły spotkania
           </h2>
@@ -215,7 +215,7 @@ export default function AppointmentDetailPage({
         </div>
 
         {/* Notes Card */}
-        <div className="space-y-4 rounded-2xl border border-border bg-white p-6">
+        <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
           <h2 className="flex items-center gap-2 font-heading text-base font-semibold text-foreground">
             <StickyNote className="h-4 w-4 text-muted-foreground" />
             Notatki

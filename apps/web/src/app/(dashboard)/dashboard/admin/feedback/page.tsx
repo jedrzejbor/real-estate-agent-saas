@@ -160,7 +160,7 @@ export default function ProductFeedbackTriagePage() {
 
   if (!isAdmin) {
     return (
-      <div className="rounded-2xl border border-destructive/20 bg-white p-8 text-center shadow-sm">
+      <div className="rounded-2xl border border-destructive/20 bg-card p-8 text-center shadow-sm">
         <AlertCircle className="mx-auto h-10 w-10 text-destructive" />
         <h1 className="mt-4 font-heading text-2xl font-semibold">
           Brak dostępu
@@ -213,7 +213,7 @@ export default function ProductFeedbackTriagePage() {
         </Button>
       </div>
 
-      <section className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
           <Filter className="h-4 w-4 text-primary" />
           Filtry
@@ -349,7 +349,7 @@ export default function ProductFeedbackTriagePage() {
           <p className="text-sm text-destructive">{error}</p>
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-white p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
           <ShieldCheck className="mx-auto h-10 w-10 text-primary" />
           <h2 className="mt-4 font-heading text-xl font-semibold">
             Brak zgłoszeń dla tych filtrów
@@ -430,7 +430,7 @@ function FeedbackCard({
   const [duplicateOfId, setDuplicateOfId] = useState(item.duplicateOfId ?? '');
 
   return (
-    <article className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+    <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -508,14 +508,14 @@ function FeedbackCard({
             value={internalNote}
             rows={3}
             placeholder="Notatka wewnętrzna"
-            className="w-full resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="w-full resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             onChange={(event) => setInternalNote(event.target.value)}
           />
           <textarea
             value={teamResponse}
             rows={3}
             placeholder="Odpowiedź widoczna dla użytkownika"
-            className="w-full resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="w-full resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             onChange={(event) => setTeamResponse(event.target.value)}
           />
           <Input

@@ -29,9 +29,9 @@ const CATEGORY_ICON: Record<NotificationCategory, typeof CalendarClock> = {
 };
 
 const VARIANT_STYLES = {
-  info: 'bg-sky-50 text-sky-700',
-  warning: 'bg-amber-50 text-amber-700',
-  success: 'bg-emerald-50 text-emerald-700',
+  info: 'bg-status-info-bg text-status-info',
+  warning: 'bg-status-warning-bg text-status-warning',
+  success: 'bg-status-success-bg text-status-success',
 } as const;
 
 export function NotificationsDropdown() {
@@ -101,7 +101,7 @@ export function NotificationsDropdown() {
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 top-full z-50 mt-2 w-[24rem] overflow-hidden rounded-2xl border border-border bg-white shadow-xl ring-1 ring-black/5">
+        <div className="absolute right-0 top-full z-50 mt-2 w-[24rem] overflow-hidden rounded-2xl border border-border bg-card shadow-xl ring-1 ring-black/5">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div>
               <p className="text-sm font-semibold text-foreground">

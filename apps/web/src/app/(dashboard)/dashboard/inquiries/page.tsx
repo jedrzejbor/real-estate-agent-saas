@@ -224,7 +224,7 @@ function PublicInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
   const primaryImage = inquiry.listing?.primaryImage;
 
   return (
-    <article className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+    <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row">
           <div className="h-28 w-full shrink-0 overflow-hidden rounded-xl bg-muted sm:w-36">

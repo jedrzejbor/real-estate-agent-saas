@@ -172,7 +172,7 @@ export default function AdminFeedbackCreatePage() {
 
   if (!isAdmin) {
     return (
-      <div className="rounded-2xl border border-destructive/20 bg-white p-8 text-center shadow-sm">
+      <div className="rounded-2xl border border-destructive/20 bg-card p-8 text-center shadow-sm">
         <AlertCircle className="mx-auto h-10 w-10 text-destructive" />
         <h1 className="mt-4 font-heading text-2xl font-semibold">
           Brak dostępu
@@ -284,7 +284,7 @@ export default function AdminFeedbackCreatePage() {
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <form
           onSubmit={handleCreateSurvey}
-          className="rounded-2xl border border-border bg-white p-5 shadow-sm"
+          className="rounded-2xl border border-border bg-card p-5 shadow-sm"
         >
           <div className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-primary" />
@@ -308,7 +308,7 @@ export default function AdminFeedbackCreatePage() {
                 value={surveyDescription}
                 maxLength={2000}
                 rows={3}
-                className="w-full resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="w-full resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 onChange={(event) => setSurveyDescription(event.target.value)}
               />
             </label>
@@ -373,7 +373,7 @@ export default function AdminFeedbackCreatePage() {
                     required
                     maxLength={240}
                     placeholder="Treść pytania"
-                    className="h-10 rounded-xl bg-white"
+                    className="h-10 rounded-xl bg-card"
                     onChange={(event) =>
                       updateQuestion(index, { label: event.target.value })
                     }
@@ -429,7 +429,7 @@ export default function AdminFeedbackCreatePage() {
                     <textarea
                       value={question.optionsText}
                       rows={4}
-                      className="w-full resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      className="w-full resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                       onChange={(event) =>
                         updateQuestion(index, {
                           optionsText: event.target.value,
@@ -454,7 +454,7 @@ export default function AdminFeedbackCreatePage() {
         <div className="space-y-6">
           <form
             onSubmit={handleCreateIdea}
-            className="rounded-2xl border border-border bg-white p-5 shadow-sm"
+            className="rounded-2xl border border-border bg-card p-5 shadow-sm"
           >
             <div className="flex items-center gap-2">
               <Lightbulb className="h-5 w-5 text-primary" />
@@ -481,7 +481,7 @@ export default function AdminFeedbackCreatePage() {
                   required
                   maxLength={5000}
                   rows={5}
-                  className="w-full resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="w-full resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                   onChange={(event) => setIdeaDescription(event.target.value)}
                 />
               </label>
@@ -517,7 +517,7 @@ export default function AdminFeedbackCreatePage() {
                   value={ideaTeamResponse}
                   maxLength={2000}
                   rows={4}
-                  className="w-full resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="w-full resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                   onChange={(event) => setIdeaTeamResponse(event.target.value)}
                 />
               </label>
@@ -532,7 +532,7 @@ export default function AdminFeedbackCreatePage() {
             </Button>
           </form>
 
-          <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-heading text-lg font-semibold">
                 Ostatnie ankiety
@@ -586,7 +586,7 @@ function SelectField({
       <span className="text-sm font-medium">{label}</span>
       <select
         value={value}
-        className="h-10 w-full rounded-xl border border-border/80 bg-white px-3 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="h-10 w-full rounded-xl border border-border/80 bg-card px-3 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         onChange={(event) => onChange(event.target.value)}
       >
         {options.map((option) => (

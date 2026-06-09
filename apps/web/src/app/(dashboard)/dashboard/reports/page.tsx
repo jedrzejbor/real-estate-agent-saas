@@ -230,7 +230,7 @@ export default function ReportsPage() {
       )}
 
       {data && (
-        <section className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <div className="border-b border-border bg-muted/20 p-2">
             <div
               className="grid gap-2 lg:grid-cols-6"
@@ -251,8 +251,8 @@ export default function ReportsPage() {
                     onClick={() => updateReport(tab.id)}
                     className={`min-h-20 rounded-xl border px-3 py-3 text-left transition-colors ${
                       isActive
-                        ? 'border-primary bg-white text-foreground shadow-sm'
-                        : 'border-transparent bg-transparent text-muted-foreground hover:bg-white/70 hover:text-foreground'
+                        ? 'border-primary bg-card text-foreground shadow-sm'
+                        : 'border-transparent bg-transparent text-muted-foreground hover:bg-card/70 hover:text-foreground'
                     } disabled:cursor-not-allowed disabled:opacity-60`}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -294,7 +294,7 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          <div className="min-h-[560px] bg-[#FAFAF9] p-5">
+          <div className="min-h-[560px] bg-background p-5">
             {selectedTab.id === 'overview' ? (
               <OverviewReportContent
                 data={data}
@@ -654,7 +654,7 @@ function ReportDataState({
 
   if (isLoading && !hasData) {
     return (
-      <div className="rounded-2xl border border-border bg-white p-8 shadow-sm">
+      <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
         <div className="flex items-center justify-center py-10">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>

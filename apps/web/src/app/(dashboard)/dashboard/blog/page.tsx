@@ -217,7 +217,7 @@ export default function BlogDashboardPage() {
 
   if (!isAdmin) {
     return (
-      <div className="rounded-2xl border border-destructive/20 bg-white p-8 text-center shadow-sm">
+      <div className="rounded-2xl border border-destructive/20 bg-card p-8 text-center shadow-sm">
         <AlertCircle className="mx-auto h-10 w-10 text-destructive" />
         <h1 className="mt-4 font-heading text-2xl font-semibold">
           Brak dostępu
@@ -278,7 +278,7 @@ export default function BlogDashboardPage() {
         </div>
       </div>
 
-      <section className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
           <Filter className="h-4 w-4 text-primary" />
           Filtry
@@ -426,7 +426,7 @@ function BlogAdminCard({
   const canArchive = post.status !== BlogPostStatus.ARCHIVED;
 
   return (
-    <article className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+    <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -537,7 +537,7 @@ function BlogAdminCard({
 
 function EmptyState({ hasFilters }: { hasFilters: boolean }) {
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-white p-10 text-center">
+    <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
       <FileText className="mx-auto h-10 w-10 text-muted-foreground" />
       <h2 className="mt-4 font-heading text-xl font-semibold">
         {hasFilters ? 'Brak wpisów dla wybranych filtrów' : 'Brak wpisów'}

@@ -61,7 +61,7 @@ export default function AccountSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h1 className="font-heading text-2xl font-bold text-foreground">
@@ -88,7 +88,7 @@ export default function AccountSettingsPage() {
 
       <section
         id="plan"
-        className="rounded-2xl border border-border bg-white p-6 shadow-sm"
+        className="rounded-2xl border border-border bg-card p-6 shadow-sm"
       >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -169,7 +169,7 @@ export default function AccountSettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
             <h2 className="font-heading text-xl font-semibold text-foreground">
@@ -201,7 +201,7 @@ export default function AccountSettingsPage() {
             : 'grid gap-6'
         }
       >
-        <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-primary" />
             <h2 className="font-heading text-xl font-semibold text-foreground">
@@ -232,7 +232,7 @@ export default function AccountSettingsPage() {
 
         {showFreemiumUpsell ? (
           <div className="space-y-6">
-            <div className="rounded-2xl border border-[#D4A853]/25 bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border border-brand-gold/25 bg-card p-6 shadow-sm">
               <div className="flex items-center gap-2">
                 <Crown className="h-5 w-5 text-brand-gold-dark" />
                 <h2 className="font-heading text-xl font-semibold text-foreground">
@@ -254,7 +254,7 @@ export default function AccountSettingsPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
               <div className="flex items-center gap-2">
                 <LockKeyhole className="h-5 w-5 text-brand-gold-dark" />
                 <h2 className="font-heading text-xl font-semibold text-foreground">
@@ -270,7 +270,7 @@ export default function AccountSettingsPage() {
                 {lockedFeatures.map((feature) => (
                   <div
                     key={feature.key}
-                    className="rounded-xl border border-[#D4A853]/20 bg-[#FFF9E6]/40 p-4"
+                    className="rounded-xl border border-brand-gold/20 bg-brand-gold-light/40 p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -287,7 +287,7 @@ export default function AccountSettingsPage() {
                 ))}
               </div>
 
-              <div className="mt-5 rounded-xl border border-dashed border-[#D4A853]/35 bg-[#FFF9E6]/50 p-4">
+              <div className="mt-5 rounded-xl border border-dashed border-brand-gold/35 bg-brand-gold-light/50 p-4">
                 <p className="text-sm font-medium text-foreground">
                   Gotowe miejsce upgrade
                 </p>
@@ -305,7 +305,7 @@ export default function AccountSettingsPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
               <h2 className="font-heading text-xl font-semibold text-foreground">
                 Kiedy warto przejść wyżej?
               </h2>

@@ -68,7 +68,7 @@ export default function EditListingPage() {
         <p className="mt-1 text-sm text-muted-foreground">{listing.title}</p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         <ListingForm listing={listing} />
       </div>
 

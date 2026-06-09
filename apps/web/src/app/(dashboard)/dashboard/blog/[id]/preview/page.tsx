@@ -85,7 +85,7 @@ export default function BlogPreviewPage({ params }: BlogPreviewPageProps) {
     return (
       <div className="space-y-6">
         <BackLink />
-        <div className="rounded-2xl border border-destructive/30 bg-white p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-destructive/30 bg-card p-8 text-center shadow-sm">
           <h1 className="font-heading text-2xl font-semibold">
             Nie udało się pobrać podglądu
           </h1>
@@ -123,7 +123,7 @@ export default function BlogPreviewPage({ params }: BlogPreviewPageProps) {
         indeksowanie dotyczą tylko opublikowanej trasy `/blog/{post.slug}`.
       </section>
 
-      <header className="rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
+      <header className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <div className="flex flex-wrap gap-2">
           <Badge
             variant="outline"
@@ -143,7 +143,7 @@ export default function BlogPreviewPage({ params }: BlogPreviewPageProps) {
           ) : null}
         </div>
 
-        <h1 className="mt-5 max-w-4xl font-heading text-4xl font-bold leading-tight text-[#1C1917]">
+        <h1 className="mt-5 max-w-4xl font-heading text-4xl font-bold leading-tight text-foreground">
           {post.title}
         </h1>
 
@@ -177,7 +177,7 @@ export default function BlogPreviewPage({ params }: BlogPreviewPageProps) {
       />
 
       <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
-        <div className="rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
           <BlogMarkdown
             content={post.content}
             featuredListingsSlot={
@@ -217,7 +217,7 @@ function BackLink() {
 
 function PreviewSeoSummary({ post }: { post: AdminBlogPost }) {
   return (
-    <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <h2 className="font-heading text-base font-semibold">SEO</h2>
       <dl className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
         <div>

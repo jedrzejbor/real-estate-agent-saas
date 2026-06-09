@@ -223,7 +223,7 @@ function ChecklistStepCard({ step }: { step: DashboardOnboardingStep }) {
       className={cn(
         'rounded-xl border p-4 transition-colors',
         step.state === 'completed' && 'border-emerald-200 bg-emerald-50/50',
-        step.state === 'ready' && 'border-border bg-white',
+        step.state === 'ready' && 'border-border bg-card',
         step.state === 'upcoming' && 'border-border/80 bg-muted/25',
       )}
     >

@@ -281,7 +281,7 @@ export default function ClientDetailPage() {
         <div className="space-y-6 lg:col-span-2">
           {/* Budget card */}
           {budgetRange !== '—' && (
-            <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Wallet className="h-4 w-4" />
                 Budżet
@@ -294,7 +294,7 @@ export default function ClientDetailPage() {
 
           {/* General notes */}
           {client.notes && (
-            <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
               <h2 className="font-heading text-base font-semibold text-foreground">
                 Informacje dodatkowe
               </h2>
@@ -308,7 +308,7 @@ export default function ClientDetailPage() {
           <ClientPreferencesCard preference={client.preference} />
 
           {/* Notes timeline */}
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <ClientNotes clientId={client.id} onHistoryChanged={refreshHistory} />
           </div>
         </div>
@@ -316,7 +316,7 @@ export default function ClientDetailPage() {
         {/* Right column — sidebar */}
         <div className="space-y-6">
           {/* Status management */}
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <h2 className="font-heading text-base font-semibold text-foreground">
               Zarządzanie statusem
             </h2>
@@ -354,7 +354,7 @@ export default function ClientDetailPage() {
           </div>
 
           {/* Metadata */}
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <h2 className="font-heading text-base font-semibold text-foreground">
               Informacje
             </h2>

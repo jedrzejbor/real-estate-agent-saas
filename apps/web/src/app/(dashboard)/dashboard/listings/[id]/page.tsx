@@ -263,7 +263,7 @@ export default function ListingDetailPage() {
         {/* Left column - details */}
         <div className="space-y-6 lg:col-span-2">
           {/* Price card */}
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <p className="text-sm text-muted-foreground">Cena</p>
             <p className="mt-1 font-heading text-3xl font-bold text-primary">
               {formatPrice(listing.price, listing.currency)}
@@ -279,7 +279,7 @@ export default function ListingDetailPage() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">
@@ -299,7 +299,7 @@ export default function ListingDetailPage() {
           </div>
 
           {/* Parameters */}
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <h2 className="font-heading text-lg font-semibold text-foreground">
               Parametry
             </h2>
@@ -366,7 +366,7 @@ export default function ListingDetailPage() {
 
           {/* Description */}
           {listing.description && (
-            <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
               <h2 className="font-heading text-lg font-semibold text-foreground">
                 Opis
               </h2>
@@ -386,7 +386,7 @@ export default function ListingDetailPage() {
           />
 
           {/* Status management */}
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <h2 className="font-heading text-base font-semibold text-foreground">
               Zarządzanie statusem
             </h2>
@@ -425,7 +425,7 @@ export default function ListingDetailPage() {
           </div>
 
           {/* Metadata */}
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <h2 className="font-heading text-base font-semibold text-foreground">
               Informacje
             </h2>
@@ -467,7 +467,7 @@ export default function ListingDetailPage() {
 
           {/* Address card */}
           {address && (
-            <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
               <h2 className="font-heading text-base font-semibold text-foreground">
                 Lokalizacja
               </h2>

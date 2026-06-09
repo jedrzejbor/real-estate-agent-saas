@@ -131,7 +131,7 @@ export default function AdminListingSubmissionsPage() {
 
   if (!isAdmin) {
     return (
-      <div className="rounded-2xl border border-destructive/20 bg-white p-8 text-center shadow-sm">
+      <div className="rounded-2xl border border-destructive/20 bg-card p-8 text-center shadow-sm">
         <AlertCircle className="mx-auto h-10 w-10 text-destructive" />
         <h1 className="mt-4 font-heading text-2xl font-semibold">
           Brak dostępu
@@ -184,7 +184,7 @@ export default function AdminListingSubmissionsPage() {
           <p className="text-sm text-destructive">{error}</p>
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-white p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
           <ShieldCheck className="mx-auto h-10 w-10 text-primary" />
           <h2 className="mt-4 font-heading text-xl font-semibold">
             Brak zgłoszeń do moderacji
@@ -234,7 +234,7 @@ function SubmissionModerationCard({
   onReject: () => void;
 }) {
   return (
-    <article className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+    <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -297,7 +297,7 @@ function SubmissionModerationCard({
             value={reason}
             rows={4}
             placeholder="Powód odrzucenia widoczny w emailu do właściciela"
-            className="w-full resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="w-full resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             disabled={isUpdating}
             onChange={(event) => onReasonChange(event.target.value)}
           />

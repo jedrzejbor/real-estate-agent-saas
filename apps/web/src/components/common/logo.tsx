@@ -21,7 +21,7 @@ export function Logo({ className, showText = true, size = 'md' }: LogoProps) {
     <div className={cn('flex items-center gap-2', className)}>
       <Building2 className={cn(s.icon, 'text-primary')} />
       {showText && (
-        <span className={cn(s.text, 'font-heading font-bold text-[#1C1917]')}>
+        <span className={cn(s.text, 'font-heading font-bold text-foreground')}>
           EstateFlow
         </span>
       )}

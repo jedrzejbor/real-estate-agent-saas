@@ -198,7 +198,7 @@ export default function AdminPlansPage() {
 
   if (!isAdmin) {
     return (
-      <div className="rounded-2xl border border-destructive/20 bg-white p-8 text-center shadow-sm">
+      <div className="rounded-2xl border border-destructive/20 bg-card p-8 text-center shadow-sm">
         <AlertCircle className="mx-auto h-10 w-10 text-destructive" />
         <h1 className="mt-4 font-heading text-2xl font-semibold">
           Brak dostępu
@@ -331,7 +331,7 @@ export default function AdminPlansPage() {
       ) : null}
 
       <section className="grid gap-4 xl:grid-cols-[minmax(260px,320px)_1fr]">
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
             <SlidersHorizontal className="h-4 w-4 text-primary" />
             Katalog planów
@@ -366,7 +366,7 @@ export default function AdminPlansPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           {planDraft ? (
             <PlanEditor
               plan={planDraft}
@@ -381,7 +381,7 @@ export default function AdminPlansPage() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(300px,380px)_1fr]">
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
             <Building2 className="h-4 w-4 text-primary" />
             Agencje
@@ -424,7 +424,7 @@ export default function AdminPlansPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           {agencyPlan ? (
             <AgencyPlanEditor
               value={agencyPlan}
@@ -557,7 +557,7 @@ function PlanEditor({
             onChange({ ...plan, description: event.target.value || null })
           }
           rows={3}
-          className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
+          className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
         />
       </Field>
 
@@ -672,7 +672,7 @@ function AgencyPlanEditor({
                     : null,
               })
             }
-            className="h-8 w-full rounded-lg border border-border bg-white px-2 text-sm"
+            className="h-8 w-full rounded-lg border border-border bg-card px-2 text-sm"
           >
             {PLAN_OPTIONS.map((plan) => (
               <option key={plan} value={plan}>

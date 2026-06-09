@@ -100,7 +100,7 @@ function ClaimListingShell({ state }: { state: ClaimState }) {
         </p>
       </div>
 
-      <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         {state.status === 'idle' || state.status === 'loading' ? (
           <div className="flex flex-col items-center py-12 text-center">
             <div className="rounded-full bg-primary/10 p-3 text-primary">

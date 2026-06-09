@@ -4,6 +4,7 @@ import { Menu } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { Badge } from '@/components/ui/badge';
+import { ThemeToggle } from '@/components/common/theme-toggle';
 import { GlobalSearch } from './global-search';
 import { NotificationsDropdown } from './notifications-dropdown';
 import { ProductFeedbackWidget } from './product-feedback-widget';
@@ -24,7 +25,7 @@ export function DashboardTopbar() {
   const planLabel = user?.entitlements?.plan.label;
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-white/80 px-6 backdrop-blur-md">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/80 px-6 backdrop-blur-md">
       {/* Mobile menu button */}
       <button
         className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground lg:hidden"
@@ -50,6 +51,8 @@ export function DashboardTopbar() {
         <ProductFeedbackWidget />
 
         <NotificationsDropdown />
+
+        <ThemeToggle />
 
         {/* User avatar */}
         <div className="flex items-center gap-3">

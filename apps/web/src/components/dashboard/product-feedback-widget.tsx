@@ -161,7 +161,7 @@ export function ProductFeedbackWidget() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="product-feedback-title"
-              className="w-full overflow-hidden rounded-2xl border border-border bg-white shadow-2xl"
+              className="w-full overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
             >
               <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
                 <div>
@@ -202,7 +202,7 @@ export function ProductFeedbackWidget() {
                           'flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm font-semibold transition-colors',
                           isSelected
                             ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border bg-white text-foreground hover:bg-muted',
+                            : 'border-border bg-card text-foreground hover:bg-muted',
                         )}
                         onClick={() => setType(option.value)}
                       >
@@ -254,7 +254,7 @@ export function ProductFeedbackWidget() {
                     maxLength={5000}
                     rows={6}
                     placeholder="Opisz, co się stało, czego oczekujesz albo jakiej funkcji brakuje."
-                    className="w-full resize-y rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    className="w-full resize-y rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                     onChange={(event) => setDescription(event.target.value)}
                   />
                   <span className="block text-xs text-muted-foreground">
@@ -311,7 +311,7 @@ function SelectField({
       <span className="text-sm font-medium text-foreground">{label}</span>
       <select
         value={value}
-        className="h-10 w-full rounded-xl border border-border/80 bg-white px-3 text-sm shadow-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="h-10 w-full rounded-xl border border-border/80 bg-card px-3 text-sm shadow-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         onChange={(event) => onChange(event.target.value)}
       >
         {options.map((option) => (

@@ -50,14 +50,14 @@ export default function DashboardLayout({
 
   if (isPrivateSeller) {
     return (
-      <div className="min-h-screen bg-[#F5F5F4]">
+      <div className="min-h-screen bg-background">
         <main className="mx-auto max-w-6xl p-6">{children}</main>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-[#F5F5F4]">
+    <div className="flex min-h-screen bg-background">
       <DashboardSidebar />
       <div className="flex flex-1 flex-col lg:ml-64">
         <DashboardTopbar />

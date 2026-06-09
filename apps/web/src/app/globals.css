@@ -32,28 +32,28 @@
   --color-ring: var(--ring);
 
   /* === Brand Colors === */
-  --color-brand-emerald: #059669;
-  --color-brand-emerald-dark: #047857;
-  --color-brand-emerald-light: #ECFDF5;
-  --color-brand-gold: #D4A853;
-  --color-brand-gold-dark: #B8922F;
-  --color-brand-gold-light: #FFF9E6;
-  --color-brand-terracotta: #C2724B;
+  --color-brand-emerald: var(--brand-emerald);
+  --color-brand-emerald-dark: var(--brand-emerald-dark);
+  --color-brand-emerald-light: var(--brand-emerald-light);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-gold-dark: var(--brand-gold-dark);
+  --color-brand-gold-light: var(--brand-gold-light);
+  --color-brand-terracotta: var(--brand-terracotta);
 
   /* === Status Colors === */
-  --color-status-success: #16A34A;
-  --color-status-success-bg: #F0FDF4;
-  --color-status-warning: #EA580C;
-  --color-status-warning-bg: #FFF7ED;
-  --color-status-info: #2563EB;
-  --color-status-info-bg: #EFF6FF;
+  --color-status-success: var(--status-success);
+  --color-status-success-bg: var(--status-success-bg);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-bg: var(--status-warning-bg);
+  --color-status-info: var(--status-info);
+  --color-status-info-bg: var(--status-info-bg);
 
   /* === Warm palette === */
-  --color-warm-white: #FAFAF9;
-  --color-warm-cream: #F5F0EB;
-  --color-warm-text: #1C1917;
-  --color-warm-text-secondary: #44403C;
-  --color-warm-text-muted: #78716C;
+  --color-warm-white: var(--warm-white);
+  --color-warm-cream: var(--warm-cream);
+  --color-warm-text: var(--warm-text);
+  --color-warm-text-secondary: var(--warm-text-secondary);
+  --color-warm-text-muted: var(--warm-text-muted);
 
   /* === Sidebar === */
   --color-sidebar-ring: var(--sidebar-ring);
@@ -84,6 +84,32 @@
 }
 
 :root {
+  color-scheme: light;
+
+  /* === Brand palette === */
+  --brand-emerald: #059669;
+  --brand-emerald-dark: #047857;
+  --brand-emerald-light: #ECFDF5;
+  --brand-gold: #D4A853;
+  --brand-gold-dark: #B8922F;
+  --brand-gold-light: #FFF9E6;
+  --brand-terracotta: #C2724B;
+
+  /* === Status palette === */
+  --status-success: #16A34A;
+  --status-success-bg: #F0FDF4;
+  --status-warning: #EA580C;
+  --status-warning-bg: #FFF7ED;
+  --status-info: #2563EB;
+  --status-info-bg: #EFF6FF;
+
+  /* === Warm palette === */
+  --warm-white: #FAFAF9;
+  --warm-cream: #F5F0EB;
+  --warm-text: #1C1917;
+  --warm-text-secondary: #44403C;
+  --warm-text-muted: #78716C;
+
   /* === Background === */
   --background: #FAFAF9;
   --foreground: #1C1917;
@@ -142,6 +168,94 @@
 
   /* === Shadows (warm stone tint) === */
   --shadow-warm: 28 25 23;
+
+  --select-chevron-icon: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 9l6 6 6-6' stroke='%231C1917' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.dark {
+  color-scheme: dark;
+
+  /* === Brand palette === */
+  --brand-emerald: #34D399;
+  --brand-emerald-dark: #10B981;
+  --brand-emerald-light: #052E22;
+  --brand-gold: #F2C46D;
+  --brand-gold-dark: #E0A837;
+  --brand-gold-light: #3A2A12;
+  --brand-terracotta: #F09A73;
+
+  /* === Status palette === */
+  --status-success: #4ADE80;
+  --status-success-bg: #052E16;
+  --status-warning: #FB923C;
+  --status-warning-bg: #431407;
+  --status-info: #60A5FA;
+  --status-info-bg: #172554;
+
+  /* === Warm palette === */
+  --warm-white: #0F1115;
+  --warm-cream: #181A20;
+  --warm-text: #F5F5F4;
+  --warm-text-secondary: #D6D3D1;
+  --warm-text-muted: #A8A29E;
+
+  /* === Background === */
+  --background: #0F1115;
+  --foreground: #F5F5F4;
+
+  /* === Card / Surface === */
+  --card: #181A20;
+  --card-foreground: #F5F5F4;
+
+  /* === Popover === */
+  --popover: #1F222A;
+  --popover-foreground: #F5F5F4;
+
+  /* === Primary (Emerald Green) === */
+  --primary: #34D399;
+  --primary-foreground: #052E22;
+
+  /* === Secondary (Rich Gold) === */
+  --secondary: #F2C46D;
+  --secondary-foreground: #2B1F0B;
+
+  /* === Muted / Cream === */
+  --muted: #242832;
+  --muted-foreground: #A8A29E;
+
+  /* === Accent (Terracotta) === */
+  --accent: #F09A73;
+  --accent-foreground: #2B1208;
+
+  /* === Destructive === */
+  --destructive: #F87171;
+
+  /* === Borders === */
+  --border: #30343D;
+  --input: #30343D;
+  --ring: #34D399;
+
+  /* === Sidebar === */
+  --sidebar: #14161B;
+  --sidebar-foreground: #F5F5F4;
+  --sidebar-primary: #34D399;
+  --sidebar-primary-foreground: #052E22;
+  --sidebar-accent: #242832;
+  --sidebar-accent-foreground: #F5F5F4;
+  --sidebar-border: #30343D;
+  --sidebar-ring: #34D399;
+
+  /* === Chart colors === */
+  --chart-1: #34D399;
+  --chart-2: #F2C46D;
+  --chart-3: #F09A73;
+  --chart-4: #4ADE80;
+  --chart-5: #FB923C;
+
+  /* === Shadows (cool neutral tint) === */
+  --shadow-warm: 0 0 0;
+
+  --select-chevron-icon: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 9l6 6 6-6' stroke='%23F5F5F4' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 @layer base {
@@ -157,7 +271,7 @@
   }
   select:not([multiple]) {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 9l6 6 6-6' stroke='%231C1917' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-image: var(--select-chevron-icon);
     background-position: right 1rem center;
     background-repeat: no-repeat;
     background-size: 1rem 1rem;

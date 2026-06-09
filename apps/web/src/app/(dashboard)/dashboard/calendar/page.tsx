@@ -138,7 +138,7 @@ export default function CalendarPage() {
       </div>
 
       {/* Navigation Bar */}
-      <div className="flex items-center justify-between rounded-2xl border border-border bg-white p-3">
+      <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-3">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={goToPrevMonth}>
             <ChevronLeft className="h-4 w-4" />
@@ -229,7 +229,7 @@ function MonthView({
   const days = getCalendarDays(year, month);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-white">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
       {/* Weekday headers */}
       <div className="grid grid-cols-7 border-b border-border bg-muted/30">
         {WEEKDAYS_PL.map((day) => (
@@ -337,7 +337,7 @@ function AppointmentListItem({ appointment }: { appointment: Appointment }) {
   return (
     <Link
       href={`/dashboard/calendar/${appointment.id}`}
-      className="flex items-center gap-4 rounded-xl border border-border bg-white p-4 transition-all hover:border-primary/30 hover:shadow-sm"
+      className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-sm"
     >
       {/* Time */}
       <div className="flex w-28 shrink-0 flex-col text-sm">

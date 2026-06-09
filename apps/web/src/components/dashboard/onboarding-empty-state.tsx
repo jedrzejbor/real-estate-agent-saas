@@ -64,7 +64,7 @@ export function OnboardingEmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-white text-center',
+        'flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card text-center',
         !surface && 'border-0 bg-transparent',
         compact ? 'px-4 py-8' : 'px-6 py-14',
         className,

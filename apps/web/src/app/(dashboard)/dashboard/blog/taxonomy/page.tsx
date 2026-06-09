@@ -216,7 +216,7 @@ export default function BlogTaxonomyPage() {
 
   if (!isAdmin) {
     return (
-      <div className="rounded-2xl border border-destructive/20 bg-white p-8 text-center shadow-sm">
+      <div className="rounded-2xl border border-destructive/20 bg-card p-8 text-center shadow-sm">
         <AlertCircle className="mx-auto h-10 w-10 text-destructive" />
         <h1 className="mt-4 font-heading text-2xl font-semibold">
           Brak dostępu
@@ -346,7 +346,7 @@ export default function BlogTaxonomyPage() {
                       }))
                     }
                     rows={3}
-                    className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm leading-6 shadow-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
+                    className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm leading-6 shadow-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
                   />
                 </FormField>
                 <FormField label="SEO title">
@@ -502,7 +502,7 @@ export default function BlogTaxonomyPage() {
                       }))
                     }
                     rows={3}
-                    className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm leading-6 shadow-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
+                    className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm leading-6 shadow-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
                   />
                 </FormField>
                 <FormField label="Ekspertyza" className="sm:col-span-2">
@@ -602,7 +602,7 @@ function TaxonomySection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+    <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div className="flex gap-3">
         <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <Icon className="h-5 w-5" />

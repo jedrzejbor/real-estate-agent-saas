@@ -164,7 +164,7 @@ export default function UpgradePage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -194,9 +194,9 @@ export default function UpgradePage() {
         </div>
 
         <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div className="rounded-xl border border-[#D4A853]/25 bg-[#FFF9E6]/45 p-4">
+          <div className="rounded-xl border border-brand-gold/25 bg-brand-gold-light/45 p-4">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#B8922F] ring-1 ring-[#D4A853]/25">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card text-brand-gold-dark ring-1 ring-[#D4A853]/25">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
@@ -218,7 +218,7 @@ export default function UpgradePage() {
               className={cn(
                 'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 billingInterval === 'monthly'
-                  ? 'bg-white text-foreground shadow-sm'
+                  ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -230,7 +230,7 @@ export default function UpgradePage() {
               className={cn(
                 'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 billingInterval === 'yearly'
-                  ? 'bg-white text-foreground shadow-sm'
+                  ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -249,7 +249,7 @@ export default function UpgradePage() {
 
       <section className="grid gap-4 xl:grid-cols-4">
         {isLoadingPlans ? (
-          <div className="col-span-full flex items-center justify-center rounded-2xl border border-border bg-white p-10 text-sm text-muted-foreground">
+          <div className="col-span-full flex items-center justify-center rounded-2xl border border-border bg-card p-10 text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Ładowanie planów
           </div>
@@ -263,9 +263,9 @@ export default function UpgradePage() {
               <article
                 key={plan.code}
                 className={cn(
-                  'flex flex-col rounded-2xl border bg-white p-5 shadow-sm',
+                  'flex flex-col rounded-2xl border bg-card p-5 shadow-sm',
                   plan.code === 'professional'
-                    ? 'border-[#D4A853]/50 ring-2 ring-[#D4A853]/15'
+                    ? 'border-brand-gold/50 ring-2 ring-[#D4A853]/15'
                     : 'border-border',
                   isSelected && 'border-primary ring-2 ring-primary/15',
                 )}
@@ -333,7 +333,7 @@ export default function UpgradePage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <h2 className="font-heading text-xl font-semibold text-foreground">
             Co stanie się po wysłaniu?
           </h2>
@@ -352,7 +352,7 @@ export default function UpgradePage() {
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-2xl border border-border bg-white p-6 shadow-sm"
+          className="rounded-2xl border border-border bg-card p-6 shadow-sm"
         >
           <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
             <div>
@@ -420,7 +420,7 @@ export default function UpgradePage() {
           </div>
 
           {submitted ? (
-            <div className="mt-5 rounded-xl border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-sm leading-6 text-[#166534]">
+            <div className="mt-5 rounded-xl border border-status-success bg-status-success-bg p-4 text-sm leading-6 text-status-success">
               Dzięki, zapisaliśmy intencję upgrade z wybranym planem i trybem
               rozliczenia.
             </div>

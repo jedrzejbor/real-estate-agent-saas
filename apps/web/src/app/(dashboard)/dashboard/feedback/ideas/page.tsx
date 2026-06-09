@@ -165,7 +165,7 @@ export default function ProductFeedbackIdeasPage() {
         </Button>
       </div>
 
-      <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-white p-4 shadow-sm">
+      <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
         <InlineSelect
           size="sm"
           value={filters.status ?? ''}
@@ -270,7 +270,7 @@ function IdeaCard({
   onToggleVote: () => void;
 }) {
   return (
-    <article className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+    <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -323,7 +323,7 @@ function IdeaCard({
 
 function EmptyIdeas() {
   return (
-    <div className="rounded-2xl border border-border bg-white p-8 text-center shadow-sm">
+    <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
       <Lightbulb className="mx-auto h-10 w-10 text-primary" />
       <h2 className="mt-4 font-heading text-xl font-semibold">
         Brak pomysłów do głosowania

@@ -59,7 +59,7 @@ export default function EditBlogPostPage({ params }: EditBlogPostPageProps) {
           <ArrowLeft className="h-4 w-4" />
           Wróć do listy wpisów
         </Link>
-        <div className="rounded-2xl border border-destructive/30 bg-white p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-destructive/30 bg-card p-8 text-center shadow-sm">
           <h1 className="font-heading text-2xl font-semibold">
             Nie udało się pobrać wpisu
           </h1>
