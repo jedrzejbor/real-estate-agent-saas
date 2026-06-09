@@ -138,7 +138,7 @@ export function InlineSelect({
         onClick={toggle}
         onKeyDown={handleKeyDown}
         className={cn(
-          'flex w-full items-center justify-between gap-2 rounded-xl border bg-white px-3 text-sm shadow-sm transition-colors outline-none cursor-pointer select-none',
+          'flex w-full items-center justify-between gap-2 rounded-xl border bg-card px-3 text-sm shadow-sm transition-colors outline-none cursor-pointer select-none',
           size === 'sm' ? 'h-9' : 'h-10',
           isOpen
             ? 'border-ring ring-3 ring-ring/50'
@@ -159,7 +159,7 @@ export function InlineSelect({
 
       {/* Dropdown panel */}
       {isOpen && (
-        <div className="absolute z-50 mt-1.5 w-full min-w-max overflow-hidden rounded-xl border border-border bg-white shadow-lg">
+        <div className="absolute z-50 mt-1.5 w-full min-w-max overflow-hidden rounded-xl border border-border bg-card shadow-lg">
           <ul
             ref={listRef}
             role="listbox"

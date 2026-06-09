@@ -133,7 +133,7 @@ export function ReportsFreemiumSection({ data }: ReportsFreemiumSectionProps) {
           {data.postLaunchHealth.map((item) => (
             <div
               key={item.key}
-              className="rounded-xl border border-border/70 bg-white p-3 text-sm shadow-sm"
+              className="rounded-xl border border-border/70 bg-card p-3 text-sm shadow-sm"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -217,7 +217,7 @@ function MetricCard({
   detail: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
       <Icon className="h-5 w-5 text-primary" />
       <p className="mt-3 text-xs font-medium uppercase text-muted-foreground">
         {label}

@@ -27,7 +27,7 @@ export function ReportsPremiumPlaceholder({
     <ReportSectionCard
       title={title}
       description={description}
-      className="border-[#D4A853]/25 bg-[#FFF9E6]/40"
+      className="border-brand-gold/25 bg-brand-gold-light/40"
     >
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -35,9 +35,9 @@ export function ReportsPremiumPlaceholder({
           <Badge variant="outline">Upgrade required</Badge>
         </div>
 
-        <div className="rounded-xl border border-[#D4A853]/25 bg-white/80 p-4">
+        <div className="rounded-xl border border-brand-gold/25 bg-card/80 p-4">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FFF9E6] text-[#B8922F]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-gold-light text-brand-gold-dark">
               <Crown className="h-5 w-5" />
             </div>
             <div>
@@ -52,9 +52,9 @@ export function ReportsPremiumPlaceholder({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-[#D4A853]/30 bg-[#FFF9E6]/30 p-4">
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-brand-gold/30 bg-brand-gold-light/30 p-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <LockKeyhole className="h-4 w-4 text-[#B8922F]" />
+            <LockKeyhole className="h-4 w-4 text-brand-gold-dark" />
             Raport pozostaje zablokowany w planie Free.
           </div>
           <Link href={href}>

@@ -111,7 +111,7 @@ function SettingsTextarea({
         id={name}
         name={name}
         aria-invalid={!!error}
-        className="mt-1 min-h-28 w-full rounded-xl border border-border/80 bg-white px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
+        className="mt-1 min-h-28 w-full rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
         {...props}
       />
       {error ? (
@@ -135,7 +135,7 @@ function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+    <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div className="flex items-start gap-3">
         <div className="rounded-xl bg-muted p-2 text-primary">
           <Icon className="h-5 w-5" />
