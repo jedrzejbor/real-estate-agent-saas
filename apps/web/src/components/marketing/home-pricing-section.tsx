@@ -56,10 +56,10 @@ export function HomePricingSection() {
   return (
     <div className="pt-8">
       <div className="mx-auto mb-6 flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-[#78716C]">
+        <div className="text-sm text-muted-foreground">
           Ceny i funkcje są pobierane z katalogu planów.
         </div>
-        <div className="inline-flex w-fit rounded-full border border-[#E7E5E4] bg-white p-1">
+        <div className="inline-flex w-fit rounded-full border border-border bg-card p-1">
           <button
             type="button"
             onClick={() => setBillingInterval('monthly')}
@@ -67,7 +67,7 @@ export function HomePricingSection() {
               'rounded-full px-4 py-2 text-sm font-semibold transition-colors',
               billingInterval === 'monthly'
                 ? 'bg-primary text-white shadow-sm'
-                : 'text-[#78716C] hover:text-[#1C1917]',
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             Miesięcznie
@@ -79,7 +79,7 @@ export function HomePricingSection() {
               'rounded-full px-4 py-2 text-sm font-semibold transition-colors',
               billingInterval === 'yearly'
                 ? 'bg-primary text-white shadow-sm'
-                : 'text-[#78716C] hover:text-[#1C1917]',
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             Rocznie
@@ -88,14 +88,14 @@ export function HomePricingSection() {
       </div>
 
       {error ? (
-        <div className="mx-auto mb-6 flex max-w-5xl items-center gap-2 rounded-xl border border-destructive/25 bg-white p-4 text-sm text-destructive">
+        <div className="mx-auto mb-6 flex max-w-5xl items-center gap-2 rounded-xl border border-destructive/25 bg-card p-4 text-sm text-destructive">
           <AlertCircle className="h-4 w-4" />
           {error}
         </div>
       ) : null}
 
       {isLoading ? (
-        <div className="mx-auto flex max-w-5xl items-center justify-center rounded-2xl border border-[#E7E5E4] bg-white p-10 text-sm text-[#78716C]">
+        <div className="mx-auto flex max-w-5xl items-center justify-center rounded-2xl border border-border bg-card p-10 text-sm text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           Ładowanie cennika
         </div>
@@ -114,7 +114,7 @@ export function HomePricingSection() {
       <div className="mt-8 text-center">
         <Link
           href="/cennik"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-[#047857]"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary"
         >
           Zobacz pełny cennik
           <ArrowRight className="h-4 w-4" />
@@ -137,10 +137,10 @@ function HomePricingCard({
   return (
     <article
       className={cn(
-        'relative flex h-full flex-col rounded-2xl border bg-white p-5 shadow-sm transition-all',
+        'relative flex h-full flex-col rounded-2xl border bg-card p-5 shadow-sm transition-all',
         isPopular
           ? 'border-primary shadow-[0_10px_25px_-5px_rgba(28,25,23,0.1)]'
-          : 'border-[#E7E5E4]',
+          : 'border-border',
       )}
     >
       {isPopular ? (
@@ -150,17 +150,17 @@ function HomePricingCard({
       ) : null}
 
       <div className="text-center">
-        <h3 className="font-heading text-lg font-semibold text-[#1C1917]">
+        <h3 className="font-heading text-lg font-semibold text-foreground">
           {plan.label}
         </h3>
-        <p className="mt-2 min-h-[3.5rem] text-sm leading-6 text-[#78716C]">
+        <p className="mt-2 min-h-[3.5rem] text-sm leading-6 text-muted-foreground">
           {plan.description ?? getPlanFallbackDescription(plan)}
         </p>
         <div className="mt-4">
-          <span className="font-heading text-4xl font-bold text-[#1C1917]">
+          <span className="font-heading text-4xl font-bold text-foreground">
             {formatPlanPrice(plan, billingInterval)}
           </span>
-          <span className="mt-1 block text-sm text-[#78716C]">
+          <span className="mt-1 block text-sm text-muted-foreground">
             {getPriceHelper(plan, billingInterval)}
           </span>
         </div>
@@ -170,7 +170,7 @@ function HomePricingCard({
         {getPlanHighlights(plan).map((feature) => (
           <li key={feature} className="flex items-start gap-3 text-sm">
             <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <span className="text-[#44403C]">{feature}</span>
+            <span className="text-foreground">{feature}</span>
           </li>
         ))}
       </ul>
@@ -179,8 +179,8 @@ function HomePricingCard({
         className={cn(
           'mt-6 h-10 w-full rounded-full',
           isPopular
-            ? 'bg-primary text-white hover:bg-[#047857]'
-            : 'border-[#E7E5E4] bg-white text-[#1C1917] hover:bg-[#F5F0EB]',
+            ? 'bg-primary text-white hover:bg-primary/90'
+            : 'border-border bg-card text-foreground hover:bg-muted',
         )}
         variant={isPopular ? 'default' : 'outline'}
         render={
