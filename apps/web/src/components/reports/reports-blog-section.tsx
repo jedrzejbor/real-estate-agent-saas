@@ -74,7 +74,7 @@ export function ReportsBlogSection({ data }: ReportsBlogSectionProps) {
                 return (
                   <div
                     key={post.key}
-                    className="space-y-2 rounded-xl border border-border/70 bg-white p-3"
+                    className="space-y-2 rounded-xl border border-border/70 bg-card p-3"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
