@@ -19,10 +19,10 @@ export function HowItWorksStep({
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary text-xl font-bold text-white">
         {stepNumber}
       </div>
-      <h3 className="mt-5 font-heading text-xl font-semibold text-[#1C1917]">
+      <h3 className="mt-5 font-heading text-xl font-semibold text-foreground">
         {title}
       </h3>
-      <p className="mt-2 text-sm leading-relaxed text-[#78716C]">
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         {description}
       </p>
     </div>
