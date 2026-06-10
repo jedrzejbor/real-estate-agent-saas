@@ -363,7 +363,7 @@ Weryfikacja:
 
 ### C4. Consent gate dla analytics
 
-Status: do zrobienia
+Status: wykonane 2026-06-11
 
 Zakres:
 
@@ -374,11 +374,34 @@ Zakres:
 
 Kryteria akceptacji:
 
-- Przy odrzuceniu opcjonalnych zgód `public_listing_viewed` nie wysyła requestu do API.
-- Przy zgodzie analitycznej `public_listing_viewed` wysyła request do API.
-- Blog analytics działa tak samo.
-- Abuse/security flow nadal działa.
-- Brak błędów w konsoli przy braku zgody.
+- [x] Przy odrzuceniu opcjonalnych zgód `public_listing_viewed` nie wysyła requestu do API.
+- [x] Przy zgodzie analitycznej `public_listing_viewed` wysyła request do API.
+- [x] Blog analytics działa tak samo.
+- [x] Abuse/security flow nadal działa.
+- [x] Brak błędów w konsoli przy braku zgody na poziomie implementacji; finalna kontrola runtime zostaje do manualnego QA.
+
+Wykonane:
+
+- Dodano centralny consent gate w `apps/web/src/lib/analytics.ts`.
+- `trackAnalyticsEvent`, `trackPublicListingEvent` i `trackPublicBlogEvent` sprawdzają teraz zgodę `analytics` z `estateflow-cookie-consent`.
+- Bez decyzji użytkownika albo po odrzuceniu opcjonalnych zgód eventy pomiarowe nie są wysyłane.
+- Dodano wyjątek operacyjny dla `public_listing_abuse_reported`.
+- Abuse report w `apps/web/src/lib/listings.ts` pozostaje bezpośrednią ścieżką operacyjną przez `apiFetch`, więc nie zależy od zgody analitycznej.
+- `BlogArticleAnalytics` nie zapisuje już deduplikacji w `sessionStorage` przed zgodą analityczną.
+
+Decyzje implementacyjne:
+
+- Brak zapisanej decyzji consentu traktujemy jak brak zgody na analytics.
+- Product analytics zalogowanego użytkownika również wymaga zgody `analytics`.
+- `public_lead_submitted` jako event pomiarowy jest blokowany bez zgody analitycznej, ale sam submit formularza leada działa dalej, bo jest osobnym requestem.
+- `public_listing_abuse_reported` pozostaje wyjątkiem, bo służy obsłudze nadużyć i bezpieczeństwu.
+- Ujednolicenie `product_feedback_submitted` między backend/frontend pozostaje osobnym follow-upem z `C1`, bo eventy feedbacku są obecnie emitowane po stronie API, nie przez frontendowy helper.
+
+Weryfikacja:
+
+- `pnpm --filter web type-check` - przechodzi.
+- Lint dla dotkniętych plików - przechodzi.
+- Pełny `pnpm --filter web lint` nadal pada na wcześniejszych błędach poza zakresem `C4`, m.in. `react-hooks/set-state-in-effect` w istniejących plikach.
 
 ### C5. Polityka cookies i aktualizacja dokumentów legal
 

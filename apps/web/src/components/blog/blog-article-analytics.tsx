@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useCookieConsent } from '@/contexts/cookie-consent-context';
 import { AnalyticsEventName, trackPublicBlogEvent } from '@/lib/analytics';
 
 interface BlogArticleAnalyticsProps {
@@ -16,7 +17,13 @@ export function BlogArticleAnalytics({
   category,
   author,
 }: BlogArticleAnalyticsProps) {
+  const { hasAnalyticsConsent, isHydrated } = useCookieConsent();
+
   useEffect(() => {
+    if (!isHydrated || !hasAnalyticsConsent) {
+      return;
+    }
+
     const sessionKey = `blog-article-viewed:${slug}`;
 
     try {
@@ -38,7 +45,7 @@ export function BlogArticleAnalytics({
         author: author ?? null,
       },
     });
-  }, [author, category, slug, title]);
+  }, [author, category, hasAnalyticsConsent, isHydrated, slug, title]);
 
   return null;
 }

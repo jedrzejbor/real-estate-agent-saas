@@ -1,5 +1,6 @@
 import { apiFetch } from './api-client';
 import { getStoredTokens } from './auth';
+import { hasCookieConsent, readStoredCookieConsent } from './cookie-consent';
 
 export const AnalyticsEventName = {
   SIGNUP_COMPLETED: 'signup_completed',
@@ -53,7 +54,11 @@ export function trackAnalyticsEvent({
   properties,
   path,
 }: TrackAnalyticsEventInput): void {
-  if (typeof window === 'undefined' || !getStoredTokens()) {
+  if (
+    typeof window === 'undefined' ||
+    !getStoredTokens() ||
+    !canTrackAnalyticsEvent(name)
+  ) {
     return;
   }
 
@@ -79,7 +84,7 @@ export function trackPublicListingEvent({
   properties,
   path,
 }: TrackAnalyticsEventInput & { slug: string }): void {
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' || !canTrackAnalyticsEvent(name)) {
     return;
   }
 
@@ -109,7 +114,7 @@ export function trackPublicBlogEvent({
   properties,
   path,
 }: TrackAnalyticsEventInput & { slug: string }): void {
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' || !canTrackAnalyticsEvent(name)) {
     return;
   }
 
@@ -139,4 +144,16 @@ function compactProperties(
   return Object.fromEntries(
     Object.entries(properties).filter(([, value]) => value !== undefined),
   ) as Record<string, string | number | boolean | null>;
+}
+
+function canTrackAnalyticsEvent(name: AnalyticsEventName): boolean {
+  if (isOperationalAnalyticsEvent(name)) {
+    return true;
+  }
+
+  return hasCookieConsent(readStoredCookieConsent(), 'analytics');
+}
+
+function isOperationalAnalyticsEvent(name: AnalyticsEventName): boolean {
+  return name === AnalyticsEventName.PUBLIC_LISTING_ABUSE_REPORTED;
 }
