@@ -113,7 +113,7 @@ Obecny status: brak aktywnego zakresu, ale kategoria powinna istnieć w modelu z
 
 ### C1. Audyt storage, cookies i analytics
 
-Status: do zrobienia
+Status: wykonane wstępnie 2026-06-10
 
 Zakres:
 
@@ -136,13 +136,91 @@ Zakres:
 
 Output:
 
-- Sekcja "Inventory" w tym dokumencie albo osobny dokument `COOKIE_STORAGE_INVENTORY.md`.
+- Sekcja "Inventory" w tym dokumencie.
 
 Kryteria akceptacji:
 
-- Każdy znany storage key i analytics event ma przypisaną kategorię.
-- Public analytics i product analytics są wyraźnie oddzielone od eventów operacyjnych/security.
-- Wiadomo, które funkcje trzeba blokować przed zgodą.
+- [x] Każdy znany storage key i analytics event ma przypisaną kategorię.
+- [x] Public analytics i product analytics są wyraźnie oddzielone od eventów operacyjnych/security.
+- [x] Wiadomo, które funkcje trzeba blokować przed zgodą.
+
+Wykonane:
+
+- Przejrzano użycia `localStorage`, `sessionStorage`, `request.cookies`, `document.cookie`, public analytics i product analytics w `apps/web/src` oraz `apps/api/src`.
+- Nie znaleziono aktywnego użycia `document.cookie` ani zewnętrznych pikseli/skryptów marketingowych w kodzie aplikacji.
+- Znaleziono jedno serwerowe odczytanie cookie `accessToken` w `apps/web/src/middleware.ts`, ale bieżący auth realnie korzysta z tokenów w `localStorage`.
+- Spisano inventory poniżej jako bazę dla etapów `C2-C7`.
+
+### C1 Inventory - browser storage
+
+| Mechanizm | Klucz / wzorzec | Miejsce | Kategoria robocza | Cel | Dane / identyfikatory | Retencja obecna | Wymaga zgody przed użyciem |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `localStorage` | `accessToken` | `apps/web/src/lib/auth.ts`, `apps/web/src/lib/api-client.ts` | Niezbędne, security risk do decyzji | Utrzymanie sesji i autoryzacja requestów API | JWT użytkownika | Do logoutu, wyczyszczenia storage albo nadpisania tokenów | Nie, jeśli zostaje jako mechanizm sesji |
+| `localStorage` | `refreshToken` | `apps/web/src/lib/auth.ts` | Niezbędne, security risk do decyzji | Odświeżanie sesji | JWT refresh użytkownika | Do logoutu, wyczyszczenia storage albo nadpisania tokenów | Nie, jeśli zostaje jako mechanizm sesji |
+| `request.cookies` | `accessToken` | `apps/web/src/middleware.ts` | Niezbędne, niespójne z aktualnym auth | Lekki check middleware dla tras dashboardowych | Potencjalny token sesji, ale obecnie nieustawiany przez frontend | Zależna od cookie, jeśli kiedyś zostanie ustawione | Nie |
+| `localStorage` | `estateflow.publicListingWizard.v1` | `apps/web/src/app/(public)/dodaj-oferte/page.tsx` | Funkcjonalne albo niezbędne dla rozpoczętego formularza - decyzja otwarta | Zapis draftu publicznego dodania oferty | Dane oferty, adres, zdjęcia jako referencje, dane właściciela, email, telefon, zgody | Do finalnego submitu, ręcznego czyszczenia albo wyczyszczenia storage | Do decyzji w `C6`; rekomendacja: opisać wyraźnie i traktować jako funkcjonalne, chyba że UX wymaga niezbędnego draftu |
+| `localStorage` | `estateflow-theme` | `apps/web/src/app/layout.tsx`, `apps/web/src/contexts/theme-context.tsx` | Funkcjonalne | Zapamiętanie motywu jasny/ciemny | Brak danych osobowych | Bezterminowo do zmiany/wyczyszczenia storage | Tak, jeśli rygorystycznie blokujemy funkcjonalny storage; można też uznać za niski wpływ i opisać |
+| `localStorage` | `estateflow.dashboard-onboarding:{userId}` lub równoważny klucz z prefiksem `estateflow.dashboard-onboarding` | `apps/web/src/hooks/use-onboarding-progress.ts` | Funkcjonalne + analityczne eventy osobno | Zapamiętanie stanu checklisty onboardingu | Identyfikator użytkownika w kluczu, completed step IDs, dismissed/updated timestamps | Bezterminowo do zmiany/wyczyszczenia storage | Tak dla storage funkcjonalnego; eventy wymagają zgody analitycznej |
+| `localStorage` | Klucz zwracany przez `getDescriptionAssistantStorageKey()` | `apps/web/src/lib/listing-description-assistant.ts` | Funkcjonalne / limit produktowy | Lokalny licznik użyć asystenta opisu | Licznik użyć, prawdopodobnie okresowy klucz limitu | Bezterminowo dla danego klucza, do wyczyszczenia storage | Do decyzji; jeśli egzekwuje limit freemium, może być niezbędne dla limitu usługi |
+| `sessionStorage` | `blog-article-viewed:{slug}` | `apps/web/src/components/blog/blog-article-analytics.tsx` | Analityczne | Deduplikacja eventu widoku artykułu w sesji | Slug artykułu | Do końca sesji przeglądarki | Tak, razem z blog analytics |
+
+Uwagi:
+
+- `estateflow-cookie-consent` jeszcze nie istnieje. Zostanie dodany w `C2` jako niezbędny storage preferencji.
+- Draft `/dodaj-oferte` zawiera potencjalnie dane osobowe i lokalizacyjne. To najważniejszy element storage do opisania w polityce cookies/prywatności.
+- Tokeny auth w `localStorage` są istotnym ryzykiem bezpieczeństwa. To nie blokuje `C1`, ale wymaga decyzji w `C6`.
+
+### C1 Inventory - analytics endpoints
+
+| Endpoint | Miejsce | Typ | Obecny consent gate | Dane zapisywane | Decyzja dla `C4` |
+| --- | --- | --- | --- | --- | --- |
+| `POST /api/analytics/events` | `apps/web/src/lib/analytics.ts`, `apps/api/src/analytics/analytics.controller.ts` | Product analytics dla zalogowanych | Brak | `name`, `path`, `properties`, `userId`, `agentId`, `agencyId`, `planCode`, `createdAt` | Blokować eventy pomiarowe bez `analytics: true`; rozdzielić ewentualne eventy operacyjne |
+| `POST /api/analytics/public-listings/:slug/events` | `apps/web/src/lib/analytics.ts`, `apps/api/src/analytics/analytics.controller.ts` | Public listing analytics | Brak | `name`, `path`, `properties`, `listingId`, `publicSlug`, owner `userId/agentId/agencyId`, `planCode`, `createdAt` | Blokować eventy pomiarowe bez `analytics: true`; wyjątek tylko dla abuse/security |
+| Bezpośredni `apiFetch('/analytics/public-listings/:slug/events')` | `apps/web/src/lib/listings.ts` dla `public_listing_abuse_reported` | Operacyjne/security | Brak | Abuse report analytics event plus listing context | Nie blokować consentem, ale docelowo wydzielić poza product analytics albo oznaczyć jako operational event |
+| `POST /api/analytics/public-blog/:slug/events` | `apps/web/src/lib/analytics.ts`, `apps/api/src/analytics/analytics.controller.ts` | Public blog analytics | Brak | `name`, `path`, `properties`, `postId`, `postSlug`, `postTitle`, `createdAt` | Blokować bez `analytics: true` |
+
+### C1 Inventory - analytics events
+
+| Event | Źródło | Typ | Kategoria robocza | Consent przed wysłaniem |
+| --- | --- | --- | --- | --- |
+| `signup_completed` | `apps/web/src/contexts/auth-context.tsx` | Product analytics | Analityczne | Tak |
+| `onboarding_step_completed` | `apps/web/src/hooks/use-onboarding-progress.ts` | Product analytics | Analityczne | Tak |
+| `onboarding_checklist_dismissed` | `apps/web/src/hooks/use-onboarding-progress.ts` | Product analytics | Analityczne | Tak |
+| `onboarding_checklist_restored` | `apps/web/src/hooks/use-onboarding-progress.ts` | Product analytics | Analityczne | Tak |
+| `onboarding_empty_state_shown` | `apps/web/src/components/dashboard/onboarding-empty-state.tsx` | Product analytics | Analityczne | Tak |
+| `onboarding_empty_state_cta_clicked` | `apps/web/src/components/dashboard/onboarding-empty-state.tsx` | Product analytics | Analityczne | Tak |
+| `listing_created` | `apps/web/src/lib/listings.ts` | Product analytics | Analityczne | Tak |
+| `listing_published` | `apps/web/src/lib/listings.ts`, `apps/web/src/components/listings/listing-publication-panel.tsx` | Product analytics | Analityczne | Tak |
+| `listing_unpublished` | `apps/web/src/lib/listings.ts` | Product analytics | Analityczne | Tak |
+| `public_listing_viewed` | `apps/web/src/components/listings/public-listing-analytics.tsx` | Public analytics | Analityczne | Tak |
+| `public_listing_share_clicked` | `apps/web/src/components/listings/public-listing-analytics.tsx`, `apps/web/src/components/listings/listing-publication-panel.tsx` | Public/product analytics zależnie od miejsca | Analityczne | Tak |
+| `public_listing_link_copied` | `apps/web/src/components/listings/public-listing-analytics.tsx`, `apps/web/src/components/listings/listing-publication-panel.tsx` | Public/product analytics zależnie od miejsca | Analityczne | Tak |
+| `public_listing_gallery_opened` | `apps/web/src/components/listings/public-listing-gallery.tsx` | Public analytics | Analityczne | Tak |
+| `public_listing_gallery_image_viewed` | `apps/web/src/components/listings/public-listing-gallery.tsx` | Public analytics | Analityczne | Tak |
+| `public_listing_catalog_result_clicked` | `apps/web/src/components/listings/public-listing-catalog-result-link.tsx` | Public analytics | Analityczne | Tak |
+| `public_listing_map_search_used` | `apps/web/src/components/listings/public-listing-catalog-map.tsx` | Product analytics obecnie, public behavior semantycznie | Analityczne | Tak; wymaga sprawdzenia, czy publiczny katalog może wysyłać ten event bez zalogowania |
+| `public_listing_abuse_reported` | `apps/web/src/lib/listings.ts`, backend monitoring | Operacyjne/security | Niezbędne | Nie, jeśli służy obsłudze nadużyć; docelowo wydzielić z analytics albo jawnie oznaczyć wyjątek |
+| `public_lead_submitted` | `apps/web/src/components/listings/public-listing-contact-form.tsx`, backend whitelist | Operacyjne + analytics | Niezbędne dla obsługi formularza, analityczne dla raportowania | Submit formularza nie wymaga cookie consent; dodatkowy event pomiarowy powinien być rozdzielony albo zależny od zgody |
+| `public_lead_accepted` | Backend whitelist, użycia frontendowego nie znaleziono w audycie | Product analytics | Analityczne | Tak, jeśli będzie emitowany z frontendu |
+| `public_listing_claim_started` | `apps/web/src/lib/public-listing-submissions.ts` | Product analytics | Analityczne | Tak |
+| `public_listing_claim_completed` | `apps/web/src/lib/public-listing-submissions.ts` | Product analytics | Analityczne | Tak |
+| `blog_article_viewed` | `apps/web/src/components/blog/blog-article-analytics.tsx` | Public blog analytics | Analityczne | Tak |
+| `blog_cta_clicked` | `apps/web/src/components/blog/article-cta.tsx` | Public blog analytics | Analityczne | Tak |
+| `product_feedback_submitted` | Backend whitelist; frontend enum nie zawiera eventu | Product analytics | Analityczne | Tak; dopisać do frontend enum albo usunąć z whitelisty, zależnie od decyzji |
+| `client_created` | `apps/web/src/lib/clients.ts` | Product analytics | Analityczne | Tak |
+| `clients_imported` | `apps/web/src/lib/clients.ts` | Product analytics | Analityczne | Tak |
+| `appointment_created` | `apps/web/src/lib/appointments.ts` | Product analytics | Analityczne | Tak |
+| `limit_warning_shown` | Backend/frontend enum; aktywnego emitera nie znaleziono w audycie | Product analytics | Analityczne | Tak |
+| `limit_reached` | Backend/frontend enum; aktywnego emitera nie znaleziono w audycie | Product analytics | Analityczne | Tak |
+| `upgrade_cta_clicked` | `apps/web/src/app/(dashboard)/dashboard/upgrade/page.tsx`, `apps/web/src/components/growth/*` | Product analytics | Analityczne | Tak |
+
+### C1 Findings / follow-up
+
+- `public_listing_abuse_reported` i potencjalnie część obsługi public leadów nie powinny być traktowane tak samo jak pomiar produktu. W `C4` trzeba dodać rozróżnienie między analytics pomiarowym a eventami operacyjnymi.
+- `public_listing_map_search_used` jest emitowany przez komponent publicznego katalogu przez `trackAnalyticsEvent`, który wymaga zalogowanego użytkownika. Trzeba zdecydować w `C4`, czy katalog publiczny powinien mieć osobny public analytics endpoint bez sluga, czy event ma pozostać tylko dla zalogowanych.
+- Backend whitelist zawiera `product_feedback_submitted`, ale frontendowy `AnalyticsEventName` go nie zawiera. Wymaga ujednolicenia przy okazji pracy nad analytics.
+- Nie znaleziono aktywnych zewnętrznych narzędzi analytics/marketing. Jeśli zostaną dodane później, wymagają vendor list i blokady ładowania skryptu przed zgodą.
+- Middleware czyta `request.cookies.get('accessToken')`, ale obecny auth trzyma tokeny w `localStorage`. To zostaje do decyzji `C6`.
 
 ### C2. Model zgód i provider
 
