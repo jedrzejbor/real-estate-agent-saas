@@ -224,7 +224,7 @@ Uwagi:
 
 ### C2. Model zgód i provider
 
-Status: do zrobienia
+Status: wykonane 2026-06-10
 
 Zakres:
 
@@ -256,10 +256,47 @@ type CookieConsentPreferences = {
 
 Kryteria akceptacji:
 
-- Brak zgody oznacza stan nieustalony i pokazanie banera.
-- `necessary` jest zawsze `true`.
-- Zmiana wersji zgód może wymusić ponowne pokazanie banera.
-- Kod działa bez błędów w SSR/Next.js.
+- [x] Brak zgody oznacza stan nieustalony i pokazanie banera w przyszłym `C3`.
+- [x] `necessary` jest zawsze `true`.
+- [x] Zmiana wersji zgód może wymusić ponowne pokazanie banera.
+- [x] Kod działa bez błędów w SSR/Next.js.
+
+Wykonane:
+
+- Dodano czysty moduł consentu w `apps/web/src/lib/cookie-consent.ts`.
+- Dodano klientowy provider i hook w `apps/web/src/contexts/cookie-consent-context.tsx`.
+- Podpięto `CookieConsentProvider` w `apps/web/src/app/layout.tsx`.
+- Dodano eksport z `apps/web/src/contexts/index.ts`.
+- Uruchomiono `pnpm --filter web type-check` - przechodzi.
+- Uruchomiono lint dla dotkniętych plików - przechodzi.
+- Pełny `pnpm --filter web lint` nadal pada na wcześniejszych błędach poza zakresem `C2`, m.in. `react-hooks/set-state-in-effect` w istniejących plikach.
+
+Dodane API:
+
+- `COOKIE_CONSENT_STORAGE_KEY = 'estateflow-cookie-consent'`,
+- `COOKIE_CONSENT_VERSION = '2026-06-10'`,
+- `CookieConsentPreferences`,
+- `CookieConsentChoices`,
+- `createCookieConsentPreferences`,
+- `createAcceptedAllCookieConsent`,
+- `createRejectedOptionalCookieConsent`,
+- `readStoredCookieConsent`,
+- `writeStoredCookieConsent`,
+- `clearStoredCookieConsent`,
+- `hasCookieConsent`,
+- `hasAnyOptionalCookieConsent`,
+- `isCookieConsentCurrent`,
+- `CookieConsentProvider`,
+- `useCookieConsent`.
+
+Decyzje implementacyjne:
+
+- Preferencje są zapisywane w `localStorage` pod kluczem `estateflow-cookie-consent`.
+- Odczyt i zapis storage są defensywne: uszkodzony JSON, brak `window` albo błąd storage nie blokują aplikacji.
+- `necessary` nie może zostać wyłączone.
+- Provider synchronizuje stan między kartami przez event `storage`.
+- Provider sam nie pokazuje UI; banner i panel preferencji zostają w `C3`.
+- Provider sam nie blokuje analytics; consent gate zostaje w `C4`.
 
 ### C3. Banner consent i panel preferencji
 

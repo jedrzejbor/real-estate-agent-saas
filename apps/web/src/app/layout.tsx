@@ -3,6 +3,7 @@ import Script from 'next/script';
 import { Outfit, Inter } from 'next/font/google';
 import { AuthProvider } from '@/contexts/auth-context';
 import { ConfirmProvider } from '@/contexts/confirm-context';
+import { CookieConsentProvider } from '@/contexts/cookie-consent-context';
 import { ThemeProvider } from '@/contexts/theme-context';
 import { ToastProvider } from '@/contexts/toast-context';
 import './globals.css';
@@ -56,11 +57,13 @@ export default function RootLayout({
           {themeInitScript}
         </Script>
         <ThemeProvider>
-          <ToastProvider>
-            <ConfirmProvider>
-              <AuthProvider>{children}</AuthProvider>
-            </ConfirmProvider>
-          </ToastProvider>
+          <CookieConsentProvider>
+            <ToastProvider>
+              <ConfirmProvider>
+                <AuthProvider>{children}</AuthProvider>
+              </ConfirmProvider>
+            </ToastProvider>
+          </CookieConsentProvider>
         </ThemeProvider>
       </body>
     </html>
