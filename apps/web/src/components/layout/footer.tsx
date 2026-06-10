@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { Logo } from '@/components/common/logo';
+import { CookieSettingsButton } from '@/components/legal';
 import { Container } from '@/components/layout/container';
+import { LEGAL_LINKS } from '@/lib/legal';
 
 const footerSections = [
   {
@@ -35,9 +37,10 @@ const footerSections = [
   {
     title: 'Prawne',
     links: [
-      { label: 'Regulamin', href: '/regulamin' },
-      { label: 'Polityka prywatności', href: '/polityka-prywatnosci' },
-      { label: 'Zasady publikacji ofert', href: '/zasady-publikacji' },
+      { label: 'Regulamin', href: LEGAL_LINKS.terms },
+      { label: 'Polityka prywatności', href: LEGAL_LINKS.privacy },
+      { label: 'Polityka cookies', href: LEGAL_LINKS.cookies },
+      { label: 'Zasady publikacji ofert', href: LEGAL_LINKS.publicationRules },
     ],
   },
 ] as const;
@@ -73,6 +76,11 @@ export function Footer() {
                     </Link>
                   </li>
                 ))}
+                {section.title === 'Prawne' ? (
+                  <li>
+                    <CookieSettingsButton />
+                  </li>
+                ) : null}
               </ul>
             </div>
           ))}

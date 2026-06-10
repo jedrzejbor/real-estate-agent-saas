@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Script from 'next/script';
 import { Outfit, Inter } from 'next/font/google';
+import { CookieConsentManager } from '@/components/legal';
 import { AuthProvider } from '@/contexts/auth-context';
 import { ConfirmProvider } from '@/contexts/confirm-context';
 import { CookieConsentProvider } from '@/contexts/cookie-consent-context';
@@ -60,7 +61,10 @@ export default function RootLayout({
           <CookieConsentProvider>
             <ToastProvider>
               <ConfirmProvider>
-                <AuthProvider>{children}</AuthProvider>
+                <AuthProvider>
+                  {children}
+                  <CookieConsentManager />
+                </AuthProvider>
               </ConfirmProvider>
             </ToastProvider>
           </CookieConsentProvider>

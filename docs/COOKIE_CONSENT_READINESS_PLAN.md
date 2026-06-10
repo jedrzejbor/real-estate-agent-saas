@@ -300,7 +300,7 @@ Decyzje implementacyjne:
 
 ### C3. Banner consent i panel preferencji
 
-Status: do zrobienia
+Status: wykonane 2026-06-11
 
 Zakres:
 
@@ -324,11 +324,42 @@ Kategorie w panelu:
 
 Kryteria akceptacji:
 
-- Banner pojawia się na pierwszej wizycie.
-- Preferencje zapisują się po wyborze.
-- Banner nie wraca po refreshu, jeśli zgoda jest aktualna.
-- Użytkownik może ponownie otworzyć ustawienia ze stopki.
-- UI działa na mobile i desktop.
+- [x] Banner pojawia się na pierwszej wizycie.
+- [x] Preferencje zapisują się po wyborze.
+- [x] Banner nie wraca po refreshu, jeśli zgoda jest aktualna.
+- [x] Użytkownik może ponownie otworzyć ustawienia ze stopki.
+- [x] UI działa na mobile i desktop na poziomie implementacji responsywnych klas; finalna kontrola wizualna zostaje do manualnego QA.
+
+Wykonane:
+
+- Dodano `CookieConsentManager` w `apps/web/src/components/legal/cookie-consent-manager.tsx`.
+- Dodano banner z akcjami:
+  - `Odrzuć opcjonalne`,
+  - `Dostosuj`,
+  - `Akceptuję wszystkie`.
+- Dodano dialog preferencji z kategoriami:
+  - niezbędne,
+  - funkcjonalne,
+  - analityczne,
+  - marketingowe.
+- Dodano globalny stan otwarcia panelu preferencji w `CookieConsentProvider`.
+- Dodano przycisk `Ustawienia cookies` w stopce przez `CookieSettingsButton`.
+- Dodano link `LEGAL_LINKS.cookies`.
+- Dodano publiczną trasę `/polityka-cookies`, żeby link z bannera i stopki nie prowadził do 404.
+- Podpięto `CookieConsentManager` w `apps/web/src/app/layout.tsx`.
+
+Decyzje implementacyjne:
+
+- Banner i dialog są globalne, ale nie wykonują jeszcze consent gate dla analytics. To zostaje w `C4`.
+- Strona `/polityka-cookies` jest roboczym dokumentem MVP. Pełne dopracowanie treści, retencji i listy storage zostaje w `C5`.
+- Zamknięcie dialogu bez wcześniejszej decyzji traktuje się jak odrzucenie opcjonalnych zgód, żeby nie zostawić użytkownika w stanie niejawnej zgody.
+- Przycisk w stopce używa providera, więc otwiera ten sam dialog niezależnie od wcześniejszej decyzji.
+
+Weryfikacja:
+
+- `pnpm --filter web type-check` - przechodzi.
+- Lint dla dotkniętych plików - przechodzi.
+- Nie wykonywano screenshotów; kontrola wizualna jest po stronie manualnego QA.
 
 ### C4. Consent gate dla analytics
 

@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
@@ -29,6 +30,7 @@ const COOKIE_CONSENT_CHANGE_EVENT = 'estateflow-cookie-consent-change';
 interface CookieConsentContextValue {
   preferences: CookieConsentPreferences | null;
   isHydrated: boolean;
+  isPreferencesOpen: boolean;
   hasDecision: boolean;
   needsConsent: boolean;
   hasFunctionalConsent: boolean;
@@ -40,12 +42,15 @@ interface CookieConsentContextValue {
   rejectOptional: () => void;
   savePreferences: (choices: CookieConsentChoices) => void;
   resetConsent: () => void;
+  openPreferences: () => void;
+  closePreferences: () => void;
 }
 
 const CookieConsentContext =
   createContext<CookieConsentContextValue | null>(null);
 
 export function CookieConsentProvider({ children }: { children: ReactNode }) {
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const preferences = useSyncExternalStore(
     subscribeToCookieConsent,
     getCookieConsentSnapshot,
@@ -61,6 +66,7 @@ export function CookieConsentProvider({ children }: { children: ReactNode }) {
     (nextPreferences: CookieConsentPreferences) => {
       writeStoredCookieConsent(nextPreferences);
       notifyCookieConsentChanged();
+      setIsPreferencesOpen(false);
     },
     [],
   );
@@ -85,12 +91,21 @@ export function CookieConsentProvider({ children }: { children: ReactNode }) {
     notifyCookieConsentChanged();
   }, []);
 
+  const openPreferences = useCallback(() => {
+    setIsPreferencesOpen(true);
+  }, []);
+
+  const closePreferences = useCallback(() => {
+    setIsPreferencesOpen(false);
+  }, []);
+
   const value = useMemo<CookieConsentContextValue>(() => {
     const hasDecision = isCookieConsentCurrent(preferences);
 
     return {
       preferences,
       isHydrated,
+      isPreferencesOpen,
       hasDecision,
       needsConsent: isHydrated && !hasDecision,
       hasFunctionalConsent: hasCookieConsent(preferences, 'functional'),
@@ -102,10 +117,15 @@ export function CookieConsentProvider({ children }: { children: ReactNode }) {
       rejectOptional,
       savePreferences,
       resetConsent,
+      openPreferences,
+      closePreferences,
     };
   }, [
     acceptAll,
+    closePreferences,
     isHydrated,
+    isPreferencesOpen,
+    openPreferences,
     preferences,
     rejectOptional,
     resetConsent,

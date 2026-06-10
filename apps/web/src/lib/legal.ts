@@ -1,6 +1,7 @@
 export const LEGAL_LINKS = {
   terms: '/regulamin',
   privacy: '/polityka-prywatnosci',
+  cookies: '/polityka-cookies',
   publicationRules: '/zasady-publikacji',
 } as const;
 
