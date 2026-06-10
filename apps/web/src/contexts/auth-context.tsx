@@ -20,11 +20,7 @@ import {
   type AuthResponse,
   type LoginFormData,
   type RegisterFormData,
-  storeTokens,
-  clearTokens,
-  getStoredTokens,
-  getAccessTokenExpiresAt,
-  refreshTokens,
+  clearLegacyAuthTokens,
   getAuthenticatedRedirectPath,
 } from '@/lib/auth';
 
@@ -63,43 +59,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { error: showErrorToast } = useToast();
   const isHandlingUnauthorizedRef = useRef(false);
   const hasShownUnauthorizedToastRef = useRef(false);
-  const proactiveRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-
-  // ── Proactive token refresh ──
-  // Schedules a silent refresh 60s before the access token expires.
-  // Re-runs every time `user` changes (new tokens stored after login/refresh).
-  const scheduleProactiveRefresh = useCallback(() => {
-    if (proactiveRefreshTimerRef.current) {
-      clearTimeout(proactiveRefreshTimerRef.current);
-      proactiveRefreshTimerRef.current = null;
-    }
-
-    const expiresAt = getAccessTokenExpiresAt();
-    if (!expiresAt) return;
-
-    const msUntilRefresh = expiresAt - Date.now() - 60_000; // 60s before expiry
-    if (msUntilRefresh <= 0) return; // already expired or too close
-
-    proactiveRefreshTimerRef.current = setTimeout(async () => {
-      try {
-        await refreshTokens();
-        scheduleProactiveRefresh(); // reschedule for the new token
-      } catch {
-        // Will be caught by the 401 interceptor on next request
-      }
-    }, msUntilRefresh);
-  }, []);
-
-  useEffect(() => {
-    scheduleProactiveRefresh();
-    return () => {
-      if (proactiveRefreshTimerRef.current) {
-        clearTimeout(proactiveRefreshTimerRef.current);
-      }
-    };
-  }, [user, scheduleProactiveRefresh]);
 
   const notifyAuthorizationLost = useCallback(() => {
     if (hasShownUnauthorizedToastRef.current) return;
@@ -119,9 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const performLogout = useCallback(
     (redirectToLogin = true) => {
-      clearTokens();
+      clearLegacyAuthTokens();
       setUser(null);
       setIsLoading(false);
+
+      void apiFetch<void>('/auth/logout', {
+        method: 'POST',
+        skipAuth: true,
+      }).catch(() => undefined);
 
       if (redirectToLogin) {
         router.push('/login');
@@ -132,21 +96,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /** Fetch current user profile from /auth/me and sync context state. */
   const refreshUser = useCallback(async (): Promise<AuthUser | null> => {
-    const tokens = getStoredTokens();
-    if (!tokens) {
-      setUser(null);
-      setIsLoading(false);
-      return null;
-    }
-
     try {
       const profile = await fetchCurrentUser();
       setUser(profile);
       return profile;
     } catch {
       const shouldRedirect = pathname?.startsWith('/dashboard') ?? false;
-      notifyAuthorizationLost();
-      performLogout(shouldRedirect);
+      if (shouldRedirect) {
+        notifyAuthorizationLost();
+        performLogout(true);
+      } else {
+        setUser(null);
+        setIsLoading(false);
+      }
       return null;
     } finally {
       setIsLoading(false);
@@ -162,8 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (isHandlingUnauthorizedRef.current) return;
       isHandlingUnauthorizedRef.current = true;
 
-      const shouldRedirect =
-        pathname?.startsWith('/dashboard') || !!getStoredTokens();
+      const shouldRedirect = pathname?.startsWith('/dashboard') ?? false;
 
       notifyAuthorizationLost();
       performLogout(shouldRedirect);
@@ -187,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: data,
         skipAuth: true,
       });
-      storeTokens(res);
+      clearLegacyAuthTokens();
       setUser(res.user);
       trackAnalyticsEvent({
         name: AnalyticsEventName.SIGNUP_COMPLETED,
@@ -213,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: data,
         skipAuth: true,
       });
-      storeTokens(res);
+      clearLegacyAuthTokens();
       setUser(res.user);
       if (!options?.skipRedirect) {
         router.push(

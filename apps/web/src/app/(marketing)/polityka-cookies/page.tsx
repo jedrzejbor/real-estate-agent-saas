@@ -18,7 +18,8 @@ export default function CookiePolicyPage() {
         </h1>
         <p className="mt-4 text-sm leading-7 text-muted-foreground">
           Ten dokument opisuje, jak EstateFlow używa cookies, localStorage,
-          sessionStorage oraz podobnych technologii w przeglądarce.
+              sessionStorage, httpOnly cookies oraz podobnych technologii w
+              przeglądarce.
         </p>
         <p className="mt-3 text-xs leading-6 text-muted-foreground">
           Wersja robocza produktu MVP. Przed publicznym launch’em dokument
@@ -36,9 +37,10 @@ export default function CookiePolicyPage() {
               Cookies, localStorage i sessionStorage to technologie
               przeglądarki, które pozwalają zapamiętać stan aplikacji,
               preferencje użytkownika, informacje techniczne albo zgodę na
-              opcjonalne kategorie. W EstateFlow obecnie kluczowe znaczenie ma
-              localStorage i sessionStorage; klasyczne cookies nie są aktywnie
-              ustawiane przez frontend aplikacji.
+              opcjonalne kategorie. W EstateFlow sesja użytkownika jest
+              obsługiwana przez httpOnly cookies ustawiane przez API, a
+              preferencje i wybrane funkcje mogą korzystać z localStorage albo
+              sessionStorage.
             </p>
           </Section>
 
@@ -151,10 +153,10 @@ function StorageTable() {
     },
     {
       name: 'accessToken, refreshToken',
-      type: 'localStorage',
+      type: 'httpOnly cookies',
       category: 'Niezbędne',
       purpose:
-        'Utrzymanie sesji użytkownika. Docelowa migracja do httpOnly cookies pozostaje osobną decyzją security.',
+        'Utrzymanie i odświeżanie sesji użytkownika bez udostępniania tokenów JavaScriptowi.',
     },
     {
       name: 'estateflow-theme',

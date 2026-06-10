@@ -1,5 +1,4 @@
 import { apiFetch } from './api-client';
-import { getStoredTokens } from './auth';
 import { hasCookieConsent, readStoredCookieConsent } from './cookie-consent';
 
 export const AnalyticsEventName = {
@@ -56,7 +55,6 @@ export function trackAnalyticsEvent({
 }: TrackAnalyticsEventInput): void {
   if (
     typeof window === 'undefined' ||
-    !getStoredTokens() ||
     !canTrackAnalyticsEvent(name)
   ) {
     return;

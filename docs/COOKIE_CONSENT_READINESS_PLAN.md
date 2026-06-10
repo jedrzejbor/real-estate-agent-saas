@@ -148,16 +148,17 @@ Wykonane:
 
 - Przejrzano użycia `localStorage`, `sessionStorage`, `request.cookies`, `document.cookie`, public analytics i product analytics w `apps/web/src` oraz `apps/api/src`.
 - Nie znaleziono aktywnego użycia `document.cookie` ani zewnętrznych pikseli/skryptów marketingowych w kodzie aplikacji.
-- Znaleziono jedno serwerowe odczytanie cookie `accessToken` w `apps/web/src/middleware.ts`, ale bieżący auth realnie korzysta z tokenów w `localStorage`.
+- W momencie audytu znaleziono jedno serwerowe odczytanie cookie `accessToken` w `apps/web/src/middleware.ts`, podczas gdy auth realnie korzystał jeszcze z tokenów w `localStorage`; w `C6` rozpoczęto migrację do httpOnly cookies.
 - Spisano inventory poniżej jako bazę dla etapów `C2-C7`.
 
 ### C1 Inventory - browser storage
 
 | Mechanizm | Klucz / wzorzec | Miejsce | Kategoria robocza | Cel | Dane / identyfikatory | Retencja obecna | Wymaga zgody przed użyciem |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `localStorage` | `accessToken` | `apps/web/src/lib/auth.ts`, `apps/web/src/lib/api-client.ts` | Niezbędne, security risk do decyzji | Utrzymanie sesji i autoryzacja requestów API | JWT użytkownika | Do logoutu, wyczyszczenia storage albo nadpisania tokenów | Nie, jeśli zostaje jako mechanizm sesji |
-| `localStorage` | `refreshToken` | `apps/web/src/lib/auth.ts` | Niezbędne, security risk do decyzji | Odświeżanie sesji | JWT refresh użytkownika | Do logoutu, wyczyszczenia storage albo nadpisania tokenów | Nie, jeśli zostaje jako mechanizm sesji |
-| `request.cookies` | `accessToken` | `apps/web/src/middleware.ts` | Niezbędne, niespójne z aktualnym auth | Lekki check middleware dla tras dashboardowych | Potencjalny token sesji, ale obecnie nieustawiany przez frontend | Zależna od cookie, jeśli kiedyś zostanie ustawione | Nie |
+| `httpOnly cookie` | `accessToken` | `apps/api/src/auth/auth-token-cookies.ts`, `apps/api/src/auth/strategies/jwt.strategy.ts` | Niezbędne | Utrzymanie sesji i autoryzacja requestów API | JWT użytkownika niedostępny dla JavaScriptu | Do wygaśnięcia, refreshu albo logoutu | Nie |
+| `httpOnly cookie` | `refreshToken` | `apps/api/src/auth/auth-token-cookies.ts`, `apps/api/src/auth/strategies/jwt-refresh.strategy.ts` | Niezbędne | Odświeżanie sesji | JWT refresh niedostępny dla JavaScriptu | Do wygaśnięcia albo logoutu | Nie |
+| `localStorage` | `accessToken`, `refreshToken` | `apps/web/src/lib/auth.ts` | Legacy cleanup | Czyszczenie tokenów zapisanych przez stary mechanizm | Stare JWT, jeśli istnieją u użytkownika sprzed migracji | Usuwane po login/register/logout w nowym flow | Nie |
+| `request.cookies` | `accessToken` | `apps/web/src/middleware.ts` | Niezbędne | Lekki check middleware dla tras dashboardowych | Token sesji w httpOnly cookie | Zależna od TTL cookie | Nie |
 | `localStorage` | `estateflow.publicListingWizard.v1` | `apps/web/src/app/(public)/dodaj-oferte/page.tsx` | Funkcjonalne albo niezbędne dla rozpoczętego formularza - decyzja otwarta | Zapis draftu publicznego dodania oferty | Dane oferty, adres, zdjęcia jako referencje, dane właściciela, email, telefon, zgody | Do finalnego submitu, ręcznego czyszczenia albo wyczyszczenia storage | Do decyzji w `C6`; rekomendacja: opisać wyraźnie i traktować jako funkcjonalne, chyba że UX wymaga niezbędnego draftu |
 | `localStorage` | `estateflow-theme` | `apps/web/src/app/layout.tsx`, `apps/web/src/contexts/theme-context.tsx` | Funkcjonalne | Zapamiętanie motywu jasny/ciemny | Brak danych osobowych | Bezterminowo do zmiany/wyczyszczenia storage | Tak, jeśli rygorystycznie blokujemy funkcjonalny storage; można też uznać za niski wpływ i opisać |
 | `localStorage` | `estateflow.dashboard-onboarding:{userId}` lub równoważny klucz z prefiksem `estateflow.dashboard-onboarding` | `apps/web/src/hooks/use-onboarding-progress.ts` | Funkcjonalne + analityczne eventy osobno | Zapamiętanie stanu checklisty onboardingu | Identyfikator użytkownika w kluczu, completed step IDs, dismissed/updated timestamps | Bezterminowo do zmiany/wyczyszczenia storage | Tak dla storage funkcjonalnego; eventy wymagają zgody analitycznej |
@@ -168,7 +169,7 @@ Uwagi:
 
 - `estateflow-cookie-consent` jeszcze nie istnieje. Zostanie dodany w `C2` jako niezbędny storage preferencji.
 - Draft `/dodaj-oferte` zawiera potencjalnie dane osobowe i lokalizacyjne. To najważniejszy element storage do opisania w polityce cookies/prywatności.
-- Tokeny auth w `localStorage` są istotnym ryzykiem bezpieczeństwa. To nie blokuje `C1`, ale wymaga decyzji w `C6`.
+- Tokeny auth w `localStorage` były istotnym ryzykiem bezpieczeństwa wykrytym w `C1`. W `C6` rozpoczęto migrację do httpOnly cookies; stare klucze są czyszczone jako legacy storage.
 
 ### C1 Inventory - analytics endpoints
 
@@ -479,7 +480,7 @@ Weryfikacja:
 
 ### C6. Decyzja auth storage
 
-Status: do zrobienia
+Status: wykonane - etap 1 migracji 2026-06-11
 
 Zakres:
 
@@ -501,9 +502,51 @@ Rekomendacja:
 
 Kryteria akceptacji:
 
-- Decyzja jest zapisana w dokumencie.
-- Nie ma rozbieżności między dokumentacją a zachowaniem aplikacji.
-- Release checklist zawiera decyzję i ewentualny follow-up security.
+- [x] Decyzja jest zapisana w dokumencie.
+- [x] Nie ma rozbieżności między dokumentacją a zachowaniem aplikacji na poziomie etapu 1.
+- [ ] Release checklist zawiera decyzję i ewentualny follow-up security.
+
+Decyzja:
+
+- Migrujemy auth z tokenów w `localStorage` na httpOnly cookies.
+- Etap 1 realizuje mechanikę cookies i usuwa zapisywanie nowych tokenów w `localStorage`.
+- Etap 2 powinien domknąć CSRF hardening, release checklist i ewentualne testy E2E/manualne dla pełnego login/refresh/logout flow.
+
+Wykonane w etapie 1:
+
+- Dodano `apps/api/src/auth/auth-token-cookies.ts`:
+  - `accessToken` i `refreshToken` jako httpOnly cookies,
+  - `secure` w produkcji albo przy `SameSite=None`,
+  - `sameSite` domyślnie `lax`,
+  - TTL zgodny z `JWT_ACCESS_EXPIRES_IN` i `JWT_REFRESH_EXPIRES_IN`,
+  - defensywne parsowanie cookie headera bez dodatkowej zależności.
+- `POST /api/auth/register` i `POST /api/auth/login` ustawiają cookies i zwracają tylko `user`.
+- `POST /api/auth/refresh` odświeża cookies na podstawie refresh cookie albo legacy headera.
+- Dodano `POST /api/auth/logout`, który czyści cookies.
+- `JwtStrategy` czyta access token z Bearer headera albo `accessToken` cookie.
+- `JwtRefreshStrategy` czyta refresh token z legacy `x-refresh-token` albo `refreshToken` cookie.
+- Web `apiFetch` i `apiFormDataFetch` wysyłają `credentials: 'include'`.
+- Web przestał zapisywać nowe tokeny w `localStorage`.
+- Web czyści legacy `accessToken` i `refreshToken` po login/register/logout.
+- `AuthProvider` ładuje sesję przez `/auth/me` z cookie i traktuje 401 na publicznych stronach jako anonimową wizytę.
+- Product analytics nie sprawdza już `localStorage` tokenów przed wysłaniem eventu; autoryzację rozstrzyga API cookie.
+- Zaktualizowano politykę cookies, aby opisywała auth przez httpOnly cookies.
+
+Pozostałe follow-upy:
+
+- Dodać CSRF strategy dla mutujących requestów z cookies, np. double-submit token albo dedykowany nagłówek CSRF.
+- Uzupełnić `PRODUCTION_LAUNCH_CHECKLIST.md` o decyzję migracji.
+- Przetestować ręcznie login, register, refresh po 401, logout, dashboard guard i publiczne flow bez sesji.
+- Rozważyć docelową konfigurację `AUTH_COOKIE_SAME_SITE`, `AUTH_COOKIE_DOMAIN` i `secure` dla środowiska produkcyjnego, jeśli API i frontend będą na różnych subdomenach.
+- Po okresie przejściowym można usunąć legacy obsługę Bearer headera i `x-refresh-token`.
+
+Weryfikacja:
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter web type-check` - przechodzi.
+- `pnpm --filter web exec eslint src/lib/auth.ts src/lib/api-client.ts src/lib/analytics.ts src/contexts/auth-context.tsx` - przechodzi.
+- `pnpm --filter api test -- auth.service.spec.ts` - przechodzi.
+- API lint dla pojedynczych plików nie został uruchomiony skutecznie, bo repo nie udostępnia obecnie configu ESLint 9 w ścieżce wykonywania komendy.
 
 ### C7. Test plan i release gate
 

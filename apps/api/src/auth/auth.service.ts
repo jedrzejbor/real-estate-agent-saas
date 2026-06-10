@@ -68,11 +68,9 @@ export class AuthService {
 
     this.logger.log(`User registered: ${user.email}`);
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
-
     return {
       user: await this.serializeUser(user),
-      ...tokens,
+      tokens: await this.generateTokens(user.id, user.email, user.role),
     };
   }
 
@@ -104,11 +102,9 @@ export class AuthService {
     // Re-fetch with agent relation
     const fullUser = await this.usersService.ensureAgencyForUser(user.id);
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
-
     return {
       user: await this.serializeUser(fullUser),
-      ...tokens,
+      tokens: await this.generateTokens(user.id, user.email, user.role),
     };
   }
 

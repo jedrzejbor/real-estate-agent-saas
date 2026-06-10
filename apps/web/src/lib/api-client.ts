@@ -91,7 +91,7 @@ async function ensureRefreshed(): Promise<void> {
 /**
  * Thin wrapper around `fetch` that:
  * - prefixes the API base URL
- * - attaches the JWT Bearer token from localStorage
+ * - sends httpOnly auth cookies
  * - serialises JSON body
  * - throws `ApiError` on non-2xx responses
  * - on 401: silently refreshes the access token once and retries
@@ -112,16 +112,10 @@ export async function apiFetch<T = unknown>(
     headers.set('Content-Type', 'application/json');
   }
 
-  if (!skipAuth && typeof window !== 'undefined') {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
-    }
-  }
-
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers,
+    credentials: 'include',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
@@ -173,16 +167,10 @@ export async function apiFormDataFetch<T = unknown>(
 ): Promise<T> {
   const headers = new Headers(extraHeaders);
 
-  if (!skipAuth && typeof window !== 'undefined') {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
-    }
-  }
-
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers,
+    credentials: 'include',
     body: formData,
   });
 

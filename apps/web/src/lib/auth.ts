@@ -96,12 +96,7 @@ export function isUsageExceeded(
   return limit !== null && limit !== undefined && usage >= limit;
 }
 
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
-export interface AuthResponse extends AuthTokens {
+export interface AuthResponse {
   user: AuthUser;
 }
 
@@ -227,79 +222,30 @@ export function getAuthenticatedRedirectPath(
   return preferredPath;
 }
 
-// ── Token helpers ──
+// ── Auth cookie helpers ──
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
 
-export function getStoredTokens(): AuthTokens | null {
-  if (typeof window === 'undefined') return null;
-  const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-  if (!accessToken || !refreshToken) return null;
-  return { accessToken, refreshToken };
-}
-
-export function storeTokens(tokens: AuthTokens): void {
-  localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
-  localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
-}
-
-export function clearTokens(): void {
+export function clearLegacyAuthTokens(): void {
+  if (typeof window === 'undefined') return;
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 /**
- * Decode the JWT payload (no signature verification — client-side only).
- * Returns `null` if the token is missing or malformed.
+ * Ask the API to rotate httpOnly access + refresh cookies.
+ * Throws if the refresh cookie is missing or invalid.
  */
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const part = token.split('.')[1];
-    if (!part) return null;
-    return JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/')));
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Returns the expiry timestamp (ms) of the stored access token,
- * or `null` if the token is missing / has no `exp` claim.
- */
-export function getAccessTokenExpiresAt(): number | null {
-  if (typeof window === 'undefined') return null;
-  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-  if (!token) return null;
-  const payload = decodeJwtPayload(token);
-  if (!payload || typeof payload.exp !== 'number') return null;
-  return payload.exp * 1000; // convert seconds → ms
-}
-
-/**
- * Exchange the stored refresh token for a new access + refresh token pair.
- * Stores the new tokens and returns them.
- * Throws if the refresh token is missing or the request fails.
- */
-export async function refreshTokens(): Promise<AuthTokens> {
-  const stored = getStoredTokens();
-  if (!stored?.refreshToken) {
-    throw new Error('No refresh token available');
-  }
-
+export async function refreshTokens(): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
-    headers: { 'x-refresh-token': stored.refreshToken },
+    credentials: 'include',
   });
 
   if (!res.ok) {
     throw new Error(`Refresh failed: ${res.status}`);
   }
-
-  const tokens: AuthTokens = await res.json();
-  storeTokens(tokens);
-  return tokens;
 }
 
 async function authFetch(
@@ -315,6 +261,7 @@ async function authFetch(
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers,
+    credentials: 'include',
     body: body ? JSON.stringify(body) : undefined,
   });
 
