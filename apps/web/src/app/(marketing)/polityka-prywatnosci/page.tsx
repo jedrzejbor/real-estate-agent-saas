@@ -1,6 +1,12 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { Container } from '@/components/layout';
-import { LEGAL_COPY, LEGAL_META, LEGAL_RETENTION } from '@/lib/legal';
+import {
+  LEGAL_COPY,
+  LEGAL_LINKS,
+  LEGAL_META,
+  LEGAL_RETENTION,
+} from '@/lib/legal';
 
 export const metadata: Metadata = {
   title: 'Polityka prywatności | EstateFlow',
@@ -66,6 +72,40 @@ export default function PrivacyPolicyPage() {
               w CRM, weryfikacji publicznego zgłoszenia oferty, przejęcia oferty
               do konta użytkownika, ochrony przed nadużyciami oraz prowadzenia
               podstawowej analityki produktu.
+            </p>
+          </Section>
+
+          <Section title="Cookies, storage i analityka">
+            <p>
+              EstateFlow używa localStorage, sessionStorage oraz podobnych
+              technologii przeglądarki do obsługi sesji, zapamiętania zgód,
+              ustawień interfejsu, roboczych formularzy i własnej analityki
+              produktu.
+            </p>
+            <p>
+              Eventy pomiarowe, takie jak wyświetlenia publicznych ofert,
+              wyświetlenia artykułów blogowych, kliknięcia CTA i użycie funkcji,
+              są wysyłane dopiero po zgodzie na kategorię analityczną. Brak
+              decyzji użytkownika jest traktowany jak brak zgody na analitykę.
+            </p>
+            <p>
+              Zgłoszenia nadużyć i techniczne działania potrzebne do
+              bezpieczeństwa formularzy mogą działać niezależnie od zgody
+              analitycznej, jeżeli są potrzebne do ochrony użytkowników i
+              obsługi naruszeń.
+            </p>
+            <p>
+              Na moment tej wersji nie używamy aktywnej integracji z Google
+              Analytics, Meta Pixel, Hotjar, Clarity ani podobnymi zewnętrznymi
+              narzędziami marketingowymi. Szczegółowy opis kategorii znajduje
+              się w{' '}
+              <Link
+                href={LEGAL_LINKS.cookies}
+                className="font-medium text-primary hover:underline"
+              >
+                Polityce cookies
+              </Link>
+              .
             </p>
           </Section>
 

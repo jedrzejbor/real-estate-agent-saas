@@ -22,7 +22,8 @@ export default function CookiePolicyPage() {
         </p>
         <p className="mt-3 text-xs leading-6 text-muted-foreground">
           Wersja robocza produktu MVP. Przed publicznym launch’em dokument
-          powinien zostać zweryfikowany prawnie i uzupełniony w etapie C5.
+          powinien zostać zweryfikowany prawnie oraz uzupełniony o finalne dane
+          operatora.
         </p>
         <p className="mt-2 text-xs leading-6 text-muted-foreground">
           Wersja: {LEGAL_META.version}. Data obowiązywania:{' '}
@@ -30,6 +31,17 @@ export default function CookiePolicyPage() {
         </p>
 
         <div className="mt-8 space-y-8">
+          <Section title="Czym są cookies i browser storage">
+            <p>
+              Cookies, localStorage i sessionStorage to technologie
+              przeglądarki, które pozwalają zapamiętać stan aplikacji,
+              preferencje użytkownika, informacje techniczne albo zgodę na
+              opcjonalne kategorie. W EstateFlow obecnie kluczowe znaczenie ma
+              localStorage i sessionStorage; klasyczne cookies nie są aktywnie
+              ustawiane przez frontend aplikacji.
+            </p>
+          </Section>
+
           <Section title="Kategorie">
             <p>
               EstateFlow rozróżnia technologie niezbędne, funkcjonalne,
@@ -37,14 +49,71 @@ export default function CookiePolicyPage() {
               działania aplikacji, bezpieczeństwa, obsługi sesji i zapamiętania
               wyboru zgód.
             </p>
+            <ul className="list-disc space-y-2 pl-5">
+              <li>
+                Niezbędne: sesja użytkownika, zapamiętanie decyzji cookie
+                consent, techniczne mechanizmy bezpieczeństwa i obsługa zgłoszeń
+                nadużyć.
+              </li>
+              <li>
+                Funkcjonalne: motyw interfejsu, stan checklisty onboardingowej,
+                roboczy draft formularza dodania oferty i lokalne preferencje
+                produktu.
+              </li>
+              <li>
+                Analityczne: własne eventy pomagające mierzyć oglądalność ofert,
+                artykułów, kliknięcia CTA i użycie funkcji.
+              </li>
+              <li>
+                Marketingowe: kategoria przygotowana na przyszłe integracje
+                reklamowe. Na moment tej wersji nie używamy zewnętrznych pikseli
+                marketingowych.
+              </li>
+            </ul>
+          </Section>
+
+          <Section title="Mechanizmy używane w aplikacji">
+            <StorageTable />
           </Section>
 
           <Section title="Własna analityka">
             <p>
               Aplikacja może zapisywać własne eventy analityczne dotyczące
               oglądalności ofert, artykułów, kliknięć CTA i użycia funkcji
-              produktu. Eventy analityczne powinny być wysyłane wyłącznie po
-              zgodzie na kategorię analityczną.
+              produktu. Eventy pomiarowe są wysyłane wyłącznie po zgodzie na
+              kategorię analityczną. Brak decyzji użytkownika traktujemy jak
+              brak zgody na analitykę.
+            </p>
+            <p>
+              Zgłoszenia nadużyć i techniczne działania potrzebne do
+              bezpieczeństwa mogą działać niezależnie od zgody analitycznej,
+              ponieważ służą ochronie użytkowników, ofert i formularzy.
+            </p>
+          </Section>
+
+          <Section title="Zewnętrzni dostawcy">
+            <p>
+              Na moment tej wersji w kodzie aplikacji nie ma aktywnej integracji
+              z Google Analytics, Meta Pixel, Hotjar, Clarity ani podobnymi
+              zewnętrznymi narzędziami marketingowymi lub remarketingowymi.
+              Dodanie takiego dostawcy wymaga aktualizacji tej polityki, listy
+              dostawców i blokady ładowania skryptu przed zgodą użytkownika.
+            </p>
+          </Section>
+
+          <Section title="Retencja">
+            <p>
+              Preferencje zgód są przechowywane lokalnie do czasu zmiany wyboru,
+              wyczyszczenia danych przeglądarki albo zmiany wersji mechanizmu
+              zgód. sessionStorage jest usuwany przez przeglądarkę po zakończeniu
+              sesji. Dane zapisane w localStorage pozostają do czasu ich
+              nadpisania, usunięcia przez aplikację albo wyczyszczenia przez
+              użytkownika.
+            </p>
+            <p>
+              Eventy analityczne zapisane po stronie API powinny być
+              przechowywane w formie ograniczonej do celów bezpieczeństwa,
+              diagnostyki i pomiaru produktu zgodnie z polityką prywatności.
             </p>
           </Section>
 
@@ -52,12 +121,134 @@ export default function CookiePolicyPage() {
             <p>
               Użytkownik może zmienić wybór w stopce strony przez przycisk
               „Ustawienia cookies”. Preferencje są zapisywane lokalnie w
-              przeglądarce.
+              przeglądarce pod kluczem `estateflow-cookie-consent`.
+            </p>
+            <p>
+              Wyczyszczenie danych przeglądarki usuwa zapisane preferencje i
+              może spowodować ponowne pokazanie banera zgód.
+            </p>
+          </Section>
+
+          <Section title="Kontakt">
+            <p>
+              W sprawach prywatności, cookies i żądań dotyczących danych można
+              skontaktować się przez adres {LEGAL_META.contactEmail}.
             </p>
           </Section>
         </div>
       </article>
     </Container>
+  );
+}
+
+function StorageTable() {
+  const rows = [
+    {
+      name: 'estateflow-cookie-consent',
+      type: 'localStorage',
+      category: 'Niezbędne',
+      purpose: 'Zapamiętanie wyboru zgód użytkownika.',
+    },
+    {
+      name: 'accessToken, refreshToken',
+      type: 'localStorage',
+      category: 'Niezbędne',
+      purpose:
+        'Utrzymanie sesji użytkownika. Docelowa migracja do httpOnly cookies pozostaje osobną decyzją security.',
+    },
+    {
+      name: 'estateflow-theme',
+      type: 'localStorage',
+      category: 'Funkcjonalne',
+      purpose: 'Zapamiętanie motywu interfejsu.',
+    },
+    {
+      name: 'estateflow.publicListingWizard.v1',
+      type: 'localStorage',
+      category: 'Funkcjonalne',
+      purpose:
+        'Roboczy draft publicznego formularza dodania oferty, w tym dane wpisane przez użytkownika.',
+    },
+    {
+      name: 'estateflow.dashboard-onboarding:*',
+      type: 'localStorage',
+      category: 'Funkcjonalne',
+      purpose: 'Zapamiętanie postępu checklisty onboardingowej.',
+    },
+    {
+      name: 'blog-article-viewed:*',
+      type: 'sessionStorage',
+      category: 'Analityczne',
+      purpose:
+        'Deduplikacja pomiaru wyświetlenia artykułu w danej sesji po zgodzie analitycznej.',
+    },
+    {
+      name: 'analytics_events',
+      type: 'API / baza danych',
+      category: 'Analityczne albo operacyjne',
+      purpose:
+        'Pomiar produktu po zgodzie analitycznej oraz wybrane zdarzenia operacyjne, np. zgłoszenia nadużyć.',
+    },
+  ];
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border">
+      <div className="grid grid-cols-1 divide-y divide-border text-sm md:grid-cols-[1.2fr_0.9fr_0.9fr_1.6fr] md:divide-y-0">
+        <TableHeader>Nazwa</TableHeader>
+        <TableHeader>Typ</TableHeader>
+        <TableHeader>Kategoria</TableHeader>
+        <TableHeader>Cel</TableHeader>
+        {rows.map((row) => (
+          <Row key={`${row.type}-${row.name}`} {...row} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TableHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="hidden bg-muted px-3 py-2 text-xs font-semibold uppercase text-muted-foreground md:block">
+      {children}
+    </div>
+  );
+}
+
+function Row({
+  name,
+  type,
+  category,
+  purpose,
+}: {
+  name: string;
+  type: string;
+  category: string;
+  purpose: string;
+}) {
+  return (
+    <>
+      <TableCell label="Nazwa">{name}</TableCell>
+      <TableCell label="Typ">{type}</TableCell>
+      <TableCell label="Kategoria">{category}</TableCell>
+      <TableCell label="Cel">{purpose}</TableCell>
+    </>
+  );
+}
+
+function TableCell({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-border px-3 py-3 text-muted-foreground md:border-t">
+      <span className="mb-1 block text-xs font-semibold uppercase text-muted-foreground md:hidden">
+        {label}
+      </span>
+      <span className="text-sm leading-6">{children}</span>
+    </div>
   );
 }
 

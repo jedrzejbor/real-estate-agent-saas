@@ -405,7 +405,7 @@ Weryfikacja:
 
 ### C5. Polityka cookies i aktualizacja dokumentów legal
 
-Status: do zrobienia
+Status: wykonane 2026-06-11
 
 Zakres:
 
@@ -434,11 +434,48 @@ Polityka cookies powinna opisać:
 
 Kryteria akceptacji:
 
-- Dokument jest dostępny publicznie.
-- Link jest w stopce.
-- Banner linkuje do dokumentu.
-- Treść zgadza się z faktyczną implementacją.
-- Dokument nadal jest oznaczony jako wymagający review prawnego, jeśli nie został jeszcze zweryfikowany.
+- [x] Dokument jest dostępny publicznie.
+- [x] Link jest w stopce.
+- [x] Banner linkuje do dokumentu.
+- [x] Treść zgadza się z faktyczną implementacją po etapach `C1-C4`.
+- [x] Dokument nadal jest oznaczony jako wymagający review prawnego, jeśli nie został jeszcze zweryfikowany.
+
+Wykonane:
+
+- Rozbudowano `/polityka-cookies` w `apps/web/src/app/(marketing)/polityka-cookies/page.tsx`.
+- Polityka cookies opisuje:
+  - czym są cookies, `localStorage` i `sessionStorage`,
+  - kategorie: niezbędne, funkcjonalne, analityczne i marketingowe,
+  - aktualnie używane mechanizmy browser storage,
+  - własną analitykę i warunek zgody `analytics`,
+  - wyjątek operacyjny dla bezpieczeństwa i zgłoszeń nadużyć,
+  - brak aktywnych zewnętrznych narzędzi typu Google Analytics, Meta Pixel, Hotjar, Clarity,
+  - retencję preferencji, `sessionStorage`, `localStorage` i eventów,
+  - sposób zmiany zgody przez stopkę,
+  - kontakt w sprawach prywatności.
+- Dodano tabelę mechanizmów obejmującą:
+  - `estateflow-cookie-consent`,
+  - `accessToken` / `refreshToken`,
+  - `estateflow-theme`,
+  - `estateflow.publicListingWizard.v1`,
+  - `estateflow.dashboard-onboarding:*`,
+  - `blog-article-viewed:*`,
+  - `analytics_events`.
+- Zaktualizowano `/polityka-prywatnosci` o sekcję `Cookies, storage i analityka`.
+- Sekcja prywatności linkuje do `LEGAL_LINKS.cookies`.
+
+Decyzje implementacyjne:
+
+- `/polityka-cookies` pozostaje osobną trasą zamiast samej sekcji w polityce prywatności.
+- Dokument opisuje obecny stan aplikacji: własna analityka, browser storage i brak zewnętrznych pikseli marketingowych.
+- Tokeny auth są opisane jako niezbędny mechanizm sesji, ale z zaznaczeniem, że decyzja o migracji do httpOnly cookies pozostaje w `C6`.
+- Draft `/dodaj-oferte` jest opisany jako funkcjonalny storage zawierający dane wpisane przez użytkownika.
+- Dokument nadal wymaga review prawnego i finalnych danych operatora przed publicznym launch’em.
+
+Weryfikacja:
+
+- `pnpm --filter web type-check` - przechodzi.
+- Lint dla dotkniętych plików - przechodzi.
 
 ### C6. Decyzja auth storage
 
