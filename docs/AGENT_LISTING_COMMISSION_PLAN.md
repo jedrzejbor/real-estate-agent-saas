@@ -283,7 +283,7 @@ Pozostałe:
 
 ### C5. Widoczność w dashboardzie
 
-Status: TODO
+Status: wykonane - etap 5 widoczność dashboardu 2026-06-11
 
 Zakres:
 
@@ -300,9 +300,28 @@ Zakres:
 
 Kryteria akceptacji:
 
-- [ ] Szczegóły oferty pokazują prowizję, jeśli jest ustawiona.
-- [ ] Brak prowizji pokazuje neutralny stan, np. `Nie ustawiono`.
-- [ ] Publiczne strony i katalog nie pokazują prowizji.
+- [x] Szczegóły oferty pokazują prowizję, jeśli jest ustawiona.
+- [x] Brak prowizji pokazuje neutralny stan, np. `Nie ustawiono`.
+- [x] Publiczne strony i katalog nie pokazują prowizji.
+
+Wykonane:
+
+- Dodano kartę `Prowizja agenta` w prywatnym widoku szczegółów oferty:
+  `apps/web/src/app/(dashboard)/dashboard/listings/[id]/page.tsx`.
+- Karta pokazuje:
+  - wyliczoną kwotę prowizji,
+  - neutralny stan `Nie ustawiono`,
+  - opis typu i wartości wejściowej,
+  - informację, że pole jest widoczne tylko w dashboardzie.
+- Dodano skrót prowizji na prywatnej karcie oferty w dashboardzie:
+  `apps/web/src/components/listings/listing-card.tsx`.
+- Nie zmieniano publicznych komponentów ofert, katalogu, mapy ani publicznego
+  profilu agenta.
+
+Weryfikacja:
+
+- `pnpm --filter web type-check` - przechodzi.
+- `pnpm --filter web exec eslint 'src/app/(dashboard)/dashboard/listings/[id]/page.tsx' src/components/listings/listing-card.tsx src/lib/listings.ts` - przechodzi.
 
 ### C6. Bezpieczeństwo i prywatność
 

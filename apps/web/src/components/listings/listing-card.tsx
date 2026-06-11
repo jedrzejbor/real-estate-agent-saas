@@ -10,6 +10,7 @@ import {
   Calendar,
   Eye,
   ImageIcon,
+  WalletCards,
 } from 'lucide-react';
 import { ListingStatusBadge } from './listing-status-badge';
 import {
@@ -18,6 +19,7 @@ import {
   TRANSACTION_TYPE_LABELS,
   formatPrice,
   formatArea,
+  formatListingCommission,
 } from '@/lib/listings';
 
 interface ListingCardProps {
@@ -45,6 +47,7 @@ export function ListingCard({ listing }: ListingCardProps) {
     createdAt,
   } = listing;
   const primaryImage = getPrimaryListingImage(images, shareImageUrl);
+  const hasCommission = Boolean(listing.commissionType);
 
   return (
     <Link
@@ -133,9 +136,19 @@ export function ListingCard({ listing }: ListingCardProps) {
 
       {/* Footer */}
       <div className="flex items-center justify-between border-t border-border/50 bg-muted/30 px-5 py-3">
-        <p className="font-heading text-lg font-bold text-primary">
-          {formatPrice(price, currency)}
-        </p>
+        <div className="min-w-0">
+          <p className="font-heading text-lg font-bold text-primary">
+            {formatPrice(price, currency)}
+          </p>
+          {hasCommission ? (
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+              <WalletCards className="h-3 w-3" />
+              <span className="truncate">
+                Prowizja: {formatListingCommission(listing)}
+              </span>
+            </p>
+          ) : null}
+        </div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Eye className="h-3 w-3" />
           <span>{publicViewCount ?? 0}</span>

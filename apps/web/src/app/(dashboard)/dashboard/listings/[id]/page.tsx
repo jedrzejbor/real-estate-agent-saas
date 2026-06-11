@@ -15,6 +15,7 @@ import {
   Calendar,
   Eye,
   Layers,
+  WalletCards,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ActivityHistoryCard } from '@/components/activity/activity-history-card';
@@ -40,8 +41,10 @@ import {
   PROPERTY_TYPE_LABELS,
   TRANSACTION_TYPE_LABELS,
   LISTING_STATUS_LABELS,
+  LISTING_COMMISSION_TYPE_LABELS,
   formatPrice,
   formatArea,
+  formatListingCommission,
 } from '@/lib/listings';
 
 export default function ListingDetailPage() {
@@ -283,6 +286,25 @@ export default function ListingDetailPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">
+                  Prowizja agenta
+                </p>
+                <p className="mt-1 font-heading text-3xl font-bold text-foreground">
+                  {formatListingCommission(listing)}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {getCommissionDescription(listing)}
+                </p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-muted text-primary">
+                <WalletCards className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">
                   Wyświetlenia publiczne
                 </p>
                 <p className="mt-1 font-heading text-3xl font-bold text-foreground">
@@ -516,6 +538,20 @@ function DetailItem({
       </div>
     </div>
   );
+}
+
+function getCommissionDescription(listing: Listing): string {
+  if (!listing.commissionType || listing.commissionValue === null) {
+    return 'Prywatne pole dashboardu. Ustaw prowizję w edycji oferty.';
+  }
+
+  const value = Number(listing.commissionValue);
+  const formattedValue =
+    listing.commissionType === 'percentage'
+      ? `${value.toLocaleString('pl-PL')}% ceny`
+      : formatPrice(value, listing.currency);
+
+  return `${LISTING_COMMISSION_TYPE_LABELS[listing.commissionType]}: ${formattedValue}. Widoczne tylko w dashboardzie.`;
 }
 
 interface StatusAction {
