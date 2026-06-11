@@ -81,7 +81,7 @@ Nie dodawać tych pól do publicznych modeli:
 
 ### C1. Backend model i migracja
 
-Status: TODO
+Status: wykonane - etap 1 modelu danych 2026-06-11
 
 Zakres:
 
@@ -98,9 +98,36 @@ Zakres:
 
 Kryteria akceptacji:
 
-- [ ] Baza potrafi przechować typ i wartość prowizji.
-- [ ] Brak prowizji jest reprezentowany jako `null`, nie jako magiczne `0`.
-- [ ] Zmiana jest kompatybilna z istniejącymi ofertami.
+- [x] Baza potrafi przechować typ i wartość prowizji.
+- [x] Brak prowizji jest reprezentowany jako `null`, nie jako magiczne `0`.
+- [x] Zmiana jest kompatybilna z istniejącymi ofertami.
+
+Wykonane:
+
+- Dodano `ListingCommissionType` w `apps/api/src/common/enums/index.ts`.
+- Dodano pola w `apps/api/src/listings/entities/listing.entity.ts`:
+  - `commissionType` jako nullable enum,
+  - `commissionValue` jako nullable decimal `precision: 12, scale: 2`.
+- `commissionValue` jest typowane jako `number | string | null`, bo TypeORM dla
+  kolumn `decimal` w Postgresie może zwracać string. To trzeba uwzględnić w
+  kontrakcie API i helperach liczących w kolejnych etapach.
+- Nie dodano jeszcze `commissionAmount` do bazy. Zgodnie z decyzją MVP ma być
+  liczone jako pole pochodne.
+
+Decyzja migracyjna:
+
+- W repo nie ma obecnie skonfigurowanego katalogu/komend migracji TypeORM.
+- `apps/api/src/app.module.ts` używa `synchronize` dla środowisk innych niż
+  `production`.
+- Na etapie C1 nie dodano migracji produkcyjnej. Przed wdrożeniem na produkcję
+  trzeba przygotować migrację SQL/TypeORM dla:
+  - enumu `listing_commission_type`,
+  - kolumny `listings.commissionType`,
+  - kolumny `listings.commissionValue`.
+
+Weryfikacja:
+
+- `pnpm --filter api type-check` - przechodzi.
 
 ### C2. Walidacja API i kontrakt dashboardowy
 
@@ -295,4 +322,3 @@ Nie uznajemy funkcji za gotową, dopóki:
 - [ ] walidacja backendu i frontendu jest spójna,
 - [ ] type-check API i web przechodzą,
 - [ ] manualny QA `QA-COM-01` - `QA-COM-08` ma status `PASS` albo świadome `N/A`.
-

@@ -12,6 +12,7 @@ import {
 } from 'typeorm';
 import {
   PropertyType,
+  ListingCommissionType,
   ListingStatus,
   ListingPublicationStatus,
   TransactionType,
@@ -48,6 +49,16 @@ export class Listing {
 
   @Column({ type: 'varchar', length: 3, default: 'PLN' })
   currency: string;
+
+  @Column({
+    type: 'enum',
+    enum: ListingCommissionType,
+    nullable: true,
+  })
+  commissionType?: ListingCommissionType | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  commissionValue?: number | string | null;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   areaM2: number;

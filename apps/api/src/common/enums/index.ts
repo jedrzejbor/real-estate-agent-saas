@@ -50,6 +50,11 @@ export enum ListingPublicationStatus {
   UNPUBLISHED = 'unpublished',
 }
 
+export enum ListingCommissionType {
+  PERCENTAGE = 'percentage',
+  FIXED = 'fixed',
+}
+
 export enum TransactionType {
   SALE = 'sale',
   RENT = 'rent',
