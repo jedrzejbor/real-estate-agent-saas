@@ -36,6 +36,19 @@ export class ReportsController {
   }
 
   /**
+   * GET /api/reports/earnings
+   * Private estimated earnings report based on listing commission fields.
+   */
+  @Get('earnings')
+  async getEarnings(
+    @CurrentUser()
+    user: { id: string; email: string; role: UserRole },
+    @Query() filters: ReportFiltersDto,
+  ) {
+    return this.reportsService.getEarningsReport(user, filters);
+  }
+
+  /**
    * GET /api/reports/clients
    * Dedicated clients report with summary and breakdowns.
    */

@@ -8,6 +8,7 @@ import {
   BookOpenText,
   Building2,
   CalendarRange,
+  CircleDollarSign,
   Gauge,
   MousePointerClick,
   RefreshCw,
@@ -20,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { ReportsAppointmentsSection } from '@/components/reports/reports-appointments-section';
 import { ReportsBlogSection } from '@/components/reports/reports-blog-section';
 import { ReportsClientsSection } from '@/components/reports/reports-clients-section';
+import { ReportsEarningsSection } from '@/components/reports/reports-earnings-section';
 import { ReportsFilterBar } from '@/components/reports/reports-filter-bar';
 import { ReportsFreemiumSection } from '@/components/reports/reports-freemium-section';
 import { ReportsKpiStrip } from '@/components/reports/reports-kpi-strip';
@@ -31,6 +33,7 @@ import {
   useReportsAppointments,
   useReportsBlog,
   useReportsClients,
+  useReportsEarnings,
   useReportsFreemiumMetrics,
   useReportsListings,
   useReportsOverview,
@@ -55,10 +58,10 @@ export default function ReportsPage() {
   const showPremiumReportsUpsell =
     releaseFlags.freemiumUpsellEnabled && releaseFlags.premiumReportsEnabled;
   const reportsDescription = canAccessAppointmentsReport
-    ? 'Widok przeglądu oraz dedykowane raporty Oferty, Klienci, Growth, Blog i Spotkania, z zachowaniem wspólnych filtrów i bezpiecznego scope danych.'
+    ? 'Widok przeglądu oraz dedykowane raporty Oferty, Zarobki, Klienci, Growth, Blog i Spotkania, z zachowaniem wspólnych filtrów i bezpiecznego scope danych.'
     : showPremiumReportsUpsell
-      ? 'Widok przeglądu oraz darmowe raporty Oferty, Klienci, Growth i Blog. Raport Spotkania jest dostępny w płatnych planach.'
-      : 'Widok przeglądu oraz darmowe raporty Oferty, Klienci, Growth i Blog, bez dodatkowych premium entry pointów.';
+      ? 'Widok przeglądu oraz darmowe raporty Oferty, Zarobki, Klienci, Growth i Blog. Raport Spotkania jest dostępny w płatnych planach.'
+      : 'Widok przeglądu oraz darmowe raporty Oferty, Zarobki, Klienci, Growth i Blog, bez dodatkowych premium entry pointów.';
 
   const filters = useMemo(
     () => parseReportsFilters(searchParams),
@@ -80,6 +83,12 @@ export default function ReportsPage() {
     error: listingsError,
     refresh: refreshListings,
   } = useReportsListings(filters);
+  const {
+    data: earningsData,
+    isLoading: isEarningsLoading,
+    error: earningsError,
+    refresh: refreshEarnings,
+  } = useReportsEarnings(filters);
   const {
     data: clientsData,
     isLoading: isClientsLoading,
@@ -110,6 +119,7 @@ export default function ReportsPage() {
   function refreshAll() {
     refreshOverview();
     refreshListings();
+    refreshEarnings();
     refreshClients();
     refreshFreemium();
     refreshBlog();
@@ -145,6 +155,7 @@ export default function ReportsPage() {
   const isAnyReportLoading =
     isLoading ||
     isListingsLoading ||
+    isEarningsLoading ||
     isClientsLoading ||
     isFreemiumLoading ||
     isBlogLoading ||
@@ -158,6 +169,7 @@ export default function ReportsPage() {
         data.summary.appointments
       : undefined,
     listingsCount: listingsData?.summary.totalListings,
+    earningsCount: earningsData?.summary.closedListingsWithCommission,
     clientsCount: clientsData?.summary.totalClients,
     freemiumCount: freemiumData?.summary.upgradeClicks,
     blogCount: blogData?.summary.articleViews,
@@ -233,7 +245,7 @@ export default function ReportsPage() {
         <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <div className="border-b border-border bg-muted/20 p-2">
             <div
-              className="grid gap-2 lg:grid-cols-6"
+              className="grid gap-2 md:grid-cols-2 xl:grid-cols-7"
               role="tablist"
               aria-label="Typ raportu"
             >
@@ -318,6 +330,19 @@ export default function ReportsPage() {
               </ReportDataState>
             ) : null}
 
+            {selectedTab.id === 'earnings' ? (
+              <ReportDataState
+                error={earningsError}
+                isLoading={isEarningsLoading}
+                hasData={!!earningsData}
+                onRetry={refreshEarnings}
+              >
+                {earningsData ? (
+                  <ReportsEarningsSection data={earningsData} />
+                ) : null}
+              </ReportDataState>
+            ) : null}
+
             {selectedTab.id === 'clients' ? (
               <ReportDataState
                 error={clientsError}
@@ -384,6 +409,7 @@ export default function ReportsPage() {
 type ReportsTabId =
   | 'overview'
   | 'listings'
+  | 'earnings'
   | 'clients'
   | 'freemium'
   | 'blog'
@@ -403,6 +429,7 @@ function isReportsTabId(value: string | null): value is ReportsTabId {
   return (
     value === 'overview' ||
     value === 'listings' ||
+    value === 'earnings' ||
     value === 'clients' ||
     value === 'freemium' ||
     value === 'blog' ||
@@ -415,6 +442,7 @@ function getReportsTabs({
   showPremiumReportsUpsell,
   overviewCount,
   listingsCount,
+  earningsCount,
   clientsCount,
   freemiumCount,
   blogCount,
@@ -424,6 +452,7 @@ function getReportsTabs({
   showPremiumReportsUpsell: boolean;
   overviewCount?: number;
   listingsCount?: number;
+  earningsCount?: number;
   clientsCount?: number;
   freemiumCount?: number;
   blogCount?: number;
@@ -443,6 +472,13 @@ function getReportsTabs({
       description: 'Statusy, aktywacje i struktura portfela.',
       icon: Building2,
       badge: listingsCount !== undefined ? String(listingsCount) : undefined,
+    },
+    {
+      id: 'earnings',
+      label: 'Zarobki',
+      description: 'Szacunki prowizji i zamknięte zarobki.',
+      icon: CircleDollarSign,
+      badge: earningsCount !== undefined ? String(earningsCount) : undefined,
     },
     {
       id: 'clients',

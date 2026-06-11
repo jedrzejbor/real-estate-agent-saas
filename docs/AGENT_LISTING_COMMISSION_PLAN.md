@@ -482,6 +482,19 @@ Wykonano w etapie 1:
   mógł zwracać błąd 500 na agregacjach dashboardu/raportów.
 - Dodano test regresyjny sprawdzający, że SQL agregacji prowizji używa
   cytowanych nazw kolumn.
+- Dodano dedykowany raport `Zarobki`:
+  - endpoint `GET /api/reports/earnings`,
+  - hook `useReportsEarnings`,
+  - typ `EarningsReportResponse`,
+  - zakładkę `Zarobki` w `/dashboard/reports`,
+  - komponent `ReportsEarningsSection`.
+- Raport `Zarobki` pokazuje:
+  - prowizję zamkniętą w wybranym okresie,
+  - szacowaną prowizję aktywnych ofert,
+  - szacowaną prowizję łączną,
+  - średnią prowizję zamkniętą,
+  - trend zamkniętych prowizji w bucketach `day/week/month`,
+  - rozbicie prowizji według statusu i typu transakcji.
 
 Weryfikacja etapu 1:
 
@@ -490,6 +503,7 @@ Weryfikacja etapu 1:
 - `pnpm --filter api test -- listing-commission.spec.ts` - przechodzi, w tym
   test regresyjny dla SQL agregacji prowizji.
 - `pnpm --filter web exec eslint src/lib/dashboard.ts src/lib/reports.ts src/app/'(dashboard)'/dashboard/page.tsx src/components/reports/reports-kpi-strip.tsx` - przechodzi.
+- `pnpm --filter web exec eslint src/lib/reports.ts src/hooks/use-reports.ts src/app/'(dashboard)'/dashboard/reports/page.tsx src/components/reports/reports-earnings-section.tsx` - przechodzi.
 - Celowany `eslint` dla API nie został uruchomiony, ponieważ pakiet API nie ma
   konfiguracji ESLint 9 (`eslint.config.*`). Weryfikację API na tym etapie
   pokrywają type-check i test helperów prowizji.
@@ -503,11 +517,13 @@ Testy automatyczne:
   - dashboard zwraca sumę prowizji aktywnych ofert,
   - dashboard zwraca sumę prowizji zamkniętych ofert,
   - raport `overview` zwraca `estimatedCommissionValue`,
-  - raport `overview` zwraca deltę dla `estimatedCommissionValue`.
+  - raport `overview` zwraca deltę dla `estimatedCommissionValue`,
+  - raport `earnings` zwraca summary, breakdowny i timeline prowizji.
 - Web:
   - typy raportów i dashboardu obsługują nowe pola,
   - komponent KPI renderuje prowizję jako kwotę,
-  - brak prowizji renderuje `0 zł`, a nie błąd lub `NaN`.
+  - brak prowizji renderuje `0 zł`, a nie błąd lub `NaN`,
+  - zakładka `Zarobki` ładuje dane z `/reports/earnings`.
 
 Manual QA:
 
@@ -518,6 +534,8 @@ Manual QA:
 | QA-COM-11 | Zmień status oferty na sprzedaną albo wynajętą. | Prowizja przechodzi do agregacji zamkniętych ofert. | TODO |
 | QA-COM-12 | Usuń prowizję z oferty. | Agregacje prowizji aktualizują się i nie pokazują starej kwoty. | TODO |
 | QA-COM-13 | Otwórz publiczną stronę, katalog i profil agenta. | Prowizja nadal nie jest widoczna publicznie. | TODO |
+| QA-COM-14 | Otwórz raport `Zarobki` z ofertami prowizyjnymi. | Zakładka pokazuje summary, timeline i rozbicia prowizji. | TODO |
+| QA-COM-15 | Zmień zakres dat w raportach. | Raport `Zarobki` aktualizuje prowizję zamkniętą zgodnie z okresem. | TODO |
 
 Komendy weryfikacyjne:
 
@@ -525,7 +543,7 @@ Komendy weryfikacyjne:
 pnpm --filter api type-check
 pnpm --filter web type-check
 pnpm --filter api test -- dashboard reports listing-commission
-pnpm --filter web exec eslint src/lib/dashboard.ts src/lib/reports.ts src/app/'(dashboard)'/dashboard/page.tsx src/components/reports/reports-kpi-strip.tsx
+pnpm --filter web exec eslint src/lib/dashboard.ts src/lib/reports.ts src/hooks/use-reports.ts src/app/'(dashboard)'/dashboard/page.tsx src/app/'(dashboard)'/dashboard/reports/page.tsx src/components/reports/reports-kpi-strip.tsx src/components/reports/reports-earnings-section.tsx
 ```
 
 ## Poza zakresem MVP
@@ -559,4 +577,4 @@ Nie uznajemy funkcji za gotową, dopóki:
 - [ ] publiczne endpointy i komponenty nie ujawniają prowizji,
 - [ ] walidacja backendu i frontendu jest spójna,
 - [ ] type-check API i web przechodzą,
-- [ ] manualny QA `QA-COM-01` - `QA-COM-13` ma status `PASS` albo świadome `N/A`.
+- [ ] manualny QA `QA-COM-01` - `QA-COM-15` ma status `PASS` albo świadome `N/A`.

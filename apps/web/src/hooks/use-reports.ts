@@ -5,12 +5,14 @@ import {
   fetchReportsAppointments,
   fetchReportsBlog,
   fetchReportsClients,
+  fetchReportsEarnings,
   fetchReportsFreemiumMetrics,
   fetchReportsListings,
   fetchReportsOverview,
   type AppointmentsReportResponse,
   type BlogReportResponse,
   type ClientsReportResponse,
+  type EarningsReportResponse,
   type FreemiumMetricsReportResponse,
   type ListingsReportResponse,
   type ReportsFilters,
@@ -93,6 +95,53 @@ export function useReportsListings(
           err instanceof Error
             ? err.message
             : 'Nie udało się pobrać raportu ofert',
+        );
+      }
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [filters]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return { data, isLoading, error, refresh: load };
+}
+
+interface UseReportsEarningsResult {
+  data: EarningsReportResponse | null;
+  isLoading: boolean;
+  error: string | null;
+  refresh: () => void;
+}
+
+export function useReportsEarnings(
+  filters: ReportsFilters,
+): UseReportsEarningsResult {
+  const [data, setData] = useState<EarningsReportResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
+
+  const load = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await fetchReportsEarnings(filters);
+      if (requestId === requestIdRef.current) {
+        setData(result);
+      }
+    } catch (err) {
+      if (requestId === requestIdRef.current) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Nie udało się pobrać raportu zarobków',
         );
       }
     } finally {

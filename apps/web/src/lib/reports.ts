@@ -104,6 +104,50 @@ export interface ListingsReportResponse {
   notes: string[];
 }
 
+export interface EarningsReportSummary {
+  activeCommissionValue: number;
+  closedCommissionValue: number;
+  estimatedCommissionValue: number;
+  listingsWithCommission: number;
+  closedListingsWithCommission: number;
+  averageClosedCommissionValue: number;
+}
+
+export interface EarningsBreakdownItem {
+  key: string;
+  count: number;
+  commissionValue: number;
+  activeCount?: number;
+  closedCount?: number;
+}
+
+export interface EarningsTimelineBucket {
+  key: string;
+  label: string;
+  closedCommissionValue: number;
+  closedListings: number;
+}
+
+export interface EarningsReportResponse {
+  generatedAt: string;
+  filtersApplied: {
+    dateFrom: string;
+    dateTo: string;
+    groupBy: ReportsGroupBy;
+    propertyType?: PropertyType;
+    transactionType?: TransactionType;
+    requestedAgentId?: string;
+    effectiveAgentIds: string[];
+  };
+  summary: EarningsReportSummary;
+  breakdowns: {
+    byStatus: EarningsBreakdownItem[];
+    byTransactionType: EarningsBreakdownItem[];
+  };
+  timeline: EarningsTimelineBucket[];
+  notes: string[];
+}
+
 export interface ClientsReportSummary {
   totalClients: number;
   newClients: number;
@@ -395,6 +439,25 @@ export async function fetchReportsListings(
 
   return apiFetch<ListingsReportResponse>(
     `/reports/listings?${params.toString()}`,
+  );
+}
+
+export async function fetchReportsEarnings(
+  filters: ReportsFilters,
+): Promise<EarningsReportResponse> {
+  const params = new URLSearchParams();
+  params.set('dateFrom', filters.dateFrom);
+  params.set('dateTo', filters.dateTo);
+  params.set('groupBy', filters.groupBy);
+
+  if (filters.agentId) params.set('agentId', filters.agentId);
+  if (filters.propertyType) params.set('propertyType', filters.propertyType);
+  if (filters.transactionType) {
+    params.set('transactionType', filters.transactionType);
+  }
+
+  return apiFetch<EarningsReportResponse>(
+    `/reports/earnings?${params.toString()}`,
   );
 }
 
