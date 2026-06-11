@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { AuthModule, CsrfGuard, JwtAuthGuard, RolesGuard } from './auth';
 import { UsersModule } from './users';
 import { ListingsModule } from './listings';
+import { ListingDocumentsModule } from './listing-documents';
 import { ClientsModule } from './clients';
 import { AppointmentsModule } from './appointments';
 import { DashboardModule } from './dashboard';
@@ -48,6 +49,7 @@ import { PlansModule } from './plans';
     AuthModule,
     UsersModule,
     ListingsModule,
+    ListingDocumentsModule,
     ClientsModule,
     AppointmentsModule,
     DashboardModule,

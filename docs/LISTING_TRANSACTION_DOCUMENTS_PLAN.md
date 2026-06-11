@@ -399,7 +399,7 @@ Minimalny zapis do polityki prywatności:
 
 ### D1. Model danych i enumy
 
-Status: TODO
+Status: DONE
 
 Zakres:
 
@@ -412,14 +412,35 @@ Zakres:
 
 Akceptacja:
 
-- backend kompiluje się,
-- dokument ma `agentId` i `listingId`,
-- soft delete jest przewidziany,
-- publiczne typy listingów nie zawierają dokumentów.
+- [x] backend kompiluje się,
+- [x] dokument ma `agentId` i `listingId`,
+- [x] soft delete jest przewidziany,
+- [x] publiczne typy listingów nie zawierają dokumentów.
+
+Wykonano:
+
+- Dodano enumy:
+  - `ListingDocumentCategory`,
+  - `ListingDocumentStatus`,
+  - `ListingDocumentEventType`.
+- Dodano encję `ListingDocument` z relacjami do:
+  - `Listing`,
+  - `Agent`,
+  - `User` jako `uploadedBy` i `reviewedBy`.
+- Dodano encję `ListingDocumentEvent` z eventami audytowymi.
+- Dodano indeksy pod podstawowe zapytania:
+  - `agentId + listingId`,
+  - `listingId + category`,
+  - `listingId + status`,
+  - eventy po `documentId + createdAt`,
+  - eventy po `agentId + listingId + createdAt`.
+- Pola plikowe (`storageKey`, `originalFilename`, `mimeType`, `fileSize`,
+  `checksum`) są nullable, ponieważ D1-D2 nie obejmuje jeszcze uploadu.
+- Dodano `ListingDocumentsModule` do `AppModule`.
 
 ### D2. Serwis dostępu i scope bezpieczeństwa
 
-Status: TODO
+Status: DONE
 
 Zakres:
 
@@ -435,9 +456,39 @@ Zakres:
 
 Akceptacja:
 
-- agent nie może pobrać dokumentów cudzej oferty,
-- brak dokumentu/cudzy dokument zwraca bezpieczny błąd,
-- testy pokrywają owner-scope.
+- [x] agent nie może pobrać dokumentów cudzej oferty,
+- [x] brak dokumentu/cudzy dokument zwraca bezpieczny błąd,
+- [x] testy pokrywają owner-scope.
+
+Wykonano:
+
+- Dodano `ListingDocumentsService`.
+- Dodano `ListingDocumentsController` z endpointami metadanych:
+  - `GET /api/listings/:listingId/documents`,
+  - `GET /api/listings/:listingId/documents/:documentId`,
+  - `POST /api/listings/:listingId/documents`,
+  - `PATCH /api/listings/:listingId/documents/:documentId`,
+  - `DELETE /api/listings/:listingId/documents/:documentId`.
+- Dodano DTO:
+  - `CreateListingDocumentDto`,
+  - `UpdateListingDocumentDto`.
+- Serwis zawsze resolve'uje agenta z `userId`, a następnie sprawdza
+  `listing.id + listing.agentId`.
+- Cudza lub nieistniejąca oferta zwraca `NotFoundException`, bez ujawniania czy
+  rekord istnieje poza scope agenta.
+- `DELETE` wykonuje soft delete i zapisuje event `deleted`.
+- Zmiana statusu zapisuje event `status_changed`.
+- Zmiana metadanych zapisuje event `metadata_updated`.
+
+Weryfikacja:
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter api test -- listing-documents.service.spec.ts` - przechodzi.
+
+Uwagi:
+
+- D2 nie obejmuje jeszcze uploadu plików ani endpointu downloadu. Rekord
+  dokumentu może pełnić rolę metadanych/checklist item. Upload zaczyna się w D3.
 
 ### D3. Upload plików
 

@@ -55,6 +55,38 @@ export enum ListingCommissionType {
   FIXED = 'fixed',
 }
 
+export enum ListingDocumentCategory {
+  AGENCY_AGREEMENT = 'agency_agreement',
+  LAND_AND_MORTGAGE_REGISTER = 'land_and_mortgage_register',
+  OWNERSHIP_DEED = 'ownership_deed',
+  NO_ARREARS_CERTIFICATE = 'no_arrears_certificate',
+  COMMUNITY_DOCUMENTS = 'community_documents',
+  FLOOR_PLAN = 'floor_plan',
+  ENERGY_CERTIFICATE = 'energy_certificate',
+  HANDOVER_PROTOCOL = 'handover_protocol',
+  POWER_OF_ATTORNEY = 'power_of_attorney',
+  OTHER = 'other',
+}
+
+export enum ListingDocumentStatus {
+  MISSING = 'missing',
+  REQUESTED = 'requested',
+  UPLOADED = 'uploaded',
+  IN_REVIEW = 'in_review',
+  APPROVED = 'approved',
+  NEEDS_CORRECTION = 'needs_correction',
+  EXPIRED = 'expired',
+}
+
+export enum ListingDocumentEventType {
+  UPLOADED = 'uploaded',
+  STATUS_CHANGED = 'status_changed',
+  METADATA_UPDATED = 'metadata_updated',
+  DOWNLOADED = 'downloaded',
+  DELETED = 'deleted',
+  RESTORED = 'restored',
+}
+
 export enum TransactionType {
   SALE = 'sale',
   RENT = 'rent',
