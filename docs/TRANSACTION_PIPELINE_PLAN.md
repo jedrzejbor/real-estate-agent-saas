@@ -438,41 +438,127 @@ Przykładowe reguły:
 
 ### T1. Model danych i backend podstawowy
 
+Status: częściowo wykonane - pierwsza iteracja 2026-06-11
+
 Zakres:
 
-- dodać `TransactionStatus` w enumach backendu,
-- dodać encje `Transaction`, `TransactionTask`, `TransactionEvent`,
-- dodać moduł `transactions`,
-- dodać CRUD transakcji,
-- dodać walidację ownership dla oferty i klientów,
-- dodać helper liczenia prowizji transakcji,
-- dodać testy jednostkowe walidacji prowizji i statusów.
+- [x] dodać `TransactionStatus` w enumach backendu,
+- [x] dodać encje `Transaction`, `TransactionTask`, `TransactionEvent`,
+- [x] dodać moduł `transactions`,
+- [x] dodać CRUD transakcji,
+- [x] dodać walidację ownership dla oferty i klientów,
+- [x] dodać helper liczenia prowizji transakcji,
+- [x] dodać testy jednostkowe walidacji prowizji,
+- [ ] rozszerzyć testy serwisowe o pełne przypadki ownership/statusów.
 
 Kryteria akceptacji:
 
-- [ ] Agent może utworzyć transakcję dla własnej oferty i własnego klienta.
-- [ ] Agent nie może użyć cudzej oferty ani cudzego klienta.
-- [ ] Transakcja przechowuje status, wartość, prowizję i terminy.
-- [ ] Zmiany statusu są walidowane i logowane.
+- [x] Agent może utworzyć transakcję dla własnej oferty i własnego klienta.
+- [x] Agent nie może użyć cudzej oferty ani cudzego klienta.
+- [x] Transakcja przechowuje status, wartość, prowizję i terminy.
+- [x] Zmiany statusu są walidowane i logowane.
+
+Wykonane:
+
+- Dodano enumy:
+  - `TransactionStatus`,
+  - `TransactionTaskStatus`,
+  - `TransactionTaskPriority`,
+  - `TransactionEventType`.
+- Dodano encje:
+  - `apps/api/src/transactions/entities/transaction.entity.ts`,
+  - `apps/api/src/transactions/entities/transaction-task.entity.ts`,
+  - `apps/api/src/transactions/entities/transaction-event.entity.ts`.
+- Dodano moduł `TransactionsModule` i zarejestrowano go w `AppModule`.
+- Dodano endpointy:
+  - `GET /api/transactions`,
+  - `POST /api/transactions`,
+  - `GET /api/transactions/:id`,
+  - `PATCH /api/transactions/:id`,
+  - `PATCH /api/transactions/:id/status`,
+  - `DELETE /api/transactions/:id`,
+  - endpointy checklisty `tasks`,
+  - `GET /api/transactions/:id/events`.
+- Serwis pilnuje:
+  - scope `agentId`,
+  - ownership oferty,
+  - ownership kupującego/najemcy,
+  - ownership opcjonalnego właściciela,
+  - jednej aktywnej transakcji na ofertę,
+  - wymaganego `lostReason` dla `closed_lost`,
+  - ustawienia `closedAt` dla `closed_won` i `closed_lost`,
+  - kopiowania domyślnej wartości i prowizji z oferty przy tworzeniu
+    transakcji.
+- Dodano domyślne zadania checklisty przy tworzeniu transakcji.
+- Dodano helper `transaction-commission.ts` i test
+  `transaction-commission.spec.ts`.
+
+Weryfikacja:
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter api test -- transaction-commission listing-commission` -
+  przechodzi.
+
+Pozostało:
+
+- Dodać testy serwisowe dla ownership, statusów, eventów i checklisty.
+- Przygotować migrację produkcyjną, jeśli środowisko produkcyjne nie korzysta z
+  `synchronize`.
 
 ### T2. Frontend MVP transakcji
 
+Status: częściowo wykonane - pierwsza iteracja 2026-06-11
+
 Zakres:
 
-- dodać klienta API w `apps/web/src/lib`,
-- dodać route `/dashboard/transactions`,
-- dodać widok pipeline,
-- dodać widok szczegółów transakcji,
-- dodać formularz tworzenia/edycji,
-- dodać akcję `Utwórz transakcję` na szczegółach oferty,
-- dodać podstawową checklistę.
+- [x] dodać klienta API w `apps/web/src/lib`,
+- [x] dodać route `/dashboard/transactions`,
+- [x] dodać widok pipeline,
+- [ ] dodać osobny widok szczegółów transakcji,
+- [x] dodać formularz tworzenia,
+- [ ] dodać formularz edycji,
+- [ ] dodać akcję `Utwórz transakcję` na szczegółach oferty,
+- [x] dodać podstawową checklistę.
 
 Kryteria akceptacji:
 
-- [ ] Agent widzi transakcje w kolumnach pipeline.
-- [ ] Agent może zmieniać status transakcji.
+- [x] Agent widzi transakcje w kolumnach pipeline.
+- [x] Agent może zmieniać status transakcji.
 - [ ] Agent może przejść z oferty do powiązanej transakcji.
-- [ ] Agent widzi najbliższy termin, prowizję i blokadę zamknięcia.
+- [x] Agent widzi najbliższy termin, prowizję i blokadę zamknięcia.
+
+Wykonane:
+
+- Dodano `apps/web/src/lib/transactions.ts` z:
+  - typami frontendowymi,
+  - etykietami statusów,
+  - funkcjami API,
+  - walidacją formularza przez `zod`,
+  - formatterami wartości i prowizji.
+- Dodano pozycję `Transakcje` w sidebarze dashboardu.
+- Dodano stronę `apps/web/src/app/(dashboard)/dashboard/transactions/page.tsx`.
+- Strona obsługuje:
+  - pobranie transakcji, ofert i klientów,
+  - formularz utworzenia transakcji,
+  - automatyczne wypełnienie wartości/prowizji po wyborze oferty,
+  - kolumnowy pipeline po statusach,
+  - szybką zmianę statusu,
+  - wymaganie powodu przy zmianie na `closed_lost`,
+  - odhaczanie podstawowych zadań checklisty,
+  - pokazanie wartości, prowizji, terminu i blokady.
+
+Weryfikacja:
+
+- `pnpm --filter web type-check` - przechodzi.
+- `pnpm --filter web build` - przechodzi po zezwoleniu na pobranie fontów przez
+  `next/font`.
+
+Pozostało:
+
+- Dodać osobną stronę szczegółów transakcji.
+- Dodać edycję wszystkich pól transakcji z UI.
+- Dodać akcję z widoku oferty do utworzenia transakcji.
+- Dodać testy frontendowe, jeśli repo wprowadzi runner testów UI.
 
 ### T3. Integracja z ofertami, dokumentami i raportem `Zarobki`
 

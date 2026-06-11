@@ -9,6 +9,7 @@ import { AuthModule, CsrfGuard, JwtAuthGuard, RolesGuard } from './auth';
 import { UsersModule } from './users';
 import { ListingsModule } from './listings';
 import { ListingDocumentsModule } from './listing-documents';
+import { TransactionsModule } from './transactions';
 import { ClientsModule } from './clients';
 import { AppointmentsModule } from './appointments';
 import { DashboardModule } from './dashboard';
@@ -50,6 +51,7 @@ import { PlansModule } from './plans';
     UsersModule,
     ListingsModule,
     ListingDocumentsModule,
+    TransactionsModule,
     ClientsModule,
     AppointmentsModule,
     DashboardModule,

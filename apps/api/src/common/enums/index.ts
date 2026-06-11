@@ -92,6 +92,43 @@ export enum TransactionType {
   RENT = 'rent',
 }
 
+export enum TransactionStatus {
+  LEAD_OFFER = 'lead_offer',
+  NEGOTIATION = 'negotiation',
+  RESERVED = 'reserved',
+  PRELIMINARY_AGREEMENT = 'preliminary_agreement',
+  FINANCING = 'financing',
+  NOTARY_SCHEDULED = 'notary_scheduled',
+  HANDOVER = 'handover',
+  CLOSED_WON = 'closed_won',
+  CLOSED_LOST = 'closed_lost',
+}
+
+export enum TransactionTaskStatus {
+  TODO = 'todo',
+  DONE = 'done',
+  CANCELLED = 'cancelled',
+}
+
+export enum TransactionTaskPriority {
+  LOW = 'low',
+  NORMAL = 'normal',
+  HIGH = 'high',
+}
+
+export enum TransactionEventType {
+  CREATED = 'created',
+  STATUS_CHANGED = 'status_changed',
+  DETAILS_UPDATED = 'details_updated',
+  TASK_CREATED = 'task_created',
+  TASK_COMPLETED = 'task_completed',
+  DEADLINE_CHANGED = 'deadline_changed',
+  COMMISSION_CHANGED = 'commission_changed',
+  CLOSED = 'closed',
+  DELETED = 'deleted',
+  RESTORED = 'restored',
+}
+
 export enum ClientSource {
   WEBSITE = 'website',
   REFERRAL = 'referral',
