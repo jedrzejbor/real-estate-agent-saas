@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock3,
+  Calculator,
   ImageIcon,
   ImagePlus,
   Sparkles,
@@ -26,11 +27,15 @@ import {
   createListingSchema,
   type CreateListingFormData,
   type Listing,
+  LISTING_COMMISSION_TYPE_LABELS,
   PROPERTY_TYPE_LABELS,
   shouldShowListingField,
   TRANSACTION_TYPE_LABELS,
+  ListingCommissionType,
   PropertyType,
+  calculateListingCommissionAmount,
   createListing,
+  formatPrice,
   updateListing,
   uploadListingImages,
 } from '@/lib/listings';
@@ -69,6 +74,15 @@ export function ListingForm({
   const descriptionRef = React.useRef<HTMLTextAreaElement>(null);
   const [propertyType, setPropertyType] = useState<PropertyType | ''>(
     listing?.propertyType ?? '',
+  );
+  const [pricePreview, setPricePreview] = useState<number | string>(
+    listing?.price ?? '',
+  );
+  const [commissionType, setCommissionType] = useState<
+    ListingCommissionType | ''
+  >(listing?.commissionType ?? '');
+  const [commissionValue, setCommissionValue] = useState<number | string>(
+    listing?.commissionValue ?? '',
   );
   const [city, setCity] = useState(listing?.address?.city ?? '');
   const [voivodeship, setVoivodeship] = useState(
@@ -311,6 +325,7 @@ export function ListingForm({
               placeholder="np. 450000"
               className="h-10 rounded-xl"
               aria-invalid={!!getFieldError('price')}
+              onChange={(event) => setPricePreview(event.target.value)}
             />
           </FormField>
 
@@ -391,6 +406,23 @@ export function ListingForm({
           ) : null}
         </div>
       </FormSection>
+
+      <CommissionSection
+        currency={listing?.currency ?? 'PLN'}
+        price={pricePreview}
+        commissionType={commissionType}
+        commissionValue={commissionValue}
+        commissionTypeError={getFieldError('commissionType')}
+        commissionValueError={getFieldError('commissionValue')}
+        onCommissionTypeChange={(value) => {
+          const nextType = value as ListingCommissionType | '';
+          setCommissionType(nextType);
+          if (!nextType) {
+            setCommissionValue('');
+          }
+        }}
+        onCommissionValueChange={setCommissionValue}
+      />
 
       {!isEdit ? (
         <FormSection
@@ -821,6 +853,104 @@ function GuidedCreateIntro() {
         </div>
       </div>
     </div>
+  );
+}
+
+function CommissionSection({
+  currency,
+  price,
+  commissionType,
+  commissionValue,
+  commissionTypeError,
+  commissionValueError,
+  onCommissionTypeChange,
+  onCommissionValueChange,
+}: {
+  currency: string;
+  price: number | string;
+  commissionType: ListingCommissionType | '';
+  commissionValue: number | string;
+  commissionTypeError: string | null;
+  commissionValueError: string | null;
+  onCommissionTypeChange: (value: string) => void;
+  onCommissionValueChange: (value: string) => void;
+}) {
+  const commissionAmount = calculateListingCommissionAmount({
+    price,
+    commissionType: commissionType || null,
+    commissionValue,
+  });
+
+  return (
+    <FormSection
+      title="Prowizja agenta"
+      description="Prywatna informacja widoczna tylko w dashboardzie tej oferty."
+    >
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(220px,0.8fr)]">
+        <FormField
+          label="Typ prowizji"
+          name="commissionType"
+          error={commissionTypeError}
+        >
+          <FormSelect
+            name="commissionType"
+            value={commissionType}
+            placeholder="Brak prowizji"
+            options={Object.entries(LISTING_COMMISSION_TYPE_LABELS).map(
+              ([value, label]) => ({ value, label }),
+            )}
+            error={!!commissionTypeError}
+            onChange={onCommissionTypeChange}
+          />
+        </FormField>
+
+        <FormField
+          label={
+            commissionType === ListingCommissionType.PERCENTAGE
+              ? 'Wartość (%)'
+              : 'Wartość prowizji'
+          }
+          name="commissionValue"
+          error={commissionValueError}
+        >
+          <Input
+            name="commissionValue"
+            type="number"
+            step="0.01"
+            min="0"
+            max={
+              commissionType === ListingCommissionType.PERCENTAGE
+                ? 100
+                : undefined
+            }
+            value={commissionValue}
+            disabled={!commissionType}
+            placeholder={
+              commissionType === ListingCommissionType.PERCENTAGE
+                ? 'np. 2.5'
+                : commissionType === ListingCommissionType.FIXED
+                  ? 'np. 15000'
+                  : 'Wybierz typ'
+            }
+            className="h-10 rounded-xl"
+            aria-invalid={!!commissionValueError}
+            onChange={(event) => onCommissionValueChange(event.target.value)}
+          />
+        </FormField>
+
+        <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Calculator className="h-3.5 w-3.5" />
+            Szacowana prowizja
+          </div>
+          <p className="mt-1 text-lg font-semibold text-foreground">
+            {commissionAmount === null
+              ? 'Nie ustawiono'
+              : formatPrice(commissionAmount, currency)}
+          </p>
+        </div>
+      </div>
+    </FormSection>
   );
 }
 

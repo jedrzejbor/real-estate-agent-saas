@@ -234,7 +234,7 @@ Weryfikacja:
 
 ### C4. UI formularza oferty
 
-Status: TODO
+Status: wykonane - etap 4 formularz dashboardu 2026-06-11
 
 Zakres:
 
@@ -249,10 +249,37 @@ Zakres:
 
 Kryteria akceptacji:
 
-- [ ] Agent może dodać prowizję przy tworzeniu oferty.
-- [ ] Agent może edytować albo usunąć prowizję przy edycji oferty.
-- [ ] UI nie sugeruje, że prowizja będzie publiczna.
+- [x] Agent może dodać prowizję przy tworzeniu oferty.
+- [x] Agent może edytować albo usunąć prowizję przy edycji oferty.
+- [x] UI nie sugeruje, że prowizja będzie publiczna.
 - [ ] Formularz pozostaje czytelny na mobile i desktop.
+
+Wykonane:
+
+- Dodano sekcję `Prowizja agenta` w
+  `apps/web/src/components/listings/listing-form.tsx`.
+- Sekcja działa w trybie tworzenia i edycji oferty.
+- Dodano wybór:
+  - `Brak prowizji`,
+  - `% ceny`,
+  - `Kwota stała`.
+- Dodano pole wartości prowizji z dynamiczną etykietą i ograniczeniem `max=100`
+  dla prowizji procentowej.
+- Dodano podgląd `Szacowana prowizja`, liczony z aktualnej ceny oferty i
+  wartości prowizji.
+- Wybranie `Brak prowizji` czyści wartość prowizji i pozwala wysłać `null` dla
+  pól prowizyjnych przez istniejący payload formularza.
+- Copy sekcji jasno wskazuje, że prowizja jest prywatną informacją dashboardową.
+
+Weryfikacja:
+
+- `pnpm --filter web type-check` - przechodzi.
+- `pnpm --filter web exec eslint src/components/listings/listing-form.tsx src/lib/listings.ts` - przechodzi.
+
+Pozostałe:
+
+- Nie wykonywano screenshotów ani manualnego QA.
+- Responsywność mobile/desktop zostaje do ręcznego sprawdzenia w `QA-COM-08`.
 
 ### C5. Widoczność w dashboardzie
 
