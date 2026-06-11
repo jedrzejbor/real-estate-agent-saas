@@ -26,6 +26,10 @@ import {
   ListingPublicationStatus,
   ListingStatus,
 } from '../common/enums';
+import {
+  calculateListingCommissionAmount,
+  normalizeListingCommissionInput,
+} from './listing-commission';
 import { FeatureAccessDeniedException } from '../common/exceptions/feature-access-denied.exception';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { assertSafeImageUpload } from '../common/image-upload-security';
@@ -184,9 +188,11 @@ export class ListingsService {
     const { agent } = await this.assertListingCreateWithinPlanLimit(userId);
 
     const { address: addressDto, ...listingData } = dto;
+    const commission = normalizeListingCommissionInput(listingData);
 
     const listing = this.listingRepo.create({
       ...listingData,
+      ...commission,
       agentId: agent.id,
     });
 
@@ -205,6 +211,7 @@ export class ListingsService {
 
     const createdListing = await this.findOneOrFail(savedListing.id);
     await this.attachPublicViewCounts([createdListing]);
+    this.attachCommissionAmounts([createdListing]);
 
     await this.activityService.log({
       userId,
@@ -251,6 +258,7 @@ export class ListingsService {
 
     const [data, total] = await qb.getManyAndCount();
     await this.attachPublicViewCounts(data);
+    this.attachCommissionAmounts(data);
 
     return {
       data,
@@ -269,6 +277,7 @@ export class ListingsService {
     const listing = await this.findOneOrFail(id);
     await this.assertOwnership(listing, userId);
     await this.attachPublicViewCounts([listing]);
+    this.attachCommissionAmounts([listing]);
     return listing;
   }
 
@@ -337,6 +346,7 @@ export class ListingsService {
     });
 
     await this.attachPublicViewCounts([updatedListing]);
+    this.attachCommissionAmounts([updatedListing]);
     return updatedListing;
   }
 
@@ -352,9 +362,13 @@ export class ListingsService {
     const previousState = this.createListingSnapshot(listing);
 
     const { address: addressDto, ...listingData } = dto;
+    const commission = normalizeListingCommissionInput(listingData, {
+      current: listing,
+      partial: true,
+    });
 
     // Merge listing fields
-    Object.assign(listing, listingData);
+    Object.assign(listing, listingData, commission);
     this.syncPublicationWithListingStatus(listing);
 
     await this.listingRepo.save(listing);
@@ -391,6 +405,7 @@ export class ListingsService {
     }
 
     await this.attachPublicViewCounts([updatedListing]);
+    this.attachCommissionAmounts([updatedListing]);
     return updatedListing;
   }
 
@@ -681,6 +696,7 @@ export class ListingsService {
     });
 
     await this.attachPublicViewCounts([publishedListing]);
+    this.attachCommissionAmounts([publishedListing]);
     return publishedListing;
   }
 
@@ -733,6 +749,7 @@ export class ListingsService {
     });
 
     await this.attachPublicViewCounts([unpublishedListing]);
+    this.attachCommissionAmounts([unpublishedListing]);
     return unpublishedListing;
   }
 
@@ -1795,6 +1812,7 @@ export class ListingsService {
     if (!listing) {
       throw new NotFoundException('Oferta nie znaleziona');
     }
+    this.attachCommissionAmounts([listing]);
     return listing;
   }
 
@@ -1995,6 +2013,12 @@ export class ListingsService {
     }
   }
 
+  private attachCommissionAmounts(listings: Listing[]): void {
+    for (const listing of listings) {
+      listing.commissionAmount = calculateListingCommissionAmount(listing);
+    }
+  }
+
   private createListingSnapshot(listing: Listing): Record<string, unknown> {
     return {
       title: listing.title,
@@ -2004,6 +2028,9 @@ export class ListingsService {
       transactionType: listing.transactionType,
       price: listing.price,
       currency: listing.currency,
+      commissionType: listing.commissionType ?? null,
+      commissionValue: listing.commissionValue ?? null,
+      commissionAmount: calculateListingCommissionAmount(listing),
       areaM2: listing.areaM2 ?? null,
       plotAreaM2: listing.plotAreaM2 ?? null,
       rooms: listing.rooms ?? null,

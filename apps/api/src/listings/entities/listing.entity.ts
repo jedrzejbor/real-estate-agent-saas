@@ -145,6 +145,9 @@ export class Listing {
   /** Derived from public_leads, not persisted on listings. */
   publicInquiryCount?: number;
 
+  /** Derived from price and commission settings, not persisted on listings. */
+  commissionAmount?: number | null;
+
   // ── Relations ──
 
   @ManyToOne(() => Agent, { onDelete: 'CASCADE' })

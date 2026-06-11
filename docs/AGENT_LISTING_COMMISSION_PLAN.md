@@ -131,7 +131,7 @@ Weryfikacja:
 
 ### C2. Walidacja API i kontrakt dashboardowy
 
-Status: TODO
+Status: wykonane - etap 2 API 2026-06-11
 
 Zakres:
 
@@ -151,9 +151,35 @@ Zakres:
 
 Kryteria akceptacji:
 
-- [ ] Nie da się zapisać niepoprawnej prowizji.
-- [ ] Dashboard dostaje wyliczoną kwotę prowizji.
-- [ ] Publiczne API nie ujawnia prowizji.
+- [x] Nie da się zapisać niepoprawnej prowizji.
+- [x] Dashboard dostaje wyliczoną kwotę prowizji.
+- [x] Publiczne API nie ujawnia prowizji.
+
+Wykonane:
+
+- Rozszerzono `CreateListingDto` i `UpdateListingDto` o:
+  - `commissionType`,
+  - `commissionValue`.
+- Dodano `apps/api/src/listings/listing-commission.ts` z helperami:
+  - `normalizeListingCommissionInput()`,
+  - `calculateListingCommissionAmount()`.
+- Backend normalizuje prowizję przy tworzeniu i aktualizacji oferty:
+  - brak typu prowizji czyści `commissionType` i `commissionValue`,
+  - wartość bez typu jest odrzucana,
+  - typ bez wartości jest odrzucany,
+  - wartości ujemne są odrzucane,
+  - prowizja procentowa powyżej `100` jest odrzucana.
+- Dashboardowe odpowiedzi listingów dostają pochodne `commissionAmount`.
+- Publiczne mapowania `PublicListingView`, `PublicListingCatalogItem`,
+  `PublicListingCatalogMapMarker`, `PublicAgentProfileListing` nadal budują
+  jawne obiekty bez pól prowizyjnych.
+- Snapshot historii zmian zawiera `commissionType`, `commissionValue` i
+  `commissionAmount`, żeby zmiana prowizji była widoczna w historii dashboardu.
+
+Weryfikacja:
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter api test -- listing-commission.spec.ts` - przechodzi.
 
 ### C3. Frontend typy i schema formularza
 

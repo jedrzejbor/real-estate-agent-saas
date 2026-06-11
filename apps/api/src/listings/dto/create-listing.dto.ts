@@ -13,7 +13,11 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PropertyType, TransactionType } from '../../common/enums';
+import {
+  ListingCommissionType,
+  PropertyType,
+  TransactionType,
+} from '../../common/enums';
 
 /** Nested DTO for the address embedded in a listing. */
 export class CreateAddressDto {
@@ -75,6 +79,15 @@ export class CreateListingDto {
   @IsString()
   @MaxLength(3)
   currency?: string;
+
+  @IsOptional()
+  @IsEnum(ListingCommissionType)
+  commissionType?: ListingCommissionType | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  commissionValue?: number | null;
 
   @IsOptional()
   @IsNumber()

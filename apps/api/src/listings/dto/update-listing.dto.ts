@@ -12,6 +12,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
+  ListingCommissionType,
   PropertyType,
   ListingStatus,
   TransactionType,
@@ -83,6 +84,15 @@ export class UpdateListingDto {
   @IsString()
   @MaxLength(3)
   currency?: string;
+
+  @IsOptional()
+  @IsEnum(ListingCommissionType)
+  commissionType?: ListingCommissionType | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  commissionValue?: number | null;
 
   @IsOptional()
   @IsNumber()
