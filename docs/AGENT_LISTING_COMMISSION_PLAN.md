@@ -325,7 +325,7 @@ Weryfikacja:
 
 ### C6. Bezpieczeństwo i prywatność
 
-Status: TODO
+Status: wykonane - etap 6 privacy check 2026-06-11
 
 Zakres:
 
@@ -343,9 +343,36 @@ Zakres:
 
 Kryteria akceptacji:
 
-- [ ] Prowizja jest prywatna dla dashboardu.
-- [ ] Publiczne endpointy nie zwracają pól prowizyjnych.
-- [ ] Analytics nie wysyła wartości prowizji.
+- [x] Prowizja jest prywatna dla dashboardu.
+- [x] Publiczne endpointy nie zwracają pól prowizyjnych.
+- [x] Analytics nie wysyła wartości prowizji.
+
+Wykonane:
+
+- Przeskanowano wystąpienia pól `commissionType`, `commissionValue` i
+  `commissionAmount` w `apps/api/src` oraz `apps/web/src`.
+- Potwierdzono, że prowizja jest używana tylko w:
+  - dashboardowym typie `Listing`,
+  - formularzu i widokach dashboardu,
+  - backendowym modelu/DTO dashboardowych listingów,
+  - helperach walidacji i liczenia prowizji.
+- Publiczne typy webowe nie zostały rozszerzone o pola prowizyjne:
+  - `PublicListing`,
+  - `PublicListingCatalogItem`,
+  - `PublicAgentProfileListing`.
+- Publiczne mapowania API nadal tworzą jawne obiekty bez spreadowania encji.
+- Dodano test `apps/api/src/listings/listing-public-privacy.spec.ts`, który
+  sprawdza, że publiczny detail, item katalogu i marker mapy nie zawierają
+  `commissionType`, `commissionValue` ani `commissionAmount`, nawet jeśli
+  źródłowa encja listing ma te pola.
+- Sprawdzono analytics po stronie web: eventy listingów wysyłają identyfikatory,
+  typy, statusy i publiczne metadane, ale nie wysyłają wartości prowizji.
+
+Weryfikacja:
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter api test -- listing-public-privacy.spec.ts listing-commission.spec.ts` - przechodzi.
+- `pnpm --filter web type-check` - przechodzi.
 
 ### C7. Testy i QA
 
