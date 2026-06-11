@@ -550,7 +550,7 @@ Weryfikacja:
 
 ### C7. Test plan i release gate
 
-Status: do zrobienia
+Status: wykonane - plan QA i release gate przygotowane 2026-06-11
 
 Zakres:
 
@@ -575,26 +575,85 @@ Testy manualne:
 
 Kryteria akceptacji:
 
-- Jest checklist z wynikiem testów.
-- Najważniejsze ścieżki publiczne przechodzą po odrzuceniu opcjonalnych zgód.
-- Najważniejsze ścieżki publiczne przechodzą po zaakceptowaniu wszystkich zgód.
-- Brak requestów analytics bez zgody.
+- [x] Jest checklist z wynikiem testów.
+- [ ] Najważniejsze ścieżki publiczne przechodzą po odrzuceniu opcjonalnych zgód.
+- [ ] Najważniejsze ścieżki publiczne przechodzą po zaakceptowaniu wszystkich zgód.
+- [ ] Brak requestów analytics bez zgody.
+
+Wykonane:
+
+- Przygotowano manualny test plan dla cookie consent, analytics gate, auth cookies i dokumentów legal.
+- Zaktualizowano release gate w tym dokumencie zgodnie ze stanem po `C1-C6`.
+- Zaktualizowano `docs/PRODUCTION_LAUNCH_CHECKLIST.md` o:
+  - status polityki cookies i bannera,
+  - wymagany manualny QA consentu,
+  - auth cookies,
+  - otwarty CSRF hardening.
+- Nie wykonywano screenshotów ani manualnego QA w przeglądarce.
+
+### C7 Manual QA checklist
+
+Statusy:
+
+- `TODO` - do wykonania ręcznie przed release.
+- `PASS` - wykonane i działa zgodnie z oczekiwaniem.
+- `FAIL` - wymaga poprawki przed release.
+- `N/A` - nie dotyczy danego środowiska.
+
+| ID | Obszar | Scenariusz | Oczekiwany wynik | Status |
+| --- | --- | --- | --- | --- |
+| QA-C7-01 | Consent banner | Wejdź pierwszy raz na publiczną stronę w czystej przeglądarce. | Banner cookie consent jest widoczny, ma akcje `Odrzuć opcjonalne`, `Dostosuj`, `Akceptuję wszystkie` i linki do polityki prywatności/cookies. | TODO |
+| QA-C7-02 | Odrzucenie opcjonalnych | Kliknij `Odrzuć opcjonalne`, odśwież stronę. | Banner nie wraca, `estateflow-cookie-consent` ma `analytics:false`, `functional:false`, `marketing:false`. | TODO |
+| QA-C7-03 | Akceptacja wszystkich | Wyczyść `estateflow-cookie-consent`, kliknij `Akceptuję wszystkie`, odśwież stronę. | Banner nie wraca, wszystkie opcjonalne kategorie są `true`. | TODO |
+| QA-C7-04 | Panel preferencji | Wyczyść zgodę, kliknij `Dostosuj`, zaznacz tylko `Analityczne`, zapisz. | Zapisane preferencje mają `analytics:true`, `functional:false`, `marketing:false`. | TODO |
+| QA-C7-05 | Stopka | Po zapisaniu dowolnej decyzji kliknij `Ustawienia cookies` w stopce. | Otwiera się ten sam panel preferencji, można zmienić decyzję. | TODO |
+| QA-C7-06 | Public listing analytics bez zgody | Odrzuć opcjonalne, otwórz publiczną ofertę i galerię. | Nie ma requestów do `/api/analytics/public-listings/:slug/events` dla eventów pomiarowych. | TODO |
+| QA-C7-07 | Public listing analytics po zgodzie | Zaakceptuj analitykę, otwórz publiczną ofertę i galerię. | Requesty pomiarowe do `/api/analytics/public-listings/:slug/events` są wysyłane. | TODO |
+| QA-C7-08 | Blog analytics bez zgody | Odrzuć opcjonalne, otwórz wpis blogowy. | Nie ma requestu do `/api/analytics/public-blog/:slug/events`; `sessionStorage` nie zapisuje `blog-article-viewed:*`. | TODO |
+| QA-C7-09 | Blog analytics po zgodzie | Zaakceptuj analitykę, otwórz wpis blogowy. | Request `blog_article_viewed` jest wysyłany, deduplikacja w `sessionStorage` działa. | TODO |
+| QA-C7-10 | Public lead | Odrzuć opcjonalne, wyślij formularz kontaktowy oferty. | Lead zapisuje się poprawnie, ale event pomiarowy `public_lead_submitted` nie jest wysyłany bez zgody. | TODO |
+| QA-C7-11 | Abuse report | Odrzuć opcjonalne, wyślij zgłoszenie nadużycia na ofercie. | Zgłoszenie działa mimo braku zgody analitycznej. | TODO |
+| QA-C7-12 | Draft dodania oferty | Rozpocznij `/dodaj-oferte`, wpisz dane, odśwież stronę. | Draft zachowuje się zgodnie z decyzją funkcjonalnego storage i jest opisany w polityce cookies. | TODO |
+| QA-C7-13 | Auth login cookies | Zaloguj się, sprawdź cookies w devtools. | API ustawia `accessToken` i `refreshToken` jako `HttpOnly`; `localStorage` nie zawiera nowych tokenów. | TODO |
+| QA-C7-14 | Auth refresh | Po wygaśnięciu access tokena albo wymuszeniu 401 wykonaj request chroniony. | Front wykonuje `/auth/refresh` z cookies, request jest ponowiony, użytkownik zostaje zalogowany. | TODO |
+| QA-C7-15 | Logout | Kliknij logout. | API czyści cookies, dashboard przestaje być dostępny, legacy tokeny w `localStorage` są usunięte. | TODO |
+| QA-C7-16 | Public anonymous | Wejdź na landing/blog/oferty bez sesji. | Brak toastu `Sesja wygasła`, publiczne strony działają anonimowo. | TODO |
+| QA-C7-17 | Legal links | Sprawdź stopkę i banner. | `/polityka-cookies`, `/polityka-prywatnosci`, `/regulamin`, `/zasady-publikacji` są dostępne. | TODO |
+| QA-C7-18 | Responsive UI | Sprawdź banner i modal na mobile oraz desktop. | Tekst się mieści, przyciski są dostępne, modal nie blokuje przewijania treści w małych viewportach. | TODO |
+
+### C7 Automated checks
+
+Komendy do uruchomienia przed release:
+
+```bash
+pnpm --filter api type-check
+pnpm --filter web type-check
+pnpm --filter api test -- auth.service.spec.ts
+pnpm --filter web exec eslint src/lib/auth.ts src/lib/api-client.ts src/lib/analytics.ts src/contexts/auth-context.tsx src/lib/cookie-consent.ts src/contexts/cookie-consent-context.tsx src/components/legal/cookie-consent-manager.tsx src/components/legal/cookie-settings-button.tsx
+```
+
+Znane ograniczenie:
+
+- Pełny `pnpm --filter web lint` nadal wymaga osobnego sprzątania istniejących błędów spoza cookie/auth sprintu.
+- API lint dla pojedynczych plików wymaga naprawienia konfiguracji ESLint 9 w repo.
 
 ## Release gate
 
 Nie wpuszczamy produkcyjnego ruchu, dopóki nie są spełnione warunki:
 
-- [ ] Jest banner cookie consent.
-- [ ] Jest panel preferencji zgód.
-- [ ] Jest link "Ustawienia cookies" w stopce.
-- [ ] Jest publiczna polityka cookies albo pełna sekcja cookies w polityce prywatności.
-- [ ] Analytics publiczny nie wysyła eventów bez zgody analitycznej.
-- [ ] Analytics bloga nie wysyła eventów bez zgody analitycznej.
-- [ ] Product analytics zalogowanego użytkownika respektuje decyzję consentu albo ma uzasadnione rozdzielenie eventów operacyjnych.
-- [ ] Abuse/security events są rozdzielone od product analytics.
-- [ ] Storage inventory jest aktualne.
-- [ ] Decyzja o auth storage jest zapisana.
-- [ ] `PRODUCTION_LAUNCH_CHECKLIST.md` jest zaktualizowany.
+- [x] Jest banner cookie consent.
+- [x] Jest panel preferencji zgód.
+- [x] Jest link "Ustawienia cookies" w stopce.
+- [x] Jest publiczna polityka cookies albo pełna sekcja cookies w polityce prywatności.
+- [x] Analytics publiczny nie wysyła eventów bez zgody analitycznej.
+- [x] Analytics bloga nie wysyła eventów bez zgody analitycznej.
+- [x] Product analytics zalogowanego użytkownika respektuje decyzję consentu albo ma uzasadnione rozdzielenie eventów operacyjnych.
+- [x] Abuse/security events są rozdzielone od product analytics.
+- [x] Storage inventory jest aktualne.
+- [x] Decyzja o auth storage jest zapisana.
+- [x] `PRODUCTION_LAUNCH_CHECKLIST.md` jest zaktualizowany.
+- [ ] Manualny QA `QA-C7-01` - `QA-C7-18` ma status `PASS` albo świadome `N/A`.
+- [ ] CSRF hardening dla auth cookies jest wdrożony albo zaakceptowany jako jawny blocker.
 - [ ] Dokumenty prawne zostały oznaczone jako zweryfikowane albo pozostają blockerem launchu.
 
 ## Proponowana kolejność realizacji
@@ -605,16 +664,16 @@ Nie wpuszczamy produkcyjnego ruchu, dopóki nie są spełnione warunki:
 4. C4 - Consent gate dla analytics.
 5. C5 - Polityka cookies i aktualizacja dokumentów legal.
 6. C6 - Decyzja auth storage.
-7. C7 - Test plan i release gate.
+7. C7 - Test plan i release gate. Wykonane planistycznie; manualny QA do wykonania przed release.
 
 ## Otwarte decyzje
 
-- Czy polityka cookies ma być osobną trasą `/polityka-cookies`, czy sekcją w `/polityka-prywatnosci`?
+- Polityka cookies jest osobną trasą `/polityka-cookies`.
 - Czy draft `/dodaj-oferte` traktujemy jako funkcjonalny storage wymagający zgody, czy jako niezbędny element rozpoczętego formularza?
 - Czy onboarding state traktujemy jako funkcjonalny storage wymagający zgody?
-- Czy wszystkie product analytics dla zalogowanych użytkowników wymagają zgody, czy część klasyfikujemy jako uzasadnione pomiary operacyjne?
-- Czy auth migruje na httpOnly cookies przed launch'em, czy zostaje jako follow-up security?
-- Czy używamy własnego consent managera, czy zewnętrznego CMP?
+- Product analytics dla zalogowanych użytkowników wymaga zgody analitycznej; wyjątki operacyjne muszą być jawnie wydzielone.
+- Auth migruje na httpOnly cookies; etap 1 wykonany, CSRF hardening zostaje follow-upem przed release.
+- Używamy własnego consent managera.
 
 ## Notatki implementacyjne
 

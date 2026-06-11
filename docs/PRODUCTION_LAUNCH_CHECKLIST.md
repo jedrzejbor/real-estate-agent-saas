@@ -142,9 +142,12 @@
   - cookies i analityka
   - odbiorcy danych (subprocessorzy: hosting, email, analytics)
 - [ ] 🔴 **Zasady publikacji ofert** — uzupełnić o zakaz publikacji ofert przez osoby nieuprawnione (ochrona praw pośrednika)
-- [ ] 🔴 **Polityka cookies / baner cookie consent** — wymagany przez RODO/UŚUDE dla polskich użytkowników
-  - opcja: **CookieYes**, **Cookiebot** (wersje free dla małych serwisów)
-  - lub własna implementacja z `localStorage`
+- [ ] 🟠 **Polityka cookies / baner cookie consent** — własna implementacja jest dodana, ale wymaga finalnego QA i review prawnego
+  - `/polityka-cookies` istnieje i jest linkowana ze stopki oraz bannera
+  - banner zgód i panel preferencji są wdrożone
+  - analytics jest blokowany bez zgody analitycznej
+  - przed launch’em wykonać checklistę `QA-C7-01` - `QA-C7-18` z `COOKIE_CONSENT_READINESS_PLAN.md`
+  - dokumenty nadal wymagają finalnych danych operatora i review prawnika
 
 ### Aspekty prawne specyficzne dla nieruchomości w Polsce
 
@@ -179,6 +182,7 @@
 - [ ] 🔴 Firewall — tylko porty 80, 443 (i 22 SSH z IP whitelist)
 - [ ] 🟠 Rate limiting produkcyjny — dostosować limity (aktualnie dev-level)
 - [ ] 🟠 Helmet.js / security headers (CSP, X-Frame-Options, HSTS)
+- [ ] 🟠 Auth cookies — etap 1 migracji na httpOnly cookies wykonany; przed launch’em domknąć CSRF hardening i produkcyjne `SameSite`/domain/secure
 - [ ] 🟠 Fail2ban lub podobne na próby brute force SSH/API
 - [ ] 🟡 Penetration test lub automated security scan (OWASP ZAP)
 
