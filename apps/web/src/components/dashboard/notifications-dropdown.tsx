@@ -9,6 +9,7 @@ import {
   Building2,
   CalendarClock,
   CircleAlert,
+  FileText,
   MessageSquareText,
   UserRoundPlus,
 } from 'lucide-react';
@@ -24,6 +25,7 @@ import { cn } from '@/lib/utils';
 const CATEGORY_ICON: Record<NotificationCategory, typeof CalendarClock> = {
   appointment: CalendarClock,
   client: UserRoundPlus,
+  document: FileText,
   listing: Building2,
   public_lead: MessageSquareText,
 };

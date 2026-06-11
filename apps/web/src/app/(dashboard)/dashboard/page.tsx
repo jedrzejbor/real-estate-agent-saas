@@ -9,6 +9,7 @@ import {
   CalendarCheck,
   TrendingUp,
   DollarSign,
+  FileWarning,
   CircleDollarSign,
   Clock,
   ArrowRight,
@@ -35,6 +36,7 @@ import { isUsageWarning } from '@/lib/auth';
 import { getPlanUsageMetrics } from '@/lib/plan';
 import {
   type DashboardStats,
+  type DocumentAttentionItem,
   type RecentActivity,
   type UpcomingAppointment,
   formatPricePL,
@@ -367,6 +369,8 @@ function DashboardOverviewContent({ stats }: { stats: DashboardStats }) {
           icon={TrendingUp}
         />
       </div>
+
+      <DocumentAttentionCard stats={stats.documentAttention} />
     </div>
   );
 }
@@ -420,6 +424,116 @@ function DashboardPlanContent({
       </div>
     </div>
   );
+}
+
+function DocumentAttentionCard({
+  stats,
+}: {
+  stats: DashboardStats['documentAttention'];
+}) {
+  const hasItems = stats.total > 0;
+  const topItems = stats.items.slice(0, 3);
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-status-warning-bg">
+            <FileWarning className="h-5 w-5 text-status-warning" />
+          </div>
+          <div>
+            <h2 className="font-heading text-base font-semibold text-foreground">
+              Dokumenty wymagające uwagi
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {hasItems
+                ? `${stats.total} spraw do domknięcia w aktywnych ofertach.`
+                : 'Aktywne oferty nie mają pilnych braków dokumentów.'}
+            </p>
+          </div>
+        </div>
+        <Link href="/dashboard/listings">
+          <Button variant="ghost" size="sm" className="gap-1 text-xs">
+            Oferty
+            <ArrowRight className="h-3 w-3" />
+          </Button>
+        </Link>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-4">
+        <DocumentAttentionMetric label="Braki" value={stats.missingRequired} />
+        <DocumentAttentionMetric
+          label="Do poprawy"
+          value={stats.needsCorrection}
+        />
+        <DocumentAttentionMetric label="Po terminie" value={stats.overdue} />
+        <DocumentAttentionMetric label="Wygasłe" value={stats.expired} />
+      </div>
+
+      {topItems.length > 0 ? (
+        <div className="mt-4 space-y-2">
+          {topItems.map((item) => (
+            <DocumentAttentionRow key={item.id} item={item} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DocumentAttentionMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-muted/25 px-3 py-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-0.5 font-heading text-lg font-semibold text-foreground">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function DocumentAttentionRow({ item }: { item: DocumentAttentionItem }) {
+  return (
+    <Link
+      href={`/dashboard/listings/${item.listingId}`}
+      className="flex items-center gap-3 rounded-xl border border-border px-3 py-2 transition-colors hover:border-primary/40 hover:bg-muted/40"
+    >
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-status-warning-bg">
+        <FileWarning className="h-4 w-4 text-status-warning" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-foreground">
+          {getDocumentAttentionTitle(item)}
+        </p>
+        <p className="truncate text-xs text-muted-foreground">
+          {item.listingTitle}
+        </p>
+      </div>
+      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </Link>
+  );
+}
+
+function getDocumentAttentionTitle(item: DocumentAttentionItem): string {
+  if (item.kind === 'missing_required') {
+    return `${item.count} brakujące wymagane dokumenty`;
+  }
+
+  if (item.kind === 'needs_correction') {
+    return `${item.documentName ?? 'Dokument'} wymaga poprawy`;
+  }
+
+  if (item.kind === 'expired') {
+    return `${item.documentName ?? 'Dokument'} stracił ważność`;
+  }
+
+  return `${item.documentName ?? 'Dokument'} jest po terminie`;
 }
 
 // ── Stat Card ──

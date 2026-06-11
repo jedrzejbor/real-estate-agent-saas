@@ -8,6 +8,7 @@ import { Appointment } from '../appointments/entities/appointment.entity';
 import { Listing } from '../listings/entities/listing.entity';
 import { Client } from '../clients/entities/client.entity';
 import { PublicLead } from '../public-leads/entities';
+import { ListingDocumentsModule } from '../listing-documents';
 import { NotificationRead } from './entities';
 
 @Module({
@@ -21,6 +22,7 @@ import { NotificationRead } from './entities';
       NotificationRead,
     ]),
     UsersModule,
+    ListingDocumentsModule,
   ],
   controllers: [NotificationsController],
   providers: [NotificationsService],

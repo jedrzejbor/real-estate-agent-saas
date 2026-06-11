@@ -8,6 +8,10 @@ import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { UsersService } from '../users';
 import {
+  ListingDocumentsService,
+  type ListingDocumentAttentionItem,
+} from '../listing-documents';
+import {
   ListingStatus,
   ClientStatus,
   AppointmentStatus,
@@ -70,11 +74,21 @@ export interface UpcomingAppointment {
   clientName?: string;
 }
 
+export interface DocumentAttentionStats {
+  total: number;
+  missingRequired: number;
+  needsCorrection: number;
+  overdue: number;
+  expired: number;
+  items: ListingDocumentAttentionItem[];
+}
+
 export interface DashboardStats {
   listings: ListingStats;
   clients: ClientStats;
   appointments: AppointmentStats;
   revenue: RevenueStats;
+  documentAttention: DocumentAttentionStats;
   recentActivity: RecentActivity[];
   upcomingAppointments: UpcomingAppointment[];
 }
@@ -93,6 +107,7 @@ export class DashboardService {
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
     private readonly usersService: UsersService,
+    private readonly listingDocumentsService: ListingDocumentsService,
   ) {}
 
   async getStats(userId: string): Promise<DashboardStats> {
@@ -104,6 +119,7 @@ export class DashboardService {
       clients,
       appointments,
       revenue,
+      documentAttention,
       recentActivity,
       upcomingAppointments,
     ] = await Promise.all([
@@ -111,6 +127,7 @@ export class DashboardService {
       this.getClientStats(agentId),
       this.getAppointmentStats(agentId),
       this.getRevenueStats(agentId),
+      this.listingDocumentsService.getAttentionSummaryForAgent(agentId),
       this.getRecentActivity(agentId),
       this.getUpcomingAppointments(agentId),
     ]);
@@ -120,6 +137,7 @@ export class DashboardService {
       clients,
       appointments,
       revenue,
+      documentAttention,
       recentActivity,
       upcomingAppointments,
     };

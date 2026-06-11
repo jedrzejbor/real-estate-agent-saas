@@ -3,6 +3,7 @@ import { apiFetch } from './api-client';
 export type NotificationCategory =
   | 'appointment'
   | 'client'
+  | 'document'
   | 'listing'
   | 'public_lead';
 export type NotificationVariant = 'info' | 'warning' | 'success';

@@ -12,6 +12,10 @@ import { Listing } from '../listings/entities/listing.entity';
 import { PublicLead } from '../public-leads/entities';
 import { Agent } from '../users/entities/agent.entity';
 import { UsersService } from '../users';
+import {
+  ListingDocumentsService,
+  type ListingDocumentAttentionItem,
+} from '../listing-documents';
 import { NotificationsQueryDto } from './dto/notifications-query.dto';
 import { NotificationRead } from './entities';
 
@@ -19,6 +23,7 @@ export type NotificationVariant = 'info' | 'warning' | 'success';
 export type NotificationCategory =
   | 'appointment'
   | 'client'
+  | 'document'
   | 'listing'
   | 'public_lead';
 
@@ -60,6 +65,7 @@ export class NotificationsService {
     @InjectRepository(NotificationRead)
     private readonly notificationReadRepo: Repository<NotificationRead>,
     private readonly usersService: UsersService,
+    private readonly listingDocumentsService: ListingDocumentsService,
   ) {}
 
   async findAll(
@@ -79,6 +85,7 @@ export class NotificationsService {
       newClients,
       recentPublicLeads,
       staleDrafts,
+      documentAttention,
     ] = await Promise.all([
       this.appointmentRepo.find({
         where: {
@@ -125,6 +132,7 @@ export class NotificationsService {
           createdAt: LessThan(sevenDaysAgo),
         },
       }),
+      this.listingDocumentsService.getAttentionSummaryForAgent(agent.id),
     ]);
 
     const ranked: RankedNotification[] = [];
@@ -223,6 +231,10 @@ export class NotificationsService {
       }
     }
 
+    for (const item of documentAttention.items.slice(0, 5)) {
+      ranked.push(this.buildDocumentNotification(item));
+    }
+
     const candidateItems = ranked
       .sort((left, right) => {
         if (right.priority !== left.priority) {
@@ -310,6 +322,24 @@ export class NotificationsService {
     return `${contact} wysłał zapytanie z oferty "${listingTitle}".`;
   }
 
+  private buildDocumentNotification(
+    item: ListingDocumentAttentionItem,
+  ): RankedNotification {
+    const message = getDocumentNotificationMessage(item);
+
+    return {
+      id: item.id,
+      category: 'document',
+      variant: 'warning',
+      title: message.title,
+      description: message.description,
+      href: `/dashboard/listings/${item.listingId}`,
+      createdAt: item.createdAt,
+      priority: getDocumentNotificationPriority(item.kind),
+      sortTimestamp: new Date(item.createdAt).getTime(),
+    };
+  }
+
   private pluralize(
     value: number,
     one: string,
@@ -325,4 +355,50 @@ export class NotificationsService {
     }
     return many;
   }
+}
+
+function getDocumentNotificationPriority(
+  kind: ListingDocumentAttentionItem['kind'],
+): number {
+  const priorities: Record<ListingDocumentAttentionItem['kind'], number> = {
+    overdue: 260,
+    expired: 250,
+    needs_correction: 230,
+    missing_required: 170,
+  };
+
+  return priorities[kind];
+}
+
+function getDocumentNotificationMessage(item: ListingDocumentAttentionItem): {
+  title: string;
+  description: string;
+} {
+  const documentName = item.documentName ?? 'Dokument';
+
+  if (item.kind === 'needs_correction') {
+    return {
+      title: 'Dokument wymaga poprawy',
+      description: `${documentName} w ofercie "${item.listingTitle}" wymaga korekty.`,
+    };
+  }
+
+  if (item.kind === 'overdue') {
+    return {
+      title: 'Termin dokumentu minął',
+      description: `${documentName} w ofercie "${item.listingTitle}" jest po terminie.`,
+    };
+  }
+
+  if (item.kind === 'expired') {
+    return {
+      title: 'Dokument stracił ważność',
+      description: `${documentName} w ofercie "${item.listingTitle}" wymaga odświeżenia.`,
+    };
+  }
+
+  return {
+    title: 'Brak wymaganych dokumentów oferty',
+    description: `Oferta "${item.listingTitle}" ma ${item.count} brakujące wymagane dokumenty.`,
+  };
 }

@@ -682,7 +682,7 @@ Weryfikacja:
 
 ### D7. Powiadomienia i dashboard
 
-Status: TODO
+Status: DONE
 
 Zakres:
 
@@ -695,13 +695,33 @@ Zakres:
 
 Akceptacja:
 
-- agent widzi dokumenty wymagające działania,
-- powiadomienie prowadzi do szczegółów oferty,
-- nie generujemy powiadomień dla usuniętych dokumentów.
+- [x] agent widzi dokumenty wymagające działania,
+- [x] powiadomienie prowadzi do szczegółów oferty,
+- [x] nie generujemy powiadomień dla usuniętych dokumentów.
+
+Wykonano:
+
+- Dodano wspólne podsumowanie dokumentów wymagających uwagi w
+  `ListingDocumentsService`.
+- Podsumowanie obejmuje wyłącznie aktywne oferty agenta i liczy:
+  - brakujące wymagane dokumenty,
+  - dokumenty wymagające poprawy,
+  - dokumenty po terminie,
+  - dokumenty wygasłe.
+- Podsumowanie korzysta ze standardowego `find` TypeORM bez `withDeleted`, więc
+  soft deleted dokumenty nie są uwzględniane.
+- `GET /api/dashboard/stats` zwraca teraz sekcję `documentAttention`.
+- W dashboardzie, w zakładce `Przegląd`, dodano widget:
+  - `Dokumenty wymagające uwagi`.
+- Widget pokazuje sumę, rozbicie liczników oraz najważniejsze pozycje
+  linkujące do szczegółów ofert.
+- Powiadomienia obsługują nową kategorię `document`.
+- Powiadomienia dokumentów prowadzą do `/dashboard/listings/:listingId`, gdzie
+  agent ma panel dokumentów danej oferty.
 
 ### D8. Testy, QA i release readiness
 
-Status: TODO
+Status: DONE
 
 Zakres:
 
@@ -714,10 +734,40 @@ Zakres:
 
 Akceptacja:
 
-- testy przechodzą,
-- dokumenty nie są publiczne,
-- dokumenty nie trafiają do analytics,
-- release gate zamknięty.
+- [x] testy przechodzą,
+- [x] dokumenty nie są publiczne,
+- [x] dokumenty nie trafiają do analytics,
+- [x] techniczny release gate zamknięty.
+
+Wykonano:
+
+- Rozszerzono testy serwisu dokumentów o podsumowanie dokumentów wymagających
+  uwagi.
+- Test serwisu potwierdza:
+  - filtrowanie po aktywnych ofertach agenta,
+  - liczenie braków, korekt i dokumentów po terminie,
+  - brak użycia `withDeleted`.
+- Rozszerzono test public privacy dla publicznych endpointów ofert.
+- Test public privacy potwierdza, że publiczne payloady nie zawierają:
+  - `documents`,
+  - `storageKey`,
+  - `checksum`,
+  - `uploadedByUserId`,
+  - `reviewedByUserId`.
+- Moduł dokumentów nie został podpięty do analytics i nie dodaje eventów
+  analitycznych dla dokumentów.
+- Manual QA wizualne pozostaje do wykonania przed produkcją po stronie
+  właściciela produktu.
+- Polityka prywatności nadal wymaga biznesowej aktualizacji przed produkcyjnym
+  włączeniem modułu dokumentów, bo sama aplikacja zaczyna obsługiwać pliki
+  transakcyjne i dokumenty ofert.
+
+Weryfikacja:
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter web type-check` - przechodzi.
+- `pnpm --filter api test -- document-upload-security.spec.ts listing-documents.service.spec.ts listing-public-privacy.spec.ts` - przechodzi.
+- `pnpm --filter web exec eslint src/lib/dashboard.ts src/lib/notifications.ts src/components/dashboard/notifications-dropdown.tsx src/app/'(dashboard)'/dashboard/page.tsx` - przechodzi.
 
 ## API test matrix
 

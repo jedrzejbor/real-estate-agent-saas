@@ -3,6 +3,7 @@ import {
   ListingDocumentCategory,
   ListingDocumentEventType,
   ListingDocumentStatus,
+  ListingStatus,
 } from '../common/enums';
 import { ListingDocumentsService } from './listing-documents.service';
 
@@ -31,6 +32,7 @@ describe('ListingDocumentsService', () => {
       save: jest.fn(async (value) => value),
     };
     const listingRepo = {
+      find: jest.fn(),
       findOne: jest.fn(),
     };
     const usersService = {
@@ -178,6 +180,80 @@ describe('ListingDocumentsService', () => {
       }),
     );
   });
+
+  it('builds attention summary for active listings without requesting deleted documents', async () => {
+    const { service, documentRepo, listingRepo } = setup();
+    const activeListing = buildListing({
+      title: 'Aktywna oferta',
+      status: ListingStatus.ACTIVE,
+      updatedAt: now,
+      createdAt: now,
+    });
+    listingRepo.find.mockResolvedValue([activeListing]);
+    documentRepo.find.mockResolvedValue([
+      buildDocument({
+        id: 'document-needs-correction',
+        status: ListingDocumentStatus.NEEDS_CORRECTION,
+        displayName: 'Świadectwo energetyczne',
+        category: ListingDocumentCategory.ENERGY_CERTIFICATE,
+        updatedAt: now,
+      }),
+      buildDocument({
+        id: 'document-overdue',
+        status: ListingDocumentStatus.REQUESTED,
+        displayName: 'Księga wieczysta',
+        category: ListingDocumentCategory.LAND_AND_MORTGAGE_REGISTER,
+        dueDate: new Date('2026-06-10T10:00:00.000Z'),
+        updatedAt: now,
+      }),
+    ]);
+
+    const result = await service.getAttentionSummaryForAgent(agent.id);
+
+    expect(listingRepo.find).toHaveBeenCalledWith({
+      where: { agentId: agent.id, status: ListingStatus.ACTIVE },
+      order: { updatedAt: 'DESC' },
+      take: 100,
+    });
+    expect(documentRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          agentId: agent.id,
+        }),
+        order: { updatedAt: 'DESC' },
+      }),
+    );
+    expect(documentRepo.find.mock.calls[0]?.[0]).not.toHaveProperty(
+      'withDeleted',
+    );
+    expect(result).toMatchObject({
+      missingRequired: 2,
+      needsCorrection: 1,
+      overdue: 1,
+      expired: 0,
+      total: 4,
+    });
+    expect(result.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'needs_correction',
+          listingId,
+          documentId: 'document-needs-correction',
+        }),
+        expect.objectContaining({
+          kind: 'overdue',
+          listingId,
+          documentId: 'document-overdue',
+        }),
+        expect.objectContaining({
+          kind: 'missing_required',
+          listingId,
+          documentId: null,
+          count: 2,
+        }),
+      ]),
+    );
+  });
 });
 
 function buildDocument(overrides: Record<string, unknown> = {}) {
@@ -209,8 +285,12 @@ function buildListing(overrides: Record<string, unknown> = {}) {
   return {
     id: listingId,
     agentId: agent.id,
+    title: 'Testowa oferta',
+    status: ListingStatus.ACTIVE,
     transactionType: 'sale',
     propertyType: 'apartment',
+    createdAt: now,
+    updatedAt: now,
     ...overrides,
   };
 }

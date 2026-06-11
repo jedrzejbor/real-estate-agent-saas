@@ -6,6 +6,13 @@ const COMMISSION_KEYS = [
   'commissionValue',
   'commissionAmount',
 ];
+const DOCUMENT_KEYS = [
+  'documents',
+  'storageKey',
+  'checksum',
+  'reviewedByUserId',
+  'uploadedByUserId',
+];
 
 describe('public listing privacy', () => {
   let service: {
@@ -38,10 +45,22 @@ describe('public listing privacy', () => {
     expect(payload).not.toContainCommissionFields();
   });
 
+  it('does not expose document fields in public listing detail', () => {
+    const payload = service.toPublicListingView(buildListingWithCommission());
+
+    expect(payload).not.toContainDocumentFields();
+  });
+
   it('does not expose commission fields in public catalog item', () => {
     const payload = service.toPublicCatalogItem(buildListingWithCommission());
 
     expect(payload).not.toContainCommissionFields();
+  });
+
+  it('does not expose document fields in public catalog item', () => {
+    const payload = service.toPublicCatalogItem(buildListingWithCommission());
+
+    expect(payload).not.toContainDocumentFields();
   });
 
   it('does not expose commission fields in public catalog map markers', () => {
@@ -51,6 +70,15 @@ describe('public listing privacy', () => {
     );
 
     expect(payload).not.toContainCommissionFields();
+  });
+
+  it('does not expose document fields in public catalog map markers', () => {
+    const payload = service.buildPublicCatalogMapMarkers(
+      [buildListingWithCommission()],
+      10,
+    );
+
+    expect(payload).not.toContainDocumentFields();
   });
 });
 
@@ -66,12 +94,24 @@ expect.extend({
           : 'Expected payload to contain commission fields',
     };
   },
+  toContainDocumentFields(received: unknown) {
+    const foundKeys = findKeys(received, DOCUMENT_KEYS);
+
+    return {
+      pass: foundKeys.length > 0,
+      message: () =>
+        foundKeys.length > 0
+          ? `Expected payload not to contain document fields, found: ${foundKeys.join(', ')}`
+          : 'Expected payload to contain document fields',
+    };
+  },
 });
 
 declare global {
   namespace jest {
     interface Matchers<R> {
       toContainCommissionFields(): R;
+      toContainDocumentFields(): R;
     }
   }
 }
@@ -140,6 +180,16 @@ function buildListingWithCommission(): Record<string, unknown> {
     showExactAddressOnPublicPage: true,
     showPriceOnPublicPage: true,
     publicViewCount: 7,
+    documents: [
+      {
+        id: 'document-1',
+        displayName: 'Umowa pośrednictwa',
+        storageKey: 'agent-1/listing-1/private.pdf',
+        checksum: 'private-checksum',
+        uploadedByUserId: 'user-1',
+        reviewedByUserId: 'user-1',
+      },
+    ],
     publishedAt,
     updatedAt: publishedAt,
     expiresAt: null,
@@ -147,21 +197,29 @@ function buildListingWithCommission(): Record<string, unknown> {
 }
 
 function findCommissionKeys(value: unknown, path = '$'): string[] {
+  return findKeys(value, COMMISSION_KEYS, path);
+}
+
+function findKeys(
+  value: unknown,
+  keys: string[],
+  path = '$',
+): string[] {
   if (!value || typeof value !== 'object') {
     return [];
   }
 
   if (Array.isArray(value)) {
     return value.flatMap((item, index) =>
-      findCommissionKeys(item, `${path}[${index}]`),
+      findKeys(item, keys, `${path}[${index}]`),
     );
   }
 
   return Object.entries(value as Record<string, unknown>).flatMap(
     ([key, nestedValue]) => {
       const currentPath = `${path}.${key}`;
-      const matches = COMMISSION_KEYS.includes(key) ? [currentPath] : [];
-      return [...matches, ...findCommissionKeys(nestedValue, currentPath)];
+      const matches = keys.includes(key) ? [currentPath] : [];
+      return [...matches, ...findKeys(nestedValue, keys, currentPath)];
     },
   );
 }

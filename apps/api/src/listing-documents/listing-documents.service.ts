@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { createHash, randomUUID } from 'crypto';
 import { mkdir, stat, writeFile } from 'fs/promises';
 import { createReadStream } from 'fs';
@@ -19,6 +19,7 @@ import {
   ListingDocumentCategory,
   ListingDocumentEventType,
   ListingDocumentStatus,
+  ListingStatus,
 } from '../common/enums';
 import { Listing } from '../listings/entities/listing.entity';
 import { Agent } from '../users/entities/agent.entity';
@@ -77,6 +78,33 @@ export interface ListingDocumentDownload {
   filename: string;
   mimeType: string;
   fileSize: number;
+}
+
+export type ListingDocumentAttentionKind =
+  | 'missing_required'
+  | 'needs_correction'
+  | 'overdue'
+  | 'expired';
+
+export interface ListingDocumentAttentionItem {
+  id: string;
+  kind: ListingDocumentAttentionKind;
+  listingId: string;
+  listingTitle: string;
+  documentId: string | null;
+  documentName: string | null;
+  count: number;
+  dueDate: string | null;
+  createdAt: string;
+}
+
+export interface ListingDocumentAttentionSummary {
+  total: number;
+  missingRequired: number;
+  needsCorrection: number;
+  overdue: number;
+  expired: number;
+  items: ListingDocumentAttentionItem[];
 }
 
 @Injectable()
@@ -338,6 +366,105 @@ export class ListingDocumentsService {
     };
   }
 
+  async getAttentionSummaryForAgent(
+    agentId: string,
+  ): Promise<ListingDocumentAttentionSummary> {
+    const activeListings = await this.listingRepo.find({
+      where: { agentId, status: ListingStatus.ACTIVE },
+      order: { updatedAt: 'DESC' },
+      take: 100,
+    });
+
+    if (activeListings.length === 0) {
+      return createEmptyAttentionSummary();
+    }
+
+    const listingIds = activeListings.map((listing) => listing.id);
+    const documents = await this.documentRepo.find({
+      where: { agentId, listingId: In(listingIds) },
+      order: { updatedAt: 'DESC' },
+    });
+    const now = new Date();
+    const documentsByListing = groupDocumentsByListing(documents);
+    const items: ListingDocumentAttentionItem[] = [];
+    let missingRequired = 0;
+    let needsCorrection = 0;
+    let overdue = 0;
+    let expired = 0;
+
+    for (const listing of activeListings) {
+      const listingDocuments = documentsByListing.get(listing.id) ?? [];
+      const checklist = this.buildChecklist(listing, listingDocuments);
+
+      if (checklist.summary.missing > 0) {
+        missingRequired += checklist.summary.missing;
+        items.push({
+          id: `listing-documents-missing-${listing.id}`,
+          kind: 'missing_required',
+          listingId: listing.id,
+          listingTitle: listing.title,
+          documentId: null,
+          documentName: null,
+          count: checklist.summary.missing,
+          dueDate: null,
+          createdAt: toAttentionDate(listing.updatedAt ?? listing.createdAt),
+        });
+      }
+
+      for (const document of listingDocuments) {
+        if (document.status === ListingDocumentStatus.NEEDS_CORRECTION) {
+          needsCorrection += 1;
+          items.push(
+            this.toAttentionItem('needs_correction', listing, document),
+          );
+          continue;
+        }
+
+        if (document.status === ListingDocumentStatus.EXPIRED) {
+          expired += 1;
+          items.push(this.toAttentionItem('expired', listing, document));
+          continue;
+        }
+
+        if (document.expiresAt && document.expiresAt < now) {
+          expired += 1;
+          items.push(this.toAttentionItem('expired', listing, document));
+          continue;
+        }
+
+        if (
+          document.dueDate &&
+          document.dueDate < now &&
+          document.status !== ListingDocumentStatus.APPROVED
+        ) {
+          overdue += 1;
+          items.push(this.toAttentionItem('overdue', listing, document));
+        }
+      }
+    }
+
+    items.sort((left, right) => {
+      const priorityDiff =
+        getAttentionPriority(right.kind) - getAttentionPriority(left.kind);
+      if (priorityDiff !== 0) {
+        return priorityDiff;
+      }
+
+      return (
+        new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+      );
+    });
+
+    return {
+      total: missingRequired + needsCorrection + overdue + expired,
+      missingRequired,
+      needsCorrection,
+      overdue,
+      expired,
+      items: items.slice(0, 8),
+    };
+  }
+
   private async resolveAgent(userId: string): Promise<Agent> {
     return this.usersService.resolveAgentForUser(userId);
   }
@@ -414,6 +541,24 @@ export class ListingDocumentsService {
     };
   }
 
+  private toAttentionItem(
+    kind: Exclude<ListingDocumentAttentionKind, 'missing_required'>,
+    listing: Listing,
+    document: ListingDocument,
+  ): ListingDocumentAttentionItem {
+    return {
+      id: `listing-document-${kind}-${document.id}`,
+      kind,
+      listingId: listing.id,
+      listingTitle: listing.title,
+      documentId: document.id,
+      documentName: document.displayName,
+      count: 1,
+      dueDate: toIsoOrNull(document.dueDate ?? document.expiresAt),
+      createdAt: toAttentionDate(document.updatedAt ?? document.createdAt),
+    };
+  }
+
   private resolveStoragePath(storageKey: string): string {
     const filePath = resolve(this.storageRoot, storageKey);
 
@@ -475,6 +620,42 @@ export class ListingDocumentsService {
       },
     };
   }
+}
+
+function createEmptyAttentionSummary(): ListingDocumentAttentionSummary {
+  return {
+    total: 0,
+    missingRequired: 0,
+    needsCorrection: 0,
+    overdue: 0,
+    expired: 0,
+    items: [],
+  };
+}
+
+function groupDocumentsByListing(
+  documents: ListingDocument[],
+): Map<string, ListingDocument[]> {
+  const grouped = new Map<string, ListingDocument[]>();
+
+  for (const document of documents) {
+    const current = grouped.get(document.listingId) ?? [];
+    current.push(document);
+    grouped.set(document.listingId, current);
+  }
+
+  return grouped;
+}
+
+function getAttentionPriority(kind: ListingDocumentAttentionKind): number {
+  const priorities: Record<ListingDocumentAttentionKind, number> = {
+    overdue: 400,
+    expired: 350,
+    needs_correction: 300,
+    missing_required: 200,
+  };
+
+  return priorities[kind];
 }
 
 interface ListingDocumentRequirement {
@@ -596,6 +777,10 @@ function parseOptionalDate(value?: string | null): Date | null {
 
 function toIsoOrNull(value?: Date | null): string | null {
   return value ? value.toISOString() : null;
+}
+
+function toAttentionDate(value?: Date | null): string {
+  return (value ?? new Date(0)).toISOString();
 }
 
 function sanitizeOriginalFilename(value: string): string {

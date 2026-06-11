@@ -57,11 +57,39 @@ export interface UpcomingAppointment {
   clientName?: string;
 }
 
+export type DocumentAttentionKind =
+  | 'missing_required'
+  | 'needs_correction'
+  | 'overdue'
+  | 'expired';
+
+export interface DocumentAttentionItem {
+  id: string;
+  kind: DocumentAttentionKind;
+  listingId: string;
+  listingTitle: string;
+  documentId: string | null;
+  documentName: string | null;
+  count: number;
+  dueDate: string | null;
+  createdAt: string;
+}
+
+export interface DocumentAttentionStats {
+  total: number;
+  missingRequired: number;
+  needsCorrection: number;
+  overdue: number;
+  expired: number;
+  items: DocumentAttentionItem[];
+}
+
 export interface DashboardStats {
   listings: ListingStats;
   clients: ClientStats;
   appointments: AppointmentStats;
   revenue: RevenueStats;
+  documentAttention: DocumentAttentionStats;
   recentActivity: RecentActivity[];
   upcomingAppointments: UpcomingAppointment[];
 }
