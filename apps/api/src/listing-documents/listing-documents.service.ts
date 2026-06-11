@@ -5,6 +5,16 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { createHash, randomUUID } from 'crypto';
+import { mkdir, stat, writeFile } from 'fs/promises';
+import { createReadStream } from 'fs';
+import { Readable } from 'stream';
+import { dirname, join, resolve } from 'path';
+import {
+  assertSafeDocumentUpload,
+  getDocumentExtension,
+  type DocumentUploadFile,
+} from '../common/document-upload-security';
 import {
   ListingDocumentCategory,
   ListingDocumentEventType,
@@ -42,8 +52,21 @@ export interface ListingDocumentsResponse {
   documents: ListingDocumentView[];
 }
 
+export interface ListingDocumentDownload {
+  stream: Readable;
+  filename: string;
+  mimeType: string;
+  fileSize: number;
+}
+
 @Injectable()
 export class ListingDocumentsService {
+  private readonly storageRoot = resolve(
+    process.cwd(),
+    'private-uploads',
+    'listing-documents',
+  );
+
   constructor(
     @InjectRepository(ListingDocument)
     private readonly documentRepo: Repository<ListingDocument>,
@@ -111,6 +134,58 @@ export class ListingDocumentsService {
       source: 'metadata_create',
       category: saved.category,
       status: saved.status,
+    });
+
+    return this.toView(saved);
+  }
+
+  async upload(
+    listingId: string,
+    userId: string,
+    dto: CreateListingDocumentDto,
+    file: DocumentUploadFile,
+  ): Promise<ListingDocumentView> {
+    if (!file) {
+      throw new BadRequestException('Plik dokumentu jest wymagany');
+    }
+
+    assertSafeDocumentUpload(file);
+
+    const agent = await this.resolveAgent(userId);
+    await this.assertListingAccess(listingId, agent.id);
+
+    const extension = getDocumentExtension(file.originalname, file.mimetype);
+    const storageKey = join(agent.id, listingId, `${randomUUID()}${extension}`);
+    const filePath = this.resolveStoragePath(storageKey);
+
+    await mkdir(dirname(filePath), { recursive: true });
+    await writeFile(filePath, file.buffer);
+
+    const displayName =
+      normalizeNullableText(dto.displayName) ?? file.originalname.trim();
+    const document = this.documentRepo.create({
+      agentId: agent.id,
+      listingId,
+      category: dto.category,
+      status: dto.status ?? ListingDocumentStatus.UPLOADED,
+      displayName: normalizeDisplayName(displayName),
+      originalFilename: sanitizeOriginalFilename(file.originalname),
+      mimeType: file.mimetype,
+      fileSize: file.size ?? file.buffer.length,
+      storageKey,
+      checksum: createHash('sha256').update(file.buffer).digest('hex'),
+      note: normalizeNullableText(dto.note),
+      dueDate: parseOptionalDate(dto.dueDate),
+      expiresAt: parseOptionalDate(dto.expiresAt),
+      uploadedByUserId: userId,
+    });
+
+    const saved = await this.documentRepo.save(document);
+    await this.logEvent(saved, userId, ListingDocumentEventType.UPLOADED, {
+      category: saved.category,
+      status: saved.status,
+      mimeType: saved.mimeType,
+      fileSize: saved.fileSize,
     });
 
     return this.toView(saved);
@@ -192,6 +267,42 @@ export class ListingDocumentsService {
     });
   }
 
+  async download(
+    listingId: string,
+    documentId: string,
+    userId: string,
+  ): Promise<ListingDocumentDownload> {
+    const agent = await this.resolveAgent(userId);
+    const document = await this.findDocumentForAgent(
+      listingId,
+      documentId,
+      agent.id,
+    );
+
+    if (!document.storageKey || !document.mimeType) {
+      throw new BadRequestException('Dokument nie ma jeszcze zapisanego pliku');
+    }
+
+    const filePath = this.resolveStoragePath(document.storageKey);
+    const fileStats = await stat(filePath).catch(() => null);
+
+    if (!fileStats?.isFile()) {
+      throw new NotFoundException('Plik dokumentu nie został znaleziony');
+    }
+
+    await this.logEvent(document, userId, ListingDocumentEventType.DOWNLOADED, {
+      mimeType: document.mimeType,
+      fileSize: fileStats.size,
+    });
+
+    return {
+      stream: createReadStream(filePath),
+      filename: document.originalFilename || `${document.displayName}.pdf`,
+      mimeType: document.mimeType,
+      fileSize: fileStats.size,
+    };
+  }
+
   private async resolveAgent(userId: string): Promise<Agent> {
     return this.usersService.resolveAgentForUser(userId);
   }
@@ -267,6 +378,16 @@ export class ListingDocumentsService {
       updatedAt: document.updatedAt.toISOString(),
     };
   }
+
+  private resolveStoragePath(storageKey: string): string {
+    const filePath = resolve(this.storageRoot, storageKey);
+
+    if (!filePath.startsWith(`${this.storageRoot}/`)) {
+      throw new BadRequestException('Nieprawidłowa ścieżka dokumentu');
+    }
+
+    return filePath;
+  }
 }
 
 function normalizeDisplayName(value: string): string {
@@ -300,4 +421,8 @@ function parseOptionalDate(value?: string | null): Date | null {
 
 function toIsoOrNull(value?: Date | null): string | null {
   return value ? value.toISOString() : null;
+}
+
+function sanitizeOriginalFilename(value: string): string {
+  return value.trim().replace(/[^\w.\- ]+/g, '_').slice(0, 255);
 }

@@ -492,7 +492,7 @@ Uwagi:
 
 ### D3. Upload plików
 
-Status: TODO
+Status: DONE
 
 Zakres:
 
@@ -507,14 +507,38 @@ Zakres:
 
 Akceptacja:
 
-- PDF/JPG/PNG zapisują się poprawnie,
-- niedozwolony typ jest odrzucany,
-- za duży plik jest odrzucany,
-- odpowiedź nie zawiera publicznej ścieżki pliku.
+- [x] PDF/JPG/PNG zapisują się poprawnie,
+- [x] niedozwolony typ jest odrzucany,
+- [x] za duży plik jest odrzucany,
+- [x] odpowiedź nie zawiera publicznej ścieżki pliku.
+
+Wykonano:
+
+- Dodano `apps/api/src/common/document-upload-security.ts`:
+  - limit `15 MB`,
+  - dozwolone MIME: `application/pdf`, `image/jpeg`, `image/png`,
+  - walidacja rozszerzeń,
+  - magic bytes dla PDF/JPG/PNG,
+  - normalizacja rozszerzenia na podstawie MIME.
+- Rozszerzono `POST /api/listings/:listingId/documents` o obsługę multipart
+  uploadu z polem `file`.
+- Pliki dokumentów są zapisywane poza publicznym `/uploads`, w prywatnym
+  katalogu `private-uploads/listing-documents`.
+- `storageKey` jest prywatnym kluczem technicznym, nie publicznym URL-em.
+- Nazwa pliku w storage jest generowana przez backend przez `randomUUID`.
+- Dodano `checksum` SHA-256 dla zapisanego pliku.
+- Upload zapisuje event `uploaded`.
+- Metadane pliku (`originalFilename`, `mimeType`, `fileSize`, `storageKey`,
+  `checksum`) są zapisywane na `ListingDocument`.
+
+Weryfikacja:
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter api test -- document-upload-security.spec.ts listing-documents.service.spec.ts` - przechodzi.
 
 ### D4. Lista, edycja, usuwanie i pobieranie
 
-Status: TODO
+Status: DONE
 
 Zakres:
 
@@ -530,10 +554,30 @@ Zakres:
 
 Akceptacja:
 
-- można zmienić status dokumentu,
-- można usunąć dokument,
-- można pobrać dokument tylko po autoryzacji,
-- soft deleted dokument nie pojawia się na liście.
+- [x] można zmienić status dokumentu,
+- [x] można usunąć dokument,
+- [x] można pobrać dokument tylko po autoryzacji,
+- [x] soft deleted dokument nie pojawia się na liście.
+
+Wykonano:
+
+- Lista, single read, update i soft delete działają na endpointach dodanych w D2.
+- Dodano endpoint:
+  - `GET /api/listings/:listingId/documents/:documentId/download`.
+- Download zawsze przechodzi przez backend i używa tego samego scope:
+  `userId -> agent -> listing.agentId -> document.agentId`.
+- Download ustawia nagłówki:
+  - `Content-Type`,
+  - `Content-Length`,
+  - `Content-Disposition`.
+- Download zapisuje event `downloaded`.
+- Dokument bez zapisanego pliku zwraca bezpieczny błąd.
+- Brak pliku w prywatnym storage zwraca `NotFoundException`.
+
+Weryfikacja:
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter api test -- document-upload-security.spec.ts listing-documents.service.spec.ts` - przechodzi.
 
 ### D5. Checklist kompletności
 
