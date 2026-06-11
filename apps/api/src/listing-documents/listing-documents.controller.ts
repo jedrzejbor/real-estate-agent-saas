@@ -78,6 +78,14 @@ export class ListingDocumentsController {
     return this.listingDocumentsService.findAll(listingId, userId);
   }
 
+  @Get('checklist')
+  async getChecklist(
+    @Param('listingId', ParseUUIDPipe) listingId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.listingDocumentsService.getChecklist(listingId, userId);
+  }
+
   @Get(':documentId')
   async findOne(
     @Param('listingId', ParseUUIDPipe) listingId: string,

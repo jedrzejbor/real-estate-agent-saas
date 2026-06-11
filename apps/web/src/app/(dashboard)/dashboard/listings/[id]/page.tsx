@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ActivityHistoryCard } from '@/components/activity/activity-history-card';
+import { ListingDocumentsPanel } from '@/components/listings/listing-documents-panel';
 import { ListingPublicationPanel } from '@/components/listings/listing-publication-panel';
 import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
@@ -397,6 +398,8 @@ export default function ListingDetailPage() {
               </p>
             </div>
           )}
+
+          <ListingDocumentsPanel listingId={listing.id} />
         </div>
 
         {/* Right column - sidebar */}

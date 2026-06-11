@@ -210,3 +210,62 @@ export async function apiFormDataFetch<T = unknown>(
 
   return json as T;
 }
+
+export async function apiBlobFetch(
+  path: string,
+  {
+    skipAuth,
+    _retried,
+    headers: extraHeaders,
+    ...init
+  }: Omit<RequestOptions, 'body'> = {},
+): Promise<{ blob: Blob; filename: string | null }> {
+  const headers = new Headers(extraHeaders);
+  const method = init.method ?? 'GET';
+  await appendCsrfHeader(headers, method);
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    method,
+    headers,
+    credentials: 'include',
+  });
+
+  if (!skipAuth && res.status === 401 && !_retried) {
+    try {
+      await ensureRefreshed();
+      return apiBlobFetch(path, {
+        skipAuth,
+        _retried: true,
+        headers: extraHeaders,
+        ...init,
+      });
+    } catch {
+      notifyAuthorizationLost();
+      throw new ApiError(401, {
+        message: 'Sesja wygasła. Zaloguj się ponownie.',
+      });
+    }
+  }
+
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    if (!skipAuth && res.status === 401) {
+      notifyAuthorizationLost();
+    }
+    throw new ApiError(res.status, json);
+  }
+
+  return {
+    blob: await res.blob(),
+    filename: parseContentDispositionFilename(
+      res.headers.get('Content-Disposition'),
+    ),
+  };
+}
+
+function parseContentDispositionFilename(value: string | null): string | null {
+  if (!value) return null;
+  const match = value.match(/filename="([^"]+)"/i);
+  return match?.[1] ?? null;
+}

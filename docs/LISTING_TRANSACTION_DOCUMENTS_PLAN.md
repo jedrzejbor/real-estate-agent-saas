@@ -581,7 +581,7 @@ Weryfikacja:
 
 ### D5. Checklist kompletności
 
-Status: TODO
+Status: DONE
 
 Zakres:
 
@@ -597,13 +597,37 @@ Zakres:
 
 Akceptacja:
 
-- oferta bez dokumentów pokazuje wszystkie wymagane jako brakujące,
-- dodanie dokumentu aktualizuje checklistę,
-- status `approved` zwiększa kompletność.
+- [x] oferta bez dokumentów pokazuje wszystkie wymagane jako brakujące,
+- [x] dodanie dokumentu aktualizuje checklistę,
+- [x] status `approved` zwiększa kompletność.
+
+Wykonano:
+
+- `GET /api/listings/:listingId/documents` zwraca teraz:
+  - `documents`,
+  - `checklist`.
+- Dodano osobny endpoint:
+  - `GET /api/listings/:listingId/documents/checklist`.
+- Checklist jest liczony wyłącznie po prywatnym scope agenta.
+- Statyczna konfiguracja wymagań uwzględnia podstawowe dokumenty oraz różnice
+  między sprzedażą i najmem.
+- Summary checklisty zwraca:
+  - `required`,
+  - `approved`,
+  - `missing`,
+  - `needsCorrection`,
+  - `completionPct`.
+- Dodano test serwisu sprawdzający kompletność checklisty i wpływ statusu
+  `approved`.
+
+Weryfikacja:
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter api test -- document-upload-security.spec.ts listing-documents.service.spec.ts` - przechodzi.
 
 ### D6. UI w szczegółach oferty
 
-Status: TODO
+Status: DONE
 
 Zakres:
 
@@ -618,10 +642,43 @@ Zakres:
 
 Akceptacja:
 
-- agent może obsłużyć dokumenty bez opuszczania szczegółów oferty,
-- empty state jest czytelny,
-- błędy uploadu są pokazane użytkownikowi,
-- UI działa w dark theme.
+- [x] agent może obsłużyć dokumenty bez opuszczania szczegółów oferty,
+- [x] empty state jest czytelny,
+- [x] błędy uploadu są pokazane użytkownikowi,
+- [x] UI działa w dark theme.
+
+Wykonano:
+
+- Dodano typy i etykiety dokumentów po stronie web:
+  - `ListingDocumentCategory`,
+  - `ListingDocumentStatus`,
+  - `ListingDocument`,
+  - `ListingDocumentChecklist`,
+  - `ListingDocumentsResponse`.
+- Dodano funkcje API:
+  - `fetchListingDocuments`,
+  - `uploadListingDocument`,
+  - `updateListingDocument`,
+  - `deleteListingDocument`,
+  - `downloadListingDocument`.
+- Dodano `apiBlobFetch` do autoryzowanego pobierania plików przez backend.
+- Dodano komponent `ListingDocumentsPanel`.
+- Panel został osadzony w szczegółach oferty w dashboardzie.
+- Panel obsługuje:
+  - checklistę kompletności,
+  - upload PDF/JPG/PNG,
+  - listę dokumentów,
+  - zmianę statusu,
+  - pobieranie,
+  - usuwanie z potwierdzeniem,
+  - empty state i komunikaty błędów.
+
+Weryfikacja:
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter web type-check` - przechodzi.
+- `pnpm --filter api test -- document-upload-security.spec.ts listing-documents.service.spec.ts` - przechodzi.
+- `pnpm --filter web exec eslint src/lib/api-client.ts src/lib/listings.ts src/components/listings/listing-documents-panel.tsx src/app/'(dashboard)'/dashboard/listings/'[id]'/page.tsx` - przechodzi.
 
 ### D7. Powiadomienia i dashboard
 

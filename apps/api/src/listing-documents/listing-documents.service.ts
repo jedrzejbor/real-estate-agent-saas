@@ -50,6 +50,26 @@ export interface ListingDocumentView {
 
 export interface ListingDocumentsResponse {
   documents: ListingDocumentView[];
+  checklist: ListingDocumentChecklistResponse;
+}
+
+export interface ListingDocumentChecklistItem {
+  category: ListingDocumentCategory;
+  required: boolean;
+  status: ListingDocumentStatus;
+  documentId: string | null;
+  displayName: string;
+}
+
+export interface ListingDocumentChecklistResponse {
+  items: ListingDocumentChecklistItem[];
+  summary: {
+    required: number;
+    approved: number;
+    missing: number;
+    needsCorrection: number;
+    completionPct: number;
+  };
 }
 
 export interface ListingDocumentDownload {
@@ -82,7 +102,7 @@ export class ListingDocumentsService {
     userId: string,
   ): Promise<ListingDocumentsResponse> {
     const agent = await this.resolveAgent(userId);
-    await this.assertListingAccess(listingId, agent.id);
+    const listing = await this.assertListingAccess(listingId, agent.id);
 
     const documents = await this.documentRepo.find({
       where: { listingId, agentId: agent.id },
@@ -91,7 +111,22 @@ export class ListingDocumentsService {
 
     return {
       documents: documents.map((document) => this.toView(document)),
+      checklist: this.buildChecklist(listing, documents),
     };
+  }
+
+  async getChecklist(
+    listingId: string,
+    userId: string,
+  ): Promise<ListingDocumentChecklistResponse> {
+    const agent = await this.resolveAgent(userId);
+    const listing = await this.assertListingAccess(listingId, agent.id);
+    const documents = await this.documentRepo.find({
+      where: { listingId, agentId: agent.id },
+      order: { createdAt: 'DESC' },
+    });
+
+    return this.buildChecklist(listing, documents);
   }
 
   async findOne(
@@ -388,6 +423,146 @@ export class ListingDocumentsService {
 
     return filePath;
   }
+
+  private buildChecklist(
+    listing: Listing,
+    documents: ListingDocument[],
+  ): ListingDocumentChecklistResponse {
+    const requirements = getDocumentRequirements(listing);
+    const byCategory = new Map<ListingDocumentCategory, ListingDocument>();
+
+    for (const document of documents) {
+      const current = byCategory.get(document.category);
+      if (!current || rankStatus(document.status) > rankStatus(current.status)) {
+        byCategory.set(document.category, document);
+      }
+    }
+
+    const items = requirements.map((requirement) => {
+      const document = byCategory.get(requirement.category);
+
+      return {
+        category: requirement.category,
+        required: requirement.required,
+        status: document?.status ?? ListingDocumentStatus.MISSING,
+        documentId: document?.id ?? null,
+        displayName: requirement.displayName,
+      };
+    });
+
+    const requiredItems = items.filter((item) => item.required);
+    const approved = requiredItems.filter(
+      (item) => item.status === ListingDocumentStatus.APPROVED,
+    ).length;
+    const missing = requiredItems.filter(
+      (item) => item.status === ListingDocumentStatus.MISSING,
+    ).length;
+    const needsCorrection = requiredItems.filter(
+      (item) => item.status === ListingDocumentStatus.NEEDS_CORRECTION,
+    ).length;
+
+    return {
+      items,
+      summary: {
+        required: requiredItems.length,
+        approved,
+        missing,
+        needsCorrection,
+        completionPct:
+          requiredItems.length > 0
+            ? Math.round((approved / requiredItems.length) * 100)
+            : 0,
+      },
+    };
+  }
+}
+
+interface ListingDocumentRequirement {
+  category: ListingDocumentCategory;
+  displayName: string;
+  required: boolean;
+}
+
+const BASE_DOCUMENT_REQUIREMENTS: ListingDocumentRequirement[] = [
+  {
+    category: ListingDocumentCategory.AGENCY_AGREEMENT,
+    displayName: 'Umowa pośrednictwa',
+    required: true,
+  },
+  {
+    category: ListingDocumentCategory.ENERGY_CERTIFICATE,
+    displayName: 'Świadectwo energetyczne',
+    required: true,
+  },
+  {
+    category: ListingDocumentCategory.FLOOR_PLAN,
+    displayName: 'Rzut lokalu',
+    required: false,
+  },
+  {
+    category: ListingDocumentCategory.POWER_OF_ATTORNEY,
+    displayName: 'Pełnomocnictwo',
+    required: false,
+  },
+];
+
+const SALE_DOCUMENT_REQUIREMENTS: ListingDocumentRequirement[] = [
+  {
+    category: ListingDocumentCategory.LAND_AND_MORTGAGE_REGISTER,
+    displayName: 'Księga wieczysta / numer KW',
+    required: true,
+  },
+  {
+    category: ListingDocumentCategory.OWNERSHIP_DEED,
+    displayName: 'Akt własności / podstawa nabycia',
+    required: true,
+  },
+  {
+    category: ListingDocumentCategory.NO_ARREARS_CERTIFICATE,
+    displayName: 'Zaświadczenie o niezaleganiu',
+    required: false,
+  },
+  {
+    category: ListingDocumentCategory.COMMUNITY_DOCUMENTS,
+    displayName: 'Dokumenty wspólnoty/spółdzielni',
+    required: false,
+  },
+];
+
+const RENT_DOCUMENT_REQUIREMENTS: ListingDocumentRequirement[] = [
+  {
+    category: ListingDocumentCategory.OWNERSHIP_DEED,
+    displayName: 'Potwierdzenie prawa do lokalu',
+    required: true,
+  },
+  {
+    category: ListingDocumentCategory.HANDOVER_PROTOCOL,
+    displayName: 'Protokół zdawczo-odbiorczy',
+    required: false,
+  },
+];
+
+function getDocumentRequirements(listing: Listing): ListingDocumentRequirement[] {
+  const transactionRequirements =
+    listing.transactionType === 'sale'
+      ? SALE_DOCUMENT_REQUIREMENTS
+      : RENT_DOCUMENT_REQUIREMENTS;
+
+  return [...BASE_DOCUMENT_REQUIREMENTS, ...transactionRequirements];
+}
+
+function rankStatus(status: ListingDocumentStatus): number {
+  const rank: Record<ListingDocumentStatus, number> = {
+    missing: 0,
+    requested: 1,
+    needs_correction: 2,
+    uploaded: 3,
+    in_review: 4,
+    expired: 4,
+    approved: 5,
+  };
+
+  return rank[status];
 }
 
 function normalizeDisplayName(value: string): string {

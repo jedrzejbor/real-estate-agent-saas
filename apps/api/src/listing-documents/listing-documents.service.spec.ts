@@ -49,7 +49,7 @@ describe('ListingDocumentsService', () => {
 
   it('lists documents only after confirming listing ownership', async () => {
     const { service, documentRepo, listingRepo } = setup();
-    listingRepo.findOne.mockResolvedValue({ id: listingId, agentId: agent.id });
+    listingRepo.findOne.mockResolvedValue(buildListing());
     documentRepo.find.mockResolvedValue([
       buildDocument({ id: documentId, displayName: 'Umowa' }),
     ]);
@@ -68,6 +68,7 @@ describe('ListingDocumentsService', () => {
       id: documentId,
       displayName: 'Umowa',
     });
+    expect(result.checklist.summary.required).toBeGreaterThan(0);
   });
 
   it('does not expose whether a listing exists outside the agent scope', async () => {
@@ -78,6 +79,32 @@ describe('ListingDocumentsService', () => {
       NotFoundException,
     );
     expect(documentRepo.find).not.toHaveBeenCalled();
+  });
+
+  it('builds checklist summary from required documents', async () => {
+    const { service, documentRepo, listingRepo } = setup();
+    listingRepo.findOne.mockResolvedValue(buildListing());
+    documentRepo.find.mockResolvedValue([
+      buildDocument({
+        category: ListingDocumentCategory.AGENCY_AGREEMENT,
+        status: ListingDocumentStatus.APPROVED,
+      }),
+      buildDocument({
+        id: 'document-2',
+        category: ListingDocumentCategory.LAND_AND_MORTGAGE_REGISTER,
+        status: ListingDocumentStatus.NEEDS_CORRECTION,
+      }),
+    ]);
+
+    const checklist = await service.getChecklist(listingId, userId);
+
+    expect(checklist.summary).toMatchObject({
+      required: 4,
+      approved: 1,
+      missing: 2,
+      needsCorrection: 1,
+      completionPct: 25,
+    });
   });
 
   it('creates metadata-only document and logs an event', async () => {
@@ -174,6 +201,16 @@ function buildDocument(overrides: Record<string, unknown> = {}) {
     reviewedByUserId: null,
     createdAt: now,
     updatedAt: now,
+    ...overrides,
+  };
+}
+
+function buildListing(overrides: Record<string, unknown> = {}) {
+  return {
+    id: listingId,
+    agentId: agent.id,
+    transactionType: 'sale',
+    propertyType: 'apartment',
     ...overrides,
   };
 }
