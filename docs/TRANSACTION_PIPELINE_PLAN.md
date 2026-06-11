@@ -507,24 +507,24 @@ Pozostało:
 
 ### T2. Frontend MVP transakcji
 
-Status: częściowo wykonane - pierwsza iteracja 2026-06-11
+Status: wykonane w zakresie MVP - druga iteracja 2026-06-12
 
 Zakres:
 
 - [x] dodać klienta API w `apps/web/src/lib`,
 - [x] dodać route `/dashboard/transactions`,
 - [x] dodać widok pipeline,
-- [ ] dodać osobny widok szczegółów transakcji,
+- [x] dodać osobny widok szczegółów transakcji,
 - [x] dodać formularz tworzenia,
-- [ ] dodać formularz edycji,
-- [ ] dodać akcję `Utwórz transakcję` na szczegółach oferty,
+- [x] dodać formularz edycji,
+- [x] dodać akcję `Utwórz transakcję` na szczegółach oferty,
 - [x] dodać podstawową checklistę.
 
 Kryteria akceptacji:
 
 - [x] Agent widzi transakcje w kolumnach pipeline.
 - [x] Agent może zmieniać status transakcji.
-- [ ] Agent może przejść z oferty do powiązanej transakcji.
+- [x] Agent może przejść z oferty do powiązanej transakcji.
 - [x] Agent widzi najbliższy termin, prowizję i blokadę zamknięcia.
 
 Wykonane:
@@ -547,18 +547,48 @@ Wykonane:
   - odhaczanie podstawowych zadań checklisty,
   - pokazanie wartości, prowizji, terminu i blokady.
 
+Wykonane w drugiej iteracji:
+
+- Rozszerzono `apps/web/src/lib/transactions.ts` o:
+  - pobranie pojedynczej transakcji,
+  - aktualizację transakcji,
+  - pobranie historii eventów,
+  - dodawanie i usuwanie zadań,
+  - osobny schemat walidacji edycji,
+  - payload pozwalający świadomie czyścić pola nullable, np. właściciela albo
+    prowizję.
+- Dodano dynamiczną stronę szczegółów:
+  `apps/web/src/app/(dashboard)/dashboard/transactions/[id]/page.tsx`.
+- Widok szczegółów obsługuje:
+  - podsumowanie wartości, prowizji, otwartych zadań i terminu,
+  - edycję statusu, stron transakcji, wartości, waluty, prowizji, terminów,
+    blokady i notatki prywatnej,
+  - wymagane pole powodu utraty przy statusie `closed_lost` przez walidację
+    backendową,
+  - linki do powiązanej oferty i klientów,
+  - checklistę z dodawaniem, odhaczaniem i usuwaniem zadań,
+  - podstawowy widok historii zdarzeń transakcji.
+- Karty pipeline prowadzą do szczegółów transakcji.
+- Widok szczegółów oferty dostał akcję `Utwórz transakcję`, która prowadzi do
+  `/dashboard/transactions?listingId=...`.
+- Lista transakcji odczytuje `listingId` z query stringa i automatycznie
+  uzupełnia ofertę, wartość oraz prowizję w formularzu tworzenia.
+
 Weryfikacja:
 
 - `pnpm --filter web type-check` - przechodzi.
 - `pnpm --filter web build` - przechodzi po zezwoleniu na pobranie fontów przez
   `next/font`.
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter api test -- transaction-commission listing-commission` -
+  przechodzi.
 
 Pozostało:
 
-- Dodać osobną stronę szczegółów transakcji.
-- Dodać edycję wszystkich pól transakcji z UI.
-- Dodać akcję z widoku oferty do utworzenia transakcji.
-- Dodać testy frontendowe, jeśli repo wprowadzi runner testów UI.
+- Dodać bardziej granularne testy frontendowe, jeśli repo wprowadzi runner
+  testów UI.
+- Rozważyć wyniesienie formularzy transakcji do komponentów współdzielonych, gdy
+  powstanie trzeci wariant formularza.
 
 ### T3. Integracja z ofertami, dokumentami i raportem `Zarobki`
 

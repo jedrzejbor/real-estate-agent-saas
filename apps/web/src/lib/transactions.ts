@@ -85,6 +85,15 @@ export interface TransactionTask {
   updatedAt: string;
 }
 
+export interface TransactionEvent {
+  id: string;
+  transactionId: string;
+  type: string;
+  metadata: Record<string, unknown>;
+  actorUserId?: string | null;
+  createdAt: string;
+}
+
 export interface Transaction {
   id: string;
   listingId: string;
@@ -193,6 +202,42 @@ export const createTransactionSchema = z
 
 export type CreateTransactionFormData = z.infer<typeof createTransactionSchema>;
 
+export const updateTransactionSchema = createTransactionSchema
+  .omit({
+    listingId: true,
+  })
+  .extend({
+    buyerClientId: z.string().uuid('Wybierz klienta').optional(),
+    sellerClientId: z
+      .string()
+      .uuid('Wybierz właściciela')
+      .optional()
+      .or(z.literal('')),
+    status: z
+      .enum([
+        TransactionStatus.LEAD_OFFER,
+        TransactionStatus.NEGOTIATION,
+        TransactionStatus.RESERVED,
+        TransactionStatus.PRELIMINARY_AGREEMENT,
+        TransactionStatus.FINANCING,
+        TransactionStatus.NOTARY_SCHEDULED,
+        TransactionStatus.HANDOVER,
+        TransactionStatus.CLOSED_WON,
+        TransactionStatus.CLOSED_LOST,
+      ])
+      .optional(),
+    currency: z.string().length(3, 'Waluta musi mieć 3 znaki').optional(),
+    reservationExpiresAt: z.string().optional().or(z.literal('')),
+    preliminaryAgreementDate: z.string().optional().or(z.literal('')),
+    financingDeadline: z.string().optional().or(z.literal('')),
+    notaryDate: z.string().optional().or(z.literal('')),
+    handoverDate: z.string().optional().or(z.literal('')),
+    commissionDueDate: z.string().optional().or(z.literal('')),
+    lostReason: z.string().max(500).optional().or(z.literal('')),
+  });
+
+export type UpdateTransactionFormData = z.infer<typeof updateTransactionSchema>;
+
 function buildQueryString(filters: TransactionFilters): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
@@ -212,12 +257,26 @@ export async function fetchTransactions(
   );
 }
 
+export async function fetchTransaction(id: string): Promise<Transaction> {
+  return apiFetch<Transaction>(`/transactions/${id}`);
+}
+
 export async function createTransaction(
   data: CreateTransactionFormData,
 ): Promise<Transaction> {
   return apiFetch<Transaction>('/transactions', {
     method: 'POST',
     body: cleanPayload(data),
+  });
+}
+
+export async function updateTransaction(
+  id: string,
+  data: Record<string, unknown>,
+): Promise<Transaction> {
+  return apiFetch<Transaction>(`/transactions/${id}`, {
+    method: 'PATCH',
+    body: cleanPayload(data, { keepNull: true }),
   });
 }
 
@@ -229,6 +288,26 @@ export async function updateTransactionStatus(
   return apiFetch<Transaction>(`/transactions/${id}/status`, {
     method: 'PATCH',
     body: cleanPayload({ status, lostReason }),
+  });
+}
+
+export async function fetchTransactionEvents(
+  id: string,
+): Promise<TransactionEvent[]> {
+  return apiFetch<TransactionEvent[]>(`/transactions/${id}/events`);
+}
+
+export async function addTransactionTask(
+  transactionId: string,
+  data: {
+    title: string;
+    priority?: TransactionTaskPriority;
+    dueDate?: string;
+  },
+): Promise<TransactionTask> {
+  return apiFetch<TransactionTask>(`/transactions/${transactionId}/tasks`, {
+    method: 'POST',
+    body: cleanPayload(data),
   });
 }
 
@@ -244,6 +323,15 @@ export async function updateTransactionTask(
       body: cleanPayload(data),
     },
   );
+}
+
+export async function deleteTransactionTask(
+  transactionId: string,
+  taskId: string,
+): Promise<void> {
+  return apiFetch<void>(`/transactions/${transactionId}/tasks/${taskId}`, {
+    method: 'DELETE',
+  });
 }
 
 export function formatTransactionMoney(
@@ -282,10 +370,14 @@ export function formatTransactionCommission(transaction: Transaction): string {
   return `${LISTING_COMMISSION_TYPE_LABELS[transaction.commissionType]}: ${value} (${amount})`;
 }
 
-function cleanPayload(data: Record<string, unknown>): Record<string, unknown> {
+function cleanPayload(
+  data: Record<string, unknown>,
+  options: { keepNull?: boolean } = {},
+): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
-    if (value === '' || value === undefined || value === null) continue;
+    if (value === '' || value === undefined) continue;
+    if (value === null && !options.keepNull) continue;
     result[key] = value;
   }
   return result;

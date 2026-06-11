@@ -19,6 +19,7 @@ import {
   FileText,
   Layers,
   WalletCards,
+  Handshake,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -58,8 +59,7 @@ export default function ListingDetailPage() {
   const { confirm } = useConfirm();
   const { error: showErrorToast, success: showSuccessToast } = useToast();
   const [listing, setListing] = useState<Listing | null>(null);
-  const [activeTab, setActiveTab] =
-    useState<ListingDetailTabId>('overview');
+  const [activeTab, setActiveTab] = useState<ListingDetailTabId>('overview');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRollingBackStatus, setIsRollingBackStatus] = useState(false);
@@ -252,6 +252,12 @@ export default function ListingDetailPage() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <Link href={`/dashboard/transactions?listingId=${listing.id}`}>
+            <Button variant="outline" size="sm" className="gap-1.5 rounded-xl">
+              <Handshake className="h-3.5 w-3.5" />
+              Utwórz transakcję
+            </Button>
+          </Link>
           <Link href={`/dashboard/listings/${listing.id}/edit`}>
             <Button variant="outline" size="sm" className="gap-1.5 rounded-xl">
               <Pencil className="h-3.5 w-3.5" />
@@ -331,9 +337,7 @@ export default function ListingDetailPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <Icon className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-semibold">
-                        {tab.label}
-                      </span>
+                      <span className="text-sm font-semibold">{tab.label}</span>
                     </div>
                     {tab.badge ? (
                       <Badge variant="outline" className="rounded-full">
@@ -602,7 +606,9 @@ function ListingStatusActionsCard({
             onClick={onStatusRollback}
             disabled={isRollingBackStatus}
           >
-            {isRollingBackStatus ? 'Cofanie statusu...' : `Cofnij do: ${rollbackLabel}`}
+            {isRollingBackStatus
+              ? 'Cofanie statusu...'
+              : `Cofnij do: ${rollbackLabel}`}
           </Button>
         ) : null}
         {statusActions.map((action) => (

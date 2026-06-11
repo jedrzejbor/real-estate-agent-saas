@@ -1,6 +1,8 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, Circle, Plus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getApiErrorMessage } from '@/lib/api-client';
@@ -42,6 +44,7 @@ const initialForm: CreateTransactionFormData = {
 };
 
 export default function TransactionsPage() {
+  const searchParams = useSearchParams();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -76,6 +79,13 @@ export default function TransactionsPage() {
   useEffect(() => {
     void loadData();
   }, []);
+
+  useEffect(() => {
+    const listingId = searchParams.get('listingId');
+    if (listingId && listings.length > 0 && form.listingId !== listingId) {
+      handleListingChange(listingId);
+    }
+  }, [form.listingId, listings, searchParams]);
 
   const transactionsByStatus = useMemo(() => {
     return TRANSACTION_PIPELINE_STATUSES.reduce(
@@ -445,7 +455,12 @@ function TransactionCard({
     <article className="rounded-lg border border-border bg-card p-4 shadow-sm">
       <div className="space-y-1">
         <h3 className="line-clamp-2 text-sm font-semibold text-foreground">
-          {transaction.title}
+          <Link
+            href={`/dashboard/transactions/${transaction.id}`}
+            className="hover:text-primary"
+          >
+            {transaction.title}
+          </Link>
         </h3>
         <p className="text-xs text-muted-foreground">{clientName}</p>
       </div>
