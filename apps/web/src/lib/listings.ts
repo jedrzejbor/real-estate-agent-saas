@@ -36,6 +36,14 @@ export const ListingPublicationStatus = {
 export type ListingPublicationStatus =
   (typeof ListingPublicationStatus)[keyof typeof ListingPublicationStatus];
 
+export const ListingCommissionType = {
+  PERCENTAGE: 'percentage',
+  FIXED: 'fixed',
+} as const;
+
+export type ListingCommissionType =
+  (typeof ListingCommissionType)[keyof typeof ListingCommissionType];
+
 export const TransactionType = {
   SALE: 'sale',
   RENT: 'rent',
@@ -77,6 +85,14 @@ export const LISTING_PUBLICATION_STATUS_LABELS: Record<
 export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
   sale: 'Sprzedaż',
   rent: 'Wynajem',
+};
+
+export const LISTING_COMMISSION_TYPE_LABELS: Record<
+  ListingCommissionType,
+  string
+> = {
+  percentage: '% ceny',
+  fixed: 'Kwota stała',
 };
 
 export const STATUS_BADGE_VARIANT: Record<
@@ -122,6 +138,9 @@ export interface Listing {
   transactionType: TransactionType;
   price: number | string;
   currency: string;
+  commissionType?: ListingCommissionType | null;
+  commissionValue?: number | string | null;
+  commissionAmount?: number | null;
   areaM2?: number | string;
   plotAreaM2?: number | string;
   rooms?: number;
@@ -443,6 +462,11 @@ export const createListingSchema = z
       .number({ message: 'Cena musi być liczbą' })
       .positive('Cena musi być większa od zera'),
     currency: z.string().max(3).optional(),
+    commissionType: z
+      .enum(['percentage', 'fixed'])
+      .optional()
+      .or(z.literal('')),
+    commissionValue: z.literal('').or(z.coerce.number().min(0)).optional(),
     areaM2: z.coerce.number().positive().optional().or(z.literal('')),
     plotAreaM2: z.coerce.number().positive().optional().or(z.literal('')),
     rooms: z.coerce.number().int().min(1).max(99).optional().or(z.literal('')),
@@ -478,6 +502,39 @@ export const createListingSchema = z
         code: z.ZodIssueCode.custom,
         path: ['plotAreaM2'],
         message: 'Powierzchnia działki jest wymagana',
+      });
+    }
+
+    const hasCommissionType =
+      data.commissionType !== '' && data.commissionType !== undefined;
+    const hasCommissionValue =
+      data.commissionValue !== '' && data.commissionValue !== undefined;
+
+    if (!hasCommissionType && hasCommissionValue) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['commissionType'],
+        message: 'Wybierz typ prowizji albo usuń wartość prowizji',
+      });
+    }
+
+    if (hasCommissionType && !hasCommissionValue) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['commissionValue'],
+        message: 'Wartość prowizji jest wymagana',
+      });
+    }
+
+    if (
+      data.commissionType === ListingCommissionType.PERCENTAGE &&
+      typeof data.commissionValue === 'number' &&
+      data.commissionValue > 100
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['commissionValue'],
+        message: 'Prowizja procentowa nie może być większa niż 100%',
       });
     }
   });
@@ -590,8 +647,7 @@ export async function reportPublicListingAbuse(
 export async function createListing(
   data: CreateListingFormData,
 ): Promise<Listing> {
-  // Clean empty strings to undefined
-  const cleaned = cleanPayload(data);
+  const cleaned = cleanListingPayload(data);
   const listing = await apiFetch<Listing>('/listings', {
     method: 'POST',
     body: cleaned,
@@ -617,7 +673,7 @@ export async function updateListing(
       status?: ListingStatus;
     },
 ): Promise<Listing> {
-  const cleaned = cleanPayload(data);
+  const cleaned = cleanListingPayload(data);
   return apiFetch<Listing>(`/listings/${id}`, {
     method: 'PATCH',
     body: cleaned,
@@ -748,6 +804,26 @@ function cleanPayload(data: Record<string, unknown>): Record<string, unknown> {
   return result;
 }
 
+function cleanListingPayload(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  const result = cleanPayload(data);
+  const hasCommissionType = Object.prototype.hasOwnProperty.call(
+    data,
+    'commissionType',
+  );
+
+  if (
+    hasCommissionType &&
+    (data.commissionType === '' || data.commissionType === null)
+  ) {
+    result.commissionType = null;
+    result.commissionValue = null;
+  }
+
+  return result;
+}
+
 function cleanPublicListingSettingsPayload(
   data: PublicListingSettingsFormData,
 ): Record<string, unknown> {
@@ -765,6 +841,51 @@ export function formatPrice(price: number | string, currency = 'PLN'): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(num);
+}
+
+export function calculateListingCommissionAmount(
+  listing: Pick<Listing, 'price' | 'commissionType' | 'commissionValue'>,
+): number | null {
+  const price = parseOptionalNumber(listing.price);
+  const commissionValue = parseOptionalNumber(listing.commissionValue);
+
+  if (!listing.commissionType || price === null || commissionValue === null) {
+    return null;
+  }
+
+  if (listing.commissionType === ListingCommissionType.PERCENTAGE) {
+    return roundMoney((price * commissionValue) / 100);
+  }
+
+  if (listing.commissionType === ListingCommissionType.FIXED) {
+    return roundMoney(commissionValue);
+  }
+
+  return null;
+}
+
+export function formatListingCommission(listing: Listing): string {
+  const amount =
+    listing.commissionAmount ?? calculateListingCommissionAmount(listing);
+
+  if (amount === null) {
+    return 'Nie ustawiono';
+  }
+
+  return formatPrice(amount, listing.currency);
+}
+
+function parseOptionalNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 /** Format area with m² suffix. */

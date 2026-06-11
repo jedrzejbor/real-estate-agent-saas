@@ -183,7 +183,7 @@ Weryfikacja:
 
 ### C3. Frontend typy i schema formularza
 
-Status: TODO
+Status: wykonane - etap 3 web contract 2026-06-11
 
 Zakres:
 
@@ -203,9 +203,34 @@ type ListingCommissionType = 'percentage' | 'fixed';
 
 Kryteria akceptacji:
 
-- [ ] TypeScript rozumie pola prowizji w dashboardowym typie `Listing`.
-- [ ] Formularz nie pozwala wysłać niepoprawnej kombinacji pól.
-- [ ] Brak prowizji działa bez błędów w istniejących ofertach.
+- [x] TypeScript rozumie pola prowizji w dashboardowym typie `Listing`.
+- [x] Formularz nie pozwala wysłać niepoprawnej kombinacji pól.
+- [x] Brak prowizji działa bez błędów w istniejących ofertach.
+
+Wykonane:
+
+- Dodano webowy enum `ListingCommissionType` oraz labelki
+  `LISTING_COMMISSION_TYPE_LABELS` w `apps/web/src/lib/listings.ts`.
+- Rozszerzono dashboardowy typ `Listing` o:
+  - `commissionType`,
+  - `commissionValue`,
+  - `commissionAmount`.
+- Rozszerzono `createListingSchema` o walidację prowizji:
+  - wartość bez typu prowizji jest odrzucana,
+  - typ prowizji bez wartości jest odrzucany,
+  - prowizja procentowa powyżej `100` jest odrzucana,
+  - brak prowizji pozostaje poprawnym stanem.
+- Dodano `cleanListingPayload()`, który pozwala świadomie wyczyścić prowizję
+  przez wysłanie `commissionType: null` i `commissionValue: null`.
+- Dodano helpery:
+  - `calculateListingCommissionAmount()`,
+  - `formatListingCommission()`.
+- Publiczne typy listingów nie zostały rozszerzone o pola prowizyjne.
+
+Weryfikacja:
+
+- `pnpm --filter web type-check` - przechodzi.
+- `pnpm --filter web exec eslint src/lib/listings.ts` - przechodzi.
 
 ### C4. UI formularza oferty
 
