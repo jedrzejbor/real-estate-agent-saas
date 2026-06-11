@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Listing } from '../listings/entities/listing.entity';
+import { buildListingCommissionSumSql } from '../listings/listing-commission-query';
 import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
@@ -43,6 +44,7 @@ export interface ReportsOverviewSummary {
   appointments: number;
   completedAppointments: number;
   portfolioValue: number;
+  estimatedCommissionValue: number;
 }
 
 export interface ReportsOverviewMetricDelta {
@@ -66,6 +68,7 @@ export interface ReportsOverviewComparison {
     appointments: ReportsOverviewMetricDelta;
     completedAppointments: ReportsOverviewMetricDelta;
     portfolioValue: ReportsOverviewMetricDelta;
+    estimatedCommissionValue: ReportsOverviewMetricDelta;
   };
 }
 
@@ -443,11 +446,16 @@ export class ReportsService {
             summary.portfolioValue,
             previousSummary.portfolioValue,
           ),
+          estimatedCommissionValue: this.buildMetricDelta(
+            summary.estimatedCommissionValue,
+            previousSummary.estimatedCommissionValue,
+          ),
         },
       },
       timeline,
       notes: [
         'Widok Przegląd zawiera już bazowe KPI, porównanie do poprzedniego okresu i bucketowane trendy.',
+        'Szacowana prowizja jest liczona z prywatnych pól ofert i nie oznacza jeszcze rozliczonego przychodu ani wypłaty.',
         'Zakres danych nadal jest wymuszany po stronie backendu na podstawie roli i dozwolonego scope agenta / zespołu.',
         'Kolejne iteracje dołożą osobne endpointy raportowe dla ofert, klientów, lejka i spotkań.',
       ],
@@ -930,6 +938,7 @@ export class ReportsService {
       appointments,
       completedAppointments,
       portfolioValueRaw,
+      estimatedCommissionRaw,
     ] = await Promise.all([
       listingBase
         .clone()
@@ -980,6 +989,15 @@ export class ReportsService {
         .andWhere('listing.status = :status', { status: ListingStatus.ACTIVE })
         .andWhere('listing.createdAt <= :dateTo', { dateTo: filters.dateTo })
         .getRawOne<{ portfolioValue: string }>(),
+      listingBase
+        .clone()
+        .select(
+          buildListingCommissionSumSql('listing'),
+          'estimatedCommissionValue',
+        )
+        .andWhere('listing.status = :status', { status: ListingStatus.ACTIVE })
+        .andWhere('listing.createdAt <= :dateTo', { dateTo: filters.dateTo })
+        .getRawOne<{ estimatedCommissionValue: string }>(),
     ]);
 
     return {
@@ -990,6 +1008,9 @@ export class ReportsService {
       appointments,
       completedAppointments,
       portfolioValue: Number(portfolioValueRaw?.portfolioValue ?? 0),
+      estimatedCommissionValue: Number(
+        estimatedCommissionRaw?.estimatedCommissionValue ?? 0,
+      ),
     };
   }
 

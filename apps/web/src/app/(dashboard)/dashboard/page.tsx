@@ -9,6 +9,7 @@ import {
   CalendarCheck,
   TrendingUp,
   DollarSign,
+  CircleDollarSign,
   Clock,
   ArrowRight,
   RefreshCw,
@@ -339,7 +340,7 @@ function DashboardOverviewContent({ stats }: { stats: DashboardStats }) {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <RevenueCard
           label="Wartość aktywnych ofert"
           value={formatPricePL(stats.revenue.totalListedValue)}
@@ -354,6 +355,16 @@ function DashboardOverviewContent({ stats }: { stats: DashboardStats }) {
           label="Wartość sprzedaży"
           value={formatPricePL(stats.revenue.soldValue)}
           icon={Percent}
+        />
+        <RevenueCard
+          label="Szac. prowizja aktywna"
+          value={formatPricePL(stats.revenue.activeCommissionValue)}
+          icon={CircleDollarSign}
+        />
+        <RevenueCard
+          label="Prowizja zamknięta"
+          value={formatPricePL(stats.revenue.closedCommissionValue)}
+          icon={TrendingUp}
         />
       </div>
     </div>

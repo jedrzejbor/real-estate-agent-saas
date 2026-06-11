@@ -4,6 +4,7 @@ import {
   calculateListingCommissionAmount,
   normalizeListingCommissionInput,
 } from './listing-commission';
+import { buildListingCommissionSumSql } from './listing-commission-query';
 
 describe('listing commission helpers', () => {
   it('normalizes empty commission to null values', () => {
@@ -88,5 +89,15 @@ describe('listing commission helpers', () => {
         commissionValue: '15000.00',
       }),
     ).toBe(15000);
+  });
+
+  it('builds aggregate SQL with quoted camelCase columns', () => {
+    const sql = buildListingCommissionSumSql('listing');
+
+    expect(sql).toContain('listing."commissionType"');
+    expect(sql).toContain('listing."commissionValue"');
+    expect(sql).toContain('listing."price"');
+    expect(sql).not.toContain('listing.commissionType');
+    expect(sql).not.toContain('listing.commissionValue');
   });
 });

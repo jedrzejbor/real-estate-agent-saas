@@ -25,7 +25,7 @@ export function ReportsKpiStrip({
   comparison,
 }: ReportsKpiStripProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
       <KpiCard
         label="Nowe oferty"
         value={String(summary.newListings)}
@@ -58,6 +58,14 @@ export function ReportsKpiStrip({
         icon={CircleDollarSign}
         tone="terracotta"
       />
+      <KpiCard
+        label="Szac. prowizja"
+        value={formatPricePL(summary.estimatedCommissionValue)}
+        subtitle="Prywatna estymacja z aktywnych ofert"
+        delta={comparison.deltas.estimatedCommissionValue}
+        icon={CircleDollarSign}
+        tone="primary"
+      />
     </div>
   );
 }
@@ -75,13 +83,14 @@ function KpiCard({
   subtitle: string;
   delta: ReportsOverviewComparison['deltas'][keyof ReportsOverviewComparison['deltas']];
   icon: ElementType;
-  tone: 'emerald' | 'gold' | 'info' | 'terracotta';
+  tone: 'emerald' | 'gold' | 'info' | 'terracotta' | 'primary';
 }) {
   const toneClass = {
     emerald: 'bg-brand-emerald-light text-brand-emerald',
     gold: 'bg-brand-gold-light text-brand-gold-dark',
     info: 'bg-status-info-bg text-status-info',
     terracotta: 'bg-orange-50 text-brand-terracotta',
+    primary: 'bg-primary/10 text-primary',
   }[tone];
   const deltaTone = getReportsDeltaTone(delta);
 

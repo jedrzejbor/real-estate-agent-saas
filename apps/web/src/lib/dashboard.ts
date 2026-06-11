@@ -35,6 +35,8 @@ export interface RevenueStats {
   totalListedValue: number;
   avgPrice: number;
   soldValue: number;
+  activeCommissionValue: number;
+  closedCommissionValue: number;
 }
 
 export interface RecentActivity {

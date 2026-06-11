@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import { Listing } from '../listings/entities/listing.entity';
+import { buildListingCommissionSumSql } from '../listings/listing-commission-query';
 import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
@@ -47,6 +48,8 @@ export interface RevenueStats {
   totalListedValue: number; // Sum of prices of active listings
   avgPrice: number;
   soldValue: number; // Sum of prices of sold listings
+  activeCommissionValue: number; // Estimated commission from active listings
+  closedCommissionValue: number; // Estimated commission from sold/rented listings
 }
 
 export interface RecentActivity {
@@ -243,6 +246,7 @@ export class DashboardService {
       .createQueryBuilder('l')
       .select('COALESCE(SUM(l.price), 0)::numeric', 'totalValue')
       .addSelect('COALESCE(AVG(l.price), 0)::numeric', 'avgPrice')
+      .addSelect(buildListingCommissionSumSql('l'), 'activeCommissionValue')
       .where('l.agentId = :agentId', { agentId })
       .andWhere('l.status = :status', { status: ListingStatus.ACTIVE })
       .getRawOne();
@@ -250,6 +254,7 @@ export class DashboardService {
     const soldResult = await this.listingRepo
       .createQueryBuilder('l')
       .select('COALESCE(SUM(l.price), 0)::numeric', 'soldValue')
+      .addSelect(buildListingCommissionSumSql('l'), 'closedCommissionValue')
       .where('l.agentId = :agentId', { agentId })
       .andWhere('l.status IN (:...statuses)', {
         statuses: [ListingStatus.SOLD, ListingStatus.RENTED],
@@ -260,6 +265,12 @@ export class DashboardService {
       totalListedValue: parseFloat(activeResult?.totalValue ?? '0'),
       avgPrice: Math.round(parseFloat(activeResult?.avgPrice ?? '0')),
       soldValue: parseFloat(soldResult?.soldValue ?? '0'),
+      activeCommissionValue: parseFloat(
+        activeResult?.activeCommissionValue ?? '0',
+      ),
+      closedCommissionValue: parseFloat(
+        soldResult?.closedCommissionValue ?? '0',
+      ),
     };
   }
 

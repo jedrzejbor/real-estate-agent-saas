@@ -415,6 +415,119 @@ pnpm --filter api test -- listings
 pnpm --filter web exec eslint src/lib/listings.ts src/components/listings/listing-form.tsx src/components/listings/listing-card.tsx
 ```
 
+### C8. Agregacje prowizji w dashboardzie i raportach
+
+Status: W TRAKCIE - etap 1 wykonany
+
+Cel:
+
+- Pokazać agentowi realny kontekst finansowy prowizji na bazie danych zapisanych
+  przy ofertach.
+- Rozdzielić wartość nieruchomości od szacowanej prowizji agenta, żeby dashboard
+  i raporty nie sugerowały, że suma cen ofert jest zarobkiem agenta.
+- Zachować prywatność prowizji: dane są dostępne tylko w dashboardzie i raportach
+  zalogowanego agenta.
+
+Zakres backendu:
+
+- Dodać wspólną, testowalną logikę agregacji prowizji po stronie API:
+  - `percentage`: `price * commissionValue / 100`,
+  - `fixed`: `commissionValue`,
+  - brak typu lub wartości: `0`.
+- Rozszerzyć `DashboardService` / `RevenueStats` o pola:
+  - `activeCommissionValue` - suma szacowanej prowizji z aktywnych ofert,
+  - `closedCommissionValue` - suma szacowanej prowizji z ofert sprzedanych i
+    wynajętych,
+  - opcjonalnie `totalCommissionValue` jako suma kontrolna, jeśli UI będzie jej
+    potrzebował.
+- Rozszerzyć raport `overview` o pole:
+  - `estimatedCommissionValue` dla aktywnych ofert w wybranym zakresie/scope.
+- Rozszerzyć porównanie okresów w raportach o deltę dla
+  `estimatedCommissionValue`.
+- Nie dodawać jeszcze miesięcznych rozliczeń, statusów wypłat ani eksportu
+  prowizji. To zostaje poza MVP.
+
+Zakres frontendu:
+
+- Rozszerzyć typy dashboardu i raportów o nowe pola prowizyjne.
+- Dodać KPI w dashboardzie `Przegląd`, np. `Szacowana prowizja`, z opisem jasno
+  wskazującym, czy dotyczy aktywnych ofert, czy zamkniętych transakcji.
+- Dodać KPI w raportach `Przegląd`, np. `Szacowana prowizja portfela`.
+- W copy UI używać słowa `szacowana`, ponieważ na tym etapie nie mamy jeszcze
+  statusów rozliczenia, faktur ani wypłat.
+- Nie pokazywać prowizji w publicznych komponentach, SEO metadata, JSON-LD,
+  Open Graph ani analytics eventach.
+
+Wykonano w etapie 1:
+
+- Dodano `apps/api/src/listings/listing-commission-query.ts` ze wspólnym
+  helperem SQL do liczenia kwoty i sumy prowizji dla zapytań agregujących.
+- Rozszerzono `DashboardService` / `RevenueStats` o:
+  - `activeCommissionValue`,
+  - `closedCommissionValue`.
+- Dashboard API liczy teraz szacowaną prowizję aktywnych ofert oraz prowizję
+  ofert sprzedanych/wynajętych tym samym wzorem, którego używa oferta.
+- Rozszerzono raport `overview` o:
+  - `summary.estimatedCommissionValue`,
+  - `comparison.deltas.estimatedCommissionValue`.
+- Dodano notatkę raportową wyjaśniającą, że szacowana prowizja nie jest jeszcze
+  rozliczonym przychodem ani wypłatą.
+- Rozszerzono typy webowe dashboardu i raportów o nowe pola prowizyjne.
+- Dodano KPI prowizji w dashboardzie `Przegląd`:
+  - `Szac. prowizja aktywna`,
+  - `Prowizja zamknięta`.
+- Dodano KPI `Szac. prowizja` w raportach `Przegląd`.
+- Hotfix po integracji: poprawiono helper SQL tak, aby cytował camelCase kolumny
+  `listing."commissionType"` i `listing."commissionValue"`. Bez tego Postgres
+  mógł zwracać błąd 500 na agregacjach dashboardu/raportów.
+- Dodano test regresyjny sprawdzający, że SQL agregacji prowizji używa
+  cytowanych nazw kolumn.
+
+Weryfikacja etapu 1:
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter web type-check` - przechodzi.
+- `pnpm --filter api test -- listing-commission.spec.ts` - przechodzi, w tym
+  test regresyjny dla SQL agregacji prowizji.
+- `pnpm --filter web exec eslint src/lib/dashboard.ts src/lib/reports.ts src/app/'(dashboard)'/dashboard/page.tsx src/components/reports/reports-kpi-strip.tsx` - przechodzi.
+- Celowany `eslint` dla API nie został uruchomiony, ponieważ pakiet API nie ma
+  konfiguracji ESLint 9 (`eslint.config.*`). Weryfikację API na tym etapie
+  pokrywają type-check i test helperów prowizji.
+
+Testy automatyczne:
+
+- API:
+  - agregacja ignoruje oferty bez prowizji,
+  - agregacja liczy prowizję procentową,
+  - agregacja liczy prowizję stałą,
+  - dashboard zwraca sumę prowizji aktywnych ofert,
+  - dashboard zwraca sumę prowizji zamkniętych ofert,
+  - raport `overview` zwraca `estimatedCommissionValue`,
+  - raport `overview` zwraca deltę dla `estimatedCommissionValue`.
+- Web:
+  - typy raportów i dashboardu obsługują nowe pola,
+  - komponent KPI renderuje prowizję jako kwotę,
+  - brak prowizji renderuje `0 zł`, a nie błąd lub `NaN`.
+
+Manual QA:
+
+| ID | Scenariusz | Oczekiwany wynik | Status |
+| --- | --- | --- | --- |
+| QA-COM-09 | Utwórz aktywną ofertę z prowizją procentową. | Dashboard `Przegląd` pokazuje szacowaną prowizję z aktywnych ofert. | TODO |
+| QA-COM-10 | Utwórz aktywną ofertę z prowizją stałą. | Dashboard i raporty sumują stałą prowizję jako kwotę. | TODO |
+| QA-COM-11 | Zmień status oferty na sprzedaną albo wynajętą. | Prowizja przechodzi do agregacji zamkniętych ofert. | TODO |
+| QA-COM-12 | Usuń prowizję z oferty. | Agregacje prowizji aktualizują się i nie pokazują starej kwoty. | TODO |
+| QA-COM-13 | Otwórz publiczną stronę, katalog i profil agenta. | Prowizja nadal nie jest widoczna publicznie. | TODO |
+
+Komendy weryfikacyjne:
+
+```bash
+pnpm --filter api type-check
+pnpm --filter web type-check
+pnpm --filter api test -- dashboard reports listing-commission
+pnpm --filter web exec eslint src/lib/dashboard.ts src/lib/reports.ts src/app/'(dashboard)'/dashboard/page.tsx src/components/reports/reports-kpi-strip.tsx
+```
+
 ## Poza zakresem MVP
 
 - Widok managera agencji z prowizjami pracowników.
@@ -442,7 +555,8 @@ Nie uznajemy funkcji za gotową, dopóki:
 
 - [ ] pola prowizji działają w create/update listing,
 - [ ] dashboard pokazuje wyliczoną prowizję,
+- [ ] dashboard i raporty pokazują agregacje szacowanej prowizji,
 - [ ] publiczne endpointy i komponenty nie ujawniają prowizji,
 - [ ] walidacja backendu i frontendu jest spójna,
 - [ ] type-check API i web przechodzą,
-- [ ] manualny QA `QA-COM-01` - `QA-COM-08` ma status `PASS` albo świadome `N/A`.
+- [ ] manualny QA `QA-COM-01` - `QA-COM-13` ma status `PASS` albo świadome `N/A`.

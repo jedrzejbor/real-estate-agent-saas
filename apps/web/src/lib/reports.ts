@@ -27,6 +27,7 @@ export interface ReportsOverviewSummary {
   appointments: number;
   completedAppointments: number;
   portfolioValue: number;
+  estimatedCommissionValue: number;
 }
 
 export interface ReportsOverviewMetricDelta {
@@ -59,6 +60,7 @@ export interface ReportsOverviewComparison {
     appointments: ReportsOverviewMetricDelta;
     completedAppointments: ReportsOverviewMetricDelta;
     portfolioValue: ReportsOverviewMetricDelta;
+    estimatedCommissionValue: ReportsOverviewMetricDelta;
   };
 }
 
