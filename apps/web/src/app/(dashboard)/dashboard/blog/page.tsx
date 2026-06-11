@@ -55,7 +55,7 @@ const STATUS_LABELS: Record<BlogPostStatusValue, string> = {
 const STATUS_STYLES: Record<BlogPostStatusValue, string> = {
   draft: 'border-stone-200 bg-stone-50 text-stone-700',
   scheduled: 'border-amber-200 bg-amber-50 text-amber-800',
-  published: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  published: 'border-status-success/25 bg-status-success-bg text-status-success',
   archived: 'border-slate-200 bg-slate-50 text-slate-700',
 };
 

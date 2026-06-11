@@ -308,7 +308,7 @@ function ImportBadge({
       className={cn(
         'inline-flex items-center rounded-lg px-2 py-1',
         variant === 'success'
-          ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+          ? 'bg-status-success-bg text-status-success ring-1 ring-status-success/25'
           : 'bg-amber-50 text-amber-800 ring-1 ring-amber-200',
       )}
     >

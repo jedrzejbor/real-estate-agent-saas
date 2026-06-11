@@ -153,7 +153,7 @@ function ClaimListingShell({ state }: { state: ClaimState }) {
               className={
                 state.result.reviewRequired
                   ? 'rounded-full bg-amber-100 p-3 text-amber-700'
-                  : 'rounded-full bg-emerald-100 p-3 text-emerald-700'
+                  : 'rounded-full bg-status-success-bg p-3 text-status-success'
               }
             >
               {state.result.reviewRequired ? (

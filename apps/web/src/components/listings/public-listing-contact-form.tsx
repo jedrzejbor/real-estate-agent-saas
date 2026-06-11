@@ -121,7 +121,7 @@ export function PublicListingContactForm({
 
   if (isSubmitted) {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+      <div className="rounded-xl border border-status-success/25 bg-status-success-bg p-4 text-sm text-status-success">
         <p className="font-semibold">Dziękujemy za wiadomość.</p>
         <p className="mt-1 leading-6">
           Opiekun oferty otrzymał Twoje zgłoszenie i może wrócić z kontaktem.

@@ -71,12 +71,12 @@ export function PublicListingAbuseReport({
 
   if (isSubmitted) {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900">
+      <div className="rounded-xl border border-status-success/25 bg-status-success-bg px-3 py-3 text-sm text-status-success">
         <div className="flex items-start gap-2">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <p className="font-medium">Zgłoszenie wysłane</p>
-            <p className="mt-0.5 text-emerald-800">
+            <p className="mt-0.5 text-status-success">
               Jeśli oferta narusza zasady, zespół może ją zweryfikować lub
               wycofać.
             </p>

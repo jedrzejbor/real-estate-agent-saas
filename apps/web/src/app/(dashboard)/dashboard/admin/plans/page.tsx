@@ -472,7 +472,7 @@ function PlanEditor({
               ))}
             </div>
           ) : (
-            <div className="mt-2 flex items-center gap-1 text-xs text-emerald-700">
+            <div className="mt-2 flex items-center gap-1 text-xs text-status-success">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Konfiguracja billingowa kompletna
             </div>

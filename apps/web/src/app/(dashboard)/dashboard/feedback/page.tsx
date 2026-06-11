@@ -40,7 +40,7 @@ const STATUS_STYLES: Record<ProductFeedbackStatusValue, string> = {
   needs_more_info: 'border-amber-200 bg-amber-50 text-amber-800',
   planned: 'border-violet-200 bg-violet-50 text-violet-700',
   in_progress: 'border-cyan-200 bg-cyan-50 text-cyan-700',
-  released: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  released: 'border-status-success/25 bg-status-success-bg text-status-success',
   declined: 'border-rose-200 bg-rose-50 text-rose-700',
   duplicate: 'border-slate-200 bg-slate-50 text-slate-700',
   archived: 'border-stone-200 bg-stone-50 text-stone-700',

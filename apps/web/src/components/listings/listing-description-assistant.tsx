@@ -94,7 +94,7 @@ export function ListingDescriptionAssistant({
           })}
         </div>
       ) : (
-        <div className="mt-4 flex gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-900 ring-1 ring-emerald-200">
+        <div className="mt-4 flex gap-2 rounded-lg bg-status-success-bg px-3 py-2 text-xs leading-5 text-status-success ring-1 ring-status-success/25">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
           Oferta ma komplet najważniejszych informacji do publicznej
           prezentacji.

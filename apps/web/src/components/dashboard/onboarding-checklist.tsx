@@ -222,7 +222,8 @@ function ChecklistStepCard({ step }: { step: DashboardOnboardingStep }) {
     <div
       className={cn(
         'rounded-xl border p-4 transition-colors',
-        step.state === 'completed' && 'border-emerald-200 bg-emerald-50/50',
+        step.state === 'completed' &&
+          'border-primary/35 bg-primary/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
         step.state === 'ready' && 'border-border bg-card',
         step.state === 'upcoming' && 'border-border/80 bg-muted/25',
       )}
@@ -232,7 +233,8 @@ function ChecklistStepCard({ step }: { step: DashboardOnboardingStep }) {
           <div
             className={cn(
               'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl',
-              step.state === 'completed' && 'bg-emerald-100 text-emerald-600',
+              step.state === 'completed' &&
+                'bg-primary/15 text-primary ring-1 ring-primary/25',
               step.state === 'ready' && 'bg-primary/10 text-primary',
               step.state === 'upcoming' && 'bg-muted text-muted-foreground',
             )}
