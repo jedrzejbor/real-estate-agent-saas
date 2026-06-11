@@ -18,8 +18,8 @@ export default function CookiePolicyPage() {
         </h1>
         <p className="mt-4 text-sm leading-7 text-muted-foreground">
           Ten dokument opisuje, jak EstateFlow używa cookies, localStorage,
-              sessionStorage, httpOnly cookies oraz podobnych technologii w
-              przeglądarce.
+          sessionStorage, httpOnly cookies oraz podobnych technologii w
+          przeglądarce.
         </p>
         <p className="mt-3 text-xs leading-6 text-muted-foreground">
           Wersja robocza produktu MVP. Przed publicznym launch’em dokument
@@ -157,6 +157,13 @@ function StorageTable() {
       category: 'Niezbędne',
       purpose:
         'Utrzymanie i odświeżanie sesji użytkownika bez udostępniania tokenów JavaScriptowi.',
+    },
+    {
+      name: 'estateflow.csrf-token',
+      type: 'cookie',
+      category: 'Niezbędne',
+      purpose:
+        'Ochrona mutujących requestów zalogowanego użytkownika przed atakami CSRF.',
     },
     {
       name: 'estateflow-theme',

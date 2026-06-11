@@ -29,6 +29,7 @@ import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import {
   clearAuthTokenCookies,
   setAuthTokenCookies,
+  setCsrfTokenCookie,
 } from './auth-token-cookies';
 
 @Controller('auth')
@@ -101,6 +102,15 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(@Res({ passthrough: true }) response: Response) {
     clearAuthTokenCookies(response, this.configService);
+  }
+
+  /** GET /api/auth/csrf — issues a readable CSRF token for browser clients. */
+  @Public()
+  @Get('csrf')
+  @HttpCode(HttpStatus.OK)
+  getCsrfToken(@Res({ passthrough: true }) response: Response) {
+    const token = setCsrfTokenCookie(response, this.configService);
+    return { token };
   }
 
   /** GET /api/auth/me — protected */

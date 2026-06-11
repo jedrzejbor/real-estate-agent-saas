@@ -5,7 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModule, JwtAuthGuard, RolesGuard } from './auth';
+import { AuthModule, CsrfGuard, JwtAuthGuard, RolesGuard } from './auth';
 import { UsersModule } from './users';
 import { ListingsModule } from './listings';
 import { ClientsModule } from './clients';
@@ -66,6 +66,7 @@ import { PlansModule } from './plans';
   controllers: [AppController],
   providers: [
     AppService,
+    { provide: APP_GUARD, useClass: CsrfGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },

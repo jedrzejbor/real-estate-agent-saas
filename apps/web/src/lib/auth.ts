@@ -1,3 +1,4 @@
+import { appendCsrfHeader } from '@/lib/csrf';
 import { z } from 'zod';
 import type { ReleaseFlags } from './release-flags';
 
@@ -238,8 +239,12 @@ export function clearLegacyAuthTokens(): void {
  * Throws if the refresh cookie is missing or invalid.
  */
 export async function refreshTokens(): Promise<void> {
+  const headers = new Headers();
+  await appendCsrfHeader(headers, 'POST');
+
   const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
+    headers,
     credentials: 'include',
   });
 
@@ -257,6 +262,7 @@ async function authFetch(
 ): Promise<void> {
   const headers = new Headers(init.headers);
   headers.set('Content-Type', 'application/json');
+  await appendCsrfHeader(headers, init.method);
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,

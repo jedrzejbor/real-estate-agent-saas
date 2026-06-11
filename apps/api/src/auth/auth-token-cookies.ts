@@ -1,9 +1,12 @@
 import type { Request, Response } from 'express';
 import type { CookieOptions } from 'express';
 import { ConfigService } from '@nestjs/config';
+import { randomBytes } from 'crypto';
 
 export const ACCESS_TOKEN_COOKIE = 'accessToken';
 export const REFRESH_TOKEN_COOKIE = 'refreshToken';
+export const CSRF_TOKEN_COOKIE = 'estateflow.csrf-token';
+export const CSRF_TOKEN_HEADER = 'x-csrf-token';
 
 const DEFAULT_ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000;
 const DEFAULT_REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -33,6 +36,8 @@ export function setAuthTokenCookies(
       DEFAULT_REFRESH_TOKEN_TTL_MS,
     ),
   });
+
+  setCsrfTokenCookie(response, configService);
 }
 
 export function clearAuthTokenCookies(
@@ -42,6 +47,34 @@ export function clearAuthTokenCookies(
   const options = buildBaseCookieOptions(configService);
   response.clearCookie(ACCESS_TOKEN_COOKIE, options);
   response.clearCookie(REFRESH_TOKEN_COOKIE, options);
+  clearCsrfTokenCookie(response, configService);
+}
+
+export function setCsrfTokenCookie(
+  response: Response,
+  configService: ConfigService,
+): string {
+  const token = randomBytes(32).toString('base64url');
+
+  response.cookie(CSRF_TOKEN_COOKIE, token, {
+    ...buildReadableCookieOptions(configService),
+    maxAge: parseDurationMs(
+      configService.get('JWT_REFRESH_EXPIRES_IN', '7d'),
+      DEFAULT_REFRESH_TOKEN_TTL_MS,
+    ),
+  });
+
+  return token;
+}
+
+export function clearCsrfTokenCookie(
+  response: Response,
+  configService: ConfigService,
+): void {
+  response.clearCookie(
+    CSRF_TOKEN_COOKIE,
+    buildReadableCookieOptions(configService),
+  );
 }
 
 export function extractAccessTokenFromRequest(
@@ -57,6 +90,13 @@ export function extractRefreshTokenFromRequest(
 }
 
 function extractTokenFromRequest(
+  request: Request,
+  cookieName: string,
+): string | null {
+  return extractCookieFromRequest(request, cookieName);
+}
+
+export function extractCookieFromRequest(
   request: Request,
   cookieName: string,
 ): string | null {
@@ -77,6 +117,13 @@ function buildBaseCookieOptions(configService: ConfigService): CookieOptions {
     secure,
     sameSite,
     path: '/',
+  };
+}
+
+function buildReadableCookieOptions(configService: ConfigService): CookieOptions {
+  return {
+    ...buildBaseCookieOptions(configService),
+    httpOnly: false,
   };
 }
 

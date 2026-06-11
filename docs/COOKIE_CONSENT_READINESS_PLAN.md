@@ -157,6 +157,7 @@ Wykonane:
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `httpOnly cookie` | `accessToken` | `apps/api/src/auth/auth-token-cookies.ts`, `apps/api/src/auth/strategies/jwt.strategy.ts` | Niezbędne | Utrzymanie sesji i autoryzacja requestów API | JWT użytkownika niedostępny dla JavaScriptu | Do wygaśnięcia, refreshu albo logoutu | Nie |
 | `httpOnly cookie` | `refreshToken` | `apps/api/src/auth/auth-token-cookies.ts`, `apps/api/src/auth/strategies/jwt-refresh.strategy.ts` | Niezbędne | Odświeżanie sesji | JWT refresh niedostępny dla JavaScriptu | Do wygaśnięcia albo logoutu | Nie |
+| `cookie` | `estateflow.csrf-token` | `apps/api/src/auth/auth-token-cookies.ts`, `apps/api/src/auth/guards/csrf.guard.ts`, `apps/web/src/lib/csrf.ts` | Niezbędne | Double-submit CSRF protection dla mutujących requestów z auth cookies | Losowy token bezpieczeństwa czytelny dla JavaScriptu i wysyłany jako `x-csrf-token` | Do wygaśnięcia sesji albo logoutu | Nie |
 | `localStorage` | `accessToken`, `refreshToken` | `apps/web/src/lib/auth.ts` | Legacy cleanup | Czyszczenie tokenów zapisanych przez stary mechanizm | Stare JWT, jeśli istnieją u użytkownika sprzed migracji | Usuwane po login/register/logout w nowym flow | Nie |
 | `request.cookies` | `accessToken` | `apps/web/src/middleware.ts` | Niezbędne | Lekki check middleware dla tras dashboardowych | Token sesji w httpOnly cookie | Zależna od TTL cookie | Nie |
 | `localStorage` | `estateflow.publicListingWizard.v1` | `apps/web/src/app/(public)/dodaj-oferte/page.tsx` | Funkcjonalne albo niezbędne dla rozpoczętego formularza - decyzja otwarta | Zapis draftu publicznego dodania oferty | Dane oferty, adres, zdjęcia jako referencje, dane właściciela, email, telefon, zgody | Do finalnego submitu, ręcznego czyszczenia albo wyczyszczenia storage | Do decyzji w `C6`; rekomendacja: opisać wyraźnie i traktować jako funkcjonalne, chyba że UX wymaga niezbędnego draftu |
@@ -457,6 +458,7 @@ Wykonane:
 - Dodano tabelę mechanizmów obejmującą:
   - `estateflow-cookie-consent`,
   - `accessToken` / `refreshToken`,
+  - `estateflow.csrf-token`,
   - `estateflow-theme`,
   - `estateflow.publicListingWizard.v1`,
   - `estateflow.dashboard-onboarding:*`,
@@ -480,7 +482,7 @@ Weryfikacja:
 
 ### C6. Decyzja auth storage
 
-Status: wykonane - etap 1 migracji 2026-06-11
+Status: wykonane - etap 2 migracji 2026-06-11
 
 Zakres:
 
@@ -503,14 +505,14 @@ Rekomendacja:
 Kryteria akceptacji:
 
 - [x] Decyzja jest zapisana w dokumencie.
-- [x] Nie ma rozbieżności między dokumentacją a zachowaniem aplikacji na poziomie etapu 1.
-- [ ] Release checklist zawiera decyzję i ewentualny follow-up security.
+- [x] Nie ma rozbieżności między dokumentacją a zachowaniem aplikacji na poziomie etapu 2.
+- [x] Release checklist zawiera decyzję i ewentualny follow-up security.
 
 Decyzja:
 
 - Migrujemy auth z tokenów w `localStorage` na httpOnly cookies.
 - Etap 1 realizuje mechanikę cookies i usuwa zapisywanie nowych tokenów w `localStorage`.
-- Etap 2 powinien domknąć CSRF hardening, release checklist i ewentualne testy E2E/manualne dla pełnego login/refresh/logout flow.
+- Etap 2 domyka CSRF hardening i release checklist; pełny login/refresh/logout flow nadal wymaga manualnego QA przed release.
 
 Wykonane w etapie 1:
 
@@ -532,10 +534,18 @@ Wykonane w etapie 1:
 - Product analytics nie sprawdza już `localStorage` tokenów przed wysłaniem eventu; autoryzację rozstrzyga API cookie.
 - Zaktualizowano politykę cookies, aby opisywała auth przez httpOnly cookies.
 
+Wykonane w etapie 2:
+
+- Dodano double-submit CSRF protection dla requestów mutujących wykonywanych z auth cookies.
+- API ustawia czytelny cookie `estateflow.csrf-token` obok httpOnly `accessToken` i `refreshToken`.
+- Dodano `GET /api/auth/csrf`, który wydaje token CSRF dla klienta przeglądarkowego.
+- Dodano globalny `CsrfGuard`, który dla metod `POST`, `PATCH`, `PUT`, `DELETE` wymaga zgodności cookie `estateflow.csrf-token` z nagłówkiem `x-csrf-token`, gdy request niesie auth cookies.
+- Web automatycznie pobiera i dosyła `x-csrf-token` w `apiFetch`, `apiFormDataFetch`, `authFetch` oraz przy `/auth/refresh`.
+- `logout` czyści auth cookies oraz cookie CSRF.
+- Mechanizm nie wymaga zgody cookies, bo chroni sesję użytkownika i jest klasyfikowany jako niezbędny security storage.
+
 Pozostałe follow-upy:
 
-- Dodać CSRF strategy dla mutujących requestów z cookies, np. double-submit token albo dedykowany nagłówek CSRF.
-- Uzupełnić `PRODUCTION_LAUNCH_CHECKLIST.md` o decyzję migracji.
 - Przetestować ręcznie login, register, refresh po 401, logout, dashboard guard i publiczne flow bez sesji.
 - Rozważyć docelową konfigurację `AUTH_COOKIE_SAME_SITE`, `AUTH_COOKIE_DOMAIN` i `secure` dla środowiska produkcyjnego, jeśli API i frontend będą na różnych subdomenach.
 - Po okresie przejściowym można usunąć legacy obsługę Bearer headera i `x-refresh-token`.
@@ -544,6 +554,7 @@ Weryfikacja:
 
 - `pnpm --filter api type-check` - przechodzi.
 - `pnpm --filter web type-check` - przechodzi.
+- `pnpm --filter web exec eslint src/lib/auth.ts src/lib/api-client.ts src/lib/csrf.ts 'src/app/(marketing)/polityka-cookies/page.tsx' 'src/app/(marketing)/polityka-prywatnosci/page.tsx'` - przechodzi.
 - `pnpm --filter web exec eslint src/lib/auth.ts src/lib/api-client.ts src/lib/analytics.ts src/contexts/auth-context.tsx` - przechodzi.
 - `pnpm --filter api test -- auth.service.spec.ts` - przechodzi.
 - API lint dla pojedynczych plików nie został uruchomiony skutecznie, bo repo nie udostępnia obecnie configu ESLint 9 w ścieżce wykonywania komendy.
@@ -588,7 +599,7 @@ Wykonane:
   - status polityki cookies i bannera,
   - wymagany manualny QA consentu,
   - auth cookies,
-  - otwarty CSRF hardening.
+  - status double-submit CSRF.
 - Nie wykonywano screenshotów ani manualnego QA w przeglądarce.
 
 ### C7 Manual QA checklist
@@ -653,7 +664,7 @@ Nie wpuszczamy produkcyjnego ruchu, dopóki nie są spełnione warunki:
 - [x] Decyzja o auth storage jest zapisana.
 - [x] `PRODUCTION_LAUNCH_CHECKLIST.md` jest zaktualizowany.
 - [ ] Manualny QA `QA-C7-01` - `QA-C7-18` ma status `PASS` albo świadome `N/A`.
-- [ ] CSRF hardening dla auth cookies jest wdrożony albo zaakceptowany jako jawny blocker.
+- [x] CSRF hardening dla auth cookies jest wdrożony.
 - [ ] Dokumenty prawne zostały oznaczone jako zweryfikowane albo pozostają blockerem launchu.
 
 ## Proponowana kolejność realizacji
@@ -672,7 +683,7 @@ Nie wpuszczamy produkcyjnego ruchu, dopóki nie są spełnione warunki:
 - Czy draft `/dodaj-oferte` traktujemy jako funkcjonalny storage wymagający zgody, czy jako niezbędny element rozpoczętego formularza?
 - Czy onboarding state traktujemy jako funkcjonalny storage wymagający zgody?
 - Product analytics dla zalogowanych użytkowników wymaga zgody analitycznej; wyjątki operacyjne muszą być jawnie wydzielone.
-- Auth migruje na httpOnly cookies; etap 1 wykonany, CSRF hardening zostaje follow-upem przed release.
+- Auth migruje na httpOnly cookies; etap 2 obejmuje double-submit CSRF, a manualny QA flow auth pozostaje przed release.
 - Używamy własnego consent managera.
 
 ## Notatki implementacyjne

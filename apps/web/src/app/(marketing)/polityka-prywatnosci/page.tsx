@@ -78,9 +78,9 @@ export default function PrivacyPolicyPage() {
           <Section title="Cookies, storage i analityka">
             <p>
               EstateFlow używa localStorage, sessionStorage oraz podobnych
-              technologii przeglądarki do obsługi sesji, zapamiętania zgód,
-              ustawień interfejsu, roboczych formularzy i własnej analityki
-              produktu.
+              technologii przeglądarki do obsługi sesji, ochrony requestów
+              przed CSRF, zapamiętania zgód, ustawień interfejsu, roboczych
+              formularzy i własnej analityki produktu.
             </p>
             <p>
               Eventy pomiarowe, takie jak wyświetlenia publicznych ofert,

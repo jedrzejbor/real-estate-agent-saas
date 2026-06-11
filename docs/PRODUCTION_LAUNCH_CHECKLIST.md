@@ -182,7 +182,7 @@
 - [ ] 🔴 Firewall — tylko porty 80, 443 (i 22 SSH z IP whitelist)
 - [ ] 🟠 Rate limiting produkcyjny — dostosować limity (aktualnie dev-level)
 - [ ] 🟠 Helmet.js / security headers (CSP, X-Frame-Options, HSTS)
-- [ ] 🟠 Auth cookies — etap 1 migracji na httpOnly cookies wykonany; przed launch’em domknąć CSRF hardening i produkcyjne `SameSite`/domain/secure
+- [ ] 🟠 Auth cookies — etap 2 migracji na httpOnly cookies + double-submit CSRF wykonany; przed launch’em zweryfikować manualnie login/register/refresh/logout i produkcyjne `SameSite`/domain/secure
 - [ ] 🟠 Fail2ban lub podobne na próby brute force SSH/API
 - [ ] 🟡 Penetration test lub automated security scan (OWASP ZAP)
 

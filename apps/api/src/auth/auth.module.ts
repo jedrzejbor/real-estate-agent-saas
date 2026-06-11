@@ -9,6 +9,7 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { CsrfGuard } from './guards/csrf.guard';
 import { UsersModule } from '../users/users.module';
 import { ReleaseFlagsModule } from '../release-flags';
 import { EmailModule } from '../email';
@@ -38,7 +39,8 @@ import { EmailModule } from '../email';
     JwtAuthGuard,
     JwtRefreshGuard,
     RolesGuard,
+    CsrfGuard,
   ],
-  exports: [AuthService, JwtAuthGuard, JwtRefreshGuard, RolesGuard],
+  exports: [AuthService, JwtAuthGuard, JwtRefreshGuard, RolesGuard, CsrfGuard],
 })
 export class AuthModule {}

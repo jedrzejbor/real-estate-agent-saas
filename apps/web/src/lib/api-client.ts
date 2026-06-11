@@ -1,4 +1,5 @@
 import { refreshTokens } from '@/lib/auth';
+import { appendCsrfHeader } from '@/lib/csrf';
 
 const SERVER_API_BASE_URL =
   process.env.API_URL ||
@@ -112,8 +113,12 @@ export async function apiFetch<T = unknown>(
     headers.set('Content-Type', 'application/json');
   }
 
+  const method = init.method ?? (body !== undefined ? 'POST' : 'GET');
+  await appendCsrfHeader(headers, method);
+
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
+    method,
     headers,
     credentials: 'include',
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -166,9 +171,12 @@ export async function apiFormDataFetch<T = unknown>(
   }: Omit<RequestOptions, 'body'> = {},
 ): Promise<T> {
   const headers = new Headers(extraHeaders);
+  const method = init.method ?? 'POST';
+  await appendCsrfHeader(headers, method);
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
+    method,
     headers,
     credentials: 'include',
     body: formData,
