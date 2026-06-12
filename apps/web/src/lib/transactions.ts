@@ -188,62 +188,75 @@ export interface TransactionDeadlineSummaryItem {
   deadline: TransactionDeadline;
 }
 
-export const createTransactionSchema = z
-  .object({
-    listingId: z.string().uuid('Wybierz ofertę'),
-    buyerClientId: z.string().uuid('Wybierz klienta'),
-    title: z.string().max(255).optional().or(z.literal('')),
-    dealValue: z.coerce.number().min(0, 'Wartość nie może być ujemna'),
-    commissionType: z
-      .enum([ListingCommissionType.PERCENTAGE, ListingCommissionType.FIXED])
-      .optional()
-      .or(z.literal('')),
-    commissionValue: z.literal('').or(z.coerce.number().min(0)).optional(),
-    expectedCloseDate: z.string().optional().or(z.literal('')),
-    blockerNote: z.string().max(5000).optional().or(z.literal('')),
-    privateNote: z.string().max(5000).optional().or(z.literal('')),
-  })
-  .superRefine((data, ctx) => {
-    const hasType = Boolean(data.commissionType);
-    const hasValue =
-      data.commissionValue !== '' && data.commissionValue !== undefined;
+const transactionCommissionFieldsSchema = {
+  commissionType: z
+    .enum([ListingCommissionType.PERCENTAGE, ListingCommissionType.FIXED])
+    .optional()
+    .or(z.literal('')),
+  commissionValue: z.literal('').or(z.coerce.number().min(0)).optional(),
+};
 
-    if (hasType && !hasValue) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['commissionValue'],
-        message: 'Podaj wartość prowizji',
-      });
-    }
+const createTransactionBaseSchema = z.object({
+  listingId: z.string().uuid('Wybierz ofertę'),
+  buyerClientId: z.string().uuid('Wybierz klienta'),
+  title: z.string().max(255).optional().or(z.literal('')),
+  dealValue: z.coerce.number().min(0, 'Wartość nie może być ujemna'),
+  ...transactionCommissionFieldsSchema,
+  expectedCloseDate: z.string().optional().or(z.literal('')),
+  blockerNote: z.string().max(5000).optional().or(z.literal('')),
+  privateNote: z.string().max(5000).optional().or(z.literal('')),
+});
 
-    if (!hasType && hasValue) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['commissionType'],
-        message: 'Wybierz typ prowizji',
-      });
-    }
+type TransactionCommissionFormInput = {
+  commissionType?: ListingCommissionType | '';
+  commissionValue?: number | '';
+};
 
-    if (
-      data.commissionType === ListingCommissionType.PERCENTAGE &&
-      typeof data.commissionValue === 'number' &&
-      data.commissionValue > 100
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['commissionValue'],
-        message: 'Prowizja procentowa nie może być większa niż 100%',
-      });
-    }
-  });
+function validateTransactionCommissionFields(
+  data: TransactionCommissionFormInput,
+  ctx: z.RefinementCtx,
+): void {
+  const hasType = Boolean(data.commissionType);
+  const hasValue =
+    data.commissionValue !== '' && data.commissionValue !== undefined;
+
+  if (hasType && !hasValue) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['commissionValue'],
+      message: 'Podaj wartość prowizji',
+    });
+  }
+
+  if (!hasType && hasValue) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['commissionType'],
+      message: 'Wybierz typ prowizji',
+    });
+  }
+
+  if (
+    data.commissionType === ListingCommissionType.PERCENTAGE &&
+    typeof data.commissionValue === 'number' &&
+    data.commissionValue > 100
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['commissionValue'],
+      message: 'Prowizja procentowa nie może być większa niż 100%',
+    });
+  }
+}
+
+export const createTransactionSchema = createTransactionBaseSchema.superRefine(
+  validateTransactionCommissionFields,
+);
 
 export type CreateTransactionFormData = z.infer<typeof createTransactionSchema>;
 
-export const updateTransactionSchema = createTransactionSchema
-  .omit({
-    listingId: true,
-  })
-  .extend({
+export const updateTransactionSchema = z
+  .object({
     buyerClientId: z.string().uuid('Wybierz klienta').optional(),
     sellerClientId: z
       .string()
@@ -263,7 +276,11 @@ export const updateTransactionSchema = createTransactionSchema
         TransactionStatus.CLOSED_LOST,
       ])
       .optional(),
+    title: z.string().max(255).optional().or(z.literal('')),
+    dealValue: z.coerce.number().min(0, 'Wartość nie może być ujemna'),
     currency: z.string().length(3, 'Waluta musi mieć 3 znaki').optional(),
+    ...transactionCommissionFieldsSchema,
+    expectedCloseDate: z.string().optional().or(z.literal('')),
     reservationExpiresAt: z.string().optional().or(z.literal('')),
     preliminaryAgreementDate: z.string().optional().or(z.literal('')),
     financingDeadline: z.string().optional().or(z.literal('')),
@@ -271,7 +288,10 @@ export const updateTransactionSchema = createTransactionSchema
     handoverDate: z.string().optional().or(z.literal('')),
     commissionDueDate: z.string().optional().or(z.literal('')),
     lostReason: z.string().max(500).optional().or(z.literal('')),
-  });
+    blockerNote: z.string().max(5000).optional().or(z.literal('')),
+    privateNote: z.string().max(5000).optional().or(z.literal('')),
+  })
+  .superRefine(validateTransactionCommissionFields);
 
 export type UpdateTransactionFormData = z.infer<typeof updateTransactionSchema>;
 
