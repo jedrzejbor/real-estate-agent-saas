@@ -210,7 +210,13 @@ export function ListingDocumentsPanel({ listingId }: ListingDocumentsPanelProps)
         </div>
       ) : null}
 
-      {checklist ? <ChecklistSummary checklist={checklist} /> : null}
+      {checklist ? (
+        <ChecklistSummary
+          checklist={checklist}
+          selectedCategory={category}
+          onCategorySelect={setCategory}
+        />
+      ) : null}
 
       <form
         onSubmit={handleUpload}
@@ -293,7 +299,15 @@ export function ListingDocumentsPanel({ listingId }: ListingDocumentsPanelProps)
   );
 }
 
-function ChecklistSummary({ checklist }: { checklist: ListingDocumentChecklist }) {
+function ChecklistSummary({
+  checklist,
+  selectedCategory,
+  onCategorySelect,
+}: {
+  checklist: ListingDocumentChecklist;
+  selectedCategory: ListingDocumentCategory;
+  onCategorySelect: (category: ListingDocumentCategory) => void;
+}) {
   return (
     <div className="mt-5 rounded-xl border border-border/70 bg-muted/10 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -322,20 +336,27 @@ function ChecklistSummary({ checklist }: { checklist: ListingDocumentChecklist }
       </div>
       <div className="mt-4 grid gap-2 md:grid-cols-2">
         {checklist.items.map((item) => (
-          <div
+          <button
             key={item.category}
-            className="flex items-center justify-between gap-3 rounded-lg bg-card px-3 py-2"
+            type="button"
+            aria-pressed={selectedCategory === item.category}
+            onClick={() => onCategorySelect(item.category)}
+            className={cn(
+              'flex items-center justify-between gap-3 rounded-lg border border-transparent bg-card px-3 py-2 text-left transition-colors outline-none hover:border-border/80 hover:bg-muted/30 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
+              selectedCategory === item.category &&
+                'border-primary/50 bg-primary/5',
+            )}
           >
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-foreground">
+              <p className="truncate text-left text-sm font-medium text-foreground">
                 {item.displayName}
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-left text-xs text-muted-foreground">
                 {item.required ? 'Wymagany' : 'Opcjonalny'}
               </p>
             </div>
             <StatusBadge status={item.status} />
-          </div>
+          </button>
         ))}
       </div>
     </div>
