@@ -15,7 +15,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { fetchClients, type Client } from '@/lib/clients';
-import { ListingCommissionType } from '@/lib/listings';
+import {
+  fetchListingDocuments,
+  LISTING_DOCUMENT_CATEGORY_LABELS,
+  LISTING_DOCUMENT_STATUS_LABELS,
+  ListingCommissionType,
+  ListingDocumentStatus,
+  type ListingDocumentChecklist,
+} from '@/lib/listings';
 import {
   addTransactionTask,
   deleteTransactionTask,
@@ -44,6 +51,8 @@ export default function TransactionDetailPage() {
   const params = useParams<{ id: string }>();
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [events, setEvents] = useState<TransactionEvent[]>([]);
+  const [documentChecklist, setDocumentChecklist] =
+    useState<ListingDocumentChecklist | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [form, setForm] = useState<UpdateTransactionFormData | null>(null);
   const [taskTitle, setTaskTitle] = useState('');
@@ -58,17 +67,19 @@ export default function TransactionDetailPage() {
     setError(null);
 
     try {
-      const [transactionResponse, clientsResponse, eventsResponse] =
+      const transactionResponse = await fetchTransaction(params.id);
+      const [clientsResponse, eventsResponse, documentsResponse] =
         await Promise.all([
-          fetchTransaction(params.id),
           fetchClients({ limit: 100, sortBy: 'lastName', sortOrder: 'ASC' }),
           fetchTransactionEvents(params.id),
+          fetchListingDocuments(transactionResponse.listingId),
         ]);
 
       setTransaction(transactionResponse);
       setForm(createFormFromTransaction(transactionResponse));
       setClients(clientsResponse.data);
       setEvents(eventsResponse);
+      setDocumentChecklist(documentsResponse.checklist);
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
@@ -507,6 +518,8 @@ export default function TransactionDetailPage() {
             </div>
           </section>
 
+          <DocumentChecklistCard checklist={documentChecklist} />
+
           <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-heading text-lg font-semibold text-foreground">
@@ -601,6 +614,90 @@ export default function TransactionDetailPage() {
           </section>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DocumentChecklistCard({
+  checklist,
+}: {
+  checklist: ListingDocumentChecklist | null;
+}) {
+  if (!checklist) {
+    return (
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
+        <h2 className="font-heading text-lg font-semibold text-foreground">
+          Dokumenty
+        </h2>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Nie udało się pobrać checklisty dokumentów oferty.
+        </p>
+      </section>
+    );
+  }
+
+  const blockingItems = checklist.items.filter(
+    (item) =>
+      item.required &&
+      (item.status === ListingDocumentStatus.MISSING ||
+        item.status === ListingDocumentStatus.NEEDS_CORRECTION),
+  );
+
+  return (
+    <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-heading text-lg font-semibold text-foreground">
+            Dokumenty oferty
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Kompletność wymaganych dokumentów wpływa na zamknięcie.
+          </p>
+        </div>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+          {checklist.summary.completionPct}%
+        </span>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+        <MetricPill label="Wymagane" value={checklist.summary.required} />
+        <MetricPill label="Braki" value={checklist.summary.missing} />
+        <MetricPill
+          label="Poprawki"
+          value={checklist.summary.needsCorrection}
+        />
+      </div>
+
+      {blockingItems.length > 0 ? (
+        <div className="mt-4 space-y-2">
+          {blockingItems.slice(0, 4).map((item) => (
+            <div
+              key={item.category}
+              className="rounded-lg border border-amber-300/40 bg-amber-50 px-3 py-2 text-xs text-amber-950"
+            >
+              <p className="font-medium">
+                {LISTING_DOCUMENT_CATEGORY_LABELS[item.category]}
+              </p>
+              <p className="mt-0.5">
+                {LISTING_DOCUMENT_STATUS_LABELS[item.status]}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 rounded-lg border border-emerald-300/40 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+          Brak blokujących braków w wymaganych dokumentach.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function MetricPill({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg bg-muted/50 px-2 py-2">
+      <div className="font-semibold text-foreground">{value}</div>
+      <div className="text-muted-foreground">{label}</div>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { AnalyticsEvent } from '../analytics/entities/analytics-event.entity';
+import { Transaction } from '../transactions/entities';
 import { UsersService } from '../users';
 import { AgencyEntitlements } from '../users/agency-plan.service';
 import { FeatureAccessDeniedException } from '../common/exceptions/feature-access-denied.exception';
@@ -20,7 +21,9 @@ import {
   AppointmentStatus,
   ClientSource,
   ClientStatus,
+  ListingCommissionType,
   ListingStatus,
+  TransactionStatus,
   UserRole,
 } from '../common/enums';
 import { ReportFiltersDto, ReportsGroupBy } from './dto/report-filters.dto';
@@ -419,6 +422,8 @@ export class ReportsService {
     private readonly agentRepo: Repository<Agent>,
     @InjectRepository(AnalyticsEvent)
     private readonly analyticsEventRepo: Repository<AnalyticsEvent>,
+    @InjectRepository(Transaction)
+    private readonly transactionRepo: Repository<Transaction>,
     private readonly usersService: UsersService,
   ) {}
 
@@ -559,13 +564,12 @@ export class ReportsService {
       normalizedFilters.requestedAgentId,
     );
 
-    const [summary, byStatus, byTransactionType, timeline] =
-      await Promise.all([
-        this.buildEarningsSummary(normalizedFilters, scope),
-        this.buildEarningsStatusBreakdown(normalizedFilters, scope),
-        this.buildEarningsTransactionTypeBreakdown(normalizedFilters, scope),
-        this.buildEarningsTimeline(normalizedFilters, scope),
-      ]);
+    const [summary, byStatus, byTransactionType, timeline] = await Promise.all([
+      this.buildEarningsSummary(normalizedFilters, scope),
+      this.buildEarningsStatusBreakdown(normalizedFilters, scope),
+      this.buildEarningsTransactionTypeBreakdown(normalizedFilters, scope),
+      this.buildEarningsTimeline(normalizedFilters, scope),
+    ]);
 
     return {
       generatedAt: new Date().toISOString(),
@@ -585,8 +589,8 @@ export class ReportsService {
       },
       timeline,
       notes: [
-        'Raport Zarobki bazuje na prywatnych polach prowizji zapisanych przy ofertach.',
-        'Prowizja zamknięta jest liczona dla ofert sprzedanych lub wynajętych, których `updatedAt` mieści się w wybranym okresie.',
+        'Raport Zarobki używa zamkniętych transakcji `closed_won` jako źródła finalnej prowizji.',
+        'Aktywne i łączne estymacje nadal bazują na prywatnych polach prowizji ofert, ale wykluczają oferty z zamkniętą wygraną transakcją, aby nie dublować prowizji.',
         'Wartości są szacunkowe: system nie ma jeszcze statusów rozliczenia, faktur, wypłat ani korekt księgowych.',
       ],
     };
@@ -1202,7 +1206,12 @@ export class ReportsService {
     scope: ResolvedScope,
   ): Promise<EarningsReportSummary> {
     const listingBase = this.createListingBaseQuery(filters, scope);
-    const closedStatuses = [ListingStatus.SOLD, ListingStatus.RENTED];
+    const activeListingBase =
+      this.excludeListingsWithClosedWonTransactions(listingBase);
+    const closedTransactionBase = this.createClosedWonTransactionBaseQuery(
+      filters,
+      scope,
+    );
 
     const [
       activeCommissionRaw,
@@ -1211,45 +1220,42 @@ export class ReportsService {
       listingsWithCommission,
       closedListingsWithCommission,
     ] = await Promise.all([
-      listingBase
+      activeListingBase
         .clone()
         .select(buildListingCommissionSumSql('listing'), 'commissionValue')
         .andWhere('listing.status = :status', { status: ListingStatus.ACTIVE })
         .andWhere('listing.createdAt <= :dateTo', { dateTo: filters.dateTo })
         .getRawOne<{ commissionValue: string }>(),
-      listingBase
+      closedTransactionBase
         .clone()
-        .select(buildListingCommissionSumSql('listing'), 'commissionValue')
-        .andWhere('listing.status IN (:...closedStatuses)', {
-          closedStatuses,
-        })
-        .andWhere('listing.updatedAt BETWEEN :dateFrom AND :dateTo', {
+        .select(
+          buildTransactionCommissionSumSql('transaction'),
+          'commissionValue',
+        )
+        .andWhere('transaction.closedAt BETWEEN :dateFrom AND :dateTo', {
           dateFrom: filters.dateFrom,
           dateTo: filters.dateTo,
         })
         .getRawOne<{ commissionValue: string }>(),
-      listingBase
+      activeListingBase
         .clone()
         .select(buildListingCommissionSumSql('listing'), 'commissionValue')
         .andWhere('listing.createdAt <= :dateTo', { dateTo: filters.dateTo })
         .getRawOne<{ commissionValue: string }>(),
-      listingBase
+      activeListingBase
         .clone()
         .andWhere('listing.createdAt <= :dateTo', { dateTo: filters.dateTo })
         .andWhere('listing.commissionType IS NOT NULL')
         .andWhere('listing.commissionValue IS NOT NULL')
         .getCount(),
-      listingBase
+      closedTransactionBase
         .clone()
-        .andWhere('listing.status IN (:...closedStatuses)', {
-          closedStatuses,
-        })
-        .andWhere('listing.updatedAt BETWEEN :dateFrom AND :dateTo', {
+        .andWhere('transaction.closedAt BETWEEN :dateFrom AND :dateTo', {
           dateFrom: filters.dateFrom,
           dateTo: filters.dateTo,
         })
-        .andWhere('listing.commissionType IS NOT NULL')
-        .andWhere('listing.commissionValue IS NOT NULL')
+        .andWhere('transaction.commissionType IS NOT NULL')
+        .andWhere('transaction.commissionValue IS NOT NULL')
         .getCount(),
     ]);
 
@@ -1276,7 +1282,9 @@ export class ReportsService {
     filters: NormalizedFilters,
     scope: ResolvedScope,
   ): Promise<EarningsBreakdownItem[]> {
-    const rows = await this.createListingBaseQuery(filters, scope)
+    const listingRows = await this.excludeListingsWithClosedWonTransactions(
+      this.createListingBaseQuery(filters, scope),
+    )
       .select('listing.status', 'key')
       .addSelect('COUNT(*)::int', 'count')
       .addSelect(buildListingCommissionSumSql('listing'), 'commissionValue')
@@ -1285,6 +1293,30 @@ export class ReportsService {
       .andWhere('listing.commissionValue IS NOT NULL')
       .groupBy('listing.status')
       .getRawMany<{ key: string; count: string; commissionValue: string }>();
+
+    const closedWonRow = await this.createClosedWonTransactionBaseQuery(
+      filters,
+      scope,
+    )
+      .select(':closedWonStatus', 'key')
+      .addSelect('COUNT(*)::int', 'count')
+      .addSelect(
+        buildTransactionCommissionSumSql('transaction'),
+        'commissionValue',
+      )
+      .setParameter('closedWonStatus', TransactionStatus.CLOSED_WON)
+      .andWhere('transaction.closedAt BETWEEN :dateFrom AND :dateTo', {
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+      })
+      .andWhere('transaction.commissionType IS NOT NULL')
+      .andWhere('transaction.commissionValue IS NOT NULL')
+      .getRawOne<{ key: string; count: string; commissionValue: string }>();
+
+    const rows = [...listingRows];
+    if (closedWonRow && Number(closedWonRow.count) > 0) {
+      rows.push(closedWonRow);
+    }
 
     return rows
       .map((row) => ({
@@ -1299,23 +1331,14 @@ export class ReportsService {
     filters: NormalizedFilters,
     scope: ResolvedScope,
   ): Promise<EarningsBreakdownItem[]> {
-    const rows = await this.createListingBaseQuery(filters, scope)
+    const activeRows = await this.excludeListingsWithClosedWonTransactions(
+      this.createListingBaseQuery(filters, scope),
+    )
       .select('listing.transactionType', 'key')
       .addSelect('COUNT(*)::int', 'count')
-      .addSelect(
-        `COUNT(*) FILTER (WHERE listing.status = :activeStatus)::int`,
-        'activeCount',
-      )
-      .addSelect(
-        `COUNT(*) FILTER (WHERE listing.status IN (:...closedStatuses))::int`,
-        'closedCount',
-      )
+      .addSelect('COUNT(*)::int', 'activeCount')
+      .addSelect('0::int', 'closedCount')
       .addSelect(buildListingCommissionSumSql('listing'), 'commissionValue')
-      .setParameter('activeStatus', ListingStatus.ACTIVE)
-      .setParameter('closedStatuses', [
-        ListingStatus.SOLD,
-        ListingStatus.RENTED,
-      ])
       .andWhere('listing.createdAt <= :dateTo', { dateTo: filters.dateTo })
       .andWhere('listing.commissionType IS NOT NULL')
       .andWhere('listing.commissionValue IS NOT NULL')
@@ -1328,15 +1351,54 @@ export class ReportsService {
         commissionValue: string;
       }>();
 
-    return rows
-      .map((row) => ({
+    const closedRows = await this.createClosedWonTransactionBaseQuery(
+      filters,
+      scope,
+    )
+      .select('listing.transactionType', 'key')
+      .addSelect('COUNT(*)::int', 'count')
+      .addSelect('0::int', 'activeCount')
+      .addSelect('COUNT(*)::int', 'closedCount')
+      .addSelect(
+        buildTransactionCommissionSumSql('transaction'),
+        'commissionValue',
+      )
+      .andWhere('transaction.closedAt BETWEEN :dateFrom AND :dateTo', {
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+      })
+      .andWhere('transaction.commissionType IS NOT NULL')
+      .andWhere('transaction.commissionValue IS NOT NULL')
+      .groupBy('listing.transactionType')
+      .getRawMany<{
+        key: string;
+        count: string;
+        activeCount: string;
+        closedCount: string;
+        commissionValue: string;
+      }>();
+
+    const rowsByKey = new Map<string, EarningsBreakdownItem>();
+    for (const row of [...activeRows, ...closedRows]) {
+      const current = rowsByKey.get(row.key) ?? {
         key: row.key,
-        count: Number(row.count),
-        activeCount: Number(row.activeCount),
-        closedCount: Number(row.closedCount),
-        commissionValue: Number(row.commissionValue),
-      }))
-      .sort((a, b) => b.commissionValue - a.commissionValue);
+        count: 0,
+        activeCount: 0,
+        closedCount: 0,
+        commissionValue: 0,
+      };
+      current.count += Number(row.count);
+      current.activeCount =
+        (current.activeCount ?? 0) + Number(row.activeCount);
+      current.closedCount =
+        (current.closedCount ?? 0) + Number(row.closedCount);
+      current.commissionValue += Number(row.commissionValue);
+      rowsByKey.set(row.key, current);
+    }
+
+    return Array.from(rowsByKey.values()).sort(
+      (a, b) => b.commissionValue - a.commissionValue,
+    );
   }
 
   private async buildEarningsTimeline(
@@ -1345,23 +1407,23 @@ export class ReportsService {
   ): Promise<EarningsTimelineBucket[]> {
     const bucketFormat = 'YYYY-MM-DD';
     const bucketExpr = this.getBucketExpression(
-      'listing.updatedAt',
+      'transaction.closedAt',
       filters.groupBy,
     );
 
-    const rows = await this.createListingBaseQuery(filters, scope)
+    const rows = await this.createClosedWonTransactionBaseQuery(filters, scope)
       .select(`TO_CHAR(${bucketExpr}, '${bucketFormat}')`, 'bucket')
-      .addSelect(buildListingCommissionSumSql('listing'), 'commissionValue')
+      .addSelect(
+        buildTransactionCommissionSumSql('transaction'),
+        'commissionValue',
+      )
       .addSelect('COUNT(*)::int', 'closedListings')
-      .andWhere('listing.status IN (:...closedStatuses)', {
-        closedStatuses: [ListingStatus.SOLD, ListingStatus.RENTED],
-      })
-      .andWhere('listing.updatedAt BETWEEN :dateFrom AND :dateTo', {
+      .andWhere('transaction.closedAt BETWEEN :dateFrom AND :dateTo', {
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo,
       })
-      .andWhere('listing.commissionType IS NOT NULL')
-      .andWhere('listing.commissionValue IS NOT NULL')
+      .andWhere('transaction.commissionType IS NOT NULL')
+      .andWhere('transaction.commissionValue IS NOT NULL')
       .groupBy(`TO_CHAR(${bucketExpr}, '${bucketFormat}')`)
       .orderBy(`MIN(${bucketExpr})`, 'ASC')
       .getRawMany<{
@@ -2242,6 +2304,48 @@ export class ReportsService {
     return query;
   }
 
+  private createClosedWonTransactionBaseQuery(
+    filters: Pick<NormalizedFilters, 'propertyType' | 'transactionType'>,
+    scope: ResolvedScope,
+  ): SelectQueryBuilder<Transaction> {
+    const query = this.transactionRepo
+      .createQueryBuilder('transaction')
+      .innerJoin('transaction.listing', 'listing')
+      .where('transaction.agentId IN (:...agentIds)', {
+        agentIds: scope.effectiveAgentIds,
+      })
+      .andWhere('transaction.status = :closedWonStatus', {
+        closedWonStatus: TransactionStatus.CLOSED_WON,
+      });
+
+    if (filters.propertyType) {
+      query.andWhere('listing.propertyType = :propertyType', {
+        propertyType: filters.propertyType,
+      });
+    }
+
+    if (filters.transactionType) {
+      query.andWhere('listing.transactionType = :transactionType', {
+        transactionType: filters.transactionType,
+      });
+    }
+
+    return query;
+  }
+
+  private excludeListingsWithClosedWonTransactions(
+    query: SelectQueryBuilder<Listing>,
+  ): SelectQueryBuilder<Listing> {
+    return query
+      .leftJoin(
+        Transaction,
+        'closedWonTransaction',
+        'closedWonTransaction.listingId = listing.id AND closedWonTransaction.status = :closedWonTransactionStatus',
+        { closedWonTransactionStatus: TransactionStatus.CLOSED_WON },
+      )
+      .andWhere('closedWonTransaction.id IS NULL');
+  }
+
   private createClientBaseQuery(
     scope: ResolvedScope,
   ): SelectQueryBuilder<Client> {
@@ -2506,6 +2610,24 @@ export class ReportsService {
       label: label || 'Agent',
     };
   }
+}
+
+function buildTransactionCommissionAmountSql(alias: string): string {
+  const commissionTypeColumn = `${alias}."commissionType"`;
+  const commissionValueColumn = `${alias}."commissionValue"`;
+  const dealValueColumn = `${alias}."dealValue"`;
+
+  return `CASE
+    WHEN ${commissionTypeColumn} = '${ListingCommissionType.PERCENTAGE}' AND ${commissionValueColumn} IS NOT NULL
+      THEN ${dealValueColumn} * ${commissionValueColumn} / 100
+    WHEN ${commissionTypeColumn} = '${ListingCommissionType.FIXED}' AND ${commissionValueColumn} IS NOT NULL
+      THEN ${commissionValueColumn}
+    ELSE 0
+  END`;
+}
+
+function buildTransactionCommissionSumSql(alias: string): string {
+  return `COALESCE(SUM(${buildTransactionCommissionAmountSql(alias)}), 0)::numeric`;
 }
 
 const FREEMIUM_METRICS: Array<{

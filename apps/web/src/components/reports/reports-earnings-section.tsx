@@ -17,6 +17,10 @@ import {
   type TransactionType,
 } from '@/lib/listings';
 import {
+  TRANSACTION_STATUS_LABELS,
+  type TransactionStatus,
+} from '@/lib/transactions';
+import {
   type EarningsBreakdownItem,
   type EarningsReportResponse,
 } from '@/lib/reports';
@@ -57,7 +61,7 @@ export function ReportsEarningsSection({ data }: ReportsEarningsSectionProps) {
           icon={BadgeDollarSign}
           title="Prowizja zamknięta"
           value={formatPricePL(summary.closedCommissionValue)}
-          subtitle={`${summary.closedListingsWithCommission} ofert sprzedanych / wynajętych w okresie`}
+          subtitle={`${summary.closedListingsWithCommission} transakcji closed_won w okresie`}
         />
         <SummaryCard
           icon={CircleDollarSign}
@@ -75,7 +79,7 @@ export function ReportsEarningsSection({ data }: ReportsEarningsSectionProps) {
           icon={BarChart3}
           title="Śr. prowizja zamknięta"
           value={formatPricePL(summary.averageClosedCommissionValue)}
-          subtitle="Średnia dla zamkniętych ofert w okresie"
+          subtitle="Średnia dla zamkniętych transakcji w okresie"
         />
         <SummaryCard
           icon={Layers3}
@@ -93,7 +97,7 @@ export function ReportsEarningsSection({ data }: ReportsEarningsSectionProps) {
 
       <ReportSectionCard
         title="Trend zamkniętych prowizji"
-        description="Prowizje z ofert sprzedanych lub wynajętych w wybranym okresie."
+        description="Prowizje z transakcji zamkniętych jako wygrane w wybranym okresie."
       >
         <div className="space-y-3">
           {timeline.map((bucket) => (
@@ -106,7 +110,7 @@ export function ReportsEarningsSection({ data }: ReportsEarningsSectionProps) {
                   {bucket.label}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {bucket.closedListings} zamkniętych ofert
+                  {bucket.closedListings} zamkniętych transakcji
                 </p>
               </div>
               <p className="font-heading text-lg font-bold text-foreground">
@@ -122,7 +126,9 @@ export function ReportsEarningsSection({ data }: ReportsEarningsSectionProps) {
           title="Prowizja wg statusu"
           items={breakdowns.byStatus}
           getLabel={(item) =>
-            LISTING_STATUS_LABELS[item.key as ListingStatus] ?? item.key
+            TRANSACTION_STATUS_LABELS[item.key as TransactionStatus] ??
+            LISTING_STATUS_LABELS[item.key as ListingStatus] ??
+            item.key
           }
         />
         <BreakdownCard
@@ -242,8 +248,8 @@ function BreakdownCard({
                 </div>
                 {showDetails ? (
                   <p className="text-xs text-muted-foreground">
-                    {item.activeCount ?? 0} aktywnych /{' '}
-                    {item.closedCount ?? 0} zamkniętych
+                    {item.activeCount ?? 0} aktywnych / {item.closedCount ?? 0}{' '}
+                    zamkniętych
                   </p>
                 ) : null}
               </div>

@@ -9,6 +9,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
 import {
   ListingCommissionType,
+  ListingPublicationStatus,
+  ListingStatus,
+  TransactionType,
   TransactionEventType,
   TransactionStatus,
   TransactionTaskPriority,
@@ -305,6 +308,7 @@ export class TransactionsService {
     this.applyTextUpdates(transaction, dto);
 
     const saved = await this.transactionRepo.save(transaction);
+    await this.syncListingAfterClosedWon(saved);
     await this.logEvent(userId, saved, TransactionEventType.DETAILS_UPDATED, {
       previous,
       next: this.createTransactionSnapshot(saved),
@@ -324,6 +328,7 @@ export class TransactionsService {
 
     this.applyStatus(transaction, dto.status, dto.lostReason);
     const saved = await this.transactionRepo.save(transaction);
+    await this.syncListingAfterClosedWon(saved);
 
     await this.logEvent(
       userId,
@@ -706,6 +711,37 @@ export class TransactionsService {
         metadata,
       }),
     );
+  }
+
+  private async syncListingAfterClosedWon(
+    transaction: Transaction,
+  ): Promise<void> {
+    if (transaction.status !== TransactionStatus.CLOSED_WON) {
+      return;
+    }
+
+    const listing = await this.listingRepo.findOne({
+      where: {
+        id: transaction.listingId,
+        agentId: transaction.agentId,
+      },
+    });
+
+    if (!listing) {
+      return;
+    }
+
+    listing.status =
+      listing.transactionType === TransactionType.RENT
+        ? ListingStatus.RENTED
+        : ListingStatus.SOLD;
+
+    if (listing.publicationStatus === ListingPublicationStatus.PUBLISHED) {
+      listing.publicationStatus = ListingPublicationStatus.UNPUBLISHED;
+      listing.unpublishedAt = new Date();
+    }
+
+    await this.listingRepo.save(listing);
   }
 
   private withDerivedFields(transaction: Transaction): Transaction {

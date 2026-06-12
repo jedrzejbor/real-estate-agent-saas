@@ -5,6 +5,7 @@ import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { AnalyticsEvent } from '../analytics/entities/analytics-event.entity';
+import { Transaction } from '../transactions/entities';
 import { UsersModule } from '../users';
 import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
@@ -17,6 +18,7 @@ import { ReportsService } from './reports.service';
       Appointment,
       Agent,
       AnalyticsEvent,
+      Transaction,
     ]),
     UsersModule,
   ],

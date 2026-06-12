@@ -592,20 +592,64 @@ Pozostało:
 
 ### T3. Integracja z ofertami, dokumentami i raportem `Zarobki`
 
+Status: częściowo wykonane - pierwsza iteracja 2026-06-12
+
 Zakres:
 
-- pokazać transakcje na szczegółach oferty,
-- pokazać dokumenty oferty w szczegółach transakcji,
-- dodać ostrzeżenia o brakujących dokumentach przy zamykaniu,
-- dodać sekcję transakcyjną w raporcie `Zarobki`,
-- uniknąć podwójnego liczenia prowizji z oferty i transakcji.
+- [x] pokazać transakcje na szczegółach oferty,
+- [x] pokazać dokumenty oferty w szczegółach transakcji,
+- [x] dodać ostrzeżenia o brakujących dokumentach przy zamykaniu,
+- [x] dodać sekcję transakcyjną w raporcie `Zarobki`,
+- [x] uniknąć podwójnego liczenia prowizji z oferty i transakcji.
 
 Kryteria akceptacji:
 
-- [ ] Zamknięta wygrana transakcja jest widoczna w raporcie `Zarobki`.
-- [ ] Prowizja nie jest liczona podwójnie.
-- [ ] Transakcja pokazuje kompletność dokumentów oferty.
-- [ ] `closed_won` może zsynchronizować status oferty z `sold` albo `rented`.
+- [x] Zamknięta wygrana transakcja jest widoczna w raporcie `Zarobki`.
+- [x] Prowizja nie jest liczona podwójnie.
+- [x] Transakcja pokazuje kompletność dokumentów oferty.
+- [x] `closed_won` może zsynchronizować status oferty z `sold` albo `rented`.
+
+Wykonane:
+
+- Rozszerzono raport `Zarobki` po stronie backendu:
+  - `closedCommissionValue`,
+  - `closedListingsWithCommission`,
+  - `averageClosedCommissionValue`,
+  - timeline zamkniętych prowizji,
+  - breakdown zamkniętych prowizji po typie transakcji
+    bazują teraz na transakcjach ze statusem `closed_won`.
+- Aktywne i łączne estymacje w raporcie nadal bazują na ofertach, ale
+  wykluczają oferty, które mają już zamkniętą wygraną transakcję. Dzięki temu
+  prowizja z oferty i prowizja z transakcji nie są liczone podwójnie.
+- Zaktualizowano notatki i etykiety UI raportu `Zarobki`, żeby jasno wskazywać,
+  że zamknięte prowizje pochodzą z transakcji.
+- Zmiana statusu transakcji na `closed_won` synchronizuje ofertę:
+  - sprzedaż ustawia `ListingStatus.SOLD`,
+  - najem ustawia `ListingStatus.RENTED`,
+  - opublikowana oferta jest odpublikowana przez `ListingPublicationStatus`.
+- Szczegóły oferty pokazują powiązane transakcje i linkują do ich szczegółów.
+- Szczegóły transakcji pokazują checklistę dokumentów powiązanej oferty:
+  - procent kompletności,
+  - liczbę wymaganych dokumentów,
+  - braki,
+  - dokumenty wymagające poprawy,
+  - blokujące pozycje checklisty.
+
+Weryfikacja:
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter web type-check` - przechodzi.
+- `pnpm --filter api test -- transaction-commission listing-commission` -
+  przechodzi.
+- `pnpm --filter web build` - przechodzi po zezwoleniu na pobranie fontów przez
+  `next/font`.
+
+Pozostało:
+
+- Dodać dedykowane testy serwisowe raportu `Zarobki` dla miksu ofert i
+  transakcji, żeby formalnie zabezpieczyć brak podwójnego liczenia.
+- Rozważyć osobny widok szczegółowy "co blokuje zamknięcie" w T4, bazujący na
+  deadline trackerze, checklistach i dokumentach.
 
 ### T4. Deadline tracker i blokady zamknięcia
 

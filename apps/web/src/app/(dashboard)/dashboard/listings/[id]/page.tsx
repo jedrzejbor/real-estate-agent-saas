@@ -52,6 +52,12 @@ import {
   formatArea,
   formatListingCommission,
 } from '@/lib/listings';
+import {
+  fetchTransactions,
+  formatTransactionMoney,
+  TRANSACTION_STATUS_LABELS,
+  type Transaction,
+} from '@/lib/transactions';
 
 export default function ListingDetailPage() {
   const params = useParams<{ id: string }>();
@@ -59,6 +65,9 @@ export default function ListingDetailPage() {
   const { confirm } = useConfirm();
   const { error: showErrorToast, success: showSuccessToast } = useToast();
   const [listing, setListing] = useState<Listing | null>(null);
+  const [listingTransactions, setListingTransactions] = useState<Transaction[]>(
+    [],
+  );
   const [activeTab, setActiveTab] = useState<ListingDetailTabId>('overview');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,8 +86,14 @@ export default function ListingDetailPage() {
   useEffect(() => {
     if (!params.id) return;
     setIsLoading(true);
-    fetchListing(params.id)
-      .then(setListing)
+    Promise.all([
+      fetchListing(params.id),
+      fetchTransactions({ listingId: params.id, limit: 10 }),
+    ])
+      .then(([listingResponse, transactionsResponse]) => {
+        setListing(listingResponse);
+        setListingTransactions(transactionsResponse.data);
+      })
       .catch((err) =>
         setError(err instanceof Error ? err.message : 'Nie znaleziono oferty'),
       )
@@ -381,6 +396,7 @@ export default function ListingDetailPage() {
                   : null
               }
               isRollingBackStatus={isRollingBackStatus}
+              transactions={listingTransactions}
               onStatusChange={handleStatusChange}
               onStatusRollback={handleStatusRollback}
             />
@@ -461,6 +477,7 @@ function ListingOverviewContent({
   statusActions,
   rollbackLabel,
   isRollingBackStatus,
+  transactions,
   onStatusChange,
   onStatusRollback,
 }: {
@@ -468,6 +485,7 @@ function ListingOverviewContent({
   statusActions: StatusAction[];
   rollbackLabel: string | null;
   isRollingBackStatus: boolean;
+  transactions: Transaction[];
   onStatusChange: (status: ListingStatus) => void;
   onStatusRollback: () => void;
 }) {
@@ -485,9 +503,61 @@ function ListingOverviewContent({
           onStatusChange={onStatusChange}
           onStatusRollback={onStatusRollback}
         />
+        <ListingTransactionsCard transactions={transactions} />
         <ListingMetadataCard listing={listing} />
         <ListingLocationCard listing={listing} />
       </div>
+    </div>
+  );
+}
+
+function ListingTransactionsCard({
+  transactions,
+}: {
+  transactions: Transaction[];
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-heading text-base font-semibold text-foreground">
+          Transakcje oferty
+        </h3>
+        <Badge variant="secondary" className="rounded-full">
+          {transactions.length}
+        </Badge>
+      </div>
+      {transactions.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Ta oferta nie ma jeszcze transakcji w pipeline.
+        </p>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {transactions.map((transaction) => (
+            <Link
+              key={transaction.id}
+              href={`/dashboard/transactions/${transaction.id}`}
+              className="block rounded-xl border border-border/70 bg-muted/10 px-3 py-2 transition-colors hover:border-primary/40 hover:bg-muted/30"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {transaction.title}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {TRANSACTION_STATUS_LABELS[transaction.status]}
+                  </p>
+                </div>
+                <p className="shrink-0 text-xs font-medium text-foreground">
+                  {formatTransactionMoney(
+                    transaction.dealValue,
+                    transaction.currency,
+                  )}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
