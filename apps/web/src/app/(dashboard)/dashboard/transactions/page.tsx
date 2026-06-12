@@ -3,7 +3,14 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle2, Circle, Plus, RefreshCw } from 'lucide-react';
+import {
+  AlertTriangle,
+  CalendarClock,
+  CheckCircle2,
+  Circle,
+  Plus,
+  RefreshCw,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { fetchClients, type Client } from '@/lib/clients';
@@ -16,8 +23,11 @@ import {
   createTransaction,
   createTransactionSchema,
   fetchTransactions,
+  buildTransactionDeadlineSummary,
+  formatDeadlineDistance,
   formatTransactionCommission,
   formatTransactionMoney,
+  getNextTransactionDeadline,
   TRANSACTION_PIPELINE_STATUSES,
   TRANSACTION_STATUS_LABELS,
   TransactionStatus,
@@ -98,6 +108,11 @@ export default function TransactionsPage() {
       {} as Record<TransactionStatus, Transaction[]>,
     );
   }, [transactions]);
+
+  const deadlineSummary = useMemo(
+    () => buildTransactionDeadlineSummary(transactions),
+    [transactions],
+  );
 
   function updateForm<K extends keyof CreateTransactionFormData>(
     key: K,
@@ -226,6 +241,8 @@ export default function TransactionsPage() {
           {error}
         </div>
       ) : null}
+
+      <DeadlineTracker summary={deadlineSummary} />
 
       <form
         onSubmit={handleSubmit}
@@ -450,6 +467,7 @@ function TransactionCard({
   const clientName = transaction.buyerClient
     ? `${transaction.buyerClient.firstName} ${transaction.buyerClient.lastName}`
     : 'Klient';
+  const nextDeadline = getNextTransactionDeadline(transaction);
 
   return (
     <article className="rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -479,9 +497,19 @@ function TransactionCard({
         />
       </div>
 
-      {transaction.expectedCloseDate ? (
-        <p className="mt-3 text-xs text-muted-foreground">
-          Zamknięcie: {formatDate(transaction.expectedCloseDate)}
+      {nextDeadline ? (
+        <p
+          className={cn(
+            'mt-3 rounded-md px-2 py-1.5 text-xs',
+            nextDeadline.state === 'overdue'
+              ? 'border border-destructive/30 bg-destructive/5 text-destructive'
+              : nextDeadline.state === 'upcoming'
+                ? 'border border-amber-300/40 bg-amber-50 text-amber-900'
+                : 'text-muted-foreground',
+          )}
+        >
+          {nextDeadline.label}: {formatDate(nextDeadline.value)} ·{' '}
+          {formatDeadlineDistance(nextDeadline)}
         </p>
       ) : null}
 
@@ -535,6 +563,141 @@ function TransactionCard({
         ))}
       </select>
     </article>
+  );
+}
+
+function DeadlineTracker({
+  summary,
+}: {
+  summary: ReturnType<typeof buildTransactionDeadlineSummary>;
+}) {
+  const hasItems =
+    summary.overdue.length > 0 ||
+    summary.upcoming.length > 0 ||
+    summary.blocked.length > 0;
+
+  return (
+    <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="font-heading text-lg font-semibold text-foreground">
+            Deadline tracker
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Krytyczne terminy i blokady aktywnych transakcji.
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center text-xs">
+          <TrackerMetric label="Po czasie" value={summary.overdue.length} />
+          <TrackerMetric label="7 dni" value={summary.upcoming.length} />
+          <TrackerMetric label="Blokady" value={summary.blocked.length} />
+        </div>
+      </div>
+
+      {hasItems ? (
+        <div className="mt-4 grid gap-3 lg:grid-cols-3">
+          <TrackerColumn
+            title="Po terminie"
+            icon={AlertTriangle}
+            items={summary.overdue.slice(0, 5)}
+            variant="danger"
+          />
+          <TrackerColumn
+            title="Najbliższe 7 dni"
+            icon={CalendarClock}
+            items={summary.upcoming.slice(0, 5)}
+            variant="warning"
+          />
+          <BlockedColumn transactions={summary.blocked.slice(0, 5)} />
+        </div>
+      ) : (
+        <p className="mt-4 rounded-lg border border-emerald-300/40 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          Brak krytycznych terminów i ręcznych blokad w aktywnym pipeline.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function TrackerMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="min-w-20 rounded-lg bg-muted/50 px-3 py-2">
+      <div className="font-semibold text-foreground">{value}</div>
+      <div className="text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+function TrackerColumn({
+  title,
+  icon: Icon,
+  items,
+  variant,
+}: {
+  title: string;
+  icon: typeof AlertTriangle;
+  items: ReturnType<typeof buildTransactionDeadlineSummary>['overdue'];
+  variant: 'danger' | 'warning';
+}) {
+  return (
+    <div className="rounded-lg border border-border/70 bg-muted/10 p-3">
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <Icon className="h-4 w-4" />
+        {title}
+      </div>
+      <div className="mt-3 space-y-2">
+        {items.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Brak pozycji.</p>
+        ) : (
+          items.map(({ transaction, deadline }) => (
+            <Link
+              key={`${transaction.id}-${deadline.field}`}
+              href={`/dashboard/transactions/${transaction.id}`}
+              className={cn(
+                'block rounded-md border px-3 py-2 text-xs',
+                variant === 'danger'
+                  ? 'border-destructive/30 bg-destructive/5 text-destructive'
+                  : 'border-amber-300/40 bg-amber-50 text-amber-950',
+              )}
+            >
+              <span className="block font-medium">{transaction.title}</span>
+              <span className="mt-0.5 block">
+                {deadline.label}: {formatDeadlineDistance(deadline)}
+              </span>
+            </Link>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BlockedColumn({ transactions }: { transactions: Transaction[] }) {
+  return (
+    <div className="rounded-lg border border-border/70 bg-muted/10 p-3">
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <AlertTriangle className="h-4 w-4" />
+        Blokady
+      </div>
+      <div className="mt-3 space-y-2">
+        {transactions.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Brak pozycji.</p>
+        ) : (
+          transactions.map((transaction) => (
+            <Link
+              key={transaction.id}
+              href={`/dashboard/transactions/${transaction.id}`}
+              className="block rounded-md border border-amber-300/40 bg-amber-50 px-3 py-2 text-xs text-amber-950"
+            >
+              <span className="block font-medium">{transaction.title}</span>
+              <span className="mt-0.5 line-clamp-2 block">
+                {transaction.blockerNote}
+              </span>
+            </Link>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 

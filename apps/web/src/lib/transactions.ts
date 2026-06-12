@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import { apiFetch } from './api-client';
 import {
+  ListingDocumentStatus,
   LISTING_COMMISSION_TYPE_LABELS,
   ListingCommissionType,
+  type ListingDocumentChecklist,
   type Listing,
 } from './listings';
 import type { Client } from './clients';
@@ -149,6 +151,41 @@ export interface TransactionFilters {
   limit?: number;
   sortBy?: 'createdAt' | 'updatedAt' | 'expectedCloseDate' | 'dealValue';
   sortOrder?: 'ASC' | 'DESC';
+}
+
+export type TransactionDeadlineField =
+  | 'expectedCloseDate'
+  | 'reservationExpiresAt'
+  | 'preliminaryAgreementDate'
+  | 'financingDeadline'
+  | 'notaryDate'
+  | 'handoverDate'
+  | 'commissionDueDate';
+
+export interface TransactionDeadline {
+  field: TransactionDeadlineField;
+  label: string;
+  value: string;
+  daysUntil: number;
+  state: 'overdue' | 'upcoming' | 'future';
+}
+
+export interface TransactionBlockingReason {
+  key: string;
+  label: string;
+  description: string;
+  severity: 'warning' | 'critical';
+}
+
+export interface TransactionDeadlineSummary {
+  overdue: TransactionDeadlineSummaryItem[];
+  upcoming: TransactionDeadlineSummaryItem[];
+  blocked: Transaction[];
+}
+
+export interface TransactionDeadlineSummaryItem {
+  transaction: Transaction;
+  deadline: TransactionDeadline;
 }
 
 export const createTransactionSchema = z
@@ -368,6 +405,189 @@ export function formatTransactionCommission(transaction: Transaction): string {
         );
 
   return `${LISTING_COMMISSION_TYPE_LABELS[transaction.commissionType]}: ${value} (${amount})`;
+}
+
+const ACTIVE_TRANSACTION_STATUSES = new Set<TransactionStatus>([
+  TransactionStatus.LEAD_OFFER,
+  TransactionStatus.NEGOTIATION,
+  TransactionStatus.RESERVED,
+  TransactionStatus.PRELIMINARY_AGREEMENT,
+  TransactionStatus.FINANCING,
+  TransactionStatus.NOTARY_SCHEDULED,
+  TransactionStatus.HANDOVER,
+]);
+
+const DEADLINE_FIELDS: Array<{
+  field: TransactionDeadlineField;
+  label: string;
+}> = [
+  { field: 'reservationExpiresAt', label: 'Koniec rezerwacji' },
+  { field: 'preliminaryAgreementDate', label: 'Umowa przedwstępna' },
+  { field: 'financingDeadline', label: 'Finansowanie' },
+  { field: 'notaryDate', label: 'Notariusz' },
+  { field: 'handoverDate', label: 'Odbiór' },
+  { field: 'commissionDueDate', label: 'Płatność prowizji' },
+  { field: 'expectedCloseDate', label: 'Planowane zamknięcie' },
+];
+
+export function isActiveTransaction(transaction: Transaction): boolean {
+  return ACTIVE_TRANSACTION_STATUSES.has(transaction.status);
+}
+
+export function getTransactionDeadlines(
+  transaction: Transaction,
+  now = new Date(),
+): TransactionDeadline[] {
+  const today = startOfDay(now);
+
+  return DEADLINE_FIELDS.flatMap(({ field, label }) => {
+    const value = transaction[field];
+    if (!value) return [];
+
+    const date = startOfDay(new Date(value));
+    const daysUntil = Math.round(
+      (date.getTime() - today.getTime()) / 86_400_000,
+    );
+    const state: TransactionDeadline['state'] =
+      daysUntil < 0 ? 'overdue' : daysUntil <= 7 ? 'upcoming' : 'future';
+
+    return [
+      {
+        field,
+        label,
+        value,
+        daysUntil,
+        state,
+      },
+    ];
+  }).sort((a, b) => a.daysUntil - b.daysUntil);
+}
+
+export function getNextTransactionDeadline(
+  transaction: Transaction,
+  now = new Date(),
+): TransactionDeadline | null {
+  return (
+    getTransactionDeadlines(transaction, now).find(
+      (deadline) => deadline.daysUntil >= 0,
+    ) ??
+    getTransactionDeadlines(transaction, now)[0] ??
+    null
+  );
+}
+
+export function buildTransactionDeadlineSummary(
+  transactions: Transaction[],
+  now = new Date(),
+): TransactionDeadlineSummary {
+  const activeTransactions = transactions.filter(isActiveTransaction);
+  const overdue: TransactionDeadlineSummaryItem[] = [];
+  const upcoming: TransactionDeadlineSummaryItem[] = [];
+
+  for (const transaction of activeTransactions) {
+    for (const deadline of getTransactionDeadlines(transaction, now)) {
+      if (deadline.state === 'overdue') {
+        overdue.push({ transaction, deadline });
+      } else if (deadline.state === 'upcoming') {
+        upcoming.push({ transaction, deadline });
+      }
+    }
+  }
+
+  return {
+    overdue: overdue.sort(
+      (a, b) => a.deadline.daysUntil - b.deadline.daysUntil,
+    ),
+    upcoming: upcoming.sort(
+      (a, b) => a.deadline.daysUntil - b.deadline.daysUntil,
+    ),
+    blocked: activeTransactions.filter((transaction) =>
+      Boolean(transaction.blockerNote?.trim()),
+    ),
+  };
+}
+
+export function getTransactionBlockingReasons(
+  transaction: Transaction,
+  documentChecklist: ListingDocumentChecklist | null,
+  now = new Date(),
+): TransactionBlockingReason[] {
+  const reasons: TransactionBlockingReason[] = [];
+  const overdueDeadlines = getTransactionDeadlines(transaction, now).filter(
+    (deadline) => deadline.state === 'overdue',
+  );
+  const openTasks =
+    transaction.tasks?.filter(
+      (task) => task.status === TransactionTaskStatus.TODO,
+    ).length ??
+    transaction.openTasksCount ??
+    0;
+
+  if (transaction.blockerNote?.trim()) {
+    reasons.push({
+      key: 'manual_blocker',
+      label: 'Blokada ręczna',
+      description: transaction.blockerNote,
+      severity: 'critical',
+    });
+  }
+
+  if (overdueDeadlines.length > 0) {
+    reasons.push({
+      key: 'overdue_deadlines',
+      label: 'Terminy po czasie',
+      description: `${overdueDeadlines.length} krytycznych terminów jest po czasie.`,
+      severity: 'critical',
+    });
+  }
+
+  if (openTasks > 0) {
+    reasons.push({
+      key: 'open_tasks',
+      label: 'Otwarte zadania',
+      description: `${openTasks} zadań checklisty nadal wymaga działania.`,
+      severity: 'warning',
+    });
+  }
+
+  if (documentChecklist) {
+    const missing = documentChecklist.summary.missing;
+    const needsCorrection = documentChecklist.summary.needsCorrection;
+
+    if (missing > 0 || needsCorrection > 0) {
+      reasons.push({
+        key: 'documents',
+        label: 'Dokumenty oferty',
+        description: `${missing} braków, ${needsCorrection} dokumentów wymaga poprawy.`,
+        severity: missing > 0 ? 'critical' : 'warning',
+      });
+    }
+  }
+
+  if (!transaction.commissionType || transaction.commissionValue === null) {
+    reasons.push({
+      key: 'commission',
+      label: 'Prowizja',
+      description: 'Transakcja nie ma uzupełnionej prowizji.',
+      severity: 'warning',
+    });
+  }
+
+  return reasons;
+}
+
+export function formatDeadlineDistance(deadline: TransactionDeadline): string {
+  if (deadline.daysUntil < 0) {
+    return `${Math.abs(deadline.daysUntil)} dni po terminie`;
+  }
+
+  if (deadline.daysUntil === 0) return 'dzisiaj';
+  if (deadline.daysUntil === 1) return 'jutro';
+  return `za ${deadline.daysUntil} dni`;
+}
+
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
 function cleanPayload(

@@ -4,7 +4,9 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
+  AlertTriangle,
   ArrowLeft,
+  CalendarClock,
   CheckCircle2,
   Circle,
   Plus,
@@ -28,8 +30,11 @@ import {
   deleteTransactionTask,
   fetchTransaction,
   fetchTransactionEvents,
+  formatDeadlineDistance,
   formatTransactionCommission,
   formatTransactionMoney,
+  getTransactionBlockingReasons,
+  getTransactionDeadlines,
   TRANSACTION_PIPELINE_STATUSES,
   TRANSACTION_STATUS_LABELS,
   TransactionStatus,
@@ -41,6 +46,8 @@ import {
   type Transaction,
   type TransactionEvent,
   type TransactionTask,
+  type TransactionBlockingReason,
+  type TransactionDeadline,
   type UpdateTransactionFormData,
 } from '@/lib/transactions';
 import { cn } from '@/lib/utils';
@@ -98,6 +105,17 @@ export default function TransactionDetailPage() {
         (task) => task.status === TransactionTaskStatus.TODO,
       ).length ?? 0,
     [transaction?.tasks],
+  );
+  const deadlines = useMemo(
+    () => (transaction ? getTransactionDeadlines(transaction) : []),
+    [transaction],
+  );
+  const blockingReasons = useMemo(
+    () =>
+      transaction
+        ? getTransactionBlockingReasons(transaction, documentChecklist)
+        : [],
+    [documentChecklist, transaction],
   );
 
   function updateForm<K extends keyof UpdateTransactionFormData>(
@@ -269,6 +287,8 @@ export default function TransactionDetailPage() {
           }
         />
       </div>
+
+      <BlockingOverview reasons={blockingReasons} deadlines={deadlines} />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
         <form
@@ -614,6 +634,89 @@ export default function TransactionDetailPage() {
           </section>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BlockingOverview({
+  reasons,
+  deadlines,
+}: {
+  reasons: TransactionBlockingReason[];
+  deadlines: TransactionDeadline[];
+}) {
+  return (
+    <section className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+      <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-amber-600" />
+          <h2 className="font-heading text-lg font-semibold text-foreground">
+            Co blokuje zamknięcie
+          </h2>
+        </div>
+        {reasons.length === 0 ? (
+          <p className="mt-4 rounded-lg border border-emerald-300/40 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+            Brak wykrytych blokad zamknięcia.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-2">
+            {reasons.map((reason) => (
+              <div
+                key={reason.key}
+                className={cn(
+                  'rounded-lg border px-3 py-2 text-sm',
+                  reason.severity === 'critical'
+                    ? 'border-destructive/30 bg-destructive/5 text-destructive'
+                    : 'border-amber-300/40 bg-amber-50 text-amber-950',
+                )}
+              >
+                <p className="font-medium">{reason.label}</p>
+                <p className="mt-0.5 text-xs">{reason.description}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <CalendarClock className="h-5 w-5 text-primary" />
+          <h2 className="font-heading text-lg font-semibold text-foreground">
+            Terminy krytyczne
+          </h2>
+        </div>
+        {deadlines.length === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">
+            Brak uzupełnionych terminów krytycznych.
+          </p>
+        ) : (
+          <div className="mt-4 grid gap-2 md:grid-cols-2">
+            {deadlines.map((deadline) => (
+              <DeadlineRow key={deadline.field} deadline={deadline} />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function DeadlineRow({ deadline }: { deadline: TransactionDeadline }) {
+  return (
+    <div
+      className={cn(
+        'rounded-lg border px-3 py-2 text-sm',
+        deadline.state === 'overdue'
+          ? 'border-destructive/30 bg-destructive/5 text-destructive'
+          : deadline.state === 'upcoming'
+            ? 'border-amber-300/40 bg-amber-50 text-amber-950'
+            : 'border-border bg-muted/10 text-foreground',
+      )}
+    >
+      <p className="font-medium">{deadline.label}</p>
+      <p className="mt-0.5 text-xs">
+        {formatDate(deadline.value)} · {formatDeadlineDistance(deadline)}
+      </p>
     </div>
   );
 }

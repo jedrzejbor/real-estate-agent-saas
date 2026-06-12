@@ -653,19 +653,62 @@ Pozostało:
 
 ### T4. Deadline tracker i blokady zamknięcia
 
+Status: częściowo wykonane - pierwsza iteracja 2026-06-12
+
 Zakres:
 
-- dodać widok terminów krytycznych,
-- dodać flagę lub notatkę blokady,
-- dodać widok "co blokuje zamknięcie",
-- dodać podstawowe alerty w dashboardzie.
+- [x] dodać widok terminów krytycznych,
+- [x] dodać flagę lub notatkę blokady,
+- [x] dodać widok "co blokuje zamknięcie",
+- [x] dodać podstawowe alerty w dashboardzie.
 
 Kryteria akceptacji:
 
-- [ ] Agent widzi transakcje z terminem w najbliższych 7 dniach.
-- [ ] Agent widzi transakcje po terminie.
-- [ ] Agent widzi transakcje oznaczone jako zablokowane.
-- [ ] Szczegóły transakcji pokazują brakujące kroki przed zamknięciem.
+- [x] Agent widzi transakcje z terminem w najbliższych 7 dniach.
+- [x] Agent widzi transakcje po terminie.
+- [x] Agent widzi transakcje oznaczone jako zablokowane.
+- [x] Szczegóły transakcji pokazują brakujące kroki przed zamknięciem.
+
+Wykonane:
+
+- Dodano wspólne helpery w `apps/web/src/lib/transactions.ts`:
+  - lista krytycznych terminów transakcji,
+  - najbliższy termin transakcji,
+  - klasyfikacja `overdue/upcoming/future`,
+  - summary deadline trackera,
+  - lista powodów blokujących zamknięcie.
+- Strona `/dashboard/transactions` pokazuje `Deadline tracker`:
+  - liczbę terminów po czasie,
+  - liczbę terminów w najbliższych 7 dniach,
+  - liczbę transakcji z ręczną blokadą,
+  - listy najważniejszych pozycji z linkami do szczegółów.
+- Karty pipeline pokazują najbliższy krytyczny termin, z wyróżnieniem terminów
+  po czasie i terminów w najbliższych 7 dniach.
+- Szczegóły transakcji pokazują sekcję `Co blokuje zamknięcie`, opartą o:
+  - ręczną blokadę,
+  - terminy po czasie,
+  - otwarte zadania checklisty,
+  - braki i poprawki w dokumentach oferty,
+  - brak uzupełnionej prowizji.
+- Szczegóły transakcji pokazują sekcję `Terminy krytyczne` z pełną listą
+  uzupełnionych terminów i oznaczeniem statusu każdego terminu.
+
+Weryfikacja:
+
+- `pnpm --filter web type-check` - przechodzi.
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter api test -- transaction-commission listing-commission` -
+  przechodzi.
+- `pnpm --filter web build` - przechodzi po zezwoleniu na pobranie fontów przez
+  `next/font`.
+
+Pozostało:
+
+- Rozważyć backendowy endpoint agregujący deadline tracker, jeśli liczba
+  transakcji wzrośnie i pobieranie `limit: 100` przestanie być wystarczające.
+- Dodać automatyczne powiadomienia o terminach jako osobną iterację po T4.
+- Dodać testy jednostkowe helperów frontendowych, jeśli repo wprowadzi runner
+  testów dla warstwy web.
 
 ## Testy
 
