@@ -169,8 +169,20 @@ export default function TransactionDetailPage() {
 
     setError(null);
     try {
-      await updateTransactionTask(transaction.id, task.id, { status });
-      await loadData();
+      const updatedTask = await updateTransactionTask(transaction.id, task.id, {
+        status,
+      });
+      setTransaction((current) =>
+        current
+          ? {
+              ...current,
+              tasks: current.tasks?.map((item) =>
+                item.id === updatedTask.id ? updatedTask : item,
+              ),
+            }
+          : current,
+      );
+      setEvents(await fetchTransactionEvents(transaction.id));
     } catch (err) {
       setError(getApiErrorMessage(err));
     }

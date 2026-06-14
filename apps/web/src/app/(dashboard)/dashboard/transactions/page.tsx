@@ -206,8 +206,28 @@ export default function TransactionsPage() {
 
     setError(null);
     try {
-      await updateTransactionTask(transaction.id, task.id, { status });
-      await loadData();
+      const updatedTask = await updateTransactionTask(transaction.id, task.id, {
+        status,
+      });
+      setTransactions((current) =>
+        current.map((item) =>
+          item.id === transaction.id
+            ? {
+                ...item,
+                tasks: item.tasks?.map((currentTask) =>
+                  currentTask.id === updatedTask.id ? updatedTask : currentTask,
+                ),
+                openTasksCount:
+                  item.openTasksCount !== undefined
+                    ? item.openTasksCount +
+                      (updatedTask.status === TransactionTaskStatus.TODO
+                        ? 1
+                        : -1)
+                    : item.openTasksCount,
+              }
+            : item,
+        ),
+      );
     } catch (err) {
       setError(getApiErrorMessage(err));
     }
