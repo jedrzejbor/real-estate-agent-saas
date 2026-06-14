@@ -501,7 +501,7 @@ function DocumentAttentionMetric({
 function DocumentAttentionRow({ item }: { item: DocumentAttentionItem }) {
   return (
     <Link
-      href={`/dashboard/listings/${item.listingId}`}
+      href={`/dashboard/listings/${item.listingId}?tab=documents`}
       className="flex items-center gap-3 rounded-xl border border-border px-3 py-2 transition-colors hover:border-primary/40 hover:bg-muted/40"
     >
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-status-warning-bg">

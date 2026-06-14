@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Activity,
@@ -62,6 +62,8 @@ import {
 export default function ListingDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
   const { confirm } = useConfirm();
   const { error: showErrorToast, success: showSuccessToast } = useToast();
   const [listing, setListing] = useState<Listing | null>(null);
@@ -99,6 +101,13 @@ export default function ListingDetailPage() {
       )
       .finally(() => setIsLoading(false));
   }, [params.id]);
+
+  useEffect(() => {
+    const tab = parseListingDetailTabId(tabParam);
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [tabParam]);
 
   const handleDelete = useCallback(async () => {
     if (!listing) return;
@@ -439,6 +448,17 @@ interface ListingDetailTab {
   description: string;
   icon: typeof ClipboardList;
   badge?: string;
+}
+
+function parseListingDetailTabId(
+  value: string | null,
+): ListingDetailTabId | null {
+  return value === 'overview' ||
+    value === 'publication' ||
+    value === 'documents' ||
+    value === 'history'
+    ? value
+    : null;
 }
 
 function ListingSummaryCard({
