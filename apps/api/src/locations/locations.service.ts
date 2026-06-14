@@ -48,8 +48,6 @@ export class LocationsService {
     const qb = this.locationRepo
       .createQueryBuilder('location')
       .where('location.active = :active', { active: true })
-      .orderBy('location.priority', 'DESC')
-      .addOrderBy('location.name', 'ASC')
       .take(limit);
 
     if (normalizedQuery) {
@@ -59,15 +57,23 @@ export class LocationsService {
           prefix: `${normalizedQuery}%`,
           contains: `%${normalizedQuery}%`,
         },
-      ).addOrderBy(
-        `CASE
+      )
+        .orderBy(
+          `CASE
           WHEN location.normalizedName = :exact THEN 0
           WHEN location.normalizedName LIKE :prefix THEN 1
           ELSE 2
         END`,
+          'ASC',
+        )
+        .addOrderBy('location.priority', 'DESC')
+        .addOrderBy('location.name', 'ASC');
+      qb.setParameter('exact', normalizedQuery);
+    } else {
+      qb.orderBy('location.priority', 'DESC').addOrderBy(
+        'location.name',
         'ASC',
       );
-      qb.setParameter('exact', normalizedQuery);
     }
 
     const locations = await qb.getMany();
