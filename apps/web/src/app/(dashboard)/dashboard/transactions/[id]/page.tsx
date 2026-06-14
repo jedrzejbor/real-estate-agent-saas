@@ -788,7 +788,12 @@ function DocumentChecklistCard({
           {blockingItems.slice(0, 4).map((item) => (
             <div
               key={item.category}
-              className="rounded-lg border border-amber-300/40 bg-amber-50 px-3 py-2 text-xs text-amber-950"
+              className={cn(
+                'rounded-lg border px-3 py-2 text-xs',
+                item.status === ListingDocumentStatus.MISSING
+                  ? 'border-destructive/25 bg-destructive/10 text-destructive'
+                  : 'border-status-warning/25 bg-status-warning-bg text-status-warning',
+              )}
             >
               <p className="font-medium">
                 {LISTING_DOCUMENT_CATEGORY_LABELS[item.category]}
@@ -800,7 +805,7 @@ function DocumentChecklistCard({
           ))}
         </div>
       ) : (
-        <p className="mt-4 rounded-lg border border-emerald-300/40 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+        <p className="mt-4 rounded-lg border border-status-success/25 bg-status-success-bg px-3 py-2 text-xs text-status-success">
           Brak blokujących braków w wymaganych dokumentach.
         </p>
       )}
