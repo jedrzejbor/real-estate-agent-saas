@@ -378,6 +378,11 @@ export interface PublicListingCatalogItem {
     url: string;
     altText?: string | null;
   } | null;
+  images?: Array<{
+    id: string;
+    url: string;
+    altText?: string | null;
+  }>;
   mapPoint?: PublicListingMapPoint | null;
   imageCount: number;
   agent?: {
