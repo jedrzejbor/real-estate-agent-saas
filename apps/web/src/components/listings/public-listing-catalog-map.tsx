@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Check, LocateFixed, MousePointer2, RotateCcw, Square } from 'lucide-react';
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  LocateFixed,
+  MousePointer2,
+  RotateCcw,
+  Square,
+} from 'lucide-react';
 import { createRoot, type Root } from 'react-dom/client';
 import {
   formatPrice,
@@ -104,21 +112,33 @@ export function PublicListingCatalogMap({
     popupRootsRef.current.forEach((root) => root.unmount());
     popupRootsRef.current = [];
 
-    for (const marker of markers) {
+    const markerGroups = groupMarkersByPoint(markers);
+
+    for (const markerGroup of markerGroups) {
+      const firstMarker = markerGroup.markers[0];
+      if (!firstMarker) continue;
+
       const popupContainer = document.createElement('div');
       const popupRoot = createRoot(popupContainer);
       popupRootsRef.current.push(popupRoot);
-      popupRoot.render(<MapListingPopup marker={marker} />);
+      popupRoot.render(<MapListingPopup markers={markerGroup.markers} />);
 
       leaflet
-        .marker([marker.mapPoint.lat, marker.mapPoint.lng], {
-          icon: createMarkerIcon(leaflet, marker.mapPoint.precision),
+        .marker([firstMarker.mapPoint.lat, firstMarker.mapPoint.lng], {
+          icon: createMarkerIcon(
+            leaflet,
+            firstMarker.mapPoint.precision,
+            markerGroup.markers.length,
+          ),
           keyboard: true,
-          title: marker.title,
+          title:
+            markerGroup.markers.length > 1
+              ? `${markerGroup.markers.length} ofert`
+              : firstMarker.title,
         })
         .bindPopup(popupContainer, {
           className: 'estateflow-map-popup',
-          maxWidth: 260,
+          maxWidth: 280,
         })
         .addTo(markerLayer);
     }
@@ -423,19 +443,50 @@ function formatBoundsAsBbox(bounds: Leaflet.LatLngBounds): string {
 function createMarkerIcon(
   leaflet: typeof Leaflet,
   precision: 'exact' | 'approximate',
+  count = 1,
 ) {
   const isExact = precision === 'exact';
+  const countLabel = count > 1 ? `<strong>${count}</strong>` : '<span></span>';
 
   return leaflet.divIcon({
     className: '',
-    html: `<span class="estateflow-map-marker ${isExact ? 'is-exact' : 'is-approximate'}"><span></span></span>`,
+    html: `<span class="estateflow-map-marker ${isExact ? 'is-exact' : 'is-approximate'}">${countLabel}</span>`,
     iconSize: [34, 34],
     iconAnchor: [17, 17],
     popupAnchor: [0, -18],
   });
 }
 
-function MapListingPopup({ marker }: { marker: PublicListingCatalogMapMarker }) {
+interface MarkerGroup {
+  key: string;
+  markers: PublicListingCatalogMapMarker[];
+}
+
+function groupMarkersByPoint(
+  markers: PublicListingCatalogMapMarker[],
+): MarkerGroup[] {
+  const groups = new Map<string, PublicListingCatalogMapMarker[]>();
+
+  for (const marker of markers) {
+    const key = `${marker.mapPoint.lat.toFixed(6)},${marker.mapPoint.lng.toFixed(6)}`;
+    groups.set(key, [...(groups.get(key) ?? []), marker]);
+  }
+
+  return Array.from(groups.entries()).map(([key, groupedMarkers]) => ({
+    key,
+    markers: groupedMarkers,
+  }));
+}
+
+function MapListingPopup({
+  markers,
+}: {
+  markers: PublicListingCatalogMapMarker[];
+}) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const marker = markers[activeIndex] ?? markers[0];
+  if (!marker) return null;
+
   const location = [marker.address?.district, marker.address?.city]
     .filter(Boolean)
     .join(', ');
@@ -452,9 +503,37 @@ function MapListingPopup({ marker }: { marker: PublicListingCatalogMapMarker }) 
       : marker.primaryImage
         ? [marker.primaryImage]
         : [];
+  const hasMultipleListings = markers.length > 1;
 
   return (
     <article className="estateflow-map-popup-card">
+      {hasMultipleListings ? (
+        <div className="estateflow-map-popup-switcher">
+          <button
+            type="button"
+            aria-label="Poprzednia oferta w tym punkcie"
+            onClick={() =>
+              setActiveIndex((current) =>
+                current === 0 ? markers.length - 1 : current - 1,
+              )
+            }
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+          <span>
+            Oferta {activeIndex + 1} z {markers.length}
+          </span>
+          <button
+            type="button"
+            aria-label="Następna oferta w tym punkcie"
+            onClick={() =>
+              setActiveIndex((current) => (current + 1) % markers.length)
+            }
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : null}
       <PublicListingImageCarousel
         images={images}
         fallbackImage={FALLBACK_LISTING_IMAGE}

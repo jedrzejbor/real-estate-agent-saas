@@ -298,6 +298,20 @@
   background: #ffffff;
 }
 
+.estateflow-map-marker strong {
+  display: flex;
+  min-width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #047857;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .estateflow-map-marker.is-exact {
   background: #059669;
 }
@@ -325,6 +339,35 @@
 .estateflow-map-popup-card {
   background: #ffffff;
   color: #1c1917;
+}
+
+.estateflow-map-popup-switcher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid #e7e5e4;
+  padding: 8px 10px;
+  color: #57534e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.estateflow-map-popup-switcher button {
+  display: inline-flex;
+  height: 24px;
+  width: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e7e5e4;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #1c1917;
+  cursor: pointer;
+}
+
+.estateflow-map-popup-switcher button:hover {
+  background: #f5f5f4;
 }
 
 .estateflow-map-popup-card img {
