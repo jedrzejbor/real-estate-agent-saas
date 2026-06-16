@@ -407,6 +407,7 @@ export interface PublicListingCatalogMapMarker {
   currency: string;
   address?: PublicListingCatalogItem['address'];
   primaryImage?: PublicListingCatalogItem['primaryImage'];
+  images?: PublicListingCatalogItem['images'];
   mapPoint: PublicListingMapPoint;
 }
 

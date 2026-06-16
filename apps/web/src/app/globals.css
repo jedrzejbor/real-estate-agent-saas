@@ -334,7 +334,7 @@
   object-fit: cover;
 }
 
-.estateflow-map-popup-card > div {
+.estateflow-map-popup-body {
   padding: 12px;
 }
 

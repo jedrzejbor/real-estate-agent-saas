@@ -1,14 +1,12 @@
 'use client';
 
 /* eslint-disable @next/next/no-img-element */
-import type { FormEvent, MouseEvent, ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
   Building2,
-  ChevronLeft,
-  ChevronRight,
   Home,
   Map as MapIcon,
   MapPin,
@@ -33,6 +31,7 @@ import {
 } from '@/lib/listings';
 import { PublicListingCatalogMap } from '@/components/listings/public-listing-catalog-map';
 import { PublicListingCatalogResultLink } from '@/components/listings/public-listing-catalog-result-link';
+import { PublicListingImageCarousel } from '@/components/listings/public-listing-image-carousel';
 import { PublicListingCityFilterField } from '@/components/listings/public-listing-city-filter-field';
 import type { AnalyticsProperties } from '@/lib/analytics';
 
@@ -405,80 +404,28 @@ function ListingCard({
       : listing.primaryImage
         ? [listing.primaryImage]
         : [];
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const activeImage = images[activeImageIndex] ?? null;
-  const imageUrl = activeImage?.url ?? FALLBACK_LISTING_IMAGE;
   const agencyName = listing.agent?.agency?.name;
-  const hasGallery = images.length > 1;
-
-  function showPreviousImage(event: MouseEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    setActiveImageIndex((current) =>
-      current === 0 ? images.length - 1 : current - 1,
-    );
-  }
-
-  function showNextImage(event: MouseEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    setActiveImageIndex((current) => (current + 1) % images.length);
-  }
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-      <div className="relative aspect-[4/3] bg-muted">
-        <PublicListingCatalogResultLink
-          slug={listing.slug}
-          listingId={listing.id}
-          position={position}
-          searchProperties={searchProperties}
-          className="block h-full"
-        >
-          <img
-            src={imageUrl}
-            alt={activeImage?.altText || listing.title}
-            className="h-full w-full object-cover"
-          />
-        </PublicListingCatalogResultLink>
-        {hasGallery ? (
-          <>
-            <button
-              type="button"
-              aria-label="Poprzednie zdjęcie"
-              onClick={showPreviousImage}
-              className="absolute left-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white opacity-0 shadow-sm transition hover:bg-black/70 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 group-hover:opacity-100"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              aria-label="Następne zdjęcie"
-              onClick={showNextImage}
-              className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white opacity-0 shadow-sm transition hover:bg-black/70 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 group-hover:opacity-100"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-            <div className="absolute bottom-3 left-3 flex max-w-[45%] gap-1 overflow-hidden">
-              {images.slice(0, 6).map((image, index) => (
-                <span
-                  key={image.id}
-                  className={`h-1.5 rounded-full transition-all ${
-                    index === activeImageIndex
-                      ? 'w-4 bg-white'
-                      : 'w-1.5 bg-white/55'
-                  }`}
-                />
-              ))}
-            </div>
-          </>
-        ) : null}
-        {listing.imageCount > 1 ? (
-          <span className="absolute bottom-3 right-3 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white">
-            {activeImageIndex + 1}/{listing.imageCount}
-          </span>
-        ) : null}
-      </div>
+      <PublicListingImageCarousel
+        images={images}
+        fallbackImage={FALLBACK_LISTING_IMAGE}
+        title={listing.title}
+        imageCount={listing.imageCount}
+        className="aspect-[4/3]"
+        renderImageLink={(image) => (
+          <PublicListingCatalogResultLink
+            slug={listing.slug}
+            listingId={listing.id}
+            position={position}
+            searchProperties={searchProperties}
+            className="block h-full"
+          >
+            {image}
+          </PublicListingCatalogResultLink>
+        )}
+      />
       <PublicListingCatalogResultLink
         slug={listing.slug}
         listingId={listing.id}

@@ -1342,7 +1342,8 @@ export class ListingsService {
         continue;
       }
 
-      const primaryImage = this.getOrderedImages(listing)[0] ?? null;
+      const images = this.getOrderedImages(listing);
+      const primaryImage = images[0] ?? null;
 
       markers.push({
         id: listing.id,
@@ -1364,6 +1365,11 @@ export class ListingsService {
               altText: primaryImage.altText ?? null,
             }
           : null,
+        images: images.map((image) => ({
+          id: image.id,
+          url: image.url,
+          altText: image.altText ?? null,
+        })),
         mapPoint,
       });
     }

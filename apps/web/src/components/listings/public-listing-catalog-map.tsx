@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Check, LocateFixed, MousePointer2, RotateCcw, Square } from 'lucide-react';
+import { createRoot, type Root } from 'react-dom/client';
 import {
   formatPrice,
   type PublicListingCatalogMapMarker,
   type PublicListingCatalogResponse,
 } from '@/lib/listings';
 import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
+import { PublicListingImageCarousel } from '@/components/listings/public-listing-image-carousel';
 import type * as Leaflet from 'leaflet';
 
 interface PublicListingCatalogMapProps {
@@ -26,6 +28,7 @@ const TILE_URL =
 const TILE_ATTRIBUTION =
   process.env.NEXT_PUBLIC_MAP_TILE_ATTRIBUTION ||
   '&copy; OpenStreetMap contributors';
+const FALLBACK_LISTING_IMAGE = '/images/hero/house-2.jpg';
 
 export function PublicListingCatalogMap({
   markers,
@@ -37,6 +40,7 @@ export function PublicListingCatalogMap({
   const leafletRef = useRef<typeof Leaflet | null>(null);
   const mapRef = useRef<Leaflet.Map | null>(null);
   const markerLayerRef = useRef<Leaflet.LayerGroup | null>(null);
+  const popupRootsRef = useRef<Root[]>([]);
   const selectionLayerRef = useRef<Leaflet.Rectangle | null>(null);
   const dragStartRef = useRef<Leaflet.LatLng | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -97,15 +101,22 @@ export function PublicListingCatalogMap({
     }
 
     markerLayer.clearLayers();
+    popupRootsRef.current.forEach((root) => root.unmount());
+    popupRootsRef.current = [];
 
     for (const marker of markers) {
+      const popupContainer = document.createElement('div');
+      const popupRoot = createRoot(popupContainer);
+      popupRootsRef.current.push(popupRoot);
+      popupRoot.render(<MapListingPopup marker={marker} />);
+
       leaflet
         .marker([marker.mapPoint.lat, marker.mapPoint.lng], {
           icon: createMarkerIcon(leaflet, marker.mapPoint.precision),
-        keyboard: true,
-        title: marker.title,
-      })
-        .bindPopup(buildPopupHtml(marker), {
+          keyboard: true,
+          title: marker.title,
+        })
+        .bindPopup(popupContainer, {
           className: 'estateflow-map-popup',
           maxWidth: 260,
         })
@@ -122,6 +133,11 @@ export function PublicListingCatalogMap({
     } else {
       map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
     }
+
+    return () => {
+      popupRootsRef.current.forEach((root) => root.unmount());
+      popupRootsRef.current = [];
+    };
   }, [isMapReady, mapMeta.bbox, markers]);
 
   useEffect(() => {
@@ -419,7 +435,7 @@ function createMarkerIcon(
   });
 }
 
-function buildPopupHtml(marker: PublicListingCatalogMapMarker): string {
+function MapListingPopup({ marker }: { marker: PublicListingCatalogMapMarker }) {
   const location = [marker.address?.district, marker.address?.city]
     .filter(Boolean)
     .join(', ');
@@ -430,36 +446,33 @@ function buildPopupHtml(marker: PublicListingCatalogMapMarker): string {
     marker.mapPoint.precision === 'exact'
       ? 'Dokładna lokalizacja'
       : 'Lokalizacja przybliżona';
+  const images =
+    marker.images && marker.images.length > 0
+      ? marker.images
+      : marker.primaryImage
+        ? [marker.primaryImage]
+        : [];
 
-  return `
-    <article class="estateflow-map-popup-card">
-      ${
-        marker.primaryImage?.url
-          ? `<img src="${escapeHtml(marker.primaryImage.url)}" alt="${escapeHtml(marker.primaryImage.altText || marker.title)}" />`
-          : ''
-      }
-      <div>
-        <p class="estateflow-map-popup-price">${escapeHtml(price)}</p>
-        <h3>${escapeHtml(marker.title)}</h3>
-        ${
-          location
-            ? `<p class="estateflow-map-popup-location">${escapeHtml(location)}</p>`
-            : ''
-        }
-        <p class="estateflow-map-popup-precision">${precisionLabel}</p>
-        <a href="/oferty/${encodeURIComponent(marker.slug)}">
+  return (
+    <article className="estateflow-map-popup-card">
+      <PublicListingImageCarousel
+        images={images}
+        fallbackImage={FALLBACK_LISTING_IMAGE}
+        title={marker.title}
+        className="h-28"
+        compact
+      />
+      <div className="estateflow-map-popup-body">
+        <p className="estateflow-map-popup-price">{price}</p>
+        <h3>{marker.title}</h3>
+        {location ? (
+          <p className="estateflow-map-popup-location">{location}</p>
+        ) : null}
+        <p className="estateflow-map-popup-precision">{precisionLabel}</p>
+        <a href={`/oferty/${encodeURIComponent(marker.slug)}`}>
           Zobacz ofertę
         </a>
       </div>
     </article>
-  `;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+  );
 }
