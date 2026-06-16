@@ -815,46 +815,52 @@ function CreateListingImagesSection({
             {files.map((file, index) => (
               <div
                 key={`${file.name}-${file.lastModified}-${index}`}
-                className="grid gap-3 rounded-lg border border-border bg-card px-3 py-3"
+                className="overflow-hidden rounded-lg border border-border bg-card"
               >
-                <div className="flex items-start gap-3">
-                  <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="min-w-0 truncate text-sm font-medium text-foreground">
-                        {file.name}
+                <SelectedListingImagePreview
+                  file={file}
+                  alt={`Podgląd zdjęcia ${index + 1}`}
+                />
+                <div className="grid gap-3 px-3 py-3">
+                  <div className="flex items-start gap-3">
+                    <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="min-w-0 truncate text-sm font-medium text-foreground">
+                          {file.name}
+                        </p>
+                        {index === 0 ? (
+                          <Badge variant="success">Główne</Badge>
+                        ) : null}
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {formatFileSize(file.size)}
                       </p>
-                      {index === 0 ? (
-                        <Badge variant="success">Główne</Badge>
-                      ) : null}
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {formatFileSize(file.size)}
-                    </p>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={index === 0 ? 'secondary' : 'outline'}
-                    size="sm"
-                    disabled={index === 0}
-                    className="min-w-0 flex-1 rounded-xl"
-                    onClick={() => onSetPrimary(index)}
-                  >
-                    <Star className="h-4 w-4" />
-                    {index === 0 ? 'Zdjęcie główne' : 'Ustaw jako główne'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive"
-                    aria-label={`Usuń ${file.name}`}
-                    onClick={() => onRemove(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={index === 0 ? 'secondary' : 'outline'}
+                      size="sm"
+                      disabled={index === 0}
+                      className="min-w-0 flex-1 rounded-xl"
+                      onClick={() => onSetPrimary(index)}
+                    >
+                      <Star className="h-4 w-4" />
+                      {index === 0 ? 'Zdjęcie główne' : 'Ustaw jako główne'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive"
+                      aria-label={`Usuń ${file.name}`}
+                      onClick={() => onRemove(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -862,6 +868,36 @@ function CreateListingImagesSection({
         ) : null}
       </div>
     </FormSection>
+  );
+}
+
+function SelectedListingImagePreview({
+  file,
+  alt,
+}: {
+  file: File;
+  alt: string;
+}) {
+  const [previewUrl, setPreviewUrl] = React.useState('');
+
+  React.useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  return (
+    <div className="relative aspect-[4/3] bg-muted">
+      {previewUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={previewUrl} alt={alt} className="h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+          <ImageIcon className="h-6 w-6" />
+        </div>
+      )}
+    </div>
   );
 }
 
