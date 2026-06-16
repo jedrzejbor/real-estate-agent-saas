@@ -142,7 +142,10 @@ const SUBMISSION_PROCESS = [
 export default function PublicListingSubmissionWizardPage() {
   const router = useRouter();
   const { success: showSuccessToast, error: showErrorToast } = useToast();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const shouldRedirectAuthenticatedAgent = user
+    ? !isPrivateSellerUser(user)
+    : false;
   const formStartedAt = React.useRef(Date.now());
   const appliedContactDefaultsForUserRef = React.useRef<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -178,6 +181,12 @@ export default function PublicListingSubmissionWizardPage() {
   }, []);
 
   React.useEffect(() => {
+    if (shouldRedirectAuthenticatedAgent) {
+      router.replace('/dashboard/listings/new');
+    }
+  }, [router, shouldRedirectAuthenticatedAgent]);
+
+  React.useEffect(() => {
     if (!isHydrated || !user) return;
     if (appliedContactDefaultsForUserRef.current === user.id) return;
 
@@ -201,6 +210,14 @@ export default function PublicListingSubmissionWizardPage() {
     if (!isHydrated) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
   }, [draft, isHydrated]);
+
+  if (isAuthLoading || shouldRedirectAuthenticatedAgent) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   function updateDraft<K extends keyof PublicListingWizardDraft>(
     key: K,
