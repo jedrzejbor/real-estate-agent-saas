@@ -11,6 +11,7 @@ import {
   ImageIcon,
   ImagePlus,
   Sparkles,
+  Star,
   X,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -220,6 +221,18 @@ export function ListingForm({
     setSelectedImages((current) =>
       current.filter((_, index) => index !== indexToRemove),
     );
+  }
+
+  function setSelectedImageAsPrimary(indexToPromote: number) {
+    setSelectedImages((current) => {
+      const target = current[indexToPromote];
+      if (!target) return current;
+
+      return [
+        target,
+        ...current.filter((_, index) => index !== indexToPromote),
+      ];
+    });
   }
 
   return (
@@ -457,6 +470,7 @@ export function ListingForm({
           imageLimit={imageLimit}
           onFilesSelected={handleImageFilesSelected}
           onRemove={removeSelectedImage}
+          onSetPrimary={setSelectedImageAsPrimary}
         />
       ) : null}
 
@@ -734,11 +748,13 @@ function CreateListingImagesSection({
   imageLimit,
   onFilesSelected,
   onRemove,
+  onSetPrimary,
 }: {
   files: File[];
   imageLimit: number | null;
   onFilesSelected: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onRemove: (index: number) => void;
+  onSetPrimary: (index: number) => void;
 }) {
   const isAtLimit = imageLimit !== null && files.length >= imageLimit;
 
@@ -795,31 +811,51 @@ function CreateListingImagesSection({
         </div>
 
         {files.length > 0 ? (
-          <div className="mt-4 grid gap-2">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {files.map((file, index) => (
               <div
                 key={`${file.name}-${file.lastModified}-${index}`}
-                className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2"
+                className="grid gap-3 rounded-lg border border-border bg-card px-3 py-3"
               >
-                <ImageIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {file.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatFileSize(file.size)}
-                  </p>
+                <div className="flex items-start gap-3">
+                  <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="min-w-0 truncate text-sm font-medium text-foreground">
+                        {file.name}
+                      </p>
+                      {index === 0 ? (
+                        <Badge variant="success">Główne</Badge>
+                      ) : null}
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {formatFileSize(file.size)}
+                    </p>
+                  </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive"
-                  aria-label={`Usuń ${file.name}`}
-                  onClick={() => onRemove(index)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={index === 0 ? 'secondary' : 'outline'}
+                    size="sm"
+                    disabled={index === 0}
+                    className="min-w-0 flex-1 rounded-xl"
+                    onClick={() => onSetPrimary(index)}
+                  >
+                    <Star className="h-4 w-4" />
+                    {index === 0 ? 'Zdjęcie główne' : 'Ustaw jako główne'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive"
+                    aria-label={`Usuń ${file.name}`}
+                    onClick={() => onRemove(index)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
