@@ -20,6 +20,7 @@ import {
   Layers,
   WalletCards,
   Handshake,
+  RadioTower,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,7 @@ import {
   PROPERTY_TYPE_LABELS,
   TRANSACTION_TYPE_LABELS,
   LISTING_STATUS_LABELS,
+  LISTING_PUBLICATION_STATUS_LABELS,
   LISTING_COMMISSION_TYPE_LABELS,
   formatPrice,
   formatArea,
@@ -247,6 +249,9 @@ export default function ListingDetailPage() {
   const statusActions = getStatusActions(listing.status);
   const tabs = getListingDetailTabs(listing);
   const selectedTab = tabs.find((tab) => tab.id === activeTab) ?? tabs[0]!;
+  const isActiveButUnpublished =
+    listing.status === LS.ACTIVE &&
+    listing.publicationStatus !== ListingPublicationStatus.PUBLISHED;
 
   return (
     <div className="space-y-6">
@@ -267,6 +272,7 @@ export default function ListingDetailPage() {
               {listing.title}
             </h1>
             <ListingStatusBadge status={listing.status} />
+            <ListingPublicationBadge status={listing.publicationStatus} />
           </div>
           {locationParts.length > 0 && (
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -299,6 +305,32 @@ export default function ListingDetailPage() {
           </Button>
         </div>
       </div>
+
+      {isActiveButUnpublished ? (
+        <div className="flex flex-col gap-3 rounded-2xl border border-status-warning/25 bg-status-warning-bg p-4 text-status-warning sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex gap-3">
+            <RadioTower className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold">
+                Oferta jest aktywna, ale nie jest widoczna publicznie.
+              </p>
+              <p className="mt-1 text-sm opacity-90">
+                Opublikuj ją w zakładce publikacji, aby pojawiła się na stronie
+                /oferty.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setActiveTab('publication')}
+            className="w-full rounded-xl border-status-warning/30 bg-card text-foreground hover:bg-muted sm:w-auto"
+          >
+            Przejdź do publikacji
+          </Button>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <ListingSummaryCard
@@ -489,6 +521,25 @@ function ListingSummaryCard({
         </div>
       </div>
     </div>
+  );
+}
+
+function ListingPublicationBadge({
+  status,
+}: {
+  status: ListingPublicationStatus;
+}) {
+  const variant =
+    status === ListingPublicationStatus.PUBLISHED
+      ? 'success'
+      : status === ListingPublicationStatus.UNPUBLISHED
+        ? 'warning'
+        : 'secondary';
+
+  return (
+    <Badge variant={variant}>
+      Publicznie: {LISTING_PUBLICATION_STATUS_LABELS[status]}
+    </Badge>
   );
 }
 
