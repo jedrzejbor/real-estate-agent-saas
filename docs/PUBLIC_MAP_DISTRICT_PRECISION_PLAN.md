@@ -343,6 +343,138 @@ Nie wykonano w tej iteracji:
 - Panel/adminowa korekta centroidów. To osobny workflow administracyjny i nie
   jest potrzebny do uruchomienia importowalnego katalogu dzielnic.
 
+## Sprint 4.5: PRNG jako katalog dzielnic i części miasta
+
+Status: częściowo wykonane w iteracji 2026-06-17
+
+Cel: wykorzystać dane z GUGiK PRNG jako główne źródło dzielnic, osiedli i
+części miasta, zamiast utrzymywać ręcznie tylko kilka rekordów seed/fallback.
+Lokalna baza ma już import PRNG i zawiera rekordy typu `część miasta`, np.
+`Fordon`, `Śródmieście`, `Szwederowo`, `Bartodzieje`, `Osowa Góra` dla
+Bydgoszczy. Obecna logika mapy i autocomplete czyta jednak przede wszystkim
+typy `district` i `neighborhood`, więc nie wykorzystuje jeszcze pełnego
+katalogu PRNG.
+
+Źródło danych:
+
+- GUGiK PRNG WFS:
+  `https://mapy.geoportal.gov.pl/wss/service/PZGiK/PRNG/WFS/GeographicalNames`,
+- warstwy importowane przez istniejący importer:
+  - `M1_UrzedoweNazwyMiejscowosci`,
+  - `M2_PozostaleNazwyMiejscowosci`,
+- typy PRNG istotne dla mapy publicznej:
+  - `część miasta`,
+  - docelowo także lokalne warianty, jeśli PRNG zwraca je pod inną nazwą
+    rodzaju obiektu.
+
+Decyzja techniczna:
+
+- `część miasta` traktujemy jako publicznie używalny odpowiednik
+  `neighborhood` dla mapy i sugestii dzielnic,
+- ręczne rekordy `district` zostają jako seed/korekta/fallback, ale nie są
+  jedynym źródłem prawdy,
+- mapa wybiera punkt z tabeli `locations` dla rekordów:
+  - `district`,
+  - `neighborhood`,
+  - `część miasta`,
+- endpoint sugestii dzielnic korzysta z tego samego zestawu typów,
+- jeśli istnieją dwa rekordy dla tego samego `city + district`, preferujemy:
+  1. ręcznie utrzymany `district` / `neighborhood` z `source=public-district-seed`
+     albo przyszłego panelu adminowego,
+  2. rekord PRNG `część miasta`,
+  3. stały fallback katalogu startowego.
+
+Zakres:
+
+- [x] rozszerzyć wspólną listę typów lokalizacji dzielnicowych o
+  `część miasta`,
+- [x] upewnić się, że `LocationsService.searchDistricts()` zwraca rekordy PRNG
+  typu `część miasta` dla wybranego miasta,
+- [x] rozszerzyć `ListingsService.hydrateDistrictPublicLocationPoints()` tak,
+  aby mapa używała `część miasta` jako źródła `mapPoint.source='district'`,
+- [x] dodać deterministyczny ranking kandydatów, gdy istnieje kilka rekordów
+  dla tej samej nazwy dzielnicy:
+  - seed/admin override,
+  - `district`,
+  - `neighborhood`,
+  - `część miasta`,
+  - wyższy `priority`,
+- [x] dodać aliasy dla typowych nazw nieformalnych tam, gdzie PRNG ma inną
+  nazwę niż użytkownicy wpisują w formularzu, np. `centrum -> Śródmieście`,
+- [x] ograniczyć fallback do centroidu miasta tylko do sytuacji, gdy nie ma
+  rozpoznanej dzielnicy/części miasta,
+- [x] zostawić ręczne wpisanie dzielnicy w formularzach jako dozwolone, nawet
+  jeśli PRNG jej nie rozpoznaje,
+- [ ] dopisać testy jednostkowe dla wyboru punktu:
+  - `Fordon` z PRNG trafia w punkt Fordonu,
+  - `Śródmieście` z PRNG trafia w punkt Śródmieścia,
+  - znany alias `centrum` trafia w `Śródmieście`,
+  - nieznana dzielnica wraca do miasta,
+  - dokładny adres nie jest używany, jeśli współrzędne są centroidem miasta.
+
+Kryteria akceptacji:
+
+- [x] po imporcie PRNG nie trzeba dodawać ręcznej stałej dla każdej dzielnicy,
+- [x] `/api/locations/districts?city=Bydgoszcz` zwraca nie tylko seed
+  `Fordon` i `Śródmieście`, ale także dzielnice/części miasta z PRNG,
+- [ ] formularz dashboardowy pokazuje sugestie PRNG po wybraniu miasta,
+- [ ] publiczny wizard `/dodaj-oferte` pokazuje te same sugestie PRNG,
+- [x] publiczna mapa rozdziela oferty z różnych części miasta na różne
+  punkty, jeśli ich dzielnice są w PRNG,
+- [x] oferty z tą samą dzielnicą/częścią miasta nadal grupują się w jednym
+  markerze,
+- [x] fallback do miasta działa tylko dla dzielnic nierozpoznanych albo braku
+  dzielnicy.
+
+Weryfikacja:
+
+- [x] `pnpm --filter api type-check`,
+- [x] `pnpm --filter api test -- public-listing-map-point.spec.ts public-district-catalog.spec.ts --runInBand`,
+- [x] `pnpm --filter web type-check`,
+- [x] ręczny test `/api/locations/districts?city=Bydgoszcz&query=for`,
+- [x] ręczny test `/api/locations/districts?city=Bydgoszcz&query=szwederowo`,
+- [ ] ręczny test mapy `/oferty?city=Bydgoszcz` dla ofert w Fordonie,
+  Śródmieściu i minimum jednej dzielnicy pochodzącej wyłącznie z PRNG,
+- [ ] ręczny test obu formularzy z sugestiami dzielnic PRNG.
+
+Wykonano:
+
+- Dodano wspólną backendową listę typów dzielnicowych
+  `PUBLIC_DISTRICT_LOCATION_KINDS`, obejmującą `district`, `neighborhood` i
+  `część miasta`.
+- `LocationsService.searchDistricts()` korzysta teraz z tej listy i zwraca
+  rekordy PRNG typu `część miasta`; potwierdzono wynik dla `Szwederowo`.
+- Dodano ranking kandydatów dzielnicowych: ręczny seed/admin override ma
+  pierwszeństwo przed PRNG, a potem liczy się typ i `priority`.
+- Dodano deduplikację wyników sugestii po `parentNormalizedName + normalizedName`,
+  aby np. `Fordon` nie pojawiał się dwa razy jako seed i rekord PRNG.
+- `ListingsService.hydrateDistrictPublicLocationPoints()` korzysta z tej samej
+  listy typów i rankingów, więc mapa może używać punktów PRNG `część miasta`
+  jako publicznych punktów dzielnicowych.
+- Dodano test `public-district-catalog.spec.ts` dla rozpoznawania typu
+  `część miasta` i rankingu seed vs PRNG.
+
+Nie wykonano w tej iteracji:
+
+- Pełnych testów jednostkowych przez `ListingsService` dla każdego scenariusza
+  mapPoint. Obecne testy pokrywają helper i wspólny ranking, ale scenariusze
+  z tabelą `locations` wymagają osobnego testu serwisowego albo wyciągnięcia
+  selekcji kandydatów do czystego helpera.
+- Ręcznego testu mapy z ofertą w dzielnicy pochodzącej wyłącznie z PRNG.
+  Lokalny katalog API zwraca `Szwederowo`, ale w danych testowych nie było
+  opublikowanej oferty z tą dzielnicą.
+
+Uwagi implementacyjne:
+
+- Warto wydzielić wspólną stałą backendową, np.
+  `PUBLIC_DISTRICT_LOCATION_KINDS`, aby `LocationsService` i `ListingsService`
+  korzystały z identycznej listy typów.
+- PRNG ma dane punktowe nazw geograficznych, a nie precyzyjne granice
+  administracyjne dzielnic. To wystarcza dla przybliżonej mapy ofert, ale UI
+  nadal musi komunikować `Lokalizacja przybliżona`.
+- TERYT/SIMC może być użyty później do walidacji nazw i kodów, ale dla mapy
+  lepszym źródłem punktów jest PRNG, bo zawiera współrzędne.
+
 ## Sprint 5: Testy, monitoring i UX edge cases
 
 Status: przyszłe rozszerzenie

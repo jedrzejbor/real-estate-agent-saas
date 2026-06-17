@@ -54,6 +54,10 @@ import {
 import { LOCATION_CATALOG } from '../locations/location-catalog';
 import { normalizeLocationSearch } from '../locations/locations-normalization';
 import {
+  PUBLIC_DISTRICT_LOCATION_KINDS,
+  getPublicDistrictLocationRank,
+} from '../locations/public-district-catalog';
+import {
   PublicApproximateMapPoint,
   PublicLocationPoint,
   buildPublicDistrictCentroidKey,
@@ -1429,7 +1433,7 @@ export class ListingsService {
     const locations = await this.locationRepo.find({
       where: {
         active: true,
-        kind: In(['district', 'neighborhood']),
+        kind: In([...PUBLIC_DISTRICT_LOCATION_KINDS]),
         parentNormalizedName: In(citySearchKeys),
       },
       select: [
@@ -1439,6 +1443,8 @@ export class ListingsService {
         'parentName',
         'parentNormalizedName',
         'aliases',
+        'kind',
+        'source',
         'lat',
         'lng',
         'priority',
@@ -1449,13 +1455,15 @@ export class ListingsService {
     });
 
     for (const [cacheKey, request] of requested) {
-      const bestLocation = locations.find(
-        (location) =>
-          location.parentNormalizedName === request.citySearchKey &&
-          this.getLocationDistrictSearchKeys(location).includes(
-            request.districtSearchKey,
-          ),
-      );
+      const bestLocation = locations
+        .filter(
+          (location) =>
+            location.parentNormalizedName === request.citySearchKey &&
+            this.getLocationDistrictSearchKeys(location).includes(
+              request.districtSearchKey,
+            ),
+        )
+        .sort((a, b) => this.comparePublicDistrictLocations(a, b))[0];
 
       if (!bestLocation) {
         continue;
@@ -1611,6 +1619,13 @@ export class ListingsService {
         .split(/\s+/)
         .map((part) => normalizeLocationSearch(part)),
     ].filter((value): value is string => Boolean(value));
+  }
+
+  private comparePublicDistrictLocations(a: Location, b: Location): number {
+    return (
+      getPublicDistrictLocationRank(b) - getPublicDistrictLocationRank(a) ||
+      a.name.localeCompare(b.name, 'pl')
+    );
   }
 
   private getApproximatePublicLocationPoint(

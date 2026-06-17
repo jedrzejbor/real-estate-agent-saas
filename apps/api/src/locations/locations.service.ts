@@ -6,9 +6,12 @@ import { LOCATION_CATALOG, LocationCatalogEntry } from './location-catalog';
 import { SearchLocationsQueryDto } from './dto/search-locations-query.dto';
 import { normalizeLocationSearch } from './locations-normalization';
 import {
+  PUBLIC_DISTRICT_LOCATION_KINDS,
   PUBLIC_DISTRICT_CATALOG,
   PublicDistrictCatalogEntry,
   getPublicDistrictSearchKeys,
+  getPublicDistrictLocationRank,
+  isPublicDistrictLocationKind,
 } from './public-district-catalog';
 import { SearchDistrictsQueryDto } from './dto/search-districts-query.dto';
 
@@ -25,8 +28,6 @@ export interface PublicLocationSuggestion {
   lng: number;
   label: string;
 }
-
-const PUBLIC_DISTRICT_LOCATION_KINDS = ['district', 'neighborhood'];
 
 @Injectable()
 export class LocationsService {
@@ -150,7 +151,7 @@ export class LocationsService {
       .andWhere('location.parentNormalizedName = :normalizedCity', {
         normalizedCity,
       })
-      .take(limit);
+      .take(limit * 3);
 
     if (normalizedQuery) {
       qb.andWhere(
@@ -178,9 +179,9 @@ export class LocationsService {
       );
     }
 
-    const locations = await qb.getMany();
+    const locations = dedupeDistrictLocations(await qb.getMany());
 
-    return locations.map(toPublicDatabaseLocationSuggestion);
+    return locations.slice(0, limit).map(toPublicDatabaseLocationSuggestion);
   }
 
   private searchDistrictsFallback(
@@ -229,7 +230,35 @@ function toPublicDatabaseLocationSuggestion(
 }
 
 function isDistrictLocationKind(kind: string): boolean {
-  return PUBLIC_DISTRICT_LOCATION_KINDS.includes(kind);
+  return isPublicDistrictLocationKind(kind);
+}
+
+function dedupeDistrictLocations(locations: Location[]): Location[] {
+  const byKey = new Map<string, Location>();
+
+  for (const location of locations) {
+    const key = [
+      location.parentNormalizedName ?? '',
+      location.normalizedName,
+    ].join('|');
+    const current = byKey.get(key);
+
+    if (
+      !current ||
+      compareDistrictLocationCandidates(location, current) < 0
+    ) {
+      byKey.set(key, location);
+    }
+  }
+
+  return [...byKey.values()].sort(compareDistrictLocationCandidates);
+}
+
+function compareDistrictLocationCandidates(a: Location, b: Location): number {
+  return (
+    getPublicDistrictLocationRank(b) - getPublicDistrictLocationRank(a) ||
+    a.name.localeCompare(b.name, 'pl')
+  );
 }
 
 function scoreDistrict(
