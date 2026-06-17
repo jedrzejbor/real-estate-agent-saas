@@ -453,6 +453,11 @@ Wykonano:
   jako publicznych punktów dzielnicowych.
 - Dodano test `public-district-catalog.spec.ts` dla rozpoznawania typu
   `część miasta` i rankingu seed vs PRNG.
+- Dodano filtr dzielnicy na publicznej stronie `/oferty`, oparty o ten sam
+  endpoint sugestii `/api/locations/districts?city=...`.
+- Publiczny katalog obsługuje teraz parametr URL `district`, przekazuje go do
+  backendowego `/api/listings/public/catalog` i zachowuje go przy linku
+  `/dodaj-oferte`.
 
 Nie wykonano w tej iteracji:
 

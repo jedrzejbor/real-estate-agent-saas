@@ -30,6 +30,7 @@ const DEFAULT_LIMIT = 24;
 const CATALOG_FILTER_QUERY_KEYS = new Set([
   'agentId',
   'city',
+  'district',
   'propertyType',
   'transactionType',
   'priceMin',
@@ -239,6 +240,7 @@ function parseCatalogFilters(
   return {
     agentId: getStringParam(searchParams.agentId),
     city: getStringParam(searchParams.city),
+    district: getStringParam(searchParams.district),
     propertyType: getEnumParam(searchParams.propertyType, PropertyType),
     transactionType: getEnumParam(
       searchParams.transactionType,

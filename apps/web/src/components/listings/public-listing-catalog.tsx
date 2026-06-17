@@ -33,6 +33,7 @@ import { PublicListingCatalogMap } from '@/components/listings/public-listing-ca
 import { PublicListingCatalogResultLink } from '@/components/listings/public-listing-catalog-result-link';
 import { PublicListingImageCarousel } from '@/components/listings/public-listing-image-carousel';
 import { PublicListingCityFilterField } from '@/components/listings/public-listing-city-filter-field';
+import { DistrictAutocomplete } from '@/components/locations/district-autocomplete';
 import type { AnalyticsProperties } from '@/lib/analytics';
 
 interface PublicListingCatalogProps {
@@ -50,6 +51,10 @@ export function PublicListingCatalog({
   initialError,
 }: PublicListingCatalogProps) {
   const [filters, setFilters] = useState(initialFilters);
+  const [formCity, setFormCity] = useState(initialFilters.city ?? '');
+  const [formDistrict, setFormDistrict] = useState(
+    initialFilters.district ?? '',
+  );
   const [catalog, setCatalog] = useState(initialCatalog);
   const [error, setError] = useState(initialError);
   const [isPending, startTransition] = useTransition();
@@ -63,6 +68,8 @@ export function PublicListingCatalog({
 
   useEffect(() => {
     setFilters(initialFilters);
+    setFormCity(initialFilters.city ?? '');
+    setFormDistrict(initialFilters.district ?? '');
     setCatalog(initialCatalog);
     setError(initialError);
   }, [initialStateKey, initialCatalog, initialError, initialFilters]);
@@ -74,6 +81,8 @@ export function PublicListingCatalog({
     startTransition(async () => {
       try {
         const nextCatalog = await fetchPublicListingCatalog(nextFilters);
+        setFormCity(nextFilters.city ?? '');
+        setFormDistrict(nextFilters.district ?? '');
         setFilters(nextFilters);
         setCatalog(nextCatalog);
         setError(null);
@@ -81,6 +90,8 @@ export function PublicListingCatalog({
           updateBrowserUrl(nextFilters);
         }
       } catch (fetchError) {
+        setFormCity(nextFilters.city ?? '');
+        setFormDistrict(nextFilters.district ?? '');
         setFilters(nextFilters);
         setCatalog(null);
         setError(
@@ -113,6 +124,11 @@ export function PublicListingCatalog({
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     loadCatalog(parseCatalogFiltersFromForm(formData, filters));
+  }
+
+  function handleCityChange(value: string) {
+    setFormCity(value);
+    setFormDistrict('');
   }
 
   function clearFilters() {
@@ -158,7 +174,21 @@ export function PublicListingCatalog({
             <Field label="Miasto">
               <PublicListingCityFilterField
                 key={filters.city ?? 'empty-city'}
-                initialValue={filters.city ?? ''}
+                value={formCity}
+                onValueChange={handleCityChange}
+              />
+            </Field>
+
+            <Field label="Dzielnica">
+              <DistrictAutocomplete
+                name="district"
+                city={formCity}
+                value={formDistrict}
+                onValueChange={setFormDistrict}
+                placeholder={
+                  formCity ? 'np. Śródmieście' : 'Najpierw wybierz miasto'
+                }
+                inputClassName="h-10 rounded-xl border-border px-3 shadow-none focus-visible:border-primary focus-visible:ring-0"
               />
             </Field>
 
@@ -525,10 +555,13 @@ function EmptyState({
   onRelaxFilters: (filters: PublicListingCatalogFilters) => void;
 }) {
   const hasLocationContext = Boolean(filters.city);
+  const locationLabel = [filters.district, filters.city]
+    .filter(Boolean)
+    .join(', ');
   const relaxedFilters = buildRelaxedCatalogFilters(filters);
   const addListingHref = buildAddListingHref(filters);
   const title = hasLocationContext
-    ? `Brak ofert w lokalizacji ${filters.city}`
+    ? `Brak ofert w lokalizacji ${locationLabel}`
     : 'Brak ofert dla tych filtrów';
   const description = hasLocationContext
     ? 'W tej lokalizacji nie znaleźliśmy jeszcze pasujących publicznych ofert. Możesz zdjąć część filtrów albo dodać własną ofertę dla tego miejsca.'
@@ -546,7 +579,7 @@ function EmptyState({
 
       {hasLocationContext ? (
         <p className="mx-auto mt-3 max-w-md rounded-xl bg-muted/40 px-4 py-3 text-sm font-medium text-foreground">
-          Lokalizacja: {filters.city}
+          Lokalizacja: {locationLabel}
         </p>
       ) : null}
 
@@ -656,6 +689,7 @@ function parseCatalogFiltersFromForm(
   return {
     agentId: currentFilters.agentId,
     city: getStringFormValue(formData, 'city'),
+    district: getStringFormValue(formData, 'district'),
     propertyType: getEnumFormValue(formData, 'propertyType', PropertyType),
     transactionType: getEnumFormValue(
       formData,
@@ -687,6 +721,7 @@ function parseCatalogFiltersFromUrlSearchParams(
   return {
     agentId: getStringSearchParam(searchParams, 'agentId'),
     city: getStringSearchParam(searchParams, 'city'),
+    district: getStringSearchParam(searchParams, 'district'),
     propertyType: getEnumSearchParam(searchParams, 'propertyType', PropertyType),
     transactionType: getEnumSearchParam(
       searchParams,
@@ -829,6 +864,9 @@ function buildAddListingHref(filters: PublicListingCatalogFilters): string {
   }
 
   const params = new URLSearchParams({ city: filters.city });
+  if (filters.district) {
+    params.set('district', filters.district);
+  }
 
   return `/dodaj-oferte?${params.toString()}`;
 }
@@ -857,6 +895,7 @@ function buildSearchAnalyticsProperties(
 ): AnalyticsProperties {
   return {
     city: filters.city,
+    district: filters.district,
     propertyType: filters.propertyType,
     transactionType: filters.transactionType,
     q: filters.q,
