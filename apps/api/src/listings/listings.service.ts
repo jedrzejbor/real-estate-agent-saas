@@ -53,6 +53,14 @@ import {
 } from './public-listing.model';
 import { LOCATION_CATALOG } from '../locations/location-catalog';
 import { normalizeLocationSearch } from '../locations/locations-normalization';
+import {
+  PublicApproximateMapPoint,
+  PublicLocationPoint,
+  normalizePublicLocationKey,
+  selectPublicListingMapPoint,
+  toValidLatitude,
+  toValidLongitude,
+} from './public-listing-map-point';
 
 /** Paginated result wrapper. */
 export interface PaginatedResult<T> {
@@ -76,11 +84,6 @@ interface PublicCatalogBbox {
   south: number;
   east: number;
   north: number;
-}
-
-interface PublicLocationPoint {
-  lat: number;
-  lng: number;
 }
 
 const PUBLIC_CATALOG_DEFAULT_MAP_LIMIT = 150;
@@ -142,25 +145,12 @@ const PUBLIC_LOCATION_CENTROIDS: Record<string, PublicLocationPoint> = {
   zachodniopomorskie: { lat: 53.569, lng: 15.347 },
 };
 
-function normalizePublicLocationKey(value?: string | null): string | null {
-  const normalized = value
-    ?.trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/ł/g, 'l')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-
-  return normalized || null;
-}
-
 @Injectable()
 export class ListingsService {
   private readonly logger = new Logger(ListingsService.name);
   private readonly publicLocationCentroidCache = new Map<
     string,
-    PublicLocationPoint
+    PublicApproximateMapPoint
   >();
 
   constructor(
@@ -1385,6 +1375,7 @@ export class ListingsService {
       {
         citySearchKey: string;
         voivodeshipSearchKey: string | null;
+        cityLabel: string | null;
       }
     >();
 
@@ -1409,6 +1400,7 @@ export class ListingsService {
       requested.set(cacheKey, {
         citySearchKey,
         voivodeshipSearchKey: normalizeLocationSearch(address.voivodeship),
+        cityLabel: address.city?.trim() || null,
       });
     }
 
@@ -1458,41 +1450,33 @@ export class ListingsService {
         continue;
       }
 
-      this.publicLocationCentroidCache.set(cacheKey, { lat, lng });
+      this.publicLocationCentroidCache.set(cacheKey, {
+        lat,
+        lng,
+        source: 'city',
+        label: bestLocation.name || request.cityLabel,
+      });
     }
   }
 
   private getPublicListingMapPoint(
     listing: Listing,
   ): PublicListingMapPoint | null {
-    if (listing.showExactAddressOnPublicPage) {
-      const lat = this.toValidLatitude(listing.address?.lat);
-      const lng = this.toValidLongitude(listing.address?.lng);
-
-      if (lat !== null && lng !== null) {
-        return {
-          lat,
-          lng,
-          precision: 'exact',
-        };
-      }
-    }
-
-    const approximatePoint = this.getApproximatePublicLocationPoint(
-      listing.address,
+    return selectPublicListingMapPoint(
+      {
+        showExactAddressOnPublicPage: listing.showExactAddressOnPublicPage,
+        address: listing.address,
+      },
+      (address) => this.getApproximatePublicLocationPoint(address),
     );
-
-    return approximatePoint
-      ? {
-          ...approximatePoint,
-          precision: 'approximate',
-        }
-      : null;
   }
 
   private getApproximatePublicLocationPoint(
-    address?: Address | null,
-  ): PublicLocationPoint | null {
+    address?: {
+      city?: string | null;
+      voivodeship?: string | null;
+    } | null,
+  ): PublicApproximateMapPoint | null {
     if (!address) {
       return null;
     }
@@ -1506,28 +1490,41 @@ export class ListingsService {
       return cachedPoint;
     }
 
-    const lookupKeys = [
-      address.city,
-      address.voivodeship,
-      this.normalizePublicLocationKey(
-        address.voivodeship?.replace(/^wojew[oó]dztwo\s+/i, ''),
-      ),
-    ]
-      .map((value) => this.normalizePublicLocationKey(value))
-      .filter((value): value is string => Boolean(value));
+    const cityKey = this.normalizePublicLocationKey(address.city);
 
-    for (const key of lookupKeys) {
+    if (cityKey && PUBLIC_LOCATION_CENTROIDS[cityKey]) {
+      return {
+        ...PUBLIC_LOCATION_CENTROIDS[cityKey],
+        source: 'city',
+        label: address.city?.trim() || cityKey,
+      };
+    }
+
+    const regionLabel = this.formatPublicRegionLabel(address.voivodeship);
+    const regionKeys = [
+      this.normalizePublicLocationKey(address.voivodeship),
+      this.normalizePublicLocationKey(regionLabel),
+    ].filter((value): value is string => Boolean(value));
+
+    for (const key of regionKeys) {
       const point = PUBLIC_LOCATION_CENTROIDS[key];
 
       if (point) {
-        return point;
+        return {
+          ...point,
+          source: 'region',
+          label: regionLabel,
+        };
       }
     }
 
     return null;
   }
 
-  private buildAddressLocationCacheKey(address: Address): string | null {
+  private buildAddressLocationCacheKey(address: {
+    city?: string | null;
+    voivodeship?: string | null;
+  }): string | null {
     const cityKey = normalizePublicLocationKey(address.city);
 
     if (!cityKey) {
@@ -1545,23 +1542,15 @@ export class ListingsService {
   }
 
   private toValidLatitude(value?: number | string | null): number | null {
-    const numberValue = Number(value);
-
-    return Number.isFinite(numberValue) &&
-      numberValue >= -90 &&
-      numberValue <= 90
-      ? numberValue
-      : null;
+    return toValidLatitude(value);
   }
 
   private toValidLongitude(value?: number | string | null): number | null {
-    const numberValue = Number(value);
+    return toValidLongitude(value);
+  }
 
-    return Number.isFinite(numberValue) &&
-      numberValue >= -180 &&
-      numberValue <= 180
-      ? numberValue
-      : null;
+  private formatPublicRegionLabel(value?: string | null): string | null {
+    return value?.replace(/^wojew[oó]dztwo\s+/i, '').trim() || null;
   }
 
   private parsePublicCatalogBbox(value?: string): PublicCatalogBbox | null {

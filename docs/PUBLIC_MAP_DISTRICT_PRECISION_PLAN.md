@@ -148,34 +148,50 @@ To pozwoli używać jednego katalogu dla:
 
 ## Sprint 1: Backend punktu dzielnicowego
 
-Status: planowane
+Status: wykonane w iteracji 2026-06-17
 
 Zakres:
 
-- [ ] dodać katalog `PUBLIC_DISTRICT_CENTROIDS`,
-- [ ] dodać helper budujący klucz `city + district`,
-- [ ] rozszerzyć `PublicListingMapPoint` o `source` i `label`,
-- [ ] zmienić wybór punktu publicznego:
+- [x] dodać katalog `PUBLIC_DISTRICT_CENTROIDS`,
+- [x] dodać helper budujący klucz `city + district`,
+- [x] rozszerzyć `PublicListingMapPoint` o `source` i `label`,
+- [x] zmienić wybór punktu publicznego:
   - exact,
   - district,
   - city,
   - region,
-- [ ] zachować obecne zachowanie jako fallback, jeśli dzielnica nie jest
+- [x] zachować obecne zachowanie jako fallback, jeśli dzielnica nie jest
   rozpoznana.
 
 Kryteria akceptacji:
 
-- [ ] oferta z `city=Bydgoszcz` i `district=Fordon` trafia w punkt Fordonu,
-- [ ] oferta z `city=Bydgoszcz` bez dzielnicy trafia w punkt Bydgoszczy,
-- [ ] dokładny adres działa tylko przy `showExactAddressOnPublicPage=true`,
-- [ ] API katalogu publicznego zwraca `mapPoint.source`,
-- [ ] istniejące mapy nie psują się dla ofert bez dzielnicy.
+- [x] oferta z `city=Bydgoszcz` i `district=Fordon` trafia w punkt Fordonu,
+- [x] oferta z `city=Bydgoszcz` bez dzielnicy trafia w punkt Bydgoszczy,
+- [x] dokładny adres działa tylko przy `showExactAddressOnPublicPage=true`,
+- [x] API katalogu publicznego zwraca `mapPoint.source`,
+- [x] istniejące mapy nie psują się dla ofert bez dzielnicy.
 
 Weryfikacja:
 
-- `pnpm --filter api type-check`,
-- test jednostkowy helpera wyboru punktu,
+- [x] `pnpm --filter api type-check`,
+- [x] test jednostkowy helpera wyboru punktu:
+  `pnpm --filter api test -- public-listing-map-point.spec.ts --runInBand`,
+- [x] test regresji prywatności odpowiedzi publicznych:
+  `pnpm --filter api test -- listing-public-privacy.spec.ts --runInBand`,
 - ręczny test na kilku ofertach w Bydgoszczy.
+
+Wykonano:
+
+- Dodano `apps/api/src/listings/public-listing-map-point.ts` z katalogiem
+  `PUBLIC_DISTRICT_CENTROIDS`, normalizacją klucza `city|district`, walidacją
+  współrzędnych i selektorem punktu `exact -> district -> city -> region`.
+- Rozszerzono `PublicListingMapPoint` o `source` oraz `label`, dzięki czemu
+  publiczny katalog może odróżnić dokładny adres, dzielnicę, miasto i region.
+- Podłączono selektor w `ListingsService`; dynamiczne centroidy z tabeli
+  `locations` nadal działają jako fallback miasta, a statyczne centroidy
+  regionów pozostają ostatnim fallbackiem.
+- Dodano testy jednostkowe dla normalizacji klucza, punktu Fordonu, fallbacku
+  Bydgoszczy oraz blokady dokładnego adresu bez zgody publicznej.
 
 ## Sprint 2: Frontend mapy i popupów
 
