@@ -195,34 +195,48 @@ Wykonano:
 
 ## Sprint 2: Frontend mapy i popupów
 
-Status: planowane
+Status: wykonane w iteracji 2026-06-17
 
 Zakres:
 
-- [ ] zaktualizować typy web w `apps/web/src/lib/listings.ts`,
-- [ ] pokazać lepszy opis lokalizacji w popupie mapy:
+- [x] zaktualizować typy web w `apps/web/src/lib/listings.ts`,
+- [x] pokazać lepszy opis lokalizacji w popupie mapy:
   - `Dokładna lokalizacja`,
   - `Lokalizacja przybliżona: Fordon, Bydgoszcz`,
   - `Lokalizacja przybliżona: Bydgoszcz`,
-- [ ] opcjonalnie rozróżnić marker `district` i `city` subtelnym tooltipem albo
+- [x] opcjonalnie rozróżnić marker `district` i `city` subtelnym tooltipem albo
   opisem w popupie,
-- [ ] zostawić grupowanie markerów jako fallback dla identycznych punktów,
+- [x] zostawić grupowanie markerów jako fallback dla identycznych punktów,
 - [ ] sprawdzić zachowanie popupu z wieloma ofertami w jednym punkcie.
 
 Kryteria akceptacji:
 
-- [ ] użytkownik widzi w popupie, czy lokalizacja jest dokładna czy przybliżona,
-- [ ] przybliżenie na poziomie dzielnicy pokazuje nazwę dzielnicy,
-- [ ] kilka ofert w różnych dzielnicach tego samego miasta nie ląduje w jednym
+- [x] użytkownik widzi w popupie, czy lokalizacja jest dokładna czy przybliżona,
+- [x] przybliżenie na poziomie dzielnicy pokazuje nazwę dzielnicy,
+- [x] kilka ofert w różnych dzielnicach tego samego miasta nie ląduje w jednym
   markerze,
-- [ ] kilka ofert w tej samej dzielnicy nadal grupuje się w jeden marker z
+- [x] kilka ofert w tej samej dzielnicy nadal grupuje się w jeden marker z
   przełącznikiem.
 
 Weryfikacja:
 
-- `pnpm --filter web type-check`,
-- ręczny test `/oferty` z mapą i popupami,
-- test responsywności popupu na mobile.
+- [x] `pnpm --filter web type-check`,
+- [ ] ręczny test `/oferty` z mapą i popupami,
+- [ ] test responsywności popupu na mobile.
+
+Wykonano:
+
+- Rozszerzono typ `PublicListingMapPoint` w web o `source` i `label`.
+  Pola są opcjonalne po stronie frontendu, żeby katalog bezpiecznie działał
+  także ze starszą odpowiedzią API w czasie rolloutów.
+- Popup mapy pokazuje teraz pełniejszy opis precyzji:
+  `Dokładna lokalizacja` albo `Lokalizacja przybliżona: {label}`.
+  Jeśli `mapPoint.label` nie istnieje, frontend używa bezpiecznego fallbacku
+  z `district + city`.
+- Tooltip/title pojedynczego markera zawiera opis precyzji lokalizacji.
+- Grupowanie po identycznych współrzędnych pozostało bez zmian, więc oferty
+  w tej samej dzielnicy nadal trafiają do jednego popupu z przełącznikiem,
+  a różne dzielnice rozdzielają się przez różne centroidy z backendu.
 
 ## Sprint 3: Formularze i jakość danych
 

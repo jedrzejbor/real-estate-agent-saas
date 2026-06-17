@@ -355,6 +355,8 @@ export interface PublicListingMapPoint {
   lat: number;
   lng: number;
   precision: 'exact' | 'approximate';
+  source?: 'exact' | 'district' | 'city' | 'region';
+  label?: string | null;
 }
 
 export interface PublicListingCatalogItem {

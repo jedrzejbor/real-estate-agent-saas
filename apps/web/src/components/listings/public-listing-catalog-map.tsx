@@ -134,7 +134,7 @@ export function PublicListingCatalogMap({
           title:
             markerGroup.markers.length > 1
               ? `${markerGroup.markers.length} ofert`
-              : firstMarker.title,
+              : getMarkerTitle(firstMarker),
         })
         .bindPopup(popupContainer, {
           className: 'estateflow-map-popup',
@@ -493,10 +493,7 @@ function MapListingPopup({
   const price = marker.price
     ? formatPrice(marker.price, marker.currency)
     : 'Zapytaj o cenę';
-  const precisionLabel =
-    marker.mapPoint.precision === 'exact'
-      ? 'Dokładna lokalizacja'
-      : 'Lokalizacja przybliżona';
+  const precisionLabel = formatMapPointPrecisionLabel(marker);
   const images =
     marker.images && marker.images.length > 0
       ? marker.images
@@ -554,4 +551,25 @@ function MapListingPopup({
       </div>
     </article>
   );
+}
+
+function getMarkerTitle(marker: PublicListingCatalogMapMarker): string {
+  const precisionLabel = formatMapPointPrecisionLabel(marker);
+  return `${marker.title} - ${precisionLabel}`;
+}
+
+function formatMapPointPrecisionLabel(
+  marker: PublicListingCatalogMapMarker,
+): string {
+  if (marker.mapPoint.precision === 'exact') {
+    return 'Dokładna lokalizacja';
+  }
+
+  const label =
+    marker.mapPoint.label?.trim() ||
+    [marker.address?.district, marker.address?.city].filter(Boolean).join(', ');
+
+  return label
+    ? `Lokalizacja przybliżona: ${label}`
+    : 'Lokalizacja przybliżona';
 }
