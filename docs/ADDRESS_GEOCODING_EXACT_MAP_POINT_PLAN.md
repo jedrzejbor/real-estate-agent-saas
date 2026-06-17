@@ -211,25 +211,64 @@ Geokodowanie ma tylko ułatwić ustawienie poprawnych `address.lat/lng`.
 
 ## Sprint 1: Backend geocoding foundation
 
+Status: wykonane w iteracji 2026-06-17
+
 Zakres:
 
-- [ ] dodać DTO `GeocodeAddressDto`,
-- [ ] dodać endpoint `POST /api/locations/geocode-address`,
-- [ ] dodać interfejs `GeocodingProvider`,
-- [ ] dodać implementację jednego providera za ENV,
-- [ ] dodać timeout i obsługę błędów providera,
-- [ ] dodać rate limit lub minimum ochronę per user,
-- [ ] dodać cache wyników,
-- [ ] dodać testy jednostkowe normalizacji adresu i mapowania odpowiedzi.
+- [x] dodać DTO `GeocodeAddressDto`,
+- [x] dodać endpoint `POST /api/locations/geocode-address`,
+- [x] dodać interfejs `GeocodingProvider`,
+- [x] dodać implementację jednego providera za ENV,
+- [x] dodać timeout i obsługę błędów providera,
+- [x] dodać rate limit lub minimum ochronę per user,
+- [x] dodać cache wyników,
+- [x] dodać testy jednostkowe normalizacji adresu i mapowania odpowiedzi.
 
 Kryteria akceptacji:
 
-- endpoint nie działa bez autoryzacji,
-- brak klucza API nie powoduje crasha aplikacji,
-- zapytanie `street + district + city + PL` zwraca `lat/lng` albo czytelny
+- [x] endpoint nie działa bez autoryzacji,
+- [x] brak klucza API nie powoduje crasha aplikacji,
+- [x] zapytanie `street + district + city + PL` zwraca `lat/lng` albo czytelny
   błąd,
-- odpowiedź nie ujawnia klucza ani surowych danych providera,
-- powtórne zapytanie dla tego samego adresu korzysta z cache.
+- [x] odpowiedź nie ujawnia klucza ani surowych danych providera,
+- [x] powtórne zapytanie dla tego samego adresu korzysta z cache.
+
+Wykonano:
+
+- Dodano DTO `GeocodeAddressDto` dla walidacji wejścia endpointu.
+- Dodano encję `GeocodingCache` oraz migrację
+  `apps/api/migrations/20260617_geocoding_cache.sql`.
+- Dodano helpery normalizujące adres, budujące zapytanie geokodera i hash cache
+  w `geocoding-normalization.ts`.
+- Dodano interfejs `GeocodingProvider` i typy odpowiedzi w `geocoding.types.ts`.
+- Dodano `GoogleGeocodingProvider`, który mapuje odpowiedzi Google do wspólnego
+  formatu `lat/lng + precision + confidence`.
+- Dodano `GeocodingService`, który:
+  - wymaga konfiguracji `GEOCODING_PROVIDER` i `GEOCODING_API_KEY`,
+  - zwraca kontrolowany błąd `503`, jeśli geokodowanie nie jest skonfigurowane,
+  - używa timeoutu z `GEOCODING_REQUEST_TIMEOUT_MS`,
+  - czyta i zapisuje cache po znormalizowanym hashu zapytania,
+  - nie zapisuje wyniku do oferty.
+- Dodano endpoint `POST /api/locations/geocode-address` w `LocationsController`.
+  Endpoint nie ma dekoratora `@Public()`, więc korzysta z globalnego JWT guarda.
+- Dodano throttling endpointu: 10 requestów na minutę.
+- Dodano testy:
+  - `geocoding-normalization.spec.ts`,
+  - `google-geocoding.provider.spec.ts`.
+
+Weryfikacja:
+
+- [x] `pnpm --filter api type-check`,
+- [x] `pnpm --filter api test -- geocoding-normalization.spec.ts google-geocoding.provider.spec.ts --runInBand`.
+
+Nie wykonano w tej iteracji:
+
+- Nie dodano jeszcze frontendowego przycisku `Ustaw punkt z adresu`; to jest
+  zakres Sprintu 2.
+- Nie dodano jeszcze eventów analitycznych ani monitoringu kosztów providera;
+  to jest zakres Sprintu 3.
+- Nie uruchomiono realnego requestu do Google, bo wymaga skonfigurowanego
+  `GEOCODING_API_KEY`.
 
 ## Sprint 2: Frontend integration
 
