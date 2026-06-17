@@ -512,7 +512,7 @@ export function ListingPublicationPanel({
             name="showExactAddressOnPublicPage"
             defaultChecked={listing.showExactAddressOnPublicPage}
             label="Pokazuj dokładny adres"
-            description="Po wyłączeniu klienci zobaczą tylko miasto i dzielnicę."
+            description="Włącz razem z dokładnym punktem mapy w adresie oferty. Po wyłączeniu klienci zobaczą tylko miasto i dzielnicę."
           />
           <CheckboxOption
             name="showPublicViewCount"

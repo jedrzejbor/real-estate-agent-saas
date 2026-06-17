@@ -350,8 +350,6 @@ export function ListingForm({
             required
             error={getFieldError('address.city')}
           >
-            <input type="hidden" name="address.lat" value={locationPoint.lat} />
-            <input type="hidden" name="address.lng" value={locationPoint.lng} />
             <CityAutocomplete
               name="address.city"
               value={city}
@@ -365,7 +363,7 @@ export function ListingForm({
               onLocationSelect={(location) => {
                 setCity(location.name);
                 setVoivodeship(location.voivodeship);
-                setLocationPoint({ lat: location.lat, lng: location.lng });
+                setLocationPoint({ lat: '', lng: '' });
               }}
             />
           </FormField>
@@ -711,6 +709,67 @@ export function ListingForm({
                   className="h-10 rounded-xl"
                 />
               </FormField>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-border bg-muted/20 p-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Dokładny punkt mapy
+                  </h3>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    Uzupełnij współrzędne tylko wtedy, gdy chcesz pokazać
+                    dokładny marker na publicznej mapie. Sam wybór miasta lub
+                    dzielnicy oznacza lokalizację przybliżoną.
+                  </p>
+                </div>
+
+                <FormField
+                  label="Szerokość geograficzna"
+                  name="address.lat"
+                  error={getFieldError('address.lat')}
+                >
+                  <Input
+                    name="address.lat"
+                    type="number"
+                    step="0.000001"
+                    min="-90"
+                    max="90"
+                    value={locationPoint.lat}
+                    onChange={(event) =>
+                      setLocationPoint((current) => ({
+                        ...current,
+                        lat: event.target.value,
+                      }))
+                    }
+                    placeholder="np. 53.123456"
+                    className="h-10 rounded-xl"
+                  />
+                </FormField>
+
+                <FormField
+                  label="Długość geograficzna"
+                  name="address.lng"
+                  error={getFieldError('address.lng')}
+                >
+                  <Input
+                    name="address.lng"
+                    type="number"
+                    step="0.000001"
+                    min="-180"
+                    max="180"
+                    value={locationPoint.lng}
+                    onChange={(event) =>
+                      setLocationPoint((current) => ({
+                        ...current,
+                        lng: event.target.value,
+                      }))
+                    }
+                    placeholder="np. 18.012345"
+                    className="h-10 rounded-xl"
+                  />
+                </FormField>
+              </div>
             </div>
           </FormSection>
         </>
