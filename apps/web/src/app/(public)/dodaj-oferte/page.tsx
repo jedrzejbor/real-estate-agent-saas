@@ -19,6 +19,7 @@ import { z } from 'zod';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CityAutocomplete } from '@/components/locations/city-autocomplete';
+import { DistrictAutocomplete } from '@/components/locations/district-autocomplete';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
 import { useAuth } from '@/contexts/auth-context';
@@ -582,12 +583,14 @@ function StepBasics({
             }}
           />
         </FieldShell>
-        <TextField
-          label="Dzielnica"
-          value={draft.district}
-          placeholder="np. Mokotów"
-          onChange={(value) => updateDraft('district', value)}
-        />
+        <FieldShell label="Dzielnica">
+          <DistrictAutocomplete
+            city={draft.city}
+            value={draft.district}
+            placeholder="np. Śródmieście"
+            onValueChange={(value) => updateDraft('district', value)}
+          />
+        </FieldShell>
         <TextField
           label="Ulica"
           value={draft.street}

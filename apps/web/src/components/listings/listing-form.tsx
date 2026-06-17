@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { InlineSelect } from '@/components/ui/inline-select';
 import { CityAutocomplete } from '@/components/locations/city-autocomplete';
+import { DistrictAutocomplete } from '@/components/locations/district-autocomplete';
 import { LimitUpgradeBanner } from '@/components/growth/limit-upgrade-banner';
 import { useToast } from '@/contexts/toast-context';
 import { useListingForm } from '@/hooks/use-listing-form';
@@ -86,6 +87,7 @@ export function ListingForm({
     listing?.commissionValue ?? '',
   );
   const [city, setCity] = useState(listing?.address?.city ?? '');
+  const [district, setDistrict] = useState(listing?.address?.district ?? '');
   const [voivodeship, setVoivodeship] = useState(
     listing?.address?.voivodeship ?? '',
   );
@@ -685,11 +687,14 @@ export function ListingForm({
                 name="address.district"
                 error={getFieldError('address.district')}
               >
-                <Input
+                <DistrictAutocomplete
+                  city={city}
                   name="address.district"
-                  defaultValue={listing?.address?.district ?? ''}
+                  value={district}
+                  error={getFieldError('address.district') ?? undefined}
                   placeholder="np. Śródmieście"
-                  className="h-10 rounded-xl"
+                  inputClassName="h-10 rounded-xl"
+                  onValueChange={setDistrict}
                 />
               </FormField>
 

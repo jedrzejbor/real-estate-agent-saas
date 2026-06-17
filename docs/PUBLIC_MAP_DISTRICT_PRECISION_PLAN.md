@@ -240,33 +240,51 @@ Wykonano:
 
 ## Sprint 3: Formularze i jakość danych
 
-Status: planowane
+Status: wykonane w iteracji 2026-06-17
 
 Zakres:
 
-- [ ] ustandaryzować pole `Dzielnica` w formularzu dashboardowym i publicznym,
-- [ ] dodać podpowiedzi dzielnic po wybraniu miasta,
-- [ ] nadal pozwolić wpisać dzielnicę ręcznie, jeśli nie ma jej w katalogu,
-- [ ] dodać aliasy dzielnic/osiedli:
+- [x] ustandaryzować pole `Dzielnica` w formularzu dashboardowym i publicznym,
+- [x] dodać podpowiedzi dzielnic po wybraniu miasta,
+- [x] nadal pozwolić wpisać dzielnicę ręcznie, jeśli nie ma jej w katalogu,
+- [x] dodać aliasy dzielnic/osiedli:
   - `centrum` -> `srodmiescie`, jeśli właściwe dla miasta,
   - warianty z polskimi znakami,
   - warianty lokalne,
-- [ ] dopisać walidację miękką: jeśli miasto ma znane dzielnice, sugerujemy
+- [x] dopisać walidację miękką: jeśli miasto ma znane dzielnice, sugerujemy
   wybór z listy, ale nie blokujemy zapisu.
 
 Kryteria akceptacji:
 
-- [ ] agent wpisujący ofertę w dashboardzie dostaje sugestie dzielnic,
-- [ ] publiczny formularz dodawania oferty korzysta z tego samego źródła
+- [x] agent wpisujący ofertę w dashboardzie dostaje sugestie dzielnic,
+- [x] publiczny formularz dodawania oferty korzysta z tego samego źródła
   sugestii,
-- [ ] zapis oferty nie jest blokowany przez brak rozpoznanej dzielnicy,
-- [ ] ręcznie wpisana dzielnica może później zostać obsłużona przez katalog.
+- [x] zapis oferty nie jest blokowany przez brak rozpoznanej dzielnicy,
+- [x] ręcznie wpisana dzielnica może później zostać obsłużona przez katalog.
 
 Weryfikacja:
 
-- `pnpm --filter web type-check`,
-- ręczny test formularza dashboardowego,
-- ręczny test publicznego formularza `/dodaj-oferte`.
+- [x] `pnpm --filter web type-check`,
+- [ ] ręczny test formularza dashboardowego,
+- [ ] ręczny test publicznego formularza `/dodaj-oferte`.
+
+Wykonano:
+
+- Dodano wspólne źródło sugestii dzielnic w
+  `apps/web/src/lib/public-districts.ts`. Na start obejmuje katalog MVP dla
+  Bydgoszczy spójny z obecnym katalogiem centroidów mapy: `Fordon` i
+  `Śródmieście`.
+- Dodano aliasy dla `Śródmieścia`, w tym `centrum`, `srodmiescie` i wariant z
+  polskimi znakami. Znany alias po opuszczeniu pola normalizuje się do
+  kanonicznej nazwy `Śródmieście`.
+- Dodano reużywalny komponent
+  `apps/web/src/components/locations/district-autocomplete.tsx`.
+  Komponent pokazuje sugestie po wybraniu miasta, ale pozostawia pole
+  zwykłym kontrolowanym tekstem, więc zapis ręcznej dzielnicy spoza katalogu
+  nie jest blokowany.
+- Podmieniono pole `Dzielnica` w formularzu dashboardowym oraz publicznym
+  wizardzie `/dodaj-oferte`, aby oba korzystały z tego samego katalogu i tej
+  samej miękkiej walidacji.
 
 ## Sprint 4: Migracja do tabeli lokalizacji
 
