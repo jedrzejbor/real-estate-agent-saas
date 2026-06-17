@@ -310,7 +310,9 @@ Weryfikacja:
 - [x] `pnpm --filter api type-check`,
 - [x] `pnpm --filter api test -- public-listing-map-point.spec.ts --runInBand`,
 - [x] `pnpm --filter web type-check`,
-- [ ] ręczny test `/api/locations/districts?city=Bydgoszcz`,
+- [x] lokalne wykonanie migracji
+  `apps/api/migrations/20260617_location_district_support.sql`,
+- [x] ręczny test `/api/locations/districts?city=Bydgoszcz`,
 - [ ] ręczny test formularzy z sugestiami po API,
 - [ ] ręczny test mapy ofert po migracji seedów do bazy.
 
@@ -333,6 +335,8 @@ Wykonano:
   `normalizedName`, aliasy i `searchText`.
 - Frontendowy `DistrictAutocomplete` korzysta z endpointu dzielnic, a lokalny
   katalog z poprzedniego sprintu zostaje jako fallback awaryjny.
+- Migracja została wykonana lokalnie na bazie `real_estate_saas` w kontenerze
+  `real-estate-db`; endpoint zwrócił `Fordon` i `Śródmieście` dla Bydgoszczy.
 
 Nie wykonano w tej iteracji:
 

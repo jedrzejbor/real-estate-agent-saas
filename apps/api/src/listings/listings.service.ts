@@ -91,6 +91,7 @@ const PUBLIC_CATALOG_DEFAULT_MAP_LIMIT = 150;
 const PUBLIC_CATALOG_MAX_BBOX_WIDTH_DEGREES = 9;
 const PUBLIC_CATALOG_MAX_BBOX_HEIGHT_DEGREES = 7;
 const PUBLIC_CATALOG_MAX_BBOX_AREA_DEGREES = 36;
+const PUBLIC_LOCATION_APPROXIMATE_POINT_EPSILON = 0.00005;
 
 const PUBLIC_LOCATION_CENTROIDS: Record<string, PublicLocationPoint> = {
   ...LOCATION_CATALOG.reduce<Record<string, PublicLocationPoint>>(
@@ -1389,7 +1390,7 @@ export class ListingsService {
     for (const listing of listings) {
       const address = listing.address;
 
-      if (!address || listing.showExactAddressOnPublicPage) {
+      if (!address) {
         continue;
       }
 
@@ -1577,7 +1578,9 @@ export class ListingsService {
   ): PublicListingMapPoint | null {
     return selectPublicListingMapPoint(
       {
-        showExactAddressOnPublicPage: listing.showExactAddressOnPublicPage,
+        showExactAddressOnPublicPage:
+          listing.showExactAddressOnPublicPage &&
+          !this.isLikelyApproximateCityLocationPoint(listing.address),
         address: listing.address,
       },
       (address) => this.getApproximatePublicLocationPoint(address),
@@ -1658,6 +1661,33 @@ export class ListingsService {
     }
 
     return null;
+  }
+
+  private isLikelyApproximateCityLocationPoint(
+    address?: Address | null,
+  ): boolean {
+    if (!address) {
+      return false;
+    }
+
+    const lat = this.toValidLatitude(address.lat);
+    const lng = this.toValidLongitude(address.lng);
+
+    if (lat === null || lng === null) {
+      return false;
+    }
+
+    const cityPoint = this.getApproximatePublicLocationPoint(address);
+
+    if (!cityPoint || cityPoint.source !== 'city') {
+      return false;
+    }
+
+    return (
+      Math.abs(lat - cityPoint.lat) <=
+        PUBLIC_LOCATION_APPROXIMATE_POINT_EPSILON &&
+      Math.abs(lng - cityPoint.lng) <= PUBLIC_LOCATION_APPROXIMATE_POINT_EPSILON
+    );
   }
 
   private buildAddressLocationCacheKey(address: {
