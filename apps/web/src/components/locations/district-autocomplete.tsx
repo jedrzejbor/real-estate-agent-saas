@@ -8,6 +8,7 @@ import {
   getPublicDistrictSuggestions,
   hasPublicDistrictSuggestions,
   isKnownPublicDistrict,
+  normalizeDistrictSearch,
   type PublicDistrictSuggestion,
 } from '@/lib/public-districts';
 import { searchDistricts, type LocationSuggestion } from '@/lib/locations';
@@ -40,14 +41,33 @@ export function DistrictAutocomplete({
     PublicDistrictSuggestion[]
   >([]);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isValidatingSelectedDistrict, setIsValidatingSelectedDistrict] =
+    React.useState(false);
+  const [confirmedDistrictKey, setConfirmedDistrictKey] = React.useState<
+    string | null
+  >(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const cacheRef = React.useRef<Map<string, PublicDistrictSuggestion[]>>(
     new Map(),
   );
+  const validationCacheRef = React.useRef<Map<string, boolean>>(new Map());
   const hasKnownDistricts = hasPublicDistrictSuggestions(city);
-  const hasSelectedKnownDistrict = isKnownPublicDistrict(city, value);
+  const currentDistrictKey = buildDistrictSelectionKey(city, value);
+  const hasSelectedSuggestedDistrict = hasMatchingDistrictSuggestion(
+    city,
+    value,
+    suggestions,
+  );
+  const hasSelectedKnownDistrict =
+    isKnownPublicDistrict(city, value) ||
+    hasSelectedSuggestedDistrict ||
+    (Boolean(currentDistrictKey) && currentDistrictKey === confirmedDistrictKey);
   const showSoftHint =
-    hasKnownDistricts && value.trim().length > 0 && !hasSelectedKnownDistrict;
+    hasKnownDistricts &&
+    value.trim().length > 0 &&
+    !isLoading &&
+    !isValidatingSelectedDistrict &&
+    !hasSelectedKnownDistrict;
 
   React.useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -63,6 +83,70 @@ export function DistrictAutocomplete({
   React.useEffect(() => {
     setActiveIndex(-1);
   }, [city, value]);
+
+  React.useEffect(() => {
+    if (!currentDistrictKey || isKnownPublicDistrict(city, value)) {
+      setConfirmedDistrictKey(null);
+      return;
+    }
+
+    if (hasMatchingDistrictSuggestion(city, value, suggestions)) {
+      setConfirmedDistrictKey(currentDistrictKey);
+    }
+  }, [city, currentDistrictKey, suggestions, value]);
+
+  React.useEffect(() => {
+    if (
+      !currentDistrictKey ||
+      isKnownPublicDistrict(city, value) ||
+      confirmedDistrictKey === currentDistrictKey
+    ) {
+      setIsValidatingSelectedDistrict(false);
+      return;
+    }
+
+    const cachedValidation = validationCacheRef.current.get(currentDistrictKey);
+
+    if (cachedValidation !== undefined) {
+      if (cachedValidation) {
+        setConfirmedDistrictKey(currentDistrictKey);
+      }
+      setIsValidatingSelectedDistrict(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setIsValidatingSelectedDistrict(true);
+
+      try {
+        const results = await searchDistricts(city, value, 8);
+        const hasMatch = hasMatchingDistrictSuggestion(
+          city,
+          value,
+          results.map(toPublicDistrictSuggestion),
+        );
+
+        if (!controller.signal.aborted) {
+          validationCacheRef.current.set(currentDistrictKey, hasMatch);
+          setConfirmedDistrictKey(hasMatch ? currentDistrictKey : null);
+          setIsValidatingSelectedDistrict(false);
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          validationCacheRef.current.set(currentDistrictKey, false);
+          setConfirmedDistrictKey(null);
+          setIsValidatingSelectedDistrict(false);
+        }
+      }
+    }, 180);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+      setIsValidatingSelectedDistrict(false);
+    };
+  }, [city, confirmedDistrictKey, currentDistrictKey, value]);
 
   React.useEffect(() => {
     if (!isOpen || !city.trim()) {
@@ -112,11 +196,20 @@ export function DistrictAutocomplete({
   }, [city, isOpen, value]);
 
   function handleValueChange(nextValue: string) {
+    const nextDistrictKey = buildDistrictSelectionKey(city, nextValue);
+
+    if (nextDistrictKey !== confirmedDistrictKey) {
+      setConfirmedDistrictKey(null);
+    }
+
     onValueChange(nextValue);
     setIsOpen(true);
   }
 
   function handleSelect(district: PublicDistrictSuggestion) {
+    setConfirmedDistrictKey(
+      buildDistrictSelectionKey(district.city, district.name),
+    );
     onValueChange(district.name);
     setIsOpen(false);
     setActiveIndex(-1);
@@ -251,12 +344,42 @@ function toPublicDistrictSuggestion(
 }
 
 function normalizeAutocompleteValue(value: string): string {
-  return value
-    .trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/ł/g, 'l')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
+  return normalizeDistrictSearch(value);
+}
+
+function buildDistrictSelectionKey(
+  city: string,
+  district: string,
+): string | null {
+  const cityKey = normalizeDistrictSearch(city);
+  const districtKey = normalizeDistrictSearch(district);
+
+  return cityKey && districtKey ? `${cityKey}|${districtKey}` : null;
+}
+
+function hasMatchingDistrictSuggestion(
+  city: string,
+  value: string,
+  suggestions: PublicDistrictSuggestion[],
+): boolean {
+  const cityKey = normalizeDistrictSearch(city);
+  const valueKey = normalizeDistrictSearch(value);
+
+  if (!cityKey || !valueKey) {
+    return false;
+  }
+
+  return suggestions.some((suggestion) => {
+    if (suggestion.normalizedCity !== cityKey) {
+      return false;
+    }
+
+    const searchKeys = [
+      suggestion.normalizedName,
+      normalizeDistrictSearch(suggestion.name),
+      ...suggestion.aliases.map(normalizeDistrictSearch),
+    ].filter(Boolean);
+
+    return searchKeys.includes(valueKey);
+  });
 }
