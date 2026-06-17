@@ -272,22 +272,52 @@ Nie wykonano w tej iteracji:
 
 ## Sprint 2: Frontend integration
 
+Status: wykonane w iteracji 2026-06-17
+
 Zakres:
 
-- [ ] dodać funkcję klienta API `geocodeListingAddress`,
-- [ ] dodać przycisk `Ustaw punkt z adresu` w `ListingForm`,
-- [ ] dodać statusy loading/success/error,
-- [ ] uzupełniać `address.lat/lng` po sukcesie,
-- [ ] nie odpalać geokodowania automatycznie,
-- [ ] zachować możliwość ręcznej edycji współrzędnych,
-- [ ] ukrywać akcję, jeśli dokładna lokalizacja jest wyłączona.
+- [x] dodać funkcję klienta API `geocodeListingAddress`,
+- [x] dodać przycisk `Ustaw punkt z adresu` w `ListingForm`,
+- [x] dodać statusy loading/success/error,
+- [x] uzupełniać `address.lat/lng` po sukcesie,
+- [x] nie odpalać geokodowania automatycznie,
+- [x] zachować możliwość ręcznej edycji współrzędnych,
+- [x] ukrywać akcję, jeśli dokładna lokalizacja jest wyłączona.
 
 Kryteria akceptacji:
 
-- agent może ustawić punkt bez ręcznego kopiowania współrzędnych,
-- agent może poprawić `lat/lng` ręcznie,
-- brak ulicy blokuje przycisk albo pokazuje jasny komunikat,
-- błąd geokodera nie blokuje zapisu oferty z lokalizacją przybliżoną.
+- [x] agent może ustawić punkt bez ręcznego kopiowania współrzędnych,
+- [x] agent może poprawić `lat/lng` ręcznie,
+- [x] brak ulicy blokuje przycisk albo pokazuje jasny komunikat,
+- [x] błąd geokodera nie blokuje zapisu oferty z lokalizacją przybliżoną.
+
+Wykonano:
+
+- Dodano klienta API `geocodeListingAddress` w `apps/web/src/lib/locations.ts`.
+- W `ListingForm` dodano przycisk `Ustaw punkt z adresu`, widoczny tylko po
+  włączeniu opcji `Pokazuj dokładną lokalizację na publicznej mapie`.
+- Geokodowanie jest uruchamiane wyłącznie po kliknięciu użytkownika.
+- Formularz odczytuje bieżące wartości `street`, `postalCode`, `city`,
+  `district` i `voivodeship`, wysyła je do backendu i po sukcesie uzupełnia
+  `address.lat` oraz `address.lng`.
+- Dodano statusy UI:
+  - loading,
+  - success,
+  - warning dla wyniku wymagającego weryfikacji,
+  - error dla braku wyniku albo błędu API.
+- Pola `lat/lng` pozostają edytowalne po geokodowaniu.
+- Błąd geokodera pokazuje komunikat, ale nie blokuje ręcznego zapisu oferty.
+
+Weryfikacja:
+
+- [x] `pnpm --filter web type-check`,
+- [x] `pnpm --filter api type-check`.
+
+Nie wykonano w tej iteracji:
+
+- Nie dodano testów E2E ani testów integracyjnych UI, bo wymagają mockowania
+  requestu geokodowania albo skonfigurowanego providera.
+- Nie wykonano screenshotów zgodnie z ustaleniem.
 
 ## Sprint 3: Quality, monitoring and privacy
 

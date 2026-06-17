@@ -10,6 +10,8 @@ import {
   Calculator,
   ImageIcon,
   ImagePlus,
+  Loader2,
+  MapPinned,
   Sparkles,
   Star,
   X,
@@ -20,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { InlineSelect } from '@/components/ui/inline-select';
 import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { DistrictAutocomplete } from '@/components/locations/district-autocomplete';
+import { geocodeListingAddress } from '@/lib/locations';
 import { LimitUpgradeBanner } from '@/components/growth/limit-upgrade-banner';
 import { useToast } from '@/contexts/toast-context';
 import { useListingForm } from '@/hooks/use-listing-form';
@@ -62,6 +65,13 @@ interface ListingFormProps {
 const ACCEPTED_CREATE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_CREATE_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 
+type GeocodingStatus =
+  | { state: 'idle' }
+  | { state: 'loading' }
+  | { state: 'success'; message: string }
+  | { state: 'warning'; message: string }
+  | { state: 'error'; message: string };
+
 /** Form for creating or editing a listing. */
 export function ListingForm({
   listing,
@@ -69,7 +79,11 @@ export function ListingForm({
 }: ListingFormProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const { error: showErrorToast, warning: showWarningToast } = useToast();
+  const {
+    error: showErrorToast,
+    success: showSuccessToast,
+    warning: showWarningToast,
+  } = useToast();
   const isEdit = !!listing;
   const isGuidedCreate = !isEdit && variant === 'guided';
   const formRef = React.useRef<HTMLFormElement>(null);
@@ -101,6 +115,9 @@ export function ListingForm({
   const [showExactLocationFields, setShowExactLocationFields] = useState(
     Boolean(listing?.showExactAddressOnPublicPage),
   );
+  const [geocodingStatus, setGeocodingStatus] = useState<GeocodingStatus>({
+    state: 'idle',
+  });
   const [showDetails, setShowDetails] = useState(!isGuidedCreate);
   const [assistantInput, setAssistantInput] =
     useState<ListingDescriptionAssistantInput>(() =>
@@ -180,6 +197,83 @@ export function ListingForm({
       ...nextInput,
       description: generatedDescription,
     });
+  }
+
+  async function handleGeocodeAddress() {
+    const street = getFormValue(formRef.current, 'address.street');
+    const postalCode = getFormValue(formRef.current, 'address.postalCode');
+
+    if (!city.trim() || !street.trim()) {
+      const message =
+        'Uzupełnij miasto i ulicę, żeby ustawić punkt na podstawie adresu.';
+      setGeocodingStatus({ state: 'error', message });
+      showWarningToast({
+        title: 'Brakuje danych adresowych',
+        description: message,
+      });
+      return;
+    }
+
+    setGeocodingStatus({ state: 'loading' });
+
+    try {
+      const response = await geocodeListingAddress({
+        city,
+        district,
+        street,
+        postalCode,
+        voivodeship,
+      });
+
+      if (!response.result) {
+        const message =
+          response.warning ??
+          'Nie znaleziono dokładnego punktu dla tego adresu.';
+        setGeocodingStatus({ state: 'error', message });
+        showWarningToast({
+          title: 'Nie znaleziono punktu',
+          description: message,
+        });
+        return;
+      }
+
+      setLocationPoint({
+        lat: formatCoordinate(response.result.lat),
+        lng: formatCoordinate(response.result.lng),
+      });
+
+      const isHighConfidence =
+        response.result.precision === 'rooftop' &&
+        response.result.confidence >= 0.9;
+      const message = isHighConfidence
+        ? `Ustawiono punkt: ${response.result.formattedAddress}`
+        : response.warning ||
+          `Ustawiono punkt, ale wynik wymaga weryfikacji: ${response.result.formattedAddress}`;
+
+      setGeocodingStatus({
+        state: isHighConfidence ? 'success' : 'warning',
+        message,
+      });
+
+      if (isHighConfidence) {
+        showSuccessToast({
+          title: 'Punkt ustawiony',
+          description: response.result.formattedAddress,
+        });
+      } else {
+        showWarningToast({
+          title: 'Sprawdź punkt mapy',
+          description: message,
+        });
+      }
+    } catch (error) {
+      const message = getApiErrorMessage(error);
+      setGeocodingStatus({ state: 'error', message });
+      showErrorToast({
+        title: 'Nie udało się ustawić punktu',
+        description: message,
+      });
+    }
   }
 
   function handleImageFilesSelected(
@@ -744,52 +838,92 @@ export function ListingForm({
               </label>
 
               {showExactLocationFields ? (
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    label="Szerokość geograficzna"
-                    name="address.lat"
-                    error={getFieldError('address.lat')}
-                  >
-                    <Input
-                      name="address.lat"
-                      type="number"
-                      step="0.000001"
-                      min="-90"
-                      max="90"
-                      value={locationPoint.lat}
-                      onChange={(event) =>
-                        setLocationPoint((current) => ({
-                          ...current,
-                          lat: event.target.value,
-                        }))
-                      }
-                      placeholder="np. 53.123456"
-                      className="h-10 rounded-xl"
-                    />
-                  </FormField>
+                <div className="mt-4 space-y-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleGeocodeAddress}
+                      disabled={geocodingStatus.state === 'loading'}
+                      className="gap-2 rounded-xl"
+                    >
+                      {geocodingStatus.state === 'loading' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <MapPinned className="h-4 w-4" />
+                      )}
+                      {geocodingStatus.state === 'loading'
+                        ? 'Ustawiam punkt...'
+                        : 'Ustaw punkt z adresu'}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Wymaga uzupełnionego miasta i ulicy.
+                    </p>
+                  </div>
 
-                  <FormField
-                    label="Długość geograficzna"
-                    name="address.lng"
-                    error={getFieldError('address.lng')}
-                  >
-                    <Input
+                  {geocodingStatus.state !== 'idle' &&
+                  geocodingStatus.state !== 'loading' ? (
+                    <p
+                      className={cn(
+                        'rounded-xl border px-3 py-2 text-sm',
+                        geocodingStatus.state === 'success'
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                          : geocodingStatus.state === 'warning'
+                            ? 'border-amber-200 bg-amber-50 text-amber-800'
+                            : 'border-destructive/30 bg-destructive/10 text-destructive',
+                      )}
+                    >
+                      {geocodingStatus.message}
+                    </p>
+                  ) : null}
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      label="Szerokość geograficzna"
+                      name="address.lat"
+                      error={getFieldError('address.lat')}
+                    >
+                      <Input
+                        name="address.lat"
+                        type="number"
+                        step="0.000001"
+                        min="-90"
+                        max="90"
+                        value={locationPoint.lat}
+                        onChange={(event) =>
+                          setLocationPoint((current) => ({
+                            ...current,
+                            lat: event.target.value,
+                          }))
+                        }
+                        placeholder="np. 53.123456"
+                        className="h-10 rounded-xl"
+                      />
+                    </FormField>
+
+                    <FormField
+                      label="Długość geograficzna"
                       name="address.lng"
-                      type="number"
-                      step="0.000001"
-                      min="-180"
-                      max="180"
-                      value={locationPoint.lng}
-                      onChange={(event) =>
-                        setLocationPoint((current) => ({
-                          ...current,
-                          lng: event.target.value,
-                        }))
-                      }
-                      placeholder="np. 18.012345"
-                      className="h-10 rounded-xl"
-                    />
-                  </FormField>
+                      error={getFieldError('address.lng')}
+                    >
+                      <Input
+                        name="address.lng"
+                        type="number"
+                        step="0.000001"
+                        min="-180"
+                        max="180"
+                        value={locationPoint.lng}
+                        onChange={(event) =>
+                          setLocationPoint((current) => ({
+                            ...current,
+                            lng: event.target.value,
+                          }))
+                        }
+                        placeholder="np. 18.012345"
+                        className="h-10 rounded-xl"
+                      />
+                    </FormField>
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -1224,7 +1358,13 @@ function collectAssistantInput(
   };
 }
 
-function getFormValue(form: HTMLFormElement, name: string): string {
+function formatCoordinate(value: number): string {
+  return Number.isFinite(value) ? value.toFixed(7) : '';
+}
+
+function getFormValue(form: HTMLFormElement | null, name: string): string {
+  if (!form) return '';
+
   const element = form.elements.namedItem(name);
   if (!element) return '';
 

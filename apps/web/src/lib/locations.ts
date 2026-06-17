@@ -18,6 +18,30 @@ interface SearchLocationsResponse {
   data: LocationSuggestion[];
 }
 
+export interface GeocodeAddressInput {
+  city: string;
+  street: string;
+  district?: string | null;
+  postalCode?: string | null;
+  voivodeship?: string | null;
+  country?: 'PL';
+}
+
+export interface GeocodeAddressResult {
+  lat: number;
+  lng: number;
+  formattedAddress: string;
+  precision: 'rooftop' | 'parcel' | 'street' | 'interpolated' | 'approximate';
+  confidence: number;
+  provider: string;
+}
+
+export interface GeocodeAddressResponse {
+  query: string;
+  result: GeocodeAddressResult | null;
+  warning?: string;
+}
+
 export async function searchLocations(
   query: string,
   limit = 10,
@@ -59,4 +83,16 @@ export async function searchDistricts(
   );
 
   return response.data;
+}
+
+export async function geocodeListingAddress(
+  input: GeocodeAddressInput,
+): Promise<GeocodeAddressResponse> {
+  return apiFetch<GeocodeAddressResponse>('/locations/geocode-address', {
+    method: 'POST',
+    body: {
+      ...input,
+      country: input.country ?? 'PL',
+    },
+  });
 }
