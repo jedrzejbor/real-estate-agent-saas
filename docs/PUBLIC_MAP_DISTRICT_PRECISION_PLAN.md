@@ -288,22 +288,56 @@ Wykonano:
 
 ## Sprint 4: Migracja do tabeli lokalizacji
 
-Status: przyszłe rozszerzenie
+Status: częściowo wykonane w iteracji 2026-06-17
 
 Zakres:
 
-- [ ] rozszerzyć model `Location` o typy dzielnic/osiedli, jeśli obecny model
+- [x] rozszerzyć model `Location` o typy dzielnic/osiedli, jeśli obecny model
   nie wystarcza,
-- [ ] przygotować import dzielnic dla największych miast,
-- [ ] używać `locations` jako źródła dla publicznych centroidów,
-- [ ] zachować stały katalog jako fallback albo seed startowy,
+- [x] przygotować import dzielnic dla największych miast,
+- [x] używać `locations` jako źródła dla publicznych centroidów,
+- [x] zachować stały katalog jako fallback albo seed startowy,
 - [ ] dodać panel/adminowy sposób korekty centroidu, jeśli będzie potrzebny.
 
 Kryteria akceptacji:
 
-- [ ] backend nie wymaga ręcznej stałej dla nowych dzielnic,
-- [ ] autocomplete i mapa korzystają z tego samego katalogu,
-- [ ] można rozbudować miasta bez zmian w kodzie aplikacji.
+- [x] backend nie wymaga ręcznej stałej dla nowych dzielnic,
+- [x] autocomplete i mapa korzystają z tego samego katalogu,
+- [x] można rozbudować miasta bez zmian w kodzie aplikacji.
+
+Weryfikacja:
+
+- [x] `pnpm --filter api type-check`,
+- [x] `pnpm --filter api test -- public-listing-map-point.spec.ts --runInBand`,
+- [x] `pnpm --filter web type-check`,
+- [ ] ręczny test `/api/locations/districts?city=Bydgoszcz`,
+- [ ] ręczny test formularzy z sugestiami po API,
+- [ ] ręczny test mapy ofert po migracji seedów do bazy.
+
+Wykonano:
+
+- Rozszerzono encję `Location` o `parentNormalizedName` i `aliases`, dodano
+  indeks pod lookup dzielnic oraz migrację
+  `apps/api/migrations/20260617_location_district_support.sql`.
+- Migracja dodaje seed startowy dla `Bydgoszcz -> Fordon` i
+  `Bydgoszcz -> Śródmieście`, z aliasami dla `Śródmieścia`.
+- Rozszerzono importer lokalizacji o aliasy, `parentNormalizedName` oraz typy
+  `district` i `neighborhood`, dzięki czemu kolejne miasta można zasilać z
+  pliku CSV/JSON bez zmian w kodzie.
+- Dodano publiczny endpoint
+  `GET /api/locations/districts?city=...&query=...`, który najpierw czyta z
+  tabeli `locations`, a jeśli baza nie ma jeszcze danych, używa katalogu
+  seed/fallback.
+- Publiczna mapa ofert próbuje teraz pobrać centroid dzielnicy z tabeli
+  `locations` przed użyciem stałego fallbacku. Dopasowanie obsługuje
+  `normalizedName`, aliasy i `searchText`.
+- Frontendowy `DistrictAutocomplete` korzysta z endpointu dzielnic, a lokalny
+  katalog z poprzedniego sprintu zostaje jako fallback awaryjny.
+
+Nie wykonano w tej iteracji:
+
+- Panel/adminowa korekta centroidów. To osobny workflow administracyjny i nie
+  jest potrzebny do uruchomienia importowalnego katalogu dzielnic.
 
 ## Sprint 5: Testy, monitoring i UX edge cases
 

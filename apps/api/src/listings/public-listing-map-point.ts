@@ -1,4 +1,5 @@
 import { PublicListingMapPoint } from './public-listing.model';
+import { PUBLIC_DISTRICT_CENTROIDS } from '../locations/public-district-catalog';
 
 export interface PublicLocationPoint {
   lat: number;
@@ -23,11 +24,6 @@ export type PublicApproximateMapPoint = PublicLocationPoint & {
   label: string | null;
 };
 
-export const PUBLIC_DISTRICT_CENTROIDS: Record<string, PublicLocationPoint> = {
-  'bydgoszcz|fordon': { lat: 53.148, lng: 18.17 },
-  'bydgoszcz|srodmiescie': { lat: 53.123, lng: 18.002 },
-};
-
 const DISTRICT_PREFIX_PATTERN =
   /^(dzielnica|osiedle|os\.|rejon|okolice)\s+/i;
 
@@ -36,6 +32,9 @@ export function selectPublicListingMapPoint(
   fallbackLookup: (
     address: PublicListingMapPointAddress,
   ) => PublicApproximateMapPoint | null,
+  districtLookup?: (
+    address: PublicListingMapPointAddress,
+  ) => PublicListingMapPoint | null,
 ): PublicListingMapPoint | null {
   const address = input.address;
 
@@ -58,7 +57,8 @@ export function selectPublicListingMapPoint(
     }
   }
 
-  const districtPoint = getPublicDistrictMapPoint(address);
+  const districtPoint =
+    districtLookup?.(address) ?? getPublicDistrictMapPoint(address);
 
   if (districtPoint) {
     return districtPoint;

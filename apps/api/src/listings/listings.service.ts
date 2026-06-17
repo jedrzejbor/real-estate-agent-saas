@@ -56,6 +56,7 @@ import { normalizeLocationSearch } from '../locations/locations-normalization';
 import {
   PublicApproximateMapPoint,
   PublicLocationPoint,
+  buildPublicDistrictCentroidKey,
   normalizePublicLocationKey,
   selectPublicListingMapPoint,
   toValidLatitude,
@@ -151,6 +152,10 @@ export class ListingsService {
   private readonly publicLocationCentroidCache = new Map<
     string,
     PublicApproximateMapPoint
+  >();
+  private readonly publicDistrictCentroidCache = new Map<
+    string,
+    PublicListingMapPoint
   >();
 
   constructor(
@@ -796,6 +801,7 @@ export class ListingsService {
 
     if (bbox) {
       const listingsInSortOrder = await qb.getMany();
+      await this.hydrateDistrictPublicLocationPoints(listingsInSortOrder);
       await this.hydrateApproximatePublicLocationPoints(listingsInSortOrder);
       const listingsInsideBbox = listingsInSortOrder.filter((listing) => {
         const mapPoint = this.getPublicListingMapPoint(listing);
@@ -838,6 +844,7 @@ export class ListingsService {
       .getManyAndCount();
 
     const mapCandidateListings = await qb.clone().getMany();
+    await this.hydrateDistrictPublicLocationPoints(mapCandidateListings);
     await this.hydrateApproximatePublicLocationPoints(mapCandidateListings);
     const mapMarkers = this.buildPublicCatalogMapMarkers(
       mapCandidateListings,
@@ -1367,6 +1374,112 @@ export class ListingsService {
     return markers;
   }
 
+  private async hydrateDistrictPublicLocationPoints(
+    listings: Listing[],
+  ): Promise<void> {
+    const requested = new Map<
+      string,
+      {
+        citySearchKey: string;
+        districtSearchKey: string;
+        label: string | null;
+      }
+    >();
+
+    for (const listing of listings) {
+      const address = listing.address;
+
+      if (!address || listing.showExactAddressOnPublicPage) {
+        continue;
+      }
+
+      const cacheKey = buildPublicDistrictCentroidKey(
+        address.city,
+        address.district,
+      );
+      const citySearchKey = normalizeLocationSearch(address.city);
+      const districtSearchKey = normalizeLocationSearch(address.district);
+
+      if (
+        !cacheKey ||
+        !citySearchKey ||
+        !districtSearchKey ||
+        this.publicDistrictCentroidCache.has(cacheKey)
+      ) {
+        continue;
+      }
+
+      requested.set(cacheKey, {
+        citySearchKey,
+        districtSearchKey,
+        label: [address.district?.trim(), address.city?.trim()]
+          .filter(Boolean)
+          .join(', '),
+      });
+    }
+
+    if (requested.size === 0) {
+      return;
+    }
+
+    const citySearchKeys = [
+      ...new Set([...requested.values()].map((item) => item.citySearchKey)),
+    ];
+    const locations = await this.locationRepo.find({
+      where: {
+        active: true,
+        kind: In(['district', 'neighborhood']),
+        parentNormalizedName: In(citySearchKeys),
+      },
+      select: [
+        'name',
+        'normalizedName',
+        'searchText',
+        'parentName',
+        'parentNormalizedName',
+        'aliases',
+        'lat',
+        'lng',
+        'priority',
+      ],
+      order: {
+        priority: 'DESC',
+      },
+    });
+
+    for (const [cacheKey, request] of requested) {
+      const bestLocation = locations.find(
+        (location) =>
+          location.parentNormalizedName === request.citySearchKey &&
+          this.getLocationDistrictSearchKeys(location).includes(
+            request.districtSearchKey,
+          ),
+      );
+
+      if (!bestLocation) {
+        continue;
+      }
+
+      const lat = this.toValidLatitude(bestLocation.lat);
+      const lng = this.toValidLongitude(bestLocation.lng);
+
+      if (lat === null || lng === null) {
+        continue;
+      }
+
+      this.publicDistrictCentroidCache.set(cacheKey, {
+        lat,
+        lng,
+        precision: 'approximate',
+        source: 'district',
+        label:
+          [bestLocation.name, bestLocation.parentName]
+            .filter(Boolean)
+            .join(', ') || request.label,
+      });
+    }
+  }
+
   private async hydrateApproximatePublicLocationPoints(
     listings: Listing[],
   ): Promise<void> {
@@ -1468,7 +1581,33 @@ export class ListingsService {
         address: listing.address,
       },
       (address) => this.getApproximatePublicLocationPoint(address),
+      (address) => this.getDatabaseDistrictPublicLocationPoint(address),
     );
+  }
+
+  private getDatabaseDistrictPublicLocationPoint(address: {
+    city?: string | null;
+    district?: string | null;
+  }): PublicListingMapPoint | null {
+    const cacheKey = buildPublicDistrictCentroidKey(
+      address.city,
+      address.district,
+    );
+
+    return cacheKey
+      ? (this.publicDistrictCentroidCache.get(cacheKey) ?? null)
+      : null;
+  }
+
+  private getLocationDistrictSearchKeys(location: Location): string[] {
+    return [
+      location.normalizedName,
+      normalizeLocationSearch(location.name),
+      ...(location.aliases ?? []).map((alias) => normalizeLocationSearch(alias)),
+      ...location.searchText
+        .split(/\s+/)
+        .map((part) => normalizeLocationSearch(part)),
+    ].filter((value): value is string => Boolean(value));
   }
 
   private getApproximatePublicLocationPoint(

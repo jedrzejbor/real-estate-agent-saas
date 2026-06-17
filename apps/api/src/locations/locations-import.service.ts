@@ -16,6 +16,7 @@ interface ImportLocationRow {
   voivodeship: string;
   kind?: string | null;
   kindCode?: string | null;
+  aliases?: string[];
   simcCode?: string | null;
   lat: number;
   lng: number;
@@ -238,10 +239,12 @@ export class LocationsImportService {
         searchText: buildSearchText(row),
         municipality: row.municipality?.trim() || null,
         parentName: row.parentName?.trim() || null,
+        parentNormalizedName: normalizeLocationSearch(row.parentName),
         county: row.county?.trim() || null,
         voivodeship: row.voivodeship.trim(),
         kind: normalizeLocationKind(row.kind, row.kindCode),
         kindCode: row.kindCode?.trim() || null,
+        aliases: normalizeAliases(row.aliases),
         simcCode: row.simcCode?.trim() || null,
         lat: row.lat,
         lng: row.lng,
@@ -462,6 +465,7 @@ function mapRecordToLocationRow(
       'rodzaj_miejscowosci',
       'typ_miejscowosci',
     ]),
+    aliases: getOptionalStringArray(record, ['aliases', 'aliasy', 'synonyms']),
     kindCode: getOptionalString(record, [
       'kind_code',
       'kindcode',
@@ -565,6 +569,31 @@ function getOptionalString(
     }
   }
   return null;
+}
+
+function getOptionalStringArray(
+  record: Record<string, unknown>,
+  keys: string[],
+): string[] {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (Array.isArray(value)) {
+      return value
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+
+    if (typeof value === 'string' && value.trim()) {
+      return value
+        .split(/[;,|]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  return [];
 }
 
 function getRequiredNumber(
@@ -735,6 +764,7 @@ function buildNaturalKey(row: {
   parentName?: string | null;
   kind?: string | null;
   kindCode?: string | null;
+  aliases?: string[];
 }): string {
   return [
     row.normalizedName ?? normalizeLocationSearch(row.name) ?? '',
@@ -755,6 +785,7 @@ function buildSearchText(row: {
   voivodeship?: string | null;
   kind?: string | null;
   kindCode?: string | null;
+  aliases?: string[];
 }): string {
   return [
     normalizeLocationSearch(row.name),
@@ -764,6 +795,7 @@ function buildSearchText(row: {
     normalizeLocationSearch(row.voivodeship),
     normalizeLocationSearch(normalizeLocationKind(row.kind, row.kindCode)),
     normalizeLocationSearch(row.kindCode),
+    ...(row.aliases ?? []).map((alias) => normalizeLocationSearch(alias)),
   ]
     .filter(Boolean)
     .join(' ');
@@ -817,6 +849,10 @@ function normalizeLocationKind(
     hamlet: 'przysiółek',
     colony: 'kolonia',
     part: 'część miejscowości',
+    district: 'district',
+    neighborhood: 'neighborhood',
+    dzielnica: 'district',
+    osiedle: 'neighborhood',
     locality: 'miejscowość',
     miasto: 'miasto',
     wies: 'wieś',
@@ -829,6 +865,10 @@ function normalizeLocationKind(
   };
 
   return aliases[normalizedValue] ?? value?.trim() ?? 'miejscowość';
+}
+
+function normalizeAliases(aliases?: string[]): string[] {
+  return [...new Set((aliases ?? []).map((alias) => alias.trim()).filter(Boolean))];
 }
 
 function mapSimcKindCode(code: string): string {

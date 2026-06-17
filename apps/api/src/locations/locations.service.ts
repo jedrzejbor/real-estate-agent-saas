@@ -5,6 +5,12 @@ import { Location } from './entities';
 import { LOCATION_CATALOG, LocationCatalogEntry } from './location-catalog';
 import { SearchLocationsQueryDto } from './dto/search-locations-query.dto';
 import { normalizeLocationSearch } from './locations-normalization';
+import {
+  PUBLIC_DISTRICT_CATALOG,
+  PublicDistrictCatalogEntry,
+  getPublicDistrictSearchKeys,
+} from './public-district-catalog';
+import { SearchDistrictsQueryDto } from './dto/search-districts-query.dto';
 
 export interface PublicLocationSuggestion {
   id: string;
@@ -19,6 +25,8 @@ export interface PublicLocationSuggestion {
   lng: number;
   label: string;
 }
+
+const PUBLIC_DISTRICT_LOCATION_KINDS = ['district', 'neighborhood'];
 
 @Injectable()
 export class LocationsService {
@@ -39,6 +47,34 @@ export class LocationsService {
     }
 
     return this.searchFallbackCatalog(normalizedQuery, limit);
+  }
+
+  async searchDistricts(
+    query: SearchDistrictsQueryDto,
+  ): Promise<PublicLocationSuggestion[]> {
+    const limit = query.limit ?? 10;
+    const normalizedCity = normalizeLocationSearch(query.city);
+    const normalizedQuery = normalizeLocationSearch(query.query);
+
+    if (!normalizedCity) {
+      return [];
+    }
+
+    const databaseResults = await this.searchDistrictsDatabase(
+      normalizedCity,
+      normalizedQuery,
+      limit,
+    );
+
+    if (databaseResults.length > 0) {
+      return databaseResults;
+    }
+
+    return this.searchDistrictsFallback(
+      normalizedCity,
+      normalizedQuery,
+      limit,
+    );
   }
 
   private async searchDatabase(
@@ -99,6 +135,71 @@ export class LocationsService {
 
     return catalogResults;
   }
+
+  private async searchDistrictsDatabase(
+    normalizedCity: string,
+    normalizedQuery: string | null,
+    limit: number,
+  ): Promise<PublicLocationSuggestion[]> {
+    const qb = this.locationRepo
+      .createQueryBuilder('location')
+      .where('location.active = :active', { active: true })
+      .andWhere('location.kind IN (:...kinds)', {
+        kinds: PUBLIC_DISTRICT_LOCATION_KINDS,
+      })
+      .andWhere('location.parentNormalizedName = :normalizedCity', {
+        normalizedCity,
+      })
+      .take(limit);
+
+    if (normalizedQuery) {
+      qb.andWhere(
+        `(location.normalizedName LIKE :prefix OR location.searchText LIKE :contains)`,
+        {
+          prefix: `${normalizedQuery}%`,
+          contains: `%${normalizedQuery}%`,
+        },
+      )
+        .orderBy(
+          `CASE
+          WHEN location.normalizedName = :exact THEN 0
+          WHEN location.normalizedName LIKE :prefix THEN 1
+          ELSE 2
+        END`,
+          'ASC',
+        )
+        .addOrderBy('location.priority', 'DESC')
+        .addOrderBy('location.name', 'ASC');
+      qb.setParameter('exact', normalizedQuery);
+    } else {
+      qb.orderBy('location.priority', 'DESC').addOrderBy(
+        'location.name',
+        'ASC',
+      );
+    }
+
+    const locations = await qb.getMany();
+
+    return locations.map(toPublicDatabaseLocationSuggestion);
+  }
+
+  private searchDistrictsFallback(
+    normalizedCity: string,
+    normalizedQuery: string | null,
+    limit: number,
+  ): PublicLocationSuggestion[] {
+    return PUBLIC_DISTRICT_CATALOG.map((entry) => ({
+      entry,
+      score: scoreDistrict(entry, normalizedCity, normalizedQuery),
+    }))
+      .filter(({ score }) => score > 0)
+      .sort(
+        (a, b) =>
+          b.score - a.score || a.entry.name.localeCompare(b.entry.name, 'pl'),
+      )
+      .slice(0, limit)
+      .map(({ entry }) => toPublicDistrictCatalogSuggestion(entry));
+  }
 }
 
 function toPublicDatabaseLocationSuggestion(
@@ -115,9 +216,71 @@ function toPublicDatabaseLocationSuggestion(
     kindCode: location.kindCode ?? null,
     lat: Number(location.lat),
     lng: Number(location.lng),
-    label: [location.name, location.county, location.voivodeship]
+    label: [
+      location.name,
+      isDistrictLocationKind(location.kind)
+        ? location.parentName
+        : location.county,
+      location.voivodeship,
+    ]
       .filter(Boolean)
       .join(', '),
+  };
+}
+
+function isDistrictLocationKind(kind: string): boolean {
+  return PUBLIC_DISTRICT_LOCATION_KINDS.includes(kind);
+}
+
+function scoreDistrict(
+  entry: PublicDistrictCatalogEntry,
+  normalizedCity: string,
+  normalizedQuery: string | null,
+): number {
+  if (entry.normalizedCity !== normalizedCity) {
+    return 0;
+  }
+
+  if (!normalizedQuery) {
+    return 100;
+  }
+
+  let bestScore = 0;
+
+  for (const key of getPublicDistrictSearchKeys(entry)) {
+    if (key === normalizedQuery) {
+      bestScore = Math.max(bestScore, 1000);
+      continue;
+    }
+
+    if (key.startsWith(normalizedQuery)) {
+      bestScore = Math.max(bestScore, 700);
+      continue;
+    }
+
+    if (key.includes(normalizedQuery)) {
+      bestScore = Math.max(bestScore, 350);
+    }
+  }
+
+  return bestScore;
+}
+
+function toPublicDistrictCatalogSuggestion(
+  entry: PublicDistrictCatalogEntry,
+): PublicLocationSuggestion {
+  return {
+    id: `district-${entry.normalizedCity}-${entry.normalizedName}`,
+    name: entry.name,
+    municipality: entry.city,
+    parentName: entry.city,
+    county: entry.city,
+    voivodeship: entry.voivodeship,
+    kind: 'district',
+    kindCode: null,
+    lat: entry.lat,
+    lng: entry.lng,
+    label: [entry.name, entry.city, entry.voivodeship].join(', '),
   };
 }
 

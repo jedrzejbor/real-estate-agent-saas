@@ -37,3 +37,26 @@ export async function searchLocations(
 
   return response.data;
 }
+
+export async function searchDistricts(
+  city: string,
+  query = '',
+  limit = 10,
+): Promise<LocationSuggestion[]> {
+  const params = new URLSearchParams();
+
+  params.set('city', city.trim());
+
+  if (query.trim()) {
+    params.set('query', query.trim());
+  }
+
+  params.set('limit', String(limit));
+
+  const response = await apiFetch<SearchLocationsResponse>(
+    `/locations/districts?${params.toString()}`,
+    { skipAuth: true },
+  );
+
+  return response.data;
+}

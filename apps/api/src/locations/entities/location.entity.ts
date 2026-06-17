@@ -9,6 +9,7 @@ import {
 
 @Entity('locations')
 @Index(['normalizedName', 'voivodeship'])
+@Index(['kind', 'parentNormalizedName', 'normalizedName'])
 @Index(['naturalKey'], { unique: true })
 @Index(['simcCode'], { unique: true, where: '"simc_code" IS NOT NULL' })
 @Index(['active', 'priority'])
@@ -34,6 +35,14 @@ export class Location {
   @Column({ type: 'varchar', length: 255, name: 'parent_name', nullable: true })
   parentName?: string | null;
 
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'parent_normalized_name',
+    nullable: true,
+  })
+  parentNormalizedName?: string | null;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   county?: string | null;
 
@@ -45,6 +54,9 @@ export class Location {
 
   @Column({ type: 'varchar', length: 40, name: 'kind_code', nullable: true })
   kindCode?: string | null;
+
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
+  aliases: string[];
 
   @Column({ type: 'varchar', length: 20, name: 'simc_code', nullable: true })
   simcCode?: string | null;

@@ -10,6 +10,7 @@ import {
   isKnownPublicDistrict,
   type PublicDistrictSuggestion,
 } from '@/lib/public-districts';
+import { searchDistricts, type LocationSuggestion } from '@/lib/locations';
 import { cn } from '@/lib/utils';
 
 interface DistrictAutocompleteProps {
@@ -35,10 +36,13 @@ export function DistrictAutocomplete({
 }: DistrictAutocompleteProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [activeIndex, setActiveIndex] = React.useState(-1);
+  const [suggestions, setSuggestions] = React.useState<
+    PublicDistrictSuggestion[]
+  >([]);
+  const [isLoading, setIsLoading] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const suggestions = React.useMemo(
-    () => getPublicDistrictSuggestions(city, value),
-    [city, value],
+  const cacheRef = React.useRef<Map<string, PublicDistrictSuggestion[]>>(
+    new Map(),
   );
   const hasKnownDistricts = hasPublicDistrictSuggestions(city);
   const hasSelectedKnownDistrict = isKnownPublicDistrict(city, value);
@@ -59,6 +63,53 @@ export function DistrictAutocomplete({
   React.useEffect(() => {
     setActiveIndex(-1);
   }, [city, value]);
+
+  React.useEffect(() => {
+    if (!isOpen || !city.trim()) {
+      setSuggestions([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const cacheKey = `${city.trim().toLowerCase()}|${value.trim().toLowerCase()}`;
+    const cached = cacheRef.current.get(cacheKey);
+
+    if (cached) {
+      setSuggestions(cached);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setIsLoading(true);
+
+      try {
+        const results = await searchDistricts(city, value, 8);
+        const mappedResults = results.map(toPublicDistrictSuggestion);
+
+        if (!controller.signal.aborted) {
+          cacheRef.current.set(cacheKey, mappedResults);
+          setSuggestions(mappedResults);
+        }
+      } catch {
+        const fallback = getPublicDistrictSuggestions(city, value);
+
+        if (!controller.signal.aborted) {
+          cacheRef.current.set(cacheKey, fallback);
+          setSuggestions(fallback);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
+    }, 180);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [city, isOpen, value]);
 
   function handleValueChange(nextValue: string) {
     onValueChange(nextValue);
@@ -133,11 +184,13 @@ export function DistrictAutocomplete({
         )}
       </div>
 
-      {isOpen && hasKnownDistricts ? (
+      {isOpen && (hasKnownDistricts || suggestions.length > 0 || isLoading) ? (
         <div className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-border bg-card shadow-lg">
           {suggestions.length === 0 ? (
             <div className="px-3 py-4 text-center text-sm text-muted-foreground">
-              Brak pasującej dzielnicy w katalogu
+              {isLoading
+                ? 'Szukamy dzielnic...'
+                : 'Brak pasującej dzielnicy w katalogu'}
             </div>
           ) : (
             <ul role="listbox" className="max-h-56 overflow-y-auto py-1">
@@ -181,4 +234,29 @@ export function DistrictAutocomplete({
       ) : null}
     </div>
   );
+}
+
+function toPublicDistrictSuggestion(
+  location: LocationSuggestion,
+): PublicDistrictSuggestion {
+  return {
+    city: location.parentName ?? location.municipality ?? location.county,
+    name: location.name,
+    normalizedCity: normalizeAutocompleteValue(
+      location.parentName ?? location.municipality ?? location.county,
+    ),
+    normalizedName: normalizeAutocompleteValue(location.name),
+    aliases: [],
+  };
+}
+
+function normalizeAutocompleteValue(value: string): string {
+  return value
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/ł/g, 'l')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
