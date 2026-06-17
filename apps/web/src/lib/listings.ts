@@ -599,6 +599,10 @@ export const createListingSchema = z
       .enum(['true', 'false'])
       .transform((value) => value === 'true')
       .optional(),
+    showExactAddressOnPublicPage: z
+      .enum(['true', 'false'])
+      .transform((value) => value === 'true')
+      .optional(),
     address: addressSchema,
   })
   .superRefine((data, ctx) => {

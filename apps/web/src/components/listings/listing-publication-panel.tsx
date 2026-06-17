@@ -109,8 +109,6 @@ export function ListingPublicationPanel({
       seoDescription: String(formData.get('seoDescription') ?? ''),
       shareImageUrl: String(formData.get('shareImageUrl') ?? ''),
       showPriceOnPublicPage: formData.get('showPriceOnPublicPage') === 'on',
-      showExactAddressOnPublicPage:
-        formData.get('showExactAddressOnPublicPage') === 'on',
       showPublicViewCount: formData.get('showPublicViewCount') === 'on',
     };
 
@@ -509,12 +507,6 @@ export function ListingPublicationPanel({
             description="Wyłącz, jeśli chcesz prowadzić rozmowę cenową dopiero po kontakcie."
           />
           <CheckboxOption
-            name="showExactAddressOnPublicPage"
-            defaultChecked={listing.showExactAddressOnPublicPage}
-            label="Pokazuj dokładny adres"
-            description="Włącz razem z dokładnym punktem mapy w adresie oferty. Po wyłączeniu klienci zobaczą tylko miasto i dzielnicę."
-          />
-          <CheckboxOption
             name="showPublicViewCount"
             defaultChecked={listing.showPublicViewCount}
             label="Pokazuj licznik wyświetleń"
@@ -668,9 +660,7 @@ function CheckboxOption({
 }: {
   name: keyof Pick<
     PublicListingSettingsFormData,
-    | 'showPriceOnPublicPage'
-    | 'showExactAddressOnPublicPage'
-    | 'showPublicViewCount'
+    'showPriceOnPublicPage' | 'showPublicViewCount'
   >;
   defaultChecked: boolean;
   label: string;

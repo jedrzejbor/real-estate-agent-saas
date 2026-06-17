@@ -98,7 +98,9 @@ export function ListingForm({
     lat: listing?.address?.lat ?? '',
     lng: listing?.address?.lng ?? '',
   });
-  const [showExactLocationFields, setShowExactLocationFields] = useState(false);
+  const [showExactLocationFields, setShowExactLocationFields] = useState(
+    Boolean(listing?.showExactAddressOnPublicPage),
+  );
   const [showDetails, setShowDetails] = useState(!isGuidedCreate);
   const [assistantInput, setAssistantInput] =
     useState<ListingDescriptionAssistantInput>(() =>
@@ -713,9 +715,16 @@ export function ListingForm({
             </div>
 
             <div className="mt-5 rounded-xl border border-border bg-muted/20 p-4">
+              <input
+                type="hidden"
+                name="showExactAddressOnPublicPage"
+                value="false"
+              />
               <label className="flex items-start gap-3">
                 <input
+                  name="showExactAddressOnPublicPage"
                   type="checkbox"
+                  value="true"
                   checked={showExactLocationFields}
                   onChange={(event) =>
                     setShowExactLocationFields(event.target.checked)
@@ -724,12 +733,12 @@ export function ListingForm({
                 />
                 <span>
                   <span className="block text-sm font-semibold text-foreground">
-                    Chcę ustawić dokładny punkt mapy
+                    Pokazuj dokładną lokalizację na publicznej mapie
                   </span>
                   <span className="mt-1 block text-sm leading-6 text-muted-foreground">
-                    Sam wybór miasta lub dzielnicy oznacza lokalizację
-                    przybliżoną. Publiczne pokazanie dokładnego punktu wymaga
-                    też włączenia dokładnego adresu w ustawieniach publikacji.
+                    Po włączeniu uzupełnij współrzędne punktu. Gdy opcja jest
+                    wyłączona, publiczna mapa używa lokalizacji przybliżonej z
+                    dzielnicy albo miasta.
                   </span>
                 </span>
               </label>
