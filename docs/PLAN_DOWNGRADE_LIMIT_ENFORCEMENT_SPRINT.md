@@ -94,7 +94,40 @@ Stan nie musi od razu być osobną kolumną, ale backend powinien umieć go wyli
 
 ## Sprint 1 - polityka backendowa i źródło prawdy
 
-Status: Do zrobienia.
+Status: Zrobione.
+
+Wykonano:
+
+- dodano `AgencyLimitEnforcementService` jako centralną warstwę kalkulacji stanu limitów,
+- serwis ocenia zasoby:
+  - `activeListings`,
+  - `clients`,
+  - `monthlyAppointments`,
+  - `users`,
+- serwis zwraca dla każdego zasobu:
+  - `usage`,
+  - `limit`,
+  - `remaining`,
+  - `usageRatio`,
+  - `isUnlimited`,
+  - `isNearLimit`,
+  - `isOverLimit`,
+  - `isInGracePeriod`,
+  - `enforcementAction`,
+- serwis zwraca status workspace:
+  - `within_limit`,
+  - `near_limit`,
+  - `over_limit_grace`,
+  - `over_limit_enforced`,
+- zachowano `AgencyPlanService` jako źródło limitów planu,
+- podpięto serwis w `UsersModule` i wyeksportowano go do użycia w kolejnych modułach,
+- dodano testy jednostkowe dla:
+  - stanu poniżej limitu,
+  - ostrzeżenia przy 80% limitu,
+  - przekroczenia limitu,
+  - aktywnej karencji,
+  - limitów `null` jako nielimitowanych,
+  - normalizacji progu ostrzegawczego.
 
 Cel: przygotować centralne miejsce, które liczy stan limitów i pozwala wszystkim modułom korzystać z tych samych reguł.
 

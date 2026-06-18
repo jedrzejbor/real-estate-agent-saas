@@ -5,6 +5,7 @@ import { Listing } from '../listings/entities/listing.entity';
 import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { PlanCatalog } from '../plans';
+import { AgencyLimitEnforcementService } from './agency-limit-enforcement.service';
 import { AgencyPlanService } from './agency-plan.service';
 import { UsersService } from './users.service';
 
@@ -20,7 +21,7 @@ import { UsersService } from './users.service';
       PlanCatalog,
     ]),
   ],
-  providers: [UsersService, AgencyPlanService],
-  exports: [UsersService, AgencyPlanService],
+  providers: [UsersService, AgencyPlanService, AgencyLimitEnforcementService],
+  exports: [UsersService, AgencyPlanService, AgencyLimitEnforcementService],
 })
 export class UsersModule {}
