@@ -329,6 +329,23 @@ export function ListingForm({
     }
   }
 
+  function handleCoordinatePaste(event: React.ClipboardEvent<HTMLInputElement>) {
+    const parsedCoordinates = parseCoordinatePair(
+      event.clipboardData.getData('text'),
+    );
+
+    if (!parsedCoordinates) {
+      return;
+    }
+
+    event.preventDefault();
+    setLocationPoint(parsedCoordinates);
+    setGeocodingStatus({
+      state: 'success',
+      message: 'Wklejono dokładne współrzędne punktu.',
+    });
+  }
+
   function handleImageFilesSelected(
     event: React.ChangeEvent<HTMLInputElement>,
   ) {
@@ -943,6 +960,7 @@ export function ListingForm({
                         min="-90"
                         max="90"
                         value={locationPoint.lat}
+                        onPaste={handleCoordinatePaste}
                         onChange={(event) =>
                           setLocationPoint((current) => ({
                             ...current,
@@ -966,6 +984,7 @@ export function ListingForm({
                         min="-180"
                         max="180"
                         value={locationPoint.lng}
+                        onPaste={handleCoordinatePaste}
                         onChange={(event) =>
                           setLocationPoint((current) => ({
                             ...current,
@@ -977,6 +996,10 @@ export function ListingForm({
                       />
                     </FormField>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Możesz wkleić współrzędne z Google Maps w formacie
+                    `53.14382444564905, 18.12424693906946`.
+                  </p>
                 </div>
               ) : null}
             </div>
@@ -1413,6 +1436,38 @@ function collectAssistantInput(
 
 function formatCoordinate(value: number): string {
   return Number.isFinite(value) ? value.toFixed(7) : '';
+}
+
+function parseCoordinatePair(
+  value: string,
+): { lat: string; lng: string } | null {
+  const match = value
+    .trim()
+    .match(/^(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const lat = Number(match[1].replace(',', '.'));
+  const lng = Number(match[2].replace(',', '.'));
+
+  if (!isValidLatitude(lat) || !isValidLongitude(lng)) {
+    return null;
+  }
+
+  return {
+    lat: formatCoordinate(lat),
+    lng: formatCoordinate(lng),
+  };
+}
+
+function isValidLatitude(value: number): boolean {
+  return Number.isFinite(value) && value >= -90 && value <= 90;
+}
+
+function isValidLongitude(value: number): boolean {
+  return Number.isFinite(value) && value >= -180 && value <= 180;
 }
 
 function buildGeocodingAnalyticsProperties({
