@@ -545,7 +545,7 @@ export function shouldShowListingField(
 
 export const addressSchema = z.object({
   street: z.string().max(255).optional().or(z.literal('')),
-  city: z.string().min(1, 'Miasto jest wymagane').max(255),
+  city: z.string().trim().min(1, 'Miasto jest wymagane').max(255),
   postalCode: z.string().max(10).optional().or(z.literal('')),
   district: z.string().max(255).optional().or(z.literal('')),
   voivodeship: z.string().max(255).optional().or(z.literal('')),
@@ -557,9 +557,10 @@ export const createListingSchema = z
   .object({
     title: z
       .string()
+      .trim()
       .min(1, 'Tytuł jest wymagany')
       .max(255, 'Tytuł może mieć maksymalnie 255 znaków'),
-    description: z.string().optional().or(z.literal('')),
+    description: z.string().trim().min(1, 'Opis jest wymagany'),
     propertyType: z.enum(
       ['apartment', 'house', 'land', 'commercial', 'office', 'garage'],
       { message: 'Wybierz typ nieruchomości' },

@@ -1,6 +1,7 @@
 import {
   IsString,
   IsNotEmpty,
+  IsDefined,
   IsOptional,
   ValidateIf,
   IsEnum,
@@ -10,6 +11,7 @@ import {
   Min,
   Max,
   MaxLength,
+  Matches,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -28,6 +30,7 @@ export class CreateAddressDto {
 
   @IsNotEmpty({ message: 'Miasto jest wymagane' })
   @IsString()
+  @Matches(/\S/, { message: 'Miasto jest wymagane' })
   @MaxLength(255)
   city: string;
 
@@ -58,12 +61,14 @@ export class CreateAddressDto {
 export class CreateListingDto {
   @IsNotEmpty({ message: 'Tytuł jest wymagany' })
   @IsString()
+  @Matches(/\S/, { message: 'Tytuł jest wymagany' })
   @MaxLength(255)
   title: string;
 
-  @IsOptional()
+  @IsNotEmpty({ message: 'Opis jest wymagany' })
   @IsString()
-  description?: string;
+  @Matches(/\S/, { message: 'Opis jest wymagany' })
+  description: string;
 
   @IsEnum(PropertyType, { message: 'Nieprawidłowy typ nieruchomości' })
   propertyType: PropertyType;
@@ -141,6 +146,7 @@ export class CreateListingDto {
   @IsBoolean()
   showExactAddressOnPublicPage?: boolean;
 
+  @IsDefined({ message: 'Adres jest wymagany' })
   @ValidateNested()
   @Type(() => CreateAddressDto)
   address: CreateAddressDto;

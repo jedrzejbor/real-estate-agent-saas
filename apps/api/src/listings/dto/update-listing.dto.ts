@@ -8,6 +8,7 @@ import {
   Min,
   Max,
   MaxLength,
+  Matches,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -26,6 +27,7 @@ export class UpdateAddressDto {
 
   @IsOptional()
   @IsString()
+  @Matches(/\S/, { message: 'Miasto jest wymagane' })
   @MaxLength(255)
   city?: string;
 
@@ -56,11 +58,13 @@ export class UpdateAddressDto {
 export class UpdateListingDto {
   @IsOptional()
   @IsString()
+  @Matches(/\S/, { message: 'Tytuł jest wymagany' })
   @MaxLength(255)
   title?: string;
 
   @IsOptional()
   @IsString()
+  @Matches(/\S/, { message: 'Opis jest wymagany' })
   description?: string;
 
   @IsOptional()

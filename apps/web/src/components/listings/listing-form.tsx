@@ -557,33 +557,32 @@ export function ListingForm({
               </FormField>
             )}
 
-          {showDetails ? (
-            <FormField
-              label="Opis"
+          <FormField
+            label="Opis"
+            name="description"
+            required
+            error={getFieldError('description')}
+            className="sm:col-span-2"
+          >
+            <textarea
+              ref={descriptionRef}
               name="description"
-              error={getFieldError('description')}
-              className="sm:col-span-2"
-            >
-              <textarea
-                ref={descriptionRef}
-                name="description"
-                defaultValue={listing?.description ?? ''}
-                rows={isGuidedCreate ? 4 : 5}
-                placeholder="Opisz nieruchomość..."
-                className={cn(
-                  'w-full min-w-0 rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm transition-colors outline-none',
-                  'placeholder:text-muted-foreground',
-                  'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
-                  'resize-y',
-                )}
-              />
-              <ListingDescriptionAssistant
-                report={qualityReport}
-                usage={assistantUsage}
-                onGenerate={handleGenerateDescription}
-              />
-            </FormField>
-          ) : null}
+              defaultValue={listing?.description ?? ''}
+              rows={isGuidedCreate ? 4 : 5}
+              placeholder="Opisz nieruchomość..."
+              className={cn(
+                'w-full min-w-0 rounded-xl border border-border/80 bg-card px-3 py-2 text-sm shadow-sm transition-colors outline-none',
+                'placeholder:text-muted-foreground',
+                'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
+                'resize-y',
+              )}
+            />
+            <ListingDescriptionAssistant
+              report={qualityReport}
+              usage={assistantUsage}
+              onGenerate={handleGenerateDescription}
+            />
+          </FormField>
         </div>
       </FormSection>
 
