@@ -137,6 +137,10 @@ export class CreateListingDto {
   @IsBoolean()
   showPublicViewCount?: boolean;
 
+  @IsOptional()
+  @IsBoolean()
+  showExactAddressOnPublicPage?: boolean;
+
   @ValidateNested()
   @Type(() => CreateAddressDto)
   address: CreateAddressDto;
