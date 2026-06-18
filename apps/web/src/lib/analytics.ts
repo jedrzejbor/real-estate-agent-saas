@@ -9,6 +9,11 @@ export const AnalyticsEventName = {
   ONBOARDING_EMPTY_STATE_SHOWN: 'onboarding_empty_state_shown',
   ONBOARDING_EMPTY_STATE_CTA_CLICKED: 'onboarding_empty_state_cta_clicked',
   LISTING_CREATED: 'listing_created',
+  LISTING_ADDRESS_GEOCODING_REQUESTED:
+    'listing_address_geocoding_requested',
+  LISTING_ADDRESS_GEOCODING_SUCCEEDED:
+    'listing_address_geocoding_succeeded',
+  LISTING_ADDRESS_GEOCODING_FAILED: 'listing_address_geocoding_failed',
   LISTING_PUBLISHED: 'listing_published',
   LISTING_UNPUBLISHED: 'listing_unpublished',
   PUBLIC_LISTING_VIEWED: 'public_listing_viewed',
@@ -153,5 +158,10 @@ function canTrackAnalyticsEvent(name: AnalyticsEventName): boolean {
 }
 
 function isOperationalAnalyticsEvent(name: AnalyticsEventName): boolean {
-  return name === AnalyticsEventName.PUBLIC_LISTING_ABUSE_REPORTED;
+  return [
+    AnalyticsEventName.PUBLIC_LISTING_ABUSE_REPORTED,
+    AnalyticsEventName.LISTING_ADDRESS_GEOCODING_REQUESTED,
+    AnalyticsEventName.LISTING_ADDRESS_GEOCODING_SUCCEEDED,
+    AnalyticsEventName.LISTING_ADDRESS_GEOCODING_FAILED,
+  ].some((eventName) => eventName === name);
 }

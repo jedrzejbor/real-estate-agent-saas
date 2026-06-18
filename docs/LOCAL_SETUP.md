@@ -92,6 +92,13 @@ RELEASE_FLAG_PUBLIC_LEAD_FORMS_ENABLED=false
 RELEASE_FLAG_PUBLIC_CLAIM_FLOW_ENABLED=false
 RELEASE_FLAG_FREEMIUM_UPSELL_ENABLED=true
 RELEASE_FLAG_PREMIUM_REPORTS_ENABLED=true
+# Opcjonalne: geokodowanie dokładnego punktu adresu ofert.
+# Bez tych zmiennych endpoint zwróci kontrolowany błąd 503.
+GEOCODING_PROVIDER=
+GEOCODING_API_KEY=
+GEOCODING_COUNTRY_BIAS=PL
+GEOCODING_REQUEST_TIMEOUT_MS=3500
+GEOCODING_CACHE_TTL_DAYS=180
 EOF
 ```
 
@@ -126,6 +133,36 @@ Techniczne feature flags są sterowane po stronie API przez zmienne środowiskow
 | `RELEASE_FLAG_PREMIUM_REPORTS_ENABLED` | `true` | udostępnianie premium raportów / ich placeholderów |
 
 Zmiana flag wymaga restartu procesu API.
+
+### 5b. Geokodowanie adresów ofert
+
+Dokładny punkt mapy w formularzu oferty może zostać ustawiony przez endpoint:
+
+```http
+POST /api/locations/geocode-address
+```
+
+Endpoint jest dostępny tylko dla zalogowanych użytkowników i nie zapisuje
+wyniku bezpośrednio do oferty. Frontend uzupełnia `address.lat` i `address.lng`,
+a agent zapisuje ofertę zwykłym formularzem.
+
+Konfiguracja opcjonalna:
+
+| Zmienna | Domyślna wartość | Rola |
+|--------|------------------|------|
+| `GEOCODING_PROVIDER` | brak | obecnie wspierane: `google` |
+| `GEOCODING_API_KEY` | brak | klucz providera, trzymany tylko po stronie API |
+| `GEOCODING_COUNTRY_BIAS` | `PL` | bias kraju dla geokodowania |
+| `GEOCODING_REQUEST_TIMEOUT_MS` | `3500` | timeout requestu do providera |
+| `GEOCODING_CACHE_TTL_DAYS` | `180` | TTL cache wyników geokodowania |
+
+Jeśli `GEOCODING_PROVIDER` albo `GEOCODING_API_KEY` nie są ustawione, API
+zwróci `503 Geocoding is not configured`. To jest oczekiwane zachowanie w
+lokalnym środowisku bez klucza.
+
+Pełne adresy nie powinny trafiać do logów technicznych ani eventów
+analitycznych. Monitoring geokodowania zapisuje tylko metadane, np. provider,
+czy był kod pocztowy, precyzję i confidence wyniku.
 
 > Alternatywnie, możesz uruchomić je osobno w dwóch terminalach:
 > ```bash

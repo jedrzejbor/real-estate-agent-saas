@@ -28,6 +28,7 @@ import { useToast } from '@/contexts/toast-context';
 import { useListingForm } from '@/hooks/use-listing-form';
 import { ListingDescriptionAssistant } from '@/components/listings/listing-description-assistant';
 import { getApiErrorMessage } from '@/lib/api-client';
+import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import {
   createListingSchema,
   type CreateListingFormData,
@@ -215,6 +216,16 @@ export function ListingForm({
     }
 
     setGeocodingStatus({ state: 'loading' });
+    trackAnalyticsEvent({
+      name: AnalyticsEventName.LISTING_ADDRESS_GEOCODING_REQUESTED,
+      properties: buildGeocodingAnalyticsProperties({
+        listing,
+        city,
+        district,
+        postalCode,
+        voivodeship,
+      }),
+    });
 
     try {
       const response = await geocodeListingAddress({
@@ -230,6 +241,19 @@ export function ListingForm({
           response.warning ??
           'Nie znaleziono dokładnego punktu dla tego adresu.';
         setGeocodingStatus({ state: 'error', message });
+        trackAnalyticsEvent({
+          name: AnalyticsEventName.LISTING_ADDRESS_GEOCODING_FAILED,
+          properties: {
+            ...buildGeocodingAnalyticsProperties({
+              listing,
+              city,
+              district,
+              postalCode,
+              voivodeship,
+            }),
+            reason: 'not_found',
+          },
+        });
         showWarningToast({
           title: 'Nie znaleziono punktu',
           description: message,
@@ -254,6 +278,22 @@ export function ListingForm({
         state: isHighConfidence ? 'success' : 'warning',
         message,
       });
+      trackAnalyticsEvent({
+        name: AnalyticsEventName.LISTING_ADDRESS_GEOCODING_SUCCEEDED,
+        properties: {
+          ...buildGeocodingAnalyticsProperties({
+            listing,
+            city,
+            district,
+            postalCode,
+            voivodeship,
+          }),
+          precision: response.result.precision,
+          confidence: response.result.confidence,
+          provider: response.result.provider,
+          highConfidence: isHighConfidence,
+        },
+      });
 
       if (isHighConfidence) {
         showSuccessToast({
@@ -269,6 +309,19 @@ export function ListingForm({
     } catch (error) {
       const message = getApiErrorMessage(error);
       setGeocodingStatus({ state: 'error', message });
+      trackAnalyticsEvent({
+        name: AnalyticsEventName.LISTING_ADDRESS_GEOCODING_FAILED,
+        properties: {
+          ...buildGeocodingAnalyticsProperties({
+            listing,
+            city,
+            district,
+            postalCode,
+            voivodeship,
+          }),
+          reason: 'api_error',
+        },
+      });
       showErrorToast({
         title: 'Nie udało się ustawić punktu',
         description: message,
@@ -1360,6 +1413,29 @@ function collectAssistantInput(
 
 function formatCoordinate(value: number): string {
   return Number.isFinite(value) ? value.toFixed(7) : '';
+}
+
+function buildGeocodingAnalyticsProperties({
+  listing,
+  city,
+  district,
+  postalCode,
+  voivodeship,
+}: {
+  listing: Listing | undefined;
+  city: string;
+  district: string;
+  postalCode: string;
+  voivodeship: string;
+}) {
+  return {
+    listingId: listing?.id,
+    isEdit: Boolean(listing),
+    hasCity: Boolean(city.trim()),
+    hasDistrict: Boolean(district.trim()),
+    hasPostalCode: Boolean(postalCode.trim()),
+    hasVoivodeship: Boolean(voivodeship.trim()),
+  };
 }
 
 function getFormValue(form: HTMLFormElement | null, name: string): string {

@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThan, Repository } from 'typeorm';
+import { MonitoringService } from '../monitoring';
 import { GeocodeAddressDto } from './dto/geocode-address.dto';
 import { GeocodingCache } from './entities';
 import {
@@ -31,6 +32,7 @@ export class GeocodingService {
     @InjectRepository(GeocodingCache)
     private readonly geocodingCacheRepo: Repository<GeocodingCache>,
     private readonly configService: ConfigService,
+    private readonly monitoringService: MonitoringService,
   ) {}
 
   async geocodeAddress(input: GeocodeAddressDto): Promise<GeocodingResponse> {
@@ -45,6 +47,17 @@ export class GeocodingService {
     }
 
     const provider = this.getProvider();
+    this.monitoringService.recordSuccess(
+      'address_geocoding',
+      'request_received',
+      {
+        provider: provider.name,
+        hasDistrict: Boolean(address.district),
+        hasPostalCode: Boolean(address.postalCode),
+        hasVoivodeship: Boolean(address.voivodeship),
+      },
+    );
+
     const query = buildGeocodeQuery(address);
     const normalizedQuery = buildNormalizedGeocodeQuery(address);
     const normalizedQueryHash = hashGeocodeQuery(provider.name, normalizedQuery);
@@ -57,21 +70,55 @@ export class GeocodingService {
     });
 
     if (cached) {
+      this.monitoringService.recordSuccess('address_geocoding', 'cache_hit', {
+        provider: provider.name,
+        hasResult: Boolean(cached.lat && cached.lng),
+      });
       return this.toGeocodingResponse(query, provider.name, cached);
     }
 
-    const response = await provider.geocode(address);
+    const response = await this.monitoringService.monitor(
+      {
+        flow: 'address_geocoding',
+        failureEvent: 'provider_failed',
+        context: { provider: provider.name },
+        successEvent: 'provider_succeeded',
+        successContext: (result) => ({
+          provider: provider.name,
+          hasResult: Boolean(result.result),
+          precision: result.result?.precision,
+          confidence: result.result?.confidence,
+        }),
+      },
+      () => provider.geocode(address),
+    );
+
+    if (!response.result) {
+      this.monitoringService.recordWarning('address_geocoding', 'no_result', {
+        provider: provider.name,
+      });
+    } else if (response.result.confidence < 0.9) {
+      this.monitoringService.recordWarning(
+        'address_geocoding',
+        'low_confidence_result',
+        {
+          provider: provider.name,
+          precision: response.result.precision,
+          confidence: response.result.confidence,
+        },
+      );
+    }
+
     await this.saveCacheEntry(
       provider.name,
       normalizedQueryHash,
-      normalizedQuery,
       response,
     );
 
     return response;
   }
 
-  private getProvider(): GeocodingProvider {
+  protected getProvider(): GeocodingProvider {
     const providerName = this.configService
       .get<string>('GEOCODING_PROVIDER', '')
       .trim()
@@ -116,14 +163,13 @@ export class GeocodingService {
   private async saveCacheEntry(
     provider: string,
     normalizedQueryHash: string,
-    normalizedQuery: string,
     response: GeocodingResponse,
   ): Promise<void> {
     const result = response.result;
     const entry = this.geocodingCacheRepo.create({
       provider,
       normalizedQueryHash,
-      normalizedQuery,
+      normalizedQuery: null,
       lat: result?.lat ?? null,
       lng: result?.lng ?? null,
       formattedAddress: result?.formattedAddress ?? null,

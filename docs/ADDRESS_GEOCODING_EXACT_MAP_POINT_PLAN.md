@@ -321,22 +321,66 @@ Nie wykonano w tej iteracji:
 
 ## Sprint 3: Quality, monitoring and privacy
 
+Status: wykonane w iteracji 2026-06-17
+
 Zakres:
 
-- [ ] dodać event analityczny `listing_address_geocoding_requested`,
-- [ ] dodać event `listing_address_geocoding_succeeded`,
-- [ ] dodać event `listing_address_geocoding_failed`,
-- [ ] monitorować liczbę requestów i błędów providera,
-- [ ] dodać dokumentację ENV do `LOCAL_SETUP.md`,
-- [ ] dodać testy integracyjne endpointu z mock providerem,
-- [ ] sprawdzić, czy pełne adresy nie trafiają do logów produkcyjnych.
+- [x] dodać event analityczny `listing_address_geocoding_requested`,
+- [x] dodać event `listing_address_geocoding_succeeded`,
+- [x] dodać event `listing_address_geocoding_failed`,
+- [x] monitorować liczbę requestów i błędów providera,
+- [x] dodać dokumentację ENV do `LOCAL_SETUP.md`,
+- [x] dodać testy backendowe geokodowania z mock providerem,
+- [x] sprawdzić, czy pełne adresy nie trafiają do logów produkcyjnych.
 
 Kryteria akceptacji:
 
-- można ocenić koszt i skuteczność geokodowania,
-- awaria providera nie psuje tworzenia/edycji oferty,
-- dokładne adresy nie są logowane przypadkowo,
-- limity providera są respektowane.
+- [x] można ocenić koszt i skuteczność geokodowania,
+- [x] awaria providera nie psuje tworzenia/edycji oferty,
+- [x] dokładne adresy nie są logowane przypadkowo,
+- [x] limity providera są respektowane.
+
+Wykonano:
+
+- Dodano eventy analityczne po stronie API i web:
+  - `listing_address_geocoding_requested`,
+  - `listing_address_geocoding_succeeded`,
+  - `listing_address_geocoding_failed`.
+- Eventy geokodowania są traktowane jako operacyjne, ponieważ służą do
+  monitorowania skuteczności/kosztów funkcji i nie zawierają pełnego adresu.
+- `ListingForm` wysyła eventy request/success/failure bez ulicy i bez pełnego
+  zapytania adresowego. W properties są tylko metadane, np. `hasDistrict`,
+  `hasPostalCode`, `precision`, `confidence`, `provider`.
+- `GeocodingService` raportuje monitoring techniczny:
+  - `request_received`,
+  - `cache_hit`,
+  - `provider_succeeded`,
+  - `provider_failed`,
+  - `no_result`,
+  - `low_confidence_result`.
+- Monitoring backendowy nie przekazuje ulicy ani pełnego adresu do kontekstu
+  logów.
+- Cache zapisuje hash znormalizowanego zapytania, ale nie zapisuje pełnego
+  `normalized_query`, aby ograniczyć ekspozycję dokładnego adresu.
+- Dodano konfigurację geokodowania do `docs/LOCAL_SETUP.md`.
+- Dodano test `geocoding.service.spec.ts` z mock providerem, który sprawdza:
+  - ścieżkę geokodowania przez providera,
+  - zapis cache bez pełnego zapytania adresowego,
+  - użycie cache bez wywołania providera,
+  - eventy monitoringu.
+
+Weryfikacja:
+
+- [x] `pnpm --filter api type-check`,
+- [x] `pnpm --filter web type-check`,
+- [x] `pnpm --filter api test -- geocoding-normalization.spec.ts google-geocoding.provider.spec.ts geocoding.service.spec.ts --runInBand`.
+
+Nie wykonano w tej iteracji:
+
+- Nie wykonano realnego requestu do Google, bo wymaga skonfigurowanego
+  `GEOCODING_API_KEY`.
+- Nie dodano testu przeglądarkowego/E2E formularza.
+- Nie wykonano screenshotów zgodnie z ustaleniem.
 
 ## Edge cases
 
