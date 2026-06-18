@@ -160,7 +160,7 @@ export default async function PublicListingPage({
 
           <div className="max-w-4xl pb-6">
             <div className="mb-4 flex flex-wrap gap-2">
-              <span className="rounded-full bg-card px-3 py-1 text-xs font-semibold text-stone-900">
+              <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25">
                 {PROPERTY_TYPE_LABELS[listing.propertyType]}
               </span>
               <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25">
@@ -189,7 +189,7 @@ export default async function PublicListingPage({
               </div>
               <a
                 href="#kontakt"
-                className="inline-flex h-11 items-center justify-center rounded-xl bg-card px-5 text-sm font-semibold text-stone-950 transition-colors hover:bg-stone-100"
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-card px-5 text-sm font-semibold text-foreground transition-colors hover:bg-stone-100"
               >
                 Skontaktuj się
               </a>
