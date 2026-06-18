@@ -30,6 +30,7 @@ import {
   deleteTransactionTask,
   fetchTransaction,
   fetchTransactionEvents,
+  fetchTransactionTasks,
   formatDeadlineDistance,
   formatTransactionCommission,
   formatTransactionMoney,
@@ -75,14 +76,20 @@ export default function TransactionDetailPage() {
 
     try {
       const transactionResponse = await fetchTransaction(params.id);
-      const [clientsResponse, eventsResponse, documentsResponse] =
+      const [
+        clientsResponse,
+        eventsResponse,
+        documentsResponse,
+        tasksResponse,
+      ] =
         await Promise.all([
           fetchClients({ limit: 100, sortBy: 'lastName', sortOrder: 'ASC' }),
           fetchTransactionEvents(params.id),
           fetchListingDocuments(transactionResponse.listingId),
+          fetchTransactionTasks(params.id),
         ]);
 
-      setTransaction(transactionResponse);
+      setTransaction({ ...transactionResponse, tasks: tasksResponse });
       setForm(createFormFromTransaction(transactionResponse));
       setClients(clientsResponse.data);
       setEvents(eventsResponse);
@@ -150,9 +157,13 @@ export default function TransactionDetailPage() {
         transaction.id,
         normalizeTransactionUpdatePayload(parsed.data),
       );
-      setTransaction(updated);
+      const [eventsResponse, tasksResponse] = await Promise.all([
+        fetchTransactionEvents(updated.id),
+        fetchTransactionTasks(updated.id),
+      ]);
+      setTransaction({ ...updated, tasks: tasksResponse });
       setForm(createFormFromTransaction(updated));
-      setEvents(await fetchTransactionEvents(updated.id));
+      setEvents(eventsResponse);
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
@@ -581,40 +592,46 @@ export default function TransactionDetailPage() {
             </form>
 
             <div className="mt-4 space-y-2">
-              {transaction.tasks?.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-start gap-2 rounded-lg border border-border px-3 py-2"
-                >
-                  <button
-                    type="button"
-                    className="mt-0.5 text-muted-foreground hover:text-foreground"
-                    onClick={() => void toggleTask(task)}
+              {transaction.tasks?.length ? (
+                transaction.tasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-start gap-2 rounded-lg border border-border px-3 py-2"
                   >
-                    {task.status === TransactionTaskStatus.DONE ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    ) : (
-                      <Circle className="h-4 w-4" />
-                    )}
-                  </button>
-                  <span
-                    className={cn(
-                      'min-w-0 flex-1 text-sm',
-                      task.status === TransactionTaskStatus.DONE &&
-                        'text-muted-foreground line-through',
-                    )}
-                  >
-                    {task.title}
-                  </span>
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-destructive"
-                    onClick={() => void removeTask(task)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+                    <button
+                      type="button"
+                      className="mt-0.5 text-muted-foreground hover:text-foreground"
+                      onClick={() => void toggleTask(task)}
+                    >
+                      {task.status === TransactionTaskStatus.DONE ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        <Circle className="h-4 w-4" />
+                      )}
+                    </button>
+                    <span
+                      className={cn(
+                        'min-w-0 flex-1 text-sm',
+                        task.status === TransactionTaskStatus.DONE &&
+                          'text-muted-foreground line-through',
+                      )}
+                    >
+                      {task.title}
+                    </span>
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => void removeTask(task)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="rounded-lg border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
+                  Brak zadań w tej transakcji.
+                </p>
+              )}
             </div>
           </section>
 

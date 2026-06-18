@@ -354,6 +354,12 @@ export async function fetchTransactionEvents(
   return apiFetch<TransactionEvent[]>(`/transactions/${id}/events`);
 }
 
+export async function fetchTransactionTasks(
+  id: string,
+): Promise<TransactionTask[]> {
+  return apiFetch<TransactionTask[]>(`/transactions/${id}/tasks`);
+}
+
 export async function addTransactionTask(
   transactionId: string,
   data: {

@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
+import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
 import {
   ListingCommissionType,
   ListingPublicationStatus,
@@ -220,9 +220,12 @@ export class TransactionsService {
     qb.skip((page - 1) * limit).take(limit);
 
     const [data, total] = await qb.getManyAndCount();
+    const dataWithTasks = await this.attachTasksToTransactions(data, agent.id);
 
     return {
-      data: data.map((transaction) => this.withDerivedFields(transaction)),
+      data: dataWithTasks.map((transaction) =>
+        this.withDerivedFields(transaction),
+      ),
       meta: {
         total,
         page,
@@ -230,6 +233,37 @@ export class TransactionsService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  private async attachTasksToTransactions(
+    transactions: Transaction[],
+    agentId: string,
+  ): Promise<Transaction[]> {
+    if (transactions.length === 0) {
+      return transactions;
+    }
+
+    const tasks = await this.taskRepo.find({
+      where: {
+        agentId,
+        transactionId: In(transactions.map((transaction) => transaction.id)),
+      },
+      order: {
+        createdAt: 'ASC',
+      },
+    });
+    const tasksByTransactionId = new Map<string, TransactionTask[]>();
+
+    for (const task of tasks) {
+      const currentTasks = tasksByTransactionId.get(task.transactionId) ?? [];
+      currentTasks.push(task);
+      tasksByTransactionId.set(task.transactionId, currentTasks);
+    }
+
+    return transactions.map((transaction) => ({
+      ...transaction,
+      tasks: tasksByTransactionId.get(transaction.id) ?? [],
+    }));
   }
 
   async findOne(id: string, userId: string): Promise<Transaction> {
