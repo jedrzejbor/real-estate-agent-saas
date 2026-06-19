@@ -99,12 +99,14 @@ export function PlanLimitStatusBanner({
   }
 
   return (
-    <section className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+    <section className="rounded-xl border border-status-warning/30 bg-status-warning-bg px-4 py-3 text-sm text-foreground">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-700" />
-            <Badge variant={hasOverLimit || hasLimitReached ? 'destructive' : 'warning'}>
+            <AlertTriangle className="h-4 w-4 text-status-warning" />
+            <Badge
+              variant={hasOverLimit || hasLimitReached ? 'destructive' : 'warning'}
+            >
               {hasOverLimit
                 ? 'Plan poniżej użycia'
                 : hasLimitReached
@@ -120,7 +122,7 @@ export function PlanLimitStatusBanner({
             {states.map((item) => (
               <div
                 key={item.key}
-                className="rounded-lg border border-amber-200/80 bg-white/60 px-3 py-2"
+                className="rounded-lg border border-status-warning/20 bg-card/70 px-3 py-2"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">{item.label}</span>
@@ -128,7 +130,7 @@ export function PlanLimitStatusBanner({
                     {item.usage}/{item.limit}
                   </span>
                 </div>
-                <p className="mt-1 text-xs leading-5 text-amber-950/75">
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   {item.state === 'near_limit'
                     ? `Zbliżasz się do limitu ${item.noun}.`
                     : `Zablokowane: ${item.blockedAction}.`}
@@ -137,7 +139,7 @@ export function PlanLimitStatusBanner({
             ))}
           </div>
 
-          <p className="max-w-4xl text-xs leading-5 text-amber-950/75">
+          <p className="max-w-4xl text-xs leading-5 text-muted-foreground">
             {states.length === 1
               ? primaryState.guidance
               : 'Nie usuwamy istniejących danych. Możesz nadal pracować na obecnych rekordach, ale działania zwiększające przekroczenie limitu są blokowane po stronie API.'}
