@@ -335,6 +335,55 @@ Kryteria akceptacji:
 - każda automatyczna zmiana ma wpis audytowy,
 - można wyjaśnić użytkownikowi, dlaczego konkretna oferta została odpubliczniona.
 
+## Sprint 4.5 - automatyczny scheduler egzekucji limitów
+
+Status: Do zrobienia.
+
+Obecny stan:
+
+- mamy `AgencyLimitDowngradeEnforcementService`,
+- mamy metodę `enforceExpiredListingGracePeriods`,
+- mamy ręczny endpoint administracyjny `POST /api/admin/agencies/:id/plan/enforce-limits`,
+- nie mamy jeszcze podpiętego schedulera / crona, który automatycznie uruchamia egzekucję po zakończeniu karencji.
+
+Cel: automatycznie egzekwować zakończone okresy karencji bez ręcznej akcji supportu.
+
+Zakres:
+
+- dodać moduł schedulera w API, jeśli nie jest jeszcze zarejestrowany,
+- dodać job cykliczny, np. `PlanLimitDowngradeEnforcementScheduler`,
+- job powinien uruchamiać `AgencyLimitDowngradeEnforcementService.enforceExpiredListingGracePeriods`,
+- ustawić bezpieczną częstotliwość MVP, np. raz dziennie w godzinach nocnych,
+- dodać lock / zabezpieczenie przed równoległym wykonaniem tej samej egzekucji:
+  - minimum: idempotencja na `limitGraceEnforcedAt`,
+  - docelowo: transakcyjny lock albo advisory lock, jeśli aplikacja działa w wielu instancjach,
+- job powinien logować:
+  - start,
+  - liczbę znalezionych agencji,
+  - liczbę egzekucji,
+  - błędy per agencja bez przerywania całej paczki,
+- job powinien wysyłać monitoring eventy:
+  - sukces batcha,
+  - błąd batcha,
+  - błąd pojedynczej agencji,
+- dodać testy jednostkowe schedulera:
+  - wywołuje serwis egzekucji,
+  - nie uruchamia drugiej egzekucji, gdy poprzednia nadal trwa,
+  - loguje błąd i nie wysadza procesu,
+- dodać dokumentację operacyjną:
+  - kiedy job działa,
+  - jak ręcznie wymusić egzekucję endpointem admina,
+  - jak sprawdzić wynik w monitoring/logach.
+
+Kryteria akceptacji:
+
+- po zakończeniu `limitGraceEndsAt` nadmiarowe oferty są automatycznie archiwizowane / odpubliczniane bez ręcznej akcji,
+- job jest idempotentny,
+- równoległe uruchomienia nie powodują podwójnej albo niespójnej egzekucji,
+- błąd jednej agencji nie blokuje przetworzenia pozostałych,
+- support nadal może wymusić egzekucję ręcznie przez endpoint admina,
+- monitoring pozwala sprawdzić, czy scheduler realnie działa.
+
 ## Sprint 5 - monitoring, audyt i testy E2E
 
 Status: Do zrobienia.
