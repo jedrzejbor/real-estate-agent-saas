@@ -4,7 +4,9 @@ import { User, Agent, Agency } from './entities';
 import { Listing } from '../listings/entities/listing.entity';
 import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
+import { MonitoringModule } from '../monitoring';
 import { PlanCatalog } from '../plans';
+import { AgencyLimitDowngradeEnforcementService } from './agency-limit-downgrade-enforcement.service';
 import { AgencyLimitEnforcementService } from './agency-limit-enforcement.service';
 import { AgencyPlanService } from './agency-plan.service';
 import { UsersService } from './users.service';
@@ -20,8 +22,19 @@ import { UsersService } from './users.service';
       Appointment,
       PlanCatalog,
     ]),
+    MonitoringModule,
   ],
-  providers: [UsersService, AgencyPlanService, AgencyLimitEnforcementService],
-  exports: [UsersService, AgencyPlanService, AgencyLimitEnforcementService],
+  providers: [
+    UsersService,
+    AgencyPlanService,
+    AgencyLimitEnforcementService,
+    AgencyLimitDowngradeEnforcementService,
+  ],
+  exports: [
+    UsersService,
+    AgencyPlanService,
+    AgencyLimitEnforcementService,
+    AgencyLimitDowngradeEnforcementService,
+  ],
 })
 export class UsersModule {}

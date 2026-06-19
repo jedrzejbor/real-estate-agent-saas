@@ -268,7 +268,40 @@ Kryteria akceptacji:
 
 ## Sprint 4 - karencja i automatyczne odpublicznienie ofert
 
-Status: Do zrobienia.
+Status: W trakcie - etap 1 zrobiony.
+
+Wykonano w etapie 1:
+
+- dodano pola karencji na agencji:
+  - `limitGraceStartedAt`,
+  - `limitGraceEndsAt`,
+  - `limitGraceEnforcedAt`,
+- dodano migrację `20260619_plan_limit_grace.sql`,
+- dodano `AgencyLimitDowngradeEnforcementService`,
+- serwis potrafi znaleźć agencje po zakończonej karencji,
+- serwis potrafi wymusić limit ofert dla konkretnej agencji,
+- nadmiarowe oferty są wybierane deterministycznie:
+  - najpierw `isPremium`,
+  - potem oferty publicznie opublikowane,
+  - potem najnowsze,
+  - potem stabilnie po `id`,
+- serwis odpublicznia nadmiarowe opublikowane oferty przez ustawienie:
+  - `publicationStatus = unpublished`,
+  - `unpublishedAt = now`,
+- serwis nie usuwa ofert, zdjęć, leadów ani klientów,
+- operacja zapisuje `limitGraceEnforcedAt`,
+- operacja wysyła monitoring event `plan_limit_enforced` w flow `plan_limit_enforcement`,
+- dodano testy jednostkowe dla:
+  - pominięcia aktywnej karencji,
+  - pominięcia agencji mieszczącej się w limicie,
+  - odpublicznienia nadmiaru po karencji.
+
+Pozostało na kolejną iterację Sprintu 4:
+
+- dodać właściwy scheduler / command uruchamiający `enforceExpiredListingGracePeriods`,
+- dodać audyt activity dla automatycznie odpublicznionych ofert,
+- podjąć decyzję, czy po karencji nadmiar ma być tylko odpubliczniany, czy również archiwizowany / oznaczany jako nieaktywny,
+- dodać mechanizm startowania karencji przy webhooku billingowym / zmianie planu.
 
 Cel: bezpiecznie obsłużyć przypadek, gdy użytkownik nie podejmie decyzji w okresie karencji.
 

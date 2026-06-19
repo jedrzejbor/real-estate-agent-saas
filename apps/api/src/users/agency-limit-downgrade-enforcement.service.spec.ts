@@ -1,0 +1,198 @@
+import {
+  AgencyPlan,
+  ListingPublicationStatus,
+  ListingStatus,
+  SubscriptionStatus,
+} from '../common/enums';
+import { Listing } from '../listings/entities/listing.entity';
+import { Agency, Agent } from './entities';
+import { AgencyLimitDowngradeEnforcementService } from './agency-limit-downgrade-enforcement.service';
+import { AgencyLimitEnforcementService } from './agency-limit-enforcement.service';
+
+const entitlements = {
+  plan: {
+    code: AgencyPlan.FREE,
+    label: 'Free',
+    status: SubscriptionStatus.ACTIVE,
+  },
+  limits: {
+    activeListings: 2,
+    clients: 25,
+    monthlyAppointments: 20,
+    users: 1,
+    imagesPerListing: 15,
+  },
+  features: {
+    reportsOverview: true,
+    reportsListingsBasic: true,
+    reportsClientsBasic: true,
+    reportsAppointmentsBasic: false,
+    publicListings: true,
+    publicLeadForms: true,
+    customBranding: false,
+    multiUser: false,
+    customDomain: false,
+    apiAccess: false,
+    dedicatedSupport: false,
+  },
+};
+
+function buildAgency(input: Partial<Agency> = {}): Agency {
+  return {
+    id: 'agency-1',
+    name: 'Agency',
+    plan: AgencyPlan.FREE,
+    subscription: SubscriptionStatus.ACTIVE,
+    limitGraceStartedAt: new Date('2026-06-18T00:00:00.000Z'),
+    limitGraceEndsAt: new Date('2026-06-19T00:00:00.000Z'),
+    limitGraceEnforcedAt: null,
+    ...input,
+  } as Agency;
+}
+
+function buildListing(input: Partial<Listing> & { id: string }): Listing {
+  return {
+    agentId: 'agent-1',
+    status: ListingStatus.ACTIVE,
+    publicationStatus: ListingPublicationStatus.PUBLISHED,
+    isPremium: false,
+    createdAt: new Date('2026-06-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-06-01T00:00:00.000Z'),
+    ...input,
+    id: input.id,
+    title: input.title ?? input.id,
+  } as Listing;
+}
+
+function buildService(input: {
+  agency?: Agency;
+  agents?: Agent[];
+  listings?: Listing[];
+}) {
+  const agency = input.agency ?? buildAgency();
+  const agencyRepo = {
+    findOne: jest.fn().mockResolvedValue(agency),
+    createQueryBuilder: jest.fn(),
+    save: jest.fn().mockImplementation((value) => Promise.resolve(value)),
+  };
+  const agentRepo = {
+    find: jest
+      .fn()
+      .mockResolvedValue(input.agents ?? ([{ id: 'agent-1' }] as Agent[])),
+  };
+  const listingRepo = {
+    find: jest.fn().mockResolvedValue(input.listings ?? []),
+    update: jest.fn().mockResolvedValue({ affected: 0 }),
+  };
+  const monitoringService = {
+    recordWarning: jest.fn(),
+  };
+  const service = new AgencyLimitDowngradeEnforcementService(
+    agencyRepo as never,
+    agentRepo as never,
+    listingRepo as never,
+    { getEntitlements: jest.fn().mockReturnValue(entitlements) } as never,
+    new AgencyLimitEnforcementService(),
+    monitoringService as never,
+  );
+
+  return {
+    service,
+    agency,
+    agencyRepo,
+    agentRepo,
+    listingRepo,
+    monitoringService,
+  };
+}
+
+describe('AgencyLimitDowngradeEnforcementService', () => {
+  it('skips enforcement while grace period is still active', async () => {
+    const { service, listingRepo } = buildService({
+      agency: buildAgency({
+        limitGraceEndsAt: new Date('2026-06-25T00:00:00.000Z'),
+      }),
+    });
+
+    const result = await service.enforceAgencyListingLimit('agency-1', {
+      now: new Date('2026-06-19T12:00:00.000Z'),
+    });
+
+    expect(result.status).toBe('skipped_grace_active');
+    expect(listingRepo.find).not.toHaveBeenCalled();
+  });
+
+  it('skips enforcement when usage fits the plan limit', async () => {
+    const listings = [
+      buildListing({ id: 'listing-1' }),
+      buildListing({ id: 'listing-2' }),
+    ];
+    const { service, listingRepo } = buildService({ listings });
+
+    const result = await service.enforceAgencyListingLimit('agency-1', {
+      now: new Date('2026-06-20T00:00:00.000Z'),
+    });
+
+    expect(result).toMatchObject({
+      status: 'skipped_within_limit',
+      activeListingsUsage: 2,
+      keptListingIds: ['listing-1', 'listing-2'],
+    });
+    expect(listingRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('unpublishes excess published listings after grace period', async () => {
+    const listings = [
+      buildListing({
+        id: 'old-published',
+        createdAt: new Date('2026-05-01T00:00:00.000Z'),
+      }),
+      buildListing({
+        id: 'new-published',
+        createdAt: new Date('2026-06-10T00:00:00.000Z'),
+      }),
+      buildListing({
+        id: 'premium-published',
+        isPremium: true,
+        createdAt: new Date('2026-04-01T00:00:00.000Z'),
+      }),
+      buildListing({
+        id: 'draft-excess',
+        publicationStatus: ListingPublicationStatus.DRAFT,
+        createdAt: new Date('2026-03-01T00:00:00.000Z'),
+      }),
+    ];
+    const { service, agencyRepo, listingRepo, monitoringService } =
+      buildService({ listings });
+
+    const result = await service.enforceAgencyListingLimit('agency-1', {
+      now: new Date('2026-06-20T00:00:00.000Z'),
+    });
+
+    expect(result).toMatchObject({
+      status: 'enforced',
+      limit: 2,
+      activeListingsUsage: 4,
+      keptListingIds: ['premium-published', 'new-published'],
+      excessListingIds: ['old-published', 'draft-excess'],
+      unpublishedListingIds: ['old-published'],
+    });
+    expect(listingRepo.update).toHaveBeenCalledTimes(1);
+    expect(agencyRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        limitGraceEnforcedAt: new Date('2026-06-20T00:00:00.000Z'),
+      }),
+    );
+    expect(monitoringService.recordWarning).toHaveBeenCalledWith(
+      'plan_limit_enforcement',
+      'plan_limit_enforced',
+      expect.objectContaining({
+        agencyId: 'agency-1',
+        limit: 2,
+        usage: 4,
+        excessCount: 2,
+        unpublishedCount: 1,
+      }),
+    );
+  });
+});

@@ -74,6 +74,27 @@ export class Agency {
   @Column({ type: 'timestamptz', name: 'plan_changed_at', nullable: true })
   planChangedAt?: Date | null;
 
+  @Column({
+    type: 'timestamptz',
+    name: 'limit_grace_started_at',
+    nullable: true,
+  })
+  limitGraceStartedAt?: Date | null;
+
+  @Column({
+    type: 'timestamptz',
+    name: 'limit_grace_ends_at',
+    nullable: true,
+  })
+  limitGraceEndsAt?: Date | null;
+
+  @Column({
+    type: 'timestamptz',
+    name: 'limit_grace_enforced_at',
+    nullable: true,
+  })
+  limitGraceEnforcedAt?: Date | null;
+
   @Column({ type: 'uuid', nullable: true })
   ownerId: string;
 

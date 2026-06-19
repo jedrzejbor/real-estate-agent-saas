@@ -13,7 +13,8 @@ export type MonitoredFlow =
   | 'public_submission_claim'
   | 'public_analytics_event'
   | 'public_blog_analytics_event'
-  | 'address_geocoding';
+  | 'address_geocoding'
+  | 'plan_limit_enforcement';
 
 type MonitoringStatus = 'success' | 'failure' | 'warning';
 
