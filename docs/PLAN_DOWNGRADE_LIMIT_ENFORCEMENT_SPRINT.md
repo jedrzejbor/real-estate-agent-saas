@@ -212,7 +212,34 @@ Kryteria akceptacji:
 
 ## Sprint 3 - UI over-limit i wybór aktywnych ofert
 
-Status: Do zrobienia.
+Status: W trakcie - etap 1 zrobiony.
+
+Wykonano w etapie 1:
+
+- dodano reużywalny komponent `PlanLimitStatusBanner`,
+- dodano globalny banner limitów w dashboardzie,
+- dodano kontekstowy banner limitu na liście ofert,
+- dodano kontekstowy banner limitu na liście klientów,
+- dodano kontekstowy banner limitu na kalendarzu,
+- banner rozróżnia stany:
+  - `near_limit`,
+  - `limit_reached`,
+  - `over_limit`,
+- banner pokazuje użycie w formacie `usage/limit`,
+- banner wyjaśnia, które działania są blokowane:
+  - oferty: dodawanie albo przywracanie ofert,
+  - klienci: dodawanie i import klientów,
+  - spotkania: tworzenie i przenoszenie spotkań do miesiąca z wykorzystanym limitem,
+- CTA do upgrade zapisuje analytics `upgrade_cta_clicked` z kontekstem zasobu,
+- przyciski tworzenia w formularzach ofert, klientów i spotkań są wyłączone po osiągnięciu limitu,
+- edycja istniejących rekordów pozostaje dostępna.
+
+Pozostało na kolejną iterację Sprintu 3:
+
+- widok ręcznego wyboru aktywnych ofert, gdy `activeListings > limit`,
+- backendowy endpoint zapisu wyboru ofert do zachowania,
+- blokada / ograniczenie importu CSV klientów na podstawie pozostałego limitu przed wysłaniem requestu,
+- dokładniejszy komunikat w formularzu spotkania przy przenoszeniu terminu do miesiąca z wykorzystanym limitem.
 
 Cel: użytkownik rozumie problem i może sam zdecydować, które oferty zostają aktywne.
 

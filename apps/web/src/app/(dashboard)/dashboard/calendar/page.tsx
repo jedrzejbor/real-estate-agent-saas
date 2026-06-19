@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
+import { PlanLimitStatusBanner } from '@/components/growth/plan-limit-status-banner';
+import { useAuth } from '@/contexts/auth-context';
 import { useCalendarAppointments } from '@/hooks/use-appointments';
 import {
   type Appointment,
@@ -70,6 +72,7 @@ function getCalendarQueryDate(searchParams: SearchParamsLike, fallback: Date) {
 }
 
 export default function CalendarPage() {
+  const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -136,6 +139,14 @@ export default function CalendarPage() {
           </Button>
         </Link>
       </div>
+
+      {user ? (
+        <PlanLimitStatusBanner
+          user={user}
+          resources={['monthlyAppointments']}
+          source="calendar_page_limit_state"
+        />
+      ) : null}
 
       {/* Navigation Bar */}
       <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-3">

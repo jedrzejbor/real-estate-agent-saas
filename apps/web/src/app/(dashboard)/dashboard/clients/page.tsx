@@ -8,9 +8,12 @@ import { ClientCard } from '@/components/clients/client-card';
 import { ClientCsvImport } from '@/components/clients/client-csv-import';
 import { ClientFiltersBar } from '@/components/clients/client-filters';
 import { ClientPagination } from '@/components/clients/client-pagination';
+import { PlanLimitStatusBanner } from '@/components/growth/plan-limit-status-banner';
+import { useAuth } from '@/contexts/auth-context';
 import { useClients } from '@/hooks/use-clients';
 
 export default function ClientsPage() {
+  const { user } = useAuth();
   const {
     clients,
     meta,
@@ -42,6 +45,14 @@ export default function ClientsPage() {
           </Button>
         </Link>
       </div>
+
+      {user ? (
+        <PlanLimitStatusBanner
+          user={user}
+          resources={['clients']}
+          source="clients_page_limit_state"
+        />
+      ) : null}
 
       <ClientCsvImport onImported={refresh} />
 

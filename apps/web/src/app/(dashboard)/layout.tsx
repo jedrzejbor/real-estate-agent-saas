@@ -9,6 +9,7 @@ import {
 } from '@/lib/auth';
 import { DashboardSidebar } from '@/components/dashboard/sidebar';
 import { DashboardTopbar } from '@/components/dashboard/topbar';
+import { PlanLimitStatusBanner } from '@/components/growth/plan-limit-status-banner';
 
 /** Shell layout for all authenticated /dashboard/* pages. */
 export default function DashboardLayout({
@@ -61,7 +62,15 @@ export default function DashboardLayout({
       <DashboardSidebar />
       <div className="flex flex-1 flex-col lg:ml-64">
         <DashboardTopbar />
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-6">
+          <div className="space-y-6">
+            <PlanLimitStatusBanner
+              user={user}
+              source="dashboard_global_limit_state"
+            />
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

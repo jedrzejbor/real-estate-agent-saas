@@ -338,7 +338,7 @@ export function AppointmentForm({ appointment }: AppointmentFormProps) {
         <Button
           type="submit"
           size="lg"
-          disabled={isLoading}
+          disabled={isLoading || (!isEdit && showUsageExceeded)}
           className="rounded-xl"
         >
           {isLoading

@@ -310,7 +310,7 @@ export function ClientForm({ client }: ClientFormProps) {
         <Button
           type="submit"
           size="lg"
-          disabled={isLoading}
+          disabled={isLoading || (!isEdit && showUsageExceeded)}
           className="rounded-xl"
         >
           {isLoading

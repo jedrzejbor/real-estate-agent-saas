@@ -4,12 +4,15 @@ import Link from 'next/link';
 import { Plus, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
+import { PlanLimitStatusBanner } from '@/components/growth/plan-limit-status-banner';
 import { ListingCard } from '@/components/listings/listing-card';
 import { ListingFiltersBar } from '@/components/listings/listing-filters';
 import { ListingPagination } from '@/components/listings/listing-pagination';
+import { useAuth } from '@/contexts/auth-context';
 import { useListings } from '@/hooks/use-listings';
 
 export default function ListingsPage() {
+  const { user } = useAuth();
   const {
     listings,
     meta,
@@ -40,6 +43,14 @@ export default function ListingsPage() {
           </Button>
         </Link>
       </div>
+
+      {user ? (
+        <PlanLimitStatusBanner
+          user={user}
+          resources={['activeListings']}
+          source="listings_page_limit_state"
+        />
+      ) : null}
 
       {/* Filters */}
       <ListingFiltersBar
