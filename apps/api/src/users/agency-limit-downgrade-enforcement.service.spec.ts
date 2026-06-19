@@ -141,7 +141,7 @@ describe('AgencyLimitDowngradeEnforcementService', () => {
     expect(listingRepo.update).not.toHaveBeenCalled();
   });
 
-  it('unpublishes excess published listings after grace period', async () => {
+  it('archives excess listings after grace period and unpublishes public excess', async () => {
     const listings = [
       buildListing({
         id: 'old-published',
@@ -175,9 +175,18 @@ describe('AgencyLimitDowngradeEnforcementService', () => {
       activeListingsUsage: 4,
       keptListingIds: ['premium-published', 'new-published'],
       excessListingIds: ['old-published', 'draft-excess'],
+      archivedListingIds: ['old-published', 'draft-excess'],
       unpublishedListingIds: ['old-published'],
     });
     expect(listingRepo.update).toHaveBeenCalledTimes(1);
+    expect(listingRepo.update).toHaveBeenCalledWith(
+      { id: expect.any(Object) },
+      expect.objectContaining({
+        status: ListingStatus.ARCHIVED,
+        publicationStatus: ListingPublicationStatus.UNPUBLISHED,
+        unpublishedAt: new Date('2026-06-20T00:00:00.000Z'),
+      }),
+    );
     expect(agencyRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         limitGraceEnforcedAt: new Date('2026-06-20T00:00:00.000Z'),
@@ -191,6 +200,7 @@ describe('AgencyLimitDowngradeEnforcementService', () => {
         limit: 2,
         usage: 4,
         excessCount: 2,
+        archivedCount: 2,
         unpublishedCount: 1,
       }),
     );

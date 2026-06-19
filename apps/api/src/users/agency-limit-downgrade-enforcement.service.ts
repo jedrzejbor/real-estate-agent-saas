@@ -23,6 +23,7 @@ export interface PlanLimitDowngradeEnforcementResult {
   activeListingsUsage: number;
   keptListingIds: string[];
   excessListingIds: string[];
+  archivedListingIds: string[];
   unpublishedListingIds: string[];
 }
 
@@ -89,6 +90,7 @@ export class AgencyLimitDowngradeEnforcementService {
       activeListingsUsage: 0,
       keptListingIds: [],
       excessListingIds: [],
+      archivedListingIds: [],
       unpublishedListingIds: [],
     };
 
@@ -152,6 +154,7 @@ export class AgencyLimitDowngradeEnforcementService {
     const orderedListings = this.sortListingsForLimitRetention(activeListings);
     const keptListings = orderedListings.slice(0, limit);
     const excessListings = orderedListings.slice(limit);
+    const archivedListingIds = excessListings.map((listing) => listing.id);
     const publishedExcessListings = excessListings.filter(
       (listing) =>
         listing.publicationStatus === ListingPublicationStatus.PUBLISHED,
@@ -160,10 +163,11 @@ export class AgencyLimitDowngradeEnforcementService {
       (listing) => listing.id,
     );
 
-    if (publishedExcessListings.length > 0) {
+    if (excessListings.length > 0) {
       await this.listingRepo.update(
-        { id: In(unpublishedListingIds) },
+        { id: In(archivedListingIds) },
         {
+          status: ListingStatus.ARCHIVED,
           publicationStatus: ListingPublicationStatus.UNPUBLISHED,
           unpublishedAt: now,
         },
@@ -180,6 +184,7 @@ export class AgencyLimitDowngradeEnforcementService {
       activeListingsUsage: activeListings.length,
       keptListingIds: keptListings.map((listing) => listing.id),
       excessListingIds: excessListings.map((listing) => listing.id),
+      archivedListingIds,
       unpublishedListingIds,
     };
 
@@ -192,12 +197,13 @@ export class AgencyLimitDowngradeEnforcementService {
         limit,
         usage: activeListings.length,
         excessCount: excessListings.length,
+        archivedCount: archivedListingIds.length,
         unpublishedCount: unpublishedListingIds.length,
       },
     );
     this.logger.warn(
       `Plan limit enforcement completed for agency ${agencyId}: ` +
-        `${unpublishedListingIds.length}/${excessListings.length} excess listings unpublished`,
+        `${archivedListingIds.length}/${excessListings.length} excess listings archived`,
     );
 
     return result;

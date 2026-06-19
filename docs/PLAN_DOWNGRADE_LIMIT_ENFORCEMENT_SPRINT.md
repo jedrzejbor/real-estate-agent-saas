@@ -285,9 +285,14 @@ Wykonano w etapie 1:
   - potem oferty publicznie opublikowane,
   - potem najnowsze,
   - potem stabilnie po `id`,
-- serwis odpublicznia nadmiarowe opublikowane oferty przez ustawienie:
+- serwis archiwizuje nadmiarowe oferty po karencji przez ustawienie:
+  - `status = archived`,
   - `publicationStatus = unpublished`,
   - `unpublishedAt = now`,
+- dla opublikowanych nadmiarowych ofert operacja działa również jako odpublicznienie:
+  - `publicationStatus = unpublished`,
+  - `unpublishedAt = now`,
+- dodano endpoint administracyjny `POST /api/admin/agencies/:id/plan/enforce-limits` do ręcznego wymuszenia egzekucji limitu dla wskazanej agencji,
 - serwis nie usuwa ofert, zdjęć, leadów ani klientów,
 - operacja zapisuje `limitGraceEnforcedAt`,
 - operacja wysyła monitoring event `plan_limit_enforced` w flow `plan_limit_enforcement`,
@@ -300,7 +305,6 @@ Pozostało na kolejną iterację Sprintu 4:
 
 - dodać właściwy scheduler / command uruchamiający `enforceExpiredListingGracePeriods`,
 - dodać audyt activity dla automatycznie odpublicznionych ofert,
-- podjąć decyzję, czy po karencji nadmiar ma być tylko odpubliczniany, czy również archiwizowany / oznaczany jako nieaktywny,
 - dodać mechanizm startowania karencji przy webhooku billingowym / zmianie planu.
 
 Cel: bezpiecznie obsłużyć przypadek, gdy użytkownik nie podejmie decyzji w okresie karencji.

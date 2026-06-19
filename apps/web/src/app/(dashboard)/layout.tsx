@@ -22,6 +22,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const isPrivateSeller = user ? isPrivateSellerUser(user) : false;
   const canPrivateSellerUseDashboardRoute = pathname === '/dashboard/upgrade';
+  const shouldShowGlobalLimitBanner = !hasContextualLimitBanner(pathname);
 
   useEffect(() => {
     if (
@@ -64,14 +65,24 @@ export default function DashboardLayout({
         <DashboardTopbar />
         <main className="flex-1 p-6">
           <div className="space-y-6">
-            <PlanLimitStatusBanner
-              user={user}
-              source="dashboard_global_limit_state"
-            />
+            {shouldShowGlobalLimitBanner ? (
+              <PlanLimitStatusBanner
+                user={user}
+                source="dashboard_global_limit_state"
+              />
+            ) : null}
             {children}
           </div>
         </main>
       </div>
     </div>
+  );
+}
+
+function hasContextualLimitBanner(pathname: string): boolean {
+  return (
+    pathname.startsWith('/dashboard/listings') ||
+    pathname.startsWith('/dashboard/clients') ||
+    pathname.startsWith('/dashboard/calendar')
   );
 }

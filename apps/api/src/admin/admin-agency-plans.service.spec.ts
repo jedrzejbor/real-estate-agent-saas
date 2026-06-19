@@ -110,6 +110,9 @@ function buildService(params: {
       },
     })),
   };
+  const agencyLimitDowngradeEnforcementService = {
+    enforceAgencyListingLimit: jest.fn(),
+  };
 
   const queryBuilder = {
     orderBy: jest.fn().mockReturnThis(),
@@ -125,11 +128,13 @@ function buildService(params: {
       agentRepo as never,
       usersService as never,
       agencyPlanService as never,
+      agencyLimitDowngradeEnforcementService as never,
     ),
     agencyRepo,
     agentRepo,
     usersService,
     agencyPlanService,
+    agencyLimitDowngradeEnforcementService,
     agency,
     queryBuilder,
   };

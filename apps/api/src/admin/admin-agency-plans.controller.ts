@@ -41,4 +41,10 @@ export class AdminAgencyPlansController {
   ) {
     return this.adminAgencyPlansService.resetAgencyPlanOverrides(agencyId);
   }
+
+  /** POST /api/admin/agencies/:id/plan/enforce-limits — force downgrade limit enforcement for support/admin. */
+  @Post('enforce-limits')
+  async enforceAgencyLimits(@Param('id', ParseUUIDPipe) agencyId: string) {
+    return this.adminAgencyPlansService.enforceAgencyLimits(agencyId);
+  }
 }

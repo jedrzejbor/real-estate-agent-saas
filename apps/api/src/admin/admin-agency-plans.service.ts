@@ -6,7 +6,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AgencyPlan } from '../common/enums';
-import { AgencyPlanService, UsersService } from '../users';
+import {
+  AgencyLimitDowngradeEnforcementService,
+  AgencyPlanService,
+  UsersService,
+} from '../users';
 import {
   AgencyEntitlements,
   AgencyPlanLimits,
@@ -57,6 +61,7 @@ export class AdminAgencyPlansService {
     private readonly agentRepo: Repository<Agent>,
     private readonly usersService: UsersService,
     private readonly agencyPlanService: AgencyPlanService,
+    private readonly agencyLimitDowngradeEnforcementService: AgencyLimitDowngradeEnforcementService,
   ) {}
 
   async findAgencies(
@@ -114,6 +119,14 @@ export class AdminAgencyPlansService {
 
     const savedAgency = await this.agencyRepo.save(agency);
     return this.buildResponse(savedAgency);
+  }
+
+  async enforceAgencyLimits(agencyId: string) {
+    await this.findAgency(agencyId);
+    return this.agencyLimitDowngradeEnforcementService.enforceAgencyListingLimit(
+      agencyId,
+      { force: true },
+    );
   }
 
   private async findAgency(agencyId: string): Promise<Agency> {
