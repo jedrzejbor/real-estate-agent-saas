@@ -30,7 +30,13 @@ export class ApiError extends Error {
 
 export interface PlanLimitErrorBody extends Record<string, unknown> {
   code: 'PLAN_LIMIT_REACHED';
-  resource: 'listings' | 'clients' | 'appointments' | 'images';
+  limitCode?:
+    | 'LISTING_LIMIT_EXCEEDED'
+    | 'CLIENT_LIMIT_EXCEEDED'
+    | 'APPOINTMENT_LIMIT_EXCEEDED'
+    | 'IMAGE_LIMIT_EXCEEDED'
+    | 'USER_LIMIT_EXCEEDED';
+  resource: 'listings' | 'clients' | 'appointments' | 'images' | 'users';
   limit: number;
   currentUsage: number;
   planCode: string;

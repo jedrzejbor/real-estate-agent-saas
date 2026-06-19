@@ -19,7 +19,7 @@ import { ListingImage } from './entities/listing-image.entity';
 import { AnalyticsEvent } from '../analytics/entities/analytics-event.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { Location } from '../locations/entities';
-import { UsersService } from '../users';
+import { AgencyLimitEnforcementService, UsersService } from '../users';
 import {
   ActivityAction,
   ActivityEntityType,
@@ -177,6 +177,7 @@ export class ListingsService {
     @InjectRepository(AnalyticsEvent)
     private readonly analyticsEventRepo: Repository<AnalyticsEvent>,
     private readonly usersService: UsersService,
+    private readonly agencyLimitEnforcementService: AgencyLimitEnforcementService,
     private readonly activityService: ActivityService,
     private readonly configService: ConfigService,
     private readonly monitoringService: MonitoringService,
@@ -326,6 +327,12 @@ export class ListingsService {
     }
 
     const previousState = this.createListingSnapshot(listing);
+    if (
+      listing.status === ListingStatus.ARCHIVED &&
+      statusChange.oldValue !== ListingStatus.ARCHIVED
+    ) {
+      await this.assertListingActiveUsageWithinPlanLimit(userId, 1);
+    }
     listing.status = statusChange.oldValue as ListingStatus;
     this.syncPublicationWithListingStatus(listing);
     await this.listingRepo.save(listing);
@@ -368,6 +375,13 @@ export class ListingsService {
     });
 
     // Merge listing fields
+    if (
+      listing.status === ListingStatus.ARCHIVED &&
+      listingData.status !== undefined &&
+      listingData.status !== ListingStatus.ARCHIVED
+    ) {
+      await this.assertListingActiveUsageWithinPlanLimit(userId, 1);
+    }
     Object.assign(listing, listingData, commission);
     this.syncPublicationWithListingStatus(listing);
 
@@ -1053,30 +1067,42 @@ export class ListingsService {
     userId: string,
   ): Promise<{ agent: Agent }> {
     const access = await this.usersService.getAgencyAccessContext(userId);
-    const limit = access.entitlements.limits.activeListings;
-
-    if (limit !== null) {
-      const currentUsage = await this.listingRepo.count({
-        where: {
-          agentId: In(access.agencyAgentIds),
-          status: Not(ListingStatus.ARCHIVED),
-        },
-      });
-
-      if (currentUsage >= limit) {
-        throw new PlanLimitReachedException({
-          resource: 'listings',
-          limit,
-          currentUsage,
-          attemptedUsage: currentUsage + 1,
-          planCode: access.entitlements.plan.code,
-          message:
-            'Osiągnięto limit aktywnych ofert w Twoim planie. Przejdź na wyższy plan, aby dodać kolejną ofertę.',
-        });
-      }
-    }
-
+    await this.assertListingActiveUsageWithinPlanLimit(userId, 1, access);
     return { agent: access.agent };
+  }
+
+  private async assertListingActiveUsageWithinPlanLimit(
+    userId: string,
+    addedUsage: number,
+    access?: Awaited<ReturnType<UsersService['getAgencyAccessContext']>>,
+  ): Promise<void> {
+    const agencyAccess =
+      access ?? (await this.usersService.getAgencyAccessContext(userId));
+    const currentUsage = await this.listingRepo.count({
+      where: {
+        agentId: In(agencyAccess.agencyAgentIds),
+        status: Not(ListingStatus.ARCHIVED),
+      },
+    });
+    const attemptedUsage = currentUsage + addedUsage;
+    const limitState =
+      this.agencyLimitEnforcementService.evaluateResourceLimit(
+        agencyAccess.entitlements,
+        'activeListings',
+        attemptedUsage,
+      );
+
+    if (limitState.isOverLimit && limitState.limit !== null) {
+      throw new PlanLimitReachedException({
+        resource: 'listings',
+        limit: limitState.limit,
+        currentUsage,
+        attemptedUsage,
+        planCode: agencyAccess.entitlements.plan.code,
+        message:
+          'Osiągnięto limit aktywnych ofert w Twoim planie. Przejdź na wyższy plan, aby dodać albo przywrócić kolejną ofertę.',
+      });
+    }
   }
 
   private assertListingCanBePublished(listing: Listing): void {

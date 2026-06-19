@@ -9,7 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Appointment } from './entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
-import { UsersService } from '../users';
+import { AgencyLimitEnforcementService, UsersService } from '../users';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
@@ -36,6 +36,7 @@ export class AppointmentsService {
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
     private readonly usersService: UsersService,
+    private readonly agencyLimitEnforcementService: AgencyLimitEnforcementService,
   ) {}
 
   // ── Create ──
@@ -140,6 +141,13 @@ export class AppointmentsService {
     const endTime = dto.endTime ? new Date(dto.endTime) : appointment.endTime;
     this.validateDateRange(startTime, endTime);
 
+    if (
+      dto.startTime &&
+      !this.isSameUtcMonth(appointment.startTime, startTime)
+    ) {
+      await this.assertAppointmentCreateWithinPlanLimit(userId, dto.startTime);
+    }
+
     const updateData: Partial<Appointment> = { ...dto } as Partial<Appointment>;
     if (dto.startTime) updateData.startTime = new Date(dto.startTime);
     if (dto.endTime) updateData.endTime = new Date(dto.endTime);
@@ -173,40 +181,58 @@ export class AppointmentsService {
     startTime: string,
   ): Promise<{ agent: Agent }> {
     const access = await this.usersService.getAgencyAccessContext(userId);
-    const limit = access.entitlements.limits.monthlyAppointments;
-
-    if (limit !== null) {
-      const startDate = new Date(startTime);
-      const periodStart = new Date(
-        Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1),
-      );
-      const periodEnd = new Date(
-        Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 1),
-      );
-
-      const currentUsage = await this.appointmentRepo
-        .createQueryBuilder('appointment')
-        .where('appointment.agentId IN (:...agentIds)', {
-          agentIds: access.agencyAgentIds,
-        })
-        .andWhere('appointment.startTime >= :periodStart', { periodStart })
-        .andWhere('appointment.startTime < :periodEnd', { periodEnd })
-        .getCount();
-
-      if (currentUsage >= limit) {
-        throw new PlanLimitReachedException({
-          resource: 'appointments',
-          limit,
-          currentUsage,
-          attemptedUsage: currentUsage + 1,
-          planCode: access.entitlements.plan.code,
-          message:
-            'Osiągnięto miesięczny limit spotkań w Twoim planie. Przejdź na wyższy plan, aby zaplanować kolejne spotkanie.',
-        });
-      }
-    }
-
+    await this.assertAppointmentMonthlyUsageWithinPlanLimit(access, startTime);
     return { agent: access.agent };
+  }
+
+  private async assertAppointmentMonthlyUsageWithinPlanLimit(
+    access: Awaited<ReturnType<UsersService['getAgencyAccessContext']>>,
+    startTime: string,
+  ): Promise<void> {
+    const currentUsage = await this.countAppointmentsInUtcMonth(
+      access.agencyAgentIds,
+      new Date(startTime),
+    );
+    const attemptedUsage = currentUsage + 1;
+    const limitState =
+      this.agencyLimitEnforcementService.evaluateResourceLimit(
+        access.entitlements,
+        'monthlyAppointments',
+        attemptedUsage,
+      );
+
+    if (limitState.isOverLimit && limitState.limit !== null) {
+      throw new PlanLimitReachedException({
+        resource: 'appointments',
+        limit: limitState.limit,
+        currentUsage,
+        attemptedUsage,
+        planCode: access.entitlements.plan.code,
+        message:
+          'Osiągnięto miesięczny limit spotkań w Twoim planie. Przejdź na wyższy plan, aby zaplanować albo przenieść kolejne spotkanie.',
+      });
+    }
+  }
+
+  private countAppointmentsInUtcMonth(
+    agencyAgentIds: string[],
+    date: Date,
+  ): Promise<number> {
+    const periodStart = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1),
+    );
+    const periodEnd = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1),
+    );
+
+    return this.appointmentRepo
+      .createQueryBuilder('appointment')
+      .where('appointment.agentId IN (:...agentIds)', {
+        agentIds: agencyAgentIds,
+      })
+      .andWhere('appointment.startTime >= :periodStart', { periodStart })
+      .andWhere('appointment.startTime < :periodEnd', { periodEnd })
+      .getCount();
   }
 
   private async findOneOrFail(id: string): Promise<Appointment> {
@@ -243,6 +269,13 @@ export class AppointmentsService {
         'Data zakończenia musi być późniejsza niż data rozpoczęcia',
       );
     }
+  }
+
+  private isSameUtcMonth(left: Date, right: Date): boolean {
+    return (
+      left.getUTCFullYear() === right.getUTCFullYear() &&
+      left.getUTCMonth() === right.getUTCMonth()
+    );
   }
 
   private applyFilters(

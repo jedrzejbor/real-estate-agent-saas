@@ -159,7 +159,26 @@ Kryteria akceptacji:
 
 ## Sprint 2 - egzekucja tworzenia i reaktywacji zasobów
 
-Status: Do zrobienia.
+Status: Zrobione.
+
+Wykonano:
+
+- przepięto tworzenie ofert na `AgencyLimitEnforcementService`,
+- dodano blokadę przywracania oferty ze statusu `archived` do statusu niearchiwalnego ponad limit,
+- dodano tę samą blokadę dla cofania statusu oferty z historii, jeśli cofnięcie zwiększyłoby liczbę niearchiwalnych ofert,
+- przepięto tworzenie klienta na `AgencyLimitEnforcementService`,
+- przepięto import klientów na `AgencyLimitEnforcementService`,
+- przepięto tworzenie spotkań na `AgencyLimitEnforcementService`,
+- dodano blokadę przeniesienia spotkania do innego miesiąca, jeśli miesiąc docelowy przekracza limit planu,
+- zachowano możliwość edycji istniejących ofert, klientów i spotkań, jeśli edycja nie zwiększa przekroczenia limitu,
+- rozszerzono odpowiedź `PlanLimitReachedException` o precyzyjne pole `limitCode`:
+  - `LISTING_LIMIT_EXCEEDED`,
+  - `CLIENT_LIMIT_EXCEEDED`,
+  - `APPOINTMENT_LIMIT_EXCEEDED`,
+  - `IMAGE_LIMIT_EXCEEDED`,
+  - `USER_LIMIT_EXCEEDED`,
+- zachowano kompatybilne pole `code: PLAN_LIMIT_REACHED`,
+- zaktualizowano typ błędu limitu w kliencie web.
 
 Cel: zablokować działania, które zwiększają przekroczenie limitu.
 

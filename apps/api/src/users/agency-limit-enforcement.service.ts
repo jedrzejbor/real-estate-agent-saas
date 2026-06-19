@@ -81,13 +81,21 @@ export class AgencyLimitEnforcementService {
     );
     const resources = LIMIT_RESOURCES.reduce(
       (acc, resource) => {
-        acc[resource] = this.evaluateResource({
+        acc[resource] = this.evaluateResourceLimit(
+          entitlements,
           resource,
-          usage: usage[resource],
-          limit: entitlements.limits[resource],
-          nearLimitThreshold,
-          isGracePeriodActive,
-        });
+          usage[resource],
+          {
+            nearLimitThreshold,
+            gracePeriod: isGracePeriodActive
+              ? {
+                  startedAt: options.gracePeriod?.startedAt,
+                  endsAt: options.gracePeriod?.endsAt,
+                }
+              : null,
+            now: options.now,
+          },
+        );
         return acc;
       },
       {} as Record<AgencyLimitResource, AgencyLimitResourceState>,
@@ -117,6 +125,26 @@ export class AgencyLimitEnforcementService {
       isInGracePeriod: hasOverLimitResources && isGracePeriodActive,
       resources,
     };
+  }
+
+  evaluateResourceLimit(
+    entitlements: AgencyEntitlements,
+    resource: AgencyLimitResource,
+    usage: number,
+    options: AgencyLimitEvaluationOptions = {},
+  ): AgencyLimitResourceState {
+    return this.evaluateResource({
+      resource,
+      usage,
+      limit: entitlements.limits[resource],
+      nearLimitThreshold: this.normalizeNearLimitThreshold(
+        options.nearLimitThreshold,
+      ),
+      isGracePeriodActive: this.isGracePeriodActive(
+        options.gracePeriod,
+        options.now ?? new Date(),
+      ),
+    });
   }
 
   private evaluateResource(input: {

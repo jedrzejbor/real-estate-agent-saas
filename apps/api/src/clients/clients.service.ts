@@ -12,7 +12,7 @@ import { Client } from './entities/client.entity';
 import { ClientNote } from './entities/client-note.entity';
 import { ClientPreference } from './entities/client-preference.entity';
 import { Agent } from '../users/entities/agent.entity';
-import { UsersService } from '../users';
+import { AgencyLimitEnforcementService, UsersService } from '../users';
 import { ActivityAction, ActivityEntityType } from '../common/enums';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -51,6 +51,7 @@ export class ClientsService {
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
     private readonly usersService: UsersService,
+    private readonly agencyLimitEnforcementService: AgencyLimitEnforcementService,
     private readonly activityService: ActivityService,
   ) {}
 
@@ -432,28 +433,7 @@ export class ClientsService {
     userId: string,
   ): Promise<{ agent: Agent }> {
     const access = await this.usersService.getAgencyAccessContext(userId);
-    const limit = access.entitlements.limits.clients;
-
-    if (limit !== null) {
-      const currentUsage = await this.clientRepo.count({
-        where: {
-          agentId: In(access.agencyAgentIds),
-        },
-      });
-
-      if (currentUsage >= limit) {
-        throw new PlanLimitReachedException({
-          resource: 'clients',
-          limit,
-          currentUsage,
-          attemptedUsage: currentUsage + 1,
-          planCode: access.entitlements.plan.code,
-          message:
-            'Osiągnięto limit klientów w Twoim planie. Przejdź na wyższy plan, aby dodać kolejnego klienta.',
-        });
-      }
-    }
-
+    await this.assertClientUsageWithinPlanLimit(access, 1);
     return { agent: access.agent };
   }
 
@@ -468,29 +448,40 @@ export class ClientsService {
     }
 
     const access = await this.usersService.getAgencyAccessContext(userId);
-    const limit = access.entitlements.limits.clients;
-
-    if (limit !== null) {
-      const currentUsage = await this.clientRepo.count({
-        where: {
-          agentId: In(access.agencyAgentIds),
-        },
-      });
-
-      if (currentUsage + requestedCount > limit) {
-        throw new PlanLimitReachedException({
-          resource: 'clients',
-          limit,
-          currentUsage,
-          attemptedUsage: currentUsage + requestedCount,
-          planCode: access.entitlements.plan.code,
-          message:
-            'Import przekroczyłby limit klientów w Twoim planie. Zmniejsz liczbę wierszy albo przejdź na wyższy plan.',
-        });
-      }
-    }
-
+    await this.assertClientUsageWithinPlanLimit(access, requestedCount);
     return { agent: access.agent };
+  }
+
+  private async assertClientUsageWithinPlanLimit(
+    access: Awaited<ReturnType<UsersService['getAgencyAccessContext']>>,
+    addedUsage: number,
+  ): Promise<void> {
+    const currentUsage = await this.clientRepo.count({
+      where: {
+        agentId: In(access.agencyAgentIds),
+      },
+    });
+    const attemptedUsage = currentUsage + addedUsage;
+    const limitState =
+      this.agencyLimitEnforcementService.evaluateResourceLimit(
+        access.entitlements,
+        'clients',
+        attemptedUsage,
+      );
+
+    if (limitState.isOverLimit && limitState.limit !== null) {
+      throw new PlanLimitReachedException({
+        resource: 'clients',
+        limit: limitState.limit,
+        currentUsage,
+        attemptedUsage,
+        planCode: access.entitlements.plan.code,
+        message:
+          addedUsage > 1
+            ? 'Import przekroczyłby limit klientów w Twoim planie. Zmniejsz liczbę wierszy albo przejdź na wyższy plan.'
+            : 'Osiągnięto limit klientów w Twoim planie. Przejdź na wyższy plan, aby dodać kolejnego klienta.',
+      });
+    }
   }
 
   /** Find client by id with relations, or throw. */

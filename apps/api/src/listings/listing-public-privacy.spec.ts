@@ -36,6 +36,7 @@ describe('public listing privacy', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
     ) as unknown as typeof service;
   });
 

@@ -82,6 +82,23 @@ describe('AgencyLimitEnforcementService', () => {
     });
   });
 
+  it('evaluates a single resource without requiring a full usage summary', () => {
+    const state = service.evaluateResourceLimit(
+      baseEntitlements,
+      'monthlyAppointments',
+      21,
+    );
+
+    expect(state).toMatchObject({
+      resource: 'monthlyAppointments',
+      usage: 21,
+      limit: 20,
+      remaining: 0,
+      isOverLimit: true,
+      enforcementAction: 'block_new_usage',
+    });
+  });
+
   it('marks resources over limit and blocks new usage after grace period', () => {
     const summary = service.evaluateLimits(baseEntitlements, {
       ...baseUsage,

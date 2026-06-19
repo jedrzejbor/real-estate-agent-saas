@@ -15,6 +15,7 @@ describe('PlanLimitReachedException', () => {
       statusCode: 403,
       error: 'Forbidden',
       code: 'PLAN_LIMIT_REACHED',
+      limitCode: 'CLIENT_LIMIT_EXCEEDED',
       resource: 'clients',
       limit: 25,
       usage: 24,
@@ -36,6 +37,7 @@ describe('PlanLimitReachedException', () => {
     });
 
     expect(exception.getResponse()).toMatchObject({
+      limitCode: 'USER_LIMIT_EXCEEDED',
       resource: 'users',
       usage: 1,
       currentUsage: 1,
