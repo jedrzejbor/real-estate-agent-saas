@@ -92,6 +92,9 @@ RELEASE_FLAG_PUBLIC_LEAD_FORMS_ENABLED=false
 RELEASE_FLAG_PUBLIC_CLAIM_FLOW_ENABLED=false
 RELEASE_FLAG_FREEMIUM_UPSELL_ENABLED=true
 RELEASE_FLAG_PREMIUM_REPORTS_ENABLED=true
+PLAN_LIMIT_ENFORCEMENT_SCHEDULER_ENABLED=true
+PLAN_LIMIT_ENFORCEMENT_SCHEDULER_HOUR=2
+PLAN_LIMIT_ENFORCEMENT_SCHEDULER_MINUTE=15
 # Opcjonalne: geokodowanie dokładnego punktu adresu ofert.
 # Bez tych zmiennych endpoint zwróci kontrolowany błąd 503.
 GEOCODING_PROVIDER=
@@ -134,7 +137,27 @@ Techniczne feature flags są sterowane po stronie API przez zmienne środowiskow
 
 Zmiana flag wymaga restartu procesu API.
 
-### 5b. Geokodowanie adresów ofert
+### 5b. Scheduler egzekucji limitów planu
+
+API automatycznie sprawdza zakończone okresy karencji limitów planu i uruchamia
+egzekucję przez `AgencyLimitDowngradeEnforcementService`. Scheduler jest
+domyślnie włączony poza środowiskiem `test`.
+
+Konfiguracja opcjonalna:
+
+| Zmienna | Domyślna wartość | Rola |
+|--------|------------------|------|
+| `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_ENABLED` | `true`, poza `NODE_ENV=test` | włącza automatyczną egzekucję zakończonych karencji |
+| `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_HOUR` | `2` | godzina lokalnego czasu procesu API |
+| `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_MINUTE` | `15` | minuta lokalnego czasu procesu API |
+
+Ręczne wymuszenie dla supportu/admina pozostaje dostępne przez:
+
+```http
+POST /api/admin/agencies/:id/plan/enforce-limits
+```
+
+### 5c. Geokodowanie adresów ofert
 
 Dokładny punkt mapy w formularzu oferty może zostać ustawiony przez endpoint:
 
