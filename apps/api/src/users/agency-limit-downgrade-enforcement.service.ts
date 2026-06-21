@@ -65,7 +65,20 @@ export class AgencyLimitDowngradeEnforcementService {
     const results: PlanLimitDowngradeEnforcementResult[] = [];
 
     for (const agency of agencies) {
-      results.push(await this.enforceAgencyListingLimit(agency.id, { now }));
+      try {
+        results.push(await this.enforceAgencyListingLimit(agency.id, { now }));
+      } catch (error) {
+        this.monitoringService.recordFailure(
+          'plan_limit_enforcement',
+          'plan_limit_agency_enforcement_failed',
+          error,
+          { agencyId: agency.id },
+        );
+        this.logger.error(
+          `Plan limit enforcement failed for agency ${agency.id}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
     }
 
     return results;

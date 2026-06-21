@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AgencyPlan } from '../common/enums';
@@ -19,6 +20,8 @@ import {
 import { Agency, Agent } from '../users/entities';
 import { AgencyUsageSummary } from '../users/users.service';
 import { AdminAgenciesQueryDto, UpdateAgencyPlanDto } from './dto';
+
+const DEFAULT_LIMIT_DOWNGRADE_GRACE_DAYS = 7;
 
 export interface LimitWarning {
   resource: keyof AgencyPlanLimits;
@@ -62,6 +65,7 @@ export class AdminAgencyPlansService {
     private readonly usersService: UsersService,
     private readonly agencyPlanService: AgencyPlanService,
     private readonly agencyLimitDowngradeEnforcementService: AgencyLimitDowngradeEnforcementService,
+    private readonly configService: ConfigService,
   ) {}
 
   async findAgencies(
@@ -103,7 +107,10 @@ export class AdminAgencyPlansService {
 
     agency.plan = dto.plan;
     agency.planOverrides = this.resolvePlanOverrides(dto);
-    agency.planChangedAt = new Date();
+    const now = new Date();
+    agency.planChangedAt = now;
+
+    await this.applyListingLimitGracePeriod(agency, now);
 
     const savedAgency = await this.agencyRepo.save(agency);
     return this.buildResponse(savedAgency);
@@ -115,7 +122,10 @@ export class AdminAgencyPlansService {
     const agency = await this.findAgency(agencyId);
 
     agency.planOverrides = null;
-    agency.planChangedAt = new Date();
+    const now = new Date();
+    agency.planChangedAt = now;
+
+    await this.applyListingLimitGracePeriod(agency, now);
 
     const savedAgency = await this.agencyRepo.save(agency);
     return this.buildResponse(savedAgency);
@@ -229,6 +239,56 @@ export class AdminAgencyPlansService {
     }
 
     return this.usersService.getAgencyUsageSummaryByAgentIds(agencyAgentIds);
+  }
+
+  private async applyListingLimitGracePeriod(
+    agency: Agency,
+    now: Date,
+  ): Promise<void> {
+    const entitlements = this.agencyPlanService.getEntitlements(agency);
+    const activeListingsLimit = entitlements.limits.activeListings;
+
+    if (activeListingsLimit === null) {
+      this.clearLimitGracePeriod(agency);
+      return;
+    }
+
+    const agentIds = await this.findAgencyAgentIds(agency.id);
+    const usage = await this.getUsage(agentIds);
+
+    if (usage.activeListings <= activeListingsLimit) {
+      this.clearLimitGracePeriod(agency);
+      return;
+    }
+
+    agency.limitGraceStartedAt = now;
+    agency.limitGraceEndsAt = this.addDays(
+      now,
+      this.getLimitDowngradeGraceDays(),
+    );
+    agency.limitGraceEnforcedAt = null;
+  }
+
+  private clearLimitGracePeriod(agency: Agency): void {
+    agency.limitGraceStartedAt = null;
+    agency.limitGraceEndsAt = null;
+    agency.limitGraceEnforcedAt = null;
+  }
+
+  private getLimitDowngradeGraceDays(): number {
+    const value = Number(
+      this.configService.get<string | number>('PLAN_LIMIT_DOWNGRADE_GRACE_DAYS'),
+    );
+
+    return Number.isInteger(value) && value > 0
+      ? value
+      : DEFAULT_LIMIT_DOWNGRADE_GRACE_DAYS;
+  }
+
+  private addDays(date: Date, days: number): Date {
+    const nextDate = new Date(date);
+    nextDate.setDate(nextDate.getDate() + days);
+    return nextDate;
   }
 
   private getLimitWarnings(

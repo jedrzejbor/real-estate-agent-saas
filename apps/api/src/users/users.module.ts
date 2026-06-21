@@ -7,6 +7,7 @@ import { Appointment } from '../appointments/entities/appointment.entity';
 import { MonitoringModule } from '../monitoring';
 import { PlanCatalog } from '../plans';
 import { AgencyLimitDowngradeEnforcementService } from './agency-limit-downgrade-enforcement.service';
+import { AgencyLimitDowngradeEnforcementScheduler } from './agency-limit-downgrade-enforcement.scheduler';
 import { AgencyLimitEnforcementService } from './agency-limit-enforcement.service';
 import { AgencyPlanService } from './agency-plan.service';
 import { UsersService } from './users.service';
@@ -29,6 +30,7 @@ import { UsersService } from './users.service';
     AgencyPlanService,
     AgencyLimitEnforcementService,
     AgencyLimitDowngradeEnforcementService,
+    AgencyLimitDowngradeEnforcementScheduler,
   ],
   exports: [
     UsersService,

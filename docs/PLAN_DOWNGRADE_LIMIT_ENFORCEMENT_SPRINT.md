@@ -337,14 +337,52 @@ Kryteria akceptacji:
 
 ## Sprint 4.5 - automatyczny scheduler egzekucji limitów
 
-Status: Do zrobienia.
+Status: W trakcie - etap 1 zrobiony.
 
 Obecny stan:
 
 - mamy `AgencyLimitDowngradeEnforcementService`,
 - mamy metodę `enforceExpiredListingGracePeriods`,
 - mamy ręczny endpoint administracyjny `POST /api/admin/agencies/:id/plan/enforce-limits`,
-- nie mamy jeszcze podpiętego schedulera / crona, który automatycznie uruchamia egzekucję po zakończeniu karencji.
+- mamy podpięty scheduler API, który automatycznie uruchamia egzekucję po zakończeniu karencji.
+
+Wykonano w etapie 1:
+
+- dodano `AgencyLimitDowngradeEnforcementScheduler`,
+- scheduler uruchamia `AgencyLimitDowngradeEnforcementService.enforceExpiredListingGracePeriods`,
+- scheduler działa raz dziennie o konfigurowanej godzinie:
+  - `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_HOUR`,
+  - `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_MINUTE`,
+- scheduler można wyłączyć przez `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_ENABLED=false`,
+- scheduler jest domyślnie wyłączony w `NODE_ENV=test`,
+- dodano blokadę przed równoległym uruchomieniem tego samego procesu w jednej instancji API,
+- dodano monitoring eventy:
+  - `scheduler_run_completed`,
+  - `scheduler_run_failed`,
+  - `scheduler_run_skipped_already_running`,
+- wzmocniono batch egzekucji:
+  - błąd jednej agencji jest logowany i raportowany jako `plan_limit_agency_enforcement_failed`,
+  - pozostałe agencje nadal są przetwarzane,
+- dodano konfigurację do `.env.example`,
+- dodano opis operacyjny do `docs/LOCAL_SETUP.md`,
+- dodano testy jednostkowe schedulera i batch failure handling.
+
+Wykonano w etapie 2:
+
+- przy zmianie planu agencji przez panel admina backend sprawdza aktualne użycie aktywnych ofert względem nowego limitu,
+- jeśli `activeListings > limit`, backend automatycznie ustawia:
+  - `limitGraceStartedAt = now`,
+  - `limitGraceEndsAt = now + PLAN_LIMIT_DOWNGRADE_GRACE_DAYS`,
+  - `limitGraceEnforcedAt = null`,
+- jeśli użycie mieści się w nowym limicie albo plan nie ma limitu ofert, backend czyści pola karencji,
+- dodano konfigurację `PLAN_LIMIT_DOWNGRADE_GRACE_DAYS` z domyślną wartością `7`,
+- dodano testy jednostkowe dla startu i czyszczenia karencji po zmianie planu.
+
+Pozostało na kolejną iterację Sprintu 4.5:
+
+- dodać transakcyjny lock / advisory lock dla środowisk z wieloma instancjami API,
+- dodać audyt activity dla każdej automatycznie zarchiwizowanej / odpublicznionej oferty,
+- rozważyć dokładniejsze okno czasowe per timezone agencji, jeśli aplikacja będzie działać globalnie.
 
 Cel: automatycznie egzekwować zakończone okresy karencji bez ręcznej akcji supportu.
 

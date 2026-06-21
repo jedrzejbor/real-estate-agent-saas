@@ -95,6 +95,7 @@ RELEASE_FLAG_PREMIUM_REPORTS_ENABLED=true
 PLAN_LIMIT_ENFORCEMENT_SCHEDULER_ENABLED=true
 PLAN_LIMIT_ENFORCEMENT_SCHEDULER_HOUR=2
 PLAN_LIMIT_ENFORCEMENT_SCHEDULER_MINUTE=15
+PLAN_LIMIT_DOWNGRADE_GRACE_DAYS=7
 # Opcjonalne: geokodowanie dokładnego punktu adresu ofert.
 # Bez tych zmiennych endpoint zwróci kontrolowany błąd 503.
 GEOCODING_PROVIDER=
@@ -150,6 +151,7 @@ Konfiguracja opcjonalna:
 | `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_ENABLED` | `true`, poza `NODE_ENV=test` | włącza automatyczną egzekucję zakończonych karencji |
 | `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_HOUR` | `2` | godzina lokalnego czasu procesu API |
 | `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_MINUTE` | `15` | minuta lokalnego czasu procesu API |
+| `PLAN_LIMIT_DOWNGRADE_GRACE_DAYS` | `7` | liczba dni karencji ustawiana po zmianie planu, gdy aktualne użycie przekracza nowy limit ofert |
 
 Ręczne wymuszenie dla supportu/admina pozostaje dostępne przez:
 

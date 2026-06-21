@@ -85,6 +85,7 @@ function buildService(input: {
     update: jest.fn().mockResolvedValue({ affected: 0 }),
   };
   const monitoringService = {
+    recordFailure: jest.fn(),
     recordWarning: jest.fn(),
   };
   const service = new AgencyLimitDowngradeEnforcementService(
@@ -107,6 +108,51 @@ function buildService(input: {
 }
 
 describe('AgencyLimitDowngradeEnforcementService', () => {
+  it('continues expired grace period enforcement when one agency fails', async () => {
+    const firstAgency = buildAgency({ id: 'agency-failing' });
+    const secondAgency = buildAgency({ id: 'agency-success' });
+    const { service, monitoringService } = buildService({});
+    const error = new Error('enforcement failed');
+
+    jest.spyOn(service, 'enforceAgencyListingLimit').mockImplementation(
+      async (agencyId) => {
+        if (agencyId === firstAgency.id) {
+          throw error;
+        }
+
+        return {
+          agencyId,
+          status: 'skipped_within_limit',
+          limit: 2,
+          activeListingsUsage: 1,
+          keptListingIds: ['listing-1'],
+          excessListingIds: [],
+          archivedListingIds: [],
+          unpublishedListingIds: [],
+        };
+      },
+    );
+    (service as never as { agencyRepo: { createQueryBuilder: jest.Mock } })
+      .agencyRepo.createQueryBuilder.mockReturnValue({
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([firstAgency, secondAgency]),
+      });
+
+    const results = await service.enforceExpiredListingGracePeriods(
+      new Date('2026-06-20T00:00:00.000Z'),
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ agencyId: secondAgency.id });
+    expect(monitoringService.recordFailure).toHaveBeenCalledWith(
+      'plan_limit_enforcement',
+      'plan_limit_agency_enforcement_failed',
+      error,
+      { agencyId: firstAgency.id },
+    );
+  });
+
   it('skips enforcement while grace period is still active', async () => {
     const { service, listingRepo } = buildService({
       agency: buildAgency({
