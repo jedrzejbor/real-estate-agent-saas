@@ -18,6 +18,9 @@ function buildAgency(overrides: Partial<Agency> = {}): Agency {
     currentPeriodEnd: null,
     trialEndsAt: null,
     planChangedAt: null,
+    limitGraceStartedAt: null,
+    limitGraceEndsAt: null,
+    limitGraceEnforcedAt: null,
     ownerId: 'user-1',
     agents: [],
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -54,6 +57,7 @@ function buildService(params: {
     monthlyAppointments: number;
     users: number;
   };
+  config?: Record<string, unknown>;
 } = {}) {
   const agency = params.agency === undefined ? buildAgency() : params.agency;
   const agents = params.agents ?? [buildAgent()];
@@ -113,6 +117,9 @@ function buildService(params: {
   const agencyLimitDowngradeEnforcementService = {
     enforceAgencyListingLimit: jest.fn(),
   };
+  const configService = {
+    get: jest.fn((key: string) => params.config?.[key]),
+  };
 
   const queryBuilder = {
     orderBy: jest.fn().mockReturnThis(),
@@ -129,19 +136,27 @@ function buildService(params: {
       usersService as never,
       agencyPlanService as never,
       agencyLimitDowngradeEnforcementService as never,
+      configService as never,
     ),
     agencyRepo,
     agentRepo,
     usersService,
     agencyPlanService,
     agencyLimitDowngradeEnforcementService,
+    configService,
     agency,
     queryBuilder,
   };
 }
 
 describe('AdminAgencyPlansService', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-06-20T10:00:00.000Z'));
+  });
+
   afterEach(() => {
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -242,6 +257,64 @@ describe('AdminAgencyPlansService', () => {
       expect.objectContaining({
         plan: AgencyPlan.PROFESSIONAL,
         planOverrides: null,
+      }),
+    );
+  });
+
+  it('starts listing limit grace period when the updated plan is below current usage', async () => {
+    const { service, agencyRepo } = buildService({
+      usage: {
+        activeListings: 9,
+        clients: 10,
+        monthlyAppointments: 3,
+        users: 1,
+      },
+      config: {
+        PLAN_LIMIT_DOWNGRADE_GRACE_DAYS: 7,
+      },
+    });
+
+    await service.updateAgencyPlan('agency-1', {
+      plan: AgencyPlan.STARTER,
+      planOverrides: null,
+    });
+
+    expect(agencyRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plan: AgencyPlan.STARTER,
+        limitGraceStartedAt: new Date('2026-06-20T10:00:00.000Z'),
+        limitGraceEndsAt: new Date('2026-06-27T10:00:00.000Z'),
+        limitGraceEnforcedAt: null,
+      }),
+    );
+  });
+
+  it('clears listing limit grace period when the updated plan fits current usage', async () => {
+    const existingAgency = buildAgency({
+      limitGraceStartedAt: new Date('2026-06-01T00:00:00.000Z'),
+      limitGraceEndsAt: new Date('2026-06-08T00:00:00.000Z'),
+      limitGraceEnforcedAt: new Date('2026-06-08T01:00:00.000Z'),
+    });
+    const { service, agencyRepo } = buildService({
+      agency: existingAgency,
+      usage: {
+        activeListings: 3,
+        clients: 10,
+        monthlyAppointments: 3,
+        users: 1,
+      },
+    });
+
+    await service.updateAgencyPlan('agency-1', {
+      plan: AgencyPlan.STARTER,
+      planOverrides: null,
+    });
+
+    expect(agencyRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        limitGraceStartedAt: null,
+        limitGraceEndsAt: null,
+        limitGraceEnforcedAt: null,
       }),
     );
   });
