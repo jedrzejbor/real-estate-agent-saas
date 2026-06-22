@@ -1,14 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { Building2, ListChecks, Plus } from 'lucide-react';
+import { Building2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { PlanLimitStatusBanner } from '@/components/growth/plan-limit-status-banner';
 import { ListingCard } from '@/components/listings/listing-card';
 import { ListingFiltersBar } from '@/components/listings/listing-filters';
 import { ListingPagination } from '@/components/listings/listing-pagination';
-import { ListingRetentionChoicePanel } from '@/components/listings/listing-retention-choice-panel';
+import { ListingRetentionChoiceModal } from '@/components/listings/listing-retention-choice-modal';
 import { useAuth } from '@/contexts/auth-context';
 import { useListings } from '@/hooks/use-listings';
 
@@ -57,21 +57,10 @@ export default function ListingsPage() {
           source="listings_page_limit_state"
         >
           {shouldShowRetentionChoices ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="h-9 rounded-xl"
-              render={<a href="#retention-choices" />}
-            >
-              <ListChecks className="h-3.5 w-3.5" />
-              Wybierz oferty
-            </Button>
+            <ListingRetentionChoiceModal source="listings_page_limit_state" />
           ) : null}
         </PlanLimitStatusBanner>
       ) : null}
-
-      {shouldShowRetentionChoices ? <ListingRetentionChoicePanel /> : null}
 
       {/* Filters */}
       <ListingFiltersBar

@@ -9,6 +9,8 @@ export const AnalyticsEventName = {
   ONBOARDING_EMPTY_STATE_SHOWN: 'onboarding_empty_state_shown',
   ONBOARDING_EMPTY_STATE_CTA_CLICKED: 'onboarding_empty_state_cta_clicked',
   LISTING_CREATED: 'listing_created',
+  LISTING_RETENTION_CHOICES_OPENED: 'listing_retention_choices_opened',
+  LISTING_RETENTION_CHOICES_SAVED: 'listing_retention_choices_saved',
   LISTING_ADDRESS_GEOCODING_REQUESTED:
     'listing_address_geocoding_requested',
   LISTING_ADDRESS_GEOCODING_SUCCEEDED:

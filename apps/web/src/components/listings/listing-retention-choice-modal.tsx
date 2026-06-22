@@ -1,12 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarClock, Check, Loader2, Save, Search } from 'lucide-react';
+import {
+  CalendarClock,
+  Check,
+  ListChecks,
+  Loader2,
+  Save,
+  Search,
+  X,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage } from '@/lib/api-client';
+import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import {
   fetchRetentionChoices,
   formatPrice,
@@ -29,6 +38,10 @@ type SortKey =
 
 type PublicationFilter = 'all' | ListingPublicationStatus;
 
+interface ListingRetentionChoiceModalProps {
+  source: string;
+}
+
 const sortLabels: Record<SortKey, string> = {
   createdAtDesc: 'Najnowsze',
   createdAtAsc: 'Najstarsze',
@@ -37,15 +50,18 @@ const sortLabels: Record<SortKey, string> = {
   priceAsc: 'Cena rosnąco',
 };
 
-export function ListingRetentionChoicePanel() {
+export function ListingRetentionChoiceModal({
+  source,
+}: ListingRetentionChoiceModalProps) {
   const { success: showSuccessToast, error: showErrorToast } = useToast();
+  const [isOpen, setIsOpen] = useState(false);
   const [data, setData] = useState<RetentionChoicesResponse | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortKey>('createdAtDesc');
   const [publicationFilter, setPublicationFilter] =
     useState<PublicationFilter>('all');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -65,8 +81,23 @@ export function ListingRetentionChoicePanel() {
   }, []);
 
   useEffect(() => {
+    if (!isOpen) return;
+
     void loadChoices();
-  }, [loadChoices]);
+  }, [isOpen, loadChoices]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !isSaving) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isSaving]);
 
   const limit = data?.limit ?? null;
   const selectedCount = selectedIds.length;
@@ -107,38 +138,18 @@ export function ListingRetentionChoicePanel() {
       .sort((left, right) => sortListings(left, right, sort));
   }, [data?.listings, publicationFilter, search, sort]);
 
-  if (isLoading) {
-    return (
-      <section
-        id="retention-choices"
-        className="rounded-xl border border-border bg-card p-4"
-      >
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Ładowanie ofert do wyboru...
-        </div>
-      </section>
-    );
+  function handleOpen() {
+    setIsOpen(true);
+    trackAnalyticsEvent({
+      name: AnalyticsEventName.LISTING_RETENTION_CHOICES_OPENED,
+      properties: { source },
+    });
   }
 
-  if (errorMessage) {
-    return (
-      <section
-        id="retention-choices"
-        className="rounded-xl border border-destructive/30 bg-destructive/5 p-4"
-      >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-destructive">{errorMessage}</p>
-          <Button type="button" variant="outline" size="sm" onClick={loadChoices}>
-            Odśwież
-          </Button>
-        </div>
-      </section>
-    );
-  }
-
-  if (!data?.isOverLimit || limit === null) {
-    return null;
+  function handleClose() {
+    if (!isSaving) {
+      setIsOpen(false);
+    }
   }
 
   async function handleSave() {
@@ -151,6 +162,15 @@ export function ListingRetentionChoicePanel() {
       const response = await saveRetentionChoices(selectedIds);
       setData(response);
       setSelectedIds(response.selectedListingIds);
+      trackAnalyticsEvent({
+        name: AnalyticsEventName.LISTING_RETENTION_CHOICES_SAVED,
+        properties: {
+          source,
+          selectedCount: response.selectedListingIds.length,
+          limit: response.limit,
+          usage: response.usage,
+        },
+      });
       showSuccessToast({
         title: 'Zapisano wybór ofert',
         description: `Wybrano ${response.selectedListingIds.length} z ${response.limit ?? 0} ofert do zachowania.`,
@@ -182,30 +202,184 @@ export function ListingRetentionChoicePanel() {
   }
 
   return (
-    <section
-      id="retention-choices"
-      className="rounded-xl border border-border bg-card p-4 shadow-sm"
-    >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-base font-semibold text-foreground">
-              Oferty do zachowania po egzekucji limitu
-            </h2>
-            <Badge variant={selectedCount === limit ? 'success' : 'warning'}>
-              Wybrane {selectedCount}/{limit}
-            </Badge>
+    <>
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        className="h-9 rounded-xl"
+        onClick={handleOpen}
+      >
+        <ListChecks className="h-3.5 w-3.5" />
+        Wybierz oferty
+      </Button>
+
+      {isOpen ? (
+        <div
+          className="fixed inset-0 z-[80] overflow-y-auto bg-black/50 px-4 py-6 backdrop-blur-sm"
+          onMouseDown={handleClose}
+        >
+          <div className="mx-auto flex min-h-full max-w-5xl items-center">
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="retention-choices-title"
+              className="w-full overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+                <div className="min-w-0 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2
+                      id="retention-choices-title"
+                      className="font-heading text-xl font-semibold text-foreground"
+                    >
+                      Oferty do zachowania
+                    </h2>
+                    {limit !== null ? (
+                      <Badge
+                        variant={selectedCount === limit ? 'success' : 'warning'}
+                      >
+                        Wybrane {selectedCount}/{limit}
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                    Jeśli karencja się skończy, system zachowa najpierw wybrane
+                    tutaj oferty. Pozostały limit zostanie uzupełniony regułą
+                    automatyczną.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label="Zamknij wybór ofert"
+                  onClick={handleClose}
+                  disabled={isSaving}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="max-h-[75vh] overflow-y-auto px-5 py-5">
+                {renderModalBody({
+                  canSave,
+                  data,
+                  errorMessage,
+                  filteredListings,
+                  handleSave,
+                  handleToggle,
+                  isLoading,
+                  isSaving,
+                  limit,
+                  loadChoices,
+                  publicationFilter,
+                  search,
+                  selectedCount,
+                  selectedIds,
+                  setPublicationFilter,
+                  setSearch,
+                  setSort,
+                  sort,
+                })}
+              </div>
+            </section>
           </div>
-          <p className="max-w-4xl text-sm leading-6 text-muted-foreground">
-            Jeśli karencja się skończy, system zachowa najpierw wybrane tutaj
-            oferty. Pozostały limit zostanie uzupełniony regułą automatyczną.
-          </p>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+interface RenderModalBodyInput {
+  canSave: boolean;
+  data: RetentionChoicesResponse | null;
+  errorMessage: string | null;
+  filteredListings: RetentionChoiceListing[];
+  handleSave: () => void;
+  handleToggle: (listingId: string) => void;
+  isLoading: boolean;
+  isSaving: boolean;
+  limit: number | null;
+  loadChoices: () => Promise<void>;
+  publicationFilter: PublicationFilter;
+  search: string;
+  selectedCount: number;
+  selectedIds: string[];
+  setPublicationFilter: (value: PublicationFilter) => void;
+  setSearch: (value: string) => void;
+  setSort: (value: SortKey) => void;
+  sort: SortKey;
+}
+
+function renderModalBody({
+  canSave,
+  data,
+  errorMessage,
+  filteredListings,
+  handleSave,
+  handleToggle,
+  isLoading,
+  isSaving,
+  limit,
+  loadChoices,
+  publicationFilter,
+  search,
+  selectedCount,
+  selectedIds,
+  setPublicationFilter,
+  setSearch,
+  setSort,
+  sort,
+}: RenderModalBodyInput) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Ładowanie ofert do wyboru...
+      </div>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-destructive">{errorMessage}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void loadChoices()}
+          >
+            Odśwież
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data?.isOverLimit || limit === null) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Aktualne użycie nie przekracza limitu aktywnych ofert.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
           {data.limitGraceEndsAt ? (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <CalendarClock className="h-3.5 w-3.5" />
               Koniec karencji: {formatDateTime(data.limitGraceEndsAt)}
             </div>
           ) : null}
+          <p className="mt-1 text-xs text-muted-foreground">
+            Aktywne oferty: {data.usage}/{limit}
+          </p>
         </div>
 
         <Button type="button" onClick={handleSave} disabled={!canSave}>
@@ -218,7 +392,7 @@ export function ListingRetentionChoicePanel() {
         </Button>
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_190px_170px]">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_190px_170px]">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -262,12 +436,12 @@ export function ListingRetentionChoicePanel() {
       </div>
 
       {selectedCount > limit ? (
-        <p className="mt-3 text-sm text-destructive">
+        <p className="text-sm text-destructive">
           Wybrano więcej ofert niż pozwala obecny plan.
         </p>
       ) : null}
 
-      <div className="mt-4 overflow-hidden rounded-lg border border-border">
+      <div className="overflow-hidden rounded-lg border border-border">
         {filteredListings.length === 0 ? (
           <p className="px-4 py-6 text-sm text-muted-foreground">
             Brak ofert pasujących do filtrów.
@@ -276,8 +450,7 @@ export function ListingRetentionChoicePanel() {
           <ul className="divide-y divide-border">
             {filteredListings.map((listing) => {
               const isSelected = selectedIds.includes(listing.id);
-              const isDisabled =
-                !isSelected && limit !== null && selectedCount >= limit;
+              const isDisabled = !isSelected && selectedCount >= limit;
 
               return (
                 <li key={listing.id}>
@@ -316,7 +489,9 @@ export function ListingRetentionChoicePanel() {
                       </span>
                       <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         <span>{PROPERTY_TYPE_LABELS[listing.propertyType]}</span>
-                        <span>{TRANSACTION_TYPE_LABELS[listing.transactionType]}</span>
+                        <span>
+                          {TRANSACTION_TYPE_LABELS[listing.transactionType]}
+                        </span>
                         <span>{formatListingLocation(listing)}</span>
                         <span>Dodano {formatDate(listing.createdAt)}</span>
                       </span>
@@ -332,7 +507,7 @@ export function ListingRetentionChoicePanel() {
           </ul>
         )}
       </div>
-    </section>
+    </div>
   );
 }
 

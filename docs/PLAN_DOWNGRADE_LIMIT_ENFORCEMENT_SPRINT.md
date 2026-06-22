@@ -638,7 +638,7 @@ startuje karencję, a support może diagnozować każdy przypadek.
 
 ## Sprint 6 - ręczny wybór ofert do zachowania
 
-Status: W trakcie - etap 2 zrobiony.
+Status: W trakcie - etap 3 zrobiony.
 
 Wykonano w etapie 1:
 
@@ -693,12 +693,22 @@ Wykonano w etapie 2:
 - `PlanLimitStatusBanner` dostał opcjonalny slot na akcję kontekstową,
 - na stronie ofert dodano CTA `Wybierz oferty`, które prowadzi z bannera do panelu wyboru.
 
+Wykonano w etapie 3:
+
+- zgodnie z decyzją produktową przeniesiono wybór ofert ze stałego panelu do modala,
+- CTA `Wybierz oferty` w bannerze otwiera teraz modal bez przewijania strony,
+- modal ładuje kandydatów dopiero po otwarciu, żeby nie wykonywać zbędnego requestu przy samym wejściu na stronę ofert,
+- modal można zamknąć przyciskiem, kliknięciem w tło albo klawiszem `Escape`,
+- podczas zapisu zamknięcie modala jest blokowane, żeby nie ukryć trwającej operacji,
+- dodano analytics:
+  - `listing_retention_choices_opened` przy otwarciu modala,
+  - `listing_retention_choices_saved` po poprawnym zapisie wyboru,
+- zachowano dotychczasowe filtrowanie, sortowanie, licznik `Wybrane X/Y`, datę końca karencji i komunikaty walidacyjne.
+
 Pozostało na kolejną iterację Sprintu 6:
 
-- zdecydować, czy panel ma zostać jako docelowy widok, czy przenieść go do modala,
 - po zapisie wyboru odświeżać globalny stan użytkownika / banner, jeśli backend zacznie zwracać dodatkowy stan wyboru w `me`,
-- dodać analytics dla otwarcia panelu i zapisu wyboru,
-- dodać test komponentu UI dla limitu zaznaczania oraz zapisu wyboru.
+- dodać test komponentu UI dla limitu zaznaczania oraz zapisu wyboru po decyzji o test runnerze dla `apps/web`.
 
 Cel: pozwolić użytkownikowi samodzielnie wskazać, które oferty mają pozostać
 aktywne przed końcem karencji.
