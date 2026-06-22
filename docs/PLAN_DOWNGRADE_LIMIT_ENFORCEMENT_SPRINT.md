@@ -448,11 +448,32 @@ Wykonano w etapie 1:
   - monitoringu wykrycia przekroczenia limitu,
   - audytu ofert archiwizowanych automatycznie.
 
+Wykonano w etapie 2:
+
+- dodano regresyjne testy jednostkowe monitoringu `plan_limit_resource_blocked` dla:
+  - aktywnych ofert,
+  - batch importu klientów,
+  - miesięcznych spotkań,
+- testy potwierdzają, że monitoring jest emitowany przed rzuceniem `PlanLimitReachedException`,
+- testy sprawdzają metadane eventu:
+  - `agencyId`,
+  - `resource`,
+  - `planCode`,
+  - `limit`,
+  - `currentUsage`,
+  - `attemptedUsage`,
+- dodano manualny test plan operacyjny dla scenariuszy:
+  - downgrade przez admina,
+  - egzekucja po karencji,
+  - ręczne wymuszenie egzekucji,
+  - blokady tworzenia ponad limit,
+  - upgrade / powrót do wyższego planu,
+  - przypadki negatywne.
+
 Pozostało na kolejną iterację Sprintu 5:
 
 - dodać monitoring `plan_limit_near`, jeśli zdecydujemy gdzie i jak często go emitować bez spamowania logów,
 - dodać pełne testy integracyjne endpointów limitów,
-- dodać manualny test plan jako osobną sekcję operacyjną,
 - rozszerzyć widoczność audytu w panelu admin/support,
 - dodać monitoring blokad limitów obrazów per oferta, jeśli ma być raportowany razem z limitami planu.
 
@@ -486,6 +507,127 @@ Kryteria akceptacji:
 - każdy krytyczny scenariusz ma test lub opisany manualny test,
 - support może zobaczyć powód blokady,
 - monitoring pokazuje skalę problemu po wdrożeniu billing flow.
+
+### Manualny test plan Sprintu 5
+
+#### 1. Downgrade przez panel admina
+
+Warunki:
+
+- agencja ma więcej aktywnych ofert niż limit planu docelowego,
+- przykład: `activeListings = 9`, nowy limit `5`.
+
+Kroki:
+
+1. Admin zmienia plan agencji na niższy.
+2. Otwiera szczegóły planu agencji.
+3. Sprawdza usage i warningi limitów.
+4. Sprawdza logi monitoringu.
+
+Oczekiwany wynik:
+
+- backend ustawia `limitGraceStartedAt`,
+- backend ustawia `limitGraceEndsAt`,
+- backend czyści `limitGraceEnforcedAt`,
+- monitoring zapisuje `plan_limit_exceeded`,
+- monitoring zapisuje `plan_limit_grace_started`,
+- użytkownik widzi banner ponad limitem w dashboardzie.
+
+#### 2. Blokady tworzenia ponad limit
+
+Warunki:
+
+- agencja jest na planie, którego limit został osiągnięty albo przekroczony.
+
+Kroki:
+
+1. Użytkownik próbuje dodać nową ofertę ponad limit.
+2. Użytkownik próbuje dodać klienta ponad limit.
+3. Użytkownik próbuje zaimportować klientów ponad limit.
+4. Użytkownik próbuje dodać spotkanie w miesiącu z wykorzystanym limitem.
+
+Oczekiwany wynik:
+
+- API zwraca `PLAN_LIMIT_REACHED`,
+- odpowiedź zawiera właściwy `limitCode`,
+- monitoring zapisuje `plan_limit_resource_blocked`,
+- istniejące dane pozostają dostępne do odczytu i edycji.
+
+#### 3. Egzekucja po końcu karencji
+
+Warunki:
+
+- agencja ma `limitGraceEndsAt` w przeszłości,
+- liczba aktywnych ofert nadal przekracza limit.
+
+Kroki:
+
+1. Poczekać na scheduler albo wywołać ręcznie `POST /api/admin/agencies/:id/plan/enforce-limits`.
+2. Sprawdzić listę ofert agencji.
+3. Sprawdzić historię ofert zarchiwizowanych automatycznie.
+4. Sprawdzić logi monitoringu.
+
+Oczekiwany wynik:
+
+- nadmiarowe oferty mają `status = archived`,
+- nadmiarowe oferty mają `publicationStatus = unpublished`,
+- `limitGraceEnforcedAt` jest ustawione,
+- monitoring zapisuje `plan_limit_enforced`,
+- każda automatycznie zarchiwizowana oferta ma wpis `activity_logs` z powodem `plan_limit_downgrade_enforcement`.
+
+#### 4. Ręczne wymuszenie przez support
+
+Warunki:
+
+- support zna `agencyId`,
+- agencja jest ponad limitem aktywnych ofert.
+
+Kroki:
+
+1. Support wywołuje `POST /api/admin/agencies/:id/plan/enforce-limits`.
+2. Support sprawdza odpowiedź endpointu.
+3. Support sprawdza, które oferty zostały zachowane i które zarchiwizowane.
+
+Oczekiwany wynik:
+
+- endpoint zwraca `keptListingIds`,
+- endpoint zwraca `archivedListingIds`,
+- endpoint zwraca `unpublishedListingIds`,
+- operacja nie usuwa ofert, zdjęć, leadów ani klientów.
+
+#### 5. Upgrade / powrót do wyższego planu
+
+Warunki:
+
+- agencja była ponad limitem albo miała aktywną karencję.
+
+Kroki:
+
+1. Admin zmienia plan na wyższy.
+2. Sprawdza usage względem nowego limitu.
+3. Sprawdza pola karencji.
+
+Oczekiwany wynik:
+
+- jeśli usage mieści się w nowym limicie, pola karencji są czyszczone,
+- nowe tworzenie zasobów działa zgodnie z nowym limitem,
+- wcześniej automatycznie zarchiwizowane oferty nie są przywracane bez świadomej akcji użytkownika/admina.
+
+#### 6. Przypadki negatywne
+
+Scenariusze:
+
+- agencja ma limit `null` dla aktywnych ofert,
+- agencja nie ma agentów,
+- agencja mieści się w limicie,
+- scheduler trafia na błąd jednej agencji w batchu.
+
+Oczekiwany wynik:
+
+- brak automatycznego archiwizowania, jeśli limit jest nielimitowany,
+- brak błędu dla agencji bez agentów,
+- brak egzekucji, jeśli usage mieści się w limicie,
+- błąd jednej agencji jest raportowany i nie blokuje pozostałych.
 
 ## Pozostałe sprinty do zamknięcia zakresu
 
