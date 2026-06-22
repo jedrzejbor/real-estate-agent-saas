@@ -212,7 +212,7 @@ Kryteria akceptacji:
 
 ## Sprint 3 - UI over-limit i wybór aktywnych ofert
 
-Status: W trakcie - etap 1 zrobiony.
+Status: W trakcie - etap 2 zrobiony.
 
 Wykonano w etapie 1:
 
@@ -775,9 +775,33 @@ Wykonano w etapie 1:
 - zachowano dotychczasowe logowanie jako `ActivityAction.ARCHIVED`, żeby historia oferty nadal działała w istniejącym mechanizmie activity,
 - rozszerzono test jednostkowy egzekucji downgrade o weryfikację pełnego kontraktu audytu.
 
+Wykonano w etapie 2:
+
+- dodano endpoint admin/support `GET /api/admin/agencies/:id/plan/enforcements`,
+- endpoint zwraca ostatnie automatyczne egzekucje limitów dla wskazanej agencji na podstawie `activity_logs`,
+- filtrowanie jest oparte o:
+  - `agencyId` zapisane w `changes`,
+  - powód `plan_limit_downgrade_enforcement`,
+- dodano limit wyników:
+  - domyślnie `25`,
+  - maksymalnie `100`,
+- odpowiedź endpointu mapuje activity log na supportowy kontrakt:
+  - `agencyId`,
+  - `listingId`,
+  - `agentId`,
+  - akcję,
+  - powód,
+  - poprzedni i nowy status oferty,
+  - poprzedni i nowy status publikacji,
+  - limit planu,
+  - usage przed egzekucją,
+  - `enforcedAt`,
+  - `createdAt`,
+- endpoint waliduje istnienie agencji przed zwróceniem audytu,
+- rozszerzono testy `AdminAgencyPlansService` o filtrowanie, limitowanie i mapowanie odpowiedzi supportowej.
+
 Pozostało na kolejną iterację Sprintu 7:
 
-- dodać endpoint admin/support do podglądu ostatnich egzekucji limitów dla agencji,
 - w panelu admina planów pokazać stan karencji, datę końca, ostatnią egzekucję i liczbę automatycznie zarchiwizowanych ofert,
 - rozważyć dedykowaną tabelę audytu egzekucji, jeśli support będzie potrzebował raportowania niezależnego od historii pojedynczej oferty.
 

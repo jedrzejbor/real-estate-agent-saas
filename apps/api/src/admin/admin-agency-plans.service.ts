@@ -6,8 +6,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import {
+  ActivityLog,
+  type ActivityLogChange,
+} from '../activity/entities/activity-log.entity';
 import { MonitoringService } from '../monitoring';
-import { AgencyPlan } from '../common/enums';
+import { ActivityAction, AgencyPlan } from '../common/enums';
 import {
   AgencyLimitDowngradeEnforcementService,
   AgencyPlanService,
@@ -23,6 +27,10 @@ import { AgencyUsageSummary } from '../users/users.service';
 import { AdminAgenciesQueryDto, UpdateAgencyPlanDto } from './dto';
 
 const DEFAULT_LIMIT_DOWNGRADE_GRACE_DAYS = 7;
+const DEFAULT_LIMIT_ENFORCEMENT_AUDIT_LIMIT = 25;
+const MAX_LIMIT_ENFORCEMENT_AUDIT_LIMIT = 100;
+const PLAN_LIMIT_DOWNGRADE_ENFORCEMENT_REASON =
+  'plan_limit_downgrade_enforcement';
 
 export interface LimitWarning {
   resource: keyof AgencyPlanLimits;
@@ -56,6 +64,23 @@ export interface AdminAgencyListItem {
   updatedAt: Date;
 }
 
+export interface AdminLimitEnforcementAuditItem {
+  id: string;
+  agencyId: string | null;
+  listingId: string | null;
+  agentId: string;
+  action: ActivityAction;
+  reason: string | null;
+  previousStatus: unknown;
+  newStatus: unknown;
+  previousPublicationStatus: unknown;
+  newPublicationStatus: unknown;
+  planLimit: unknown;
+  usageBeforeEnforcement: unknown;
+  enforcedAt: string | null;
+  createdAt: Date;
+}
+
 @Injectable()
 export class AdminAgencyPlansService {
   constructor(
@@ -63,6 +88,8 @@ export class AdminAgencyPlansService {
     private readonly agencyRepo: Repository<Agency>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    @InjectRepository(ActivityLog)
+    private readonly activityRepo: Repository<ActivityLog>,
     private readonly usersService: UsersService,
     private readonly agencyPlanService: AgencyPlanService,
     private readonly agencyLimitDowngradeEnforcementService: AgencyLimitDowngradeEnforcementService,
@@ -139,6 +166,37 @@ export class AdminAgencyPlansService {
       agencyId,
       { force: true },
     );
+  }
+
+  async findAgencyLimitEnforcements(
+    agencyId: string,
+    limitInput?: string | number,
+  ): Promise<AdminLimitEnforcementAuditItem[]> {
+    await this.findAgency(agencyId);
+
+    const limit = this.normalizeAuditLimit(limitInput);
+    const agencyChange = JSON.stringify([
+      { field: 'agencyId', newValue: agencyId },
+    ]);
+    const reasonChange = JSON.stringify([
+      {
+        field: 'reason',
+        newValue: PLAN_LIMIT_DOWNGRADE_ENFORCEMENT_REASON,
+      },
+    ]);
+    const logs = await this.activityRepo
+      .createQueryBuilder('activity')
+      .where('activity.changes @> CAST(:agencyChange AS jsonb)', {
+        agencyChange,
+      })
+      .andWhere('activity.changes @> CAST(:reasonChange AS jsonb)', {
+        reasonChange,
+      })
+      .orderBy('activity.createdAt', 'DESC')
+      .limit(limit)
+      .getMany();
+
+    return logs.map((log) => this.toLimitEnforcementAuditItem(log));
   }
 
   private async findAgency(agencyId: string): Promise<Agency> {
@@ -355,5 +413,61 @@ export class AdminAgencyPlansService {
       limit,
       message: `Aktualne użycie ${resource} (${usage}) przekracza nowy limit (${limit})`,
     });
+  }
+
+  private normalizeAuditLimit(limitInput?: string | number): number {
+    const parsed = Number(limitInput);
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return DEFAULT_LIMIT_ENFORCEMENT_AUDIT_LIMIT;
+    }
+
+    return Math.min(parsed, MAX_LIMIT_ENFORCEMENT_AUDIT_LIMIT);
+  }
+
+  private toLimitEnforcementAuditItem(
+    log: ActivityLog,
+  ): AdminLimitEnforcementAuditItem {
+    return {
+      id: log.id,
+      agencyId: this.getChangeNewValue<string>(log.changes, 'agencyId'),
+      listingId: this.getChangeNewValue<string>(log.changes, 'listingId'),
+      agentId: log.agentId,
+      action: log.action,
+      reason: this.getChangeNewValue<string>(log.changes, 'reason'),
+      previousStatus: this.getChangeOldValue(log.changes, 'status'),
+      newStatus: this.getChangeNewValue(log.changes, 'status'),
+      previousPublicationStatus: this.getChangeOldValue(
+        log.changes,
+        'publicationStatus',
+      ),
+      newPublicationStatus: this.getChangeNewValue(
+        log.changes,
+        'publicationStatus',
+      ),
+      planLimit: this.getChangeNewValue(log.changes, 'planLimit'),
+      usageBeforeEnforcement: this.getChangeNewValue(
+        log.changes,
+        'usageBeforeEnforcement',
+      ),
+      enforcedAt: this.getChangeNewValue<string>(log.changes, 'enforcedAt'),
+      createdAt: log.createdAt,
+    };
+  }
+
+  private getChangeOldValue<T = unknown>(
+    changes: ActivityLogChange[],
+    field: string,
+  ): T | null {
+    const change = changes.find((item) => item.field === field);
+    return change ? (change.oldValue as T) : null;
+  }
+
+  private getChangeNewValue<T = unknown>(
+    changes: ActivityLogChange[],
+    field: string,
+  ): T | null {
+    const change = changes.find((item) => item.field === field);
+    return change ? (change.newValue as T) : null;
   }
 }

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ActivityLog } from '../activity/entities/activity-log.entity';
 import { PlanCatalog } from '../plans';
 import { Agency, Agent } from '../users/entities';
 import { UsersModule } from '../users';
@@ -12,7 +13,7 @@ import { AdminPlansService } from './admin-plans.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PlanCatalog, Agency, Agent]),
+    TypeOrmModule.forFeature([PlanCatalog, Agency, Agent, ActivityLog]),
     UsersModule,
     MonitoringModule,
   ],

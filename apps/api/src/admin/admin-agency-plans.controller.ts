@@ -6,6 +6,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums';
@@ -46,5 +47,17 @@ export class AdminAgencyPlansController {
   @Post('enforce-limits')
   async enforceAgencyLimits(@Param('id', ParseUUIDPipe) agencyId: string) {
     return this.adminAgencyPlansService.enforceAgencyLimits(agencyId);
+  }
+
+  /** GET /api/admin/agencies/:id/plan/enforcements — list recent automatic limit enforcement audit entries. */
+  @Get('enforcements')
+  async findAgencyLimitEnforcements(
+    @Param('id', ParseUUIDPipe) agencyId: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminAgencyPlansService.findAgencyLimitEnforcements(
+      agencyId,
+      limit,
+    );
   }
 }

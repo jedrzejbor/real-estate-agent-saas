@@ -1,5 +1,11 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { AgencyPlan, SubscriptionStatus } from '../common/enums';
+import {
+  ActivityAction,
+  AgencyPlan,
+  ListingPublicationStatus,
+  ListingStatus,
+  SubscriptionStatus,
+} from '../common/enums';
 import { Agency, Agent } from '../users/entities';
 import { AdminAgencyPlansService } from './admin-agency-plans.service';
 
@@ -76,6 +82,16 @@ function buildService(params: {
   const agentRepo = {
     find: jest.fn().mockResolvedValue(agents),
   };
+  const activityQueryBuilder = {
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    getMany: jest.fn().mockResolvedValue([]),
+  };
+  const activityRepo = {
+    createQueryBuilder: jest.fn().mockReturnValue(activityQueryBuilder),
+  };
   const usersService = {
     getAgencyUsageSummaryByAgentIds: jest.fn().mockResolvedValue(usage),
   };
@@ -136,6 +152,7 @@ function buildService(params: {
     service: new AdminAgencyPlansService(
       agencyRepo as never,
       agentRepo as never,
+      activityRepo as never,
       usersService as never,
       agencyPlanService as never,
       agencyLimitDowngradeEnforcementService as never,
@@ -144,6 +161,8 @@ function buildService(params: {
     ),
     agencyRepo,
     agentRepo,
+    activityRepo,
+    activityQueryBuilder,
     usersService,
     agencyPlanService,
     agencyLimitDowngradeEnforcementService,
@@ -206,6 +225,90 @@ describe('AdminAgencyPlansService', () => {
         name: 'Kowalski Real Estate',
         plan: AgencyPlan.FREE,
       }),
+    ]);
+  });
+
+  it('returns recent automatic limit enforcement audit entries for support', async () => {
+    const { service, activityRepo, activityQueryBuilder } = buildService();
+    activityQueryBuilder.getMany.mockResolvedValue([
+      {
+        id: 'activity-1',
+        agentId: 'agent-1',
+        action: ActivityAction.ARCHIVED,
+        createdAt: new Date('2026-06-20T10:30:00.000Z'),
+        changes: [
+          { field: 'agencyId', oldValue: null, newValue: 'agency-1' },
+          { field: 'listingId', oldValue: null, newValue: 'listing-1' },
+          {
+            field: 'status',
+            oldValue: ListingStatus.ACTIVE,
+            newValue: ListingStatus.ARCHIVED,
+          },
+          {
+            field: 'publicationStatus',
+            oldValue: ListingPublicationStatus.PUBLISHED,
+            newValue: ListingPublicationStatus.UNPUBLISHED,
+          },
+          { field: 'planLimit', oldValue: null, newValue: 5 },
+          { field: 'usageBeforeEnforcement', oldValue: null, newValue: 9 },
+          {
+            field: 'reason',
+            oldValue: null,
+            newValue: 'plan_limit_downgrade_enforcement',
+          },
+          {
+            field: 'enforcedAt',
+            oldValue: null,
+            newValue: '2026-06-20T10:00:00.000Z',
+          },
+        ],
+      },
+    ]);
+
+    const response = await service.findAgencyLimitEnforcements('agency-1', '250');
+
+    expect(activityRepo.createQueryBuilder).toHaveBeenCalledWith('activity');
+    expect(activityQueryBuilder.where).toHaveBeenCalledWith(
+      'activity.changes @> CAST(:agencyChange AS jsonb)',
+      {
+        agencyChange: JSON.stringify([
+          { field: 'agencyId', newValue: 'agency-1' },
+        ]),
+      },
+    );
+    expect(activityQueryBuilder.andWhere).toHaveBeenCalledWith(
+      'activity.changes @> CAST(:reasonChange AS jsonb)',
+      {
+        reasonChange: JSON.stringify([
+          {
+            field: 'reason',
+            newValue: 'plan_limit_downgrade_enforcement',
+          },
+        ]),
+      },
+    );
+    expect(activityQueryBuilder.orderBy).toHaveBeenCalledWith(
+      'activity.createdAt',
+      'DESC',
+    );
+    expect(activityQueryBuilder.limit).toHaveBeenCalledWith(100);
+    expect(response).toEqual([
+      {
+        id: 'activity-1',
+        agencyId: 'agency-1',
+        listingId: 'listing-1',
+        agentId: 'agent-1',
+        action: ActivityAction.ARCHIVED,
+        reason: 'plan_limit_downgrade_enforcement',
+        previousStatus: ListingStatus.ACTIVE,
+        newStatus: ListingStatus.ARCHIVED,
+        previousPublicationStatus: ListingPublicationStatus.PUBLISHED,
+        newPublicationStatus: ListingPublicationStatus.UNPUBLISHED,
+        planLimit: 5,
+        usageBeforeEnforcement: 9,
+        enforcedAt: '2026-06-20T10:00:00.000Z',
+        createdAt: new Date('2026-06-20T10:30:00.000Z'),
+      },
     ]);
   });
 
