@@ -638,7 +638,7 @@ startuje karencję, a support może diagnozować każdy przypadek.
 
 ## Sprint 6 - ręczny wybór ofert do zachowania
 
-Status: W trakcie - etap 3 zrobiony.
+Status: Zrobione w zakresie MVP.
 
 Wykonano w etapie 1:
 
@@ -705,7 +705,7 @@ Wykonano w etapie 3:
   - `listing_retention_choices_saved` po poprawnym zapisie wyboru,
 - zachowano dotychczasowe filtrowanie, sortowanie, licznik `Wybrane X/Y`, datę końca karencji i komunikaty walidacyjne.
 
-Pozostało na kolejną iterację Sprintu 6:
+Follow-up poza MVP Sprintu 6:
 
 - po zapisie wyboru odświeżać globalny stan użytkownika / banner, jeśli backend zacznie zwracać dodatkowy stan wyboru w `me`,
 - dodać test komponentu UI dla limitu zaznaczania oraz zapisu wyboru po decyzji o test runnerze dla `apps/web`.
@@ -755,7 +755,31 @@ Kryteria akceptacji:
 
 ## Sprint 7 - audyt automatycznych zmian i support visibility
 
-Status: Do zrobienia.
+Status: W trakcie - etap 1 zrobiony.
+
+Wykonano w etapie 1:
+
+- doprecyzowano istniejący activity audit automatycznej egzekucji limitów ofert,
+- dla każdej oferty archiwizowanej przez `AgencyLimitDowngradeEnforcementService` audyt zapisuje teraz jawnie:
+  - `agencyId`,
+  - `listingId`,
+  - poprzedni `status`,
+  - nowy `status`,
+  - poprzedni `publicationStatus`,
+  - nowy `publicationStatus`,
+  - `unpublishedAt`,
+  - limit planu,
+  - usage przed egzekucją,
+  - powód `plan_limit_downgrade_enforcement`,
+  - `enforcedAt`,
+- zachowano dotychczasowe logowanie jako `ActivityAction.ARCHIVED`, żeby historia oferty nadal działała w istniejącym mechanizmie activity,
+- rozszerzono test jednostkowy egzekucji downgrade o weryfikację pełnego kontraktu audytu.
+
+Pozostało na kolejną iterację Sprintu 7:
+
+- dodać endpoint admin/support do podglądu ostatnich egzekucji limitów dla agencji,
+- w panelu admina planów pokazać stan karencji, datę końca, ostatnią egzekucję i liczbę automatycznie zarchiwizowanych ofert,
+- rozważyć dedykowaną tabelę audytu egzekucji, jeśli support będzie potrzebował raportowania niezależnego od historii pojedynczej oferty.
 
 Cel: każdą automatyczną zmianę wykonaną po downgrade da się wyjaśnić użytkownikowi
 i supportowi.

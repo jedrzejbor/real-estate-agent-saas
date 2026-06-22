@@ -201,6 +201,7 @@ export class AgencyLimitDowngradeEnforcementService {
         },
       );
       await this.logAutomaticListingEnforcement({
+        agencyId,
         listings: excessListings,
         limit,
         usage: activeListings.length,
@@ -291,6 +292,7 @@ export class AgencyLimitDowngradeEnforcementService {
   }
 
   private async logAutomaticListingEnforcement(input: {
+    agencyId: string;
     listings: Listing[];
     limit: number;
     usage: number;
@@ -305,6 +307,16 @@ export class AgencyLimitDowngradeEnforcementService {
         description:
           'Oferta została automatycznie zarchiwizowana po zakończeniu karencji limitu planu.',
         changes: [
+          {
+            field: 'agencyId',
+            oldValue: null,
+            newValue: input.agencyId,
+          },
+          {
+            field: 'listingId',
+            oldValue: null,
+            newValue: listing.id,
+          },
           {
             field: 'status',
             oldValue: listing.status,
@@ -334,6 +346,11 @@ export class AgencyLimitDowngradeEnforcementService {
             field: 'reason',
             oldValue: null,
             newValue: 'plan_limit_downgrade_enforcement',
+          },
+          {
+            field: 'enforcedAt',
+            oldValue: null,
+            newValue: input.enforcedAt.toISOString(),
           },
         ],
       }),

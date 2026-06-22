@@ -263,11 +263,75 @@ describe('AgencyLimitDowngradeEnforcementService', () => {
         action: 'archived',
         description:
           'Oferta została automatycznie zarchiwizowana po zakończeniu karencji limitu planu.',
+        changes: expect.arrayContaining([
+          {
+            field: 'agencyId',
+            oldValue: null,
+            newValue: 'agency-1',
+          },
+          {
+            field: 'listingId',
+            oldValue: null,
+            newValue: 'old-published',
+          },
+          {
+            field: 'status',
+            oldValue: ListingStatus.ACTIVE,
+            newValue: ListingStatus.ARCHIVED,
+          },
+          {
+            field: 'publicationStatus',
+            oldValue: ListingPublicationStatus.PUBLISHED,
+            newValue: ListingPublicationStatus.UNPUBLISHED,
+          },
+          {
+            field: 'planLimit',
+            oldValue: null,
+            newValue: 2,
+          },
+          {
+            field: 'usageBeforeEnforcement',
+            oldValue: null,
+            newValue: 4,
+          },
+          {
+            field: 'reason',
+            oldValue: null,
+            newValue: 'plan_limit_downgrade_enforcement',
+          },
+          {
+            field: 'enforcedAt',
+            oldValue: null,
+            newValue: '2026-06-20T00:00:00.000Z',
+          },
+        ]),
       }),
       expect.objectContaining({
         agentId: 'agent-1',
         entityId: 'draft-excess',
         action: 'archived',
+        changes: expect.arrayContaining([
+          {
+            field: 'agencyId',
+            oldValue: null,
+            newValue: 'agency-1',
+          },
+          {
+            field: 'listingId',
+            oldValue: null,
+            newValue: 'draft-excess',
+          },
+          {
+            field: 'publicationStatus',
+            oldValue: ListingPublicationStatus.DRAFT,
+            newValue: ListingPublicationStatus.UNPUBLISHED,
+          },
+          {
+            field: 'enforcedAt',
+            oldValue: null,
+            newValue: '2026-06-20T00:00:00.000Z',
+          },
+        ]),
       }),
     ]);
     expect(monitoringService.recordWarning).toHaveBeenCalledWith(
