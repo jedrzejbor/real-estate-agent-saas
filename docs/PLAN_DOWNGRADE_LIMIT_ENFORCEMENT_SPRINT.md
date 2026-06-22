@@ -457,6 +457,193 @@ Kryteria akceptacji:
 - support może zobaczyć powód blokady,
 - monitoring pokazuje skalę problemu po wdrożeniu billing flow.
 
+## Pozostałe sprinty do zamknięcia zakresu
+
+Poniższe sprinty porządkują prace, które pozostały po wykonaniu MVP limitów,
+karencji i schedulera. Ich celem jest domknięcie flow produktowo-operacyjnego:
+użytkownik wybiera co zostaje aktywne, system ma pełny audyt, billing automatycznie
+startuje karencję, a support może diagnozować każdy przypadek.
+
+## Sprint 6 - ręczny wybór ofert do zachowania
+
+Status: Do zrobienia.
+
+Cel: pozwolić użytkownikowi samodzielnie wskazać, które oferty mają pozostać
+aktywne przed końcem karencji.
+
+Zakres backend:
+
+- dodać strukturę przechowywania wyboru ofert do zachowania, np.:
+  - osobna tabela `agency_retained_listing_choices`,
+  - albo pole na agencji, jeśli MVP ma być prostsze i tymczasowe,
+- dodać endpoint pobierania kandydatów ponad limit:
+  - zwraca aktywne oferty,
+  - zwraca limit planu,
+  - zwraca aktualnie wybrane oferty,
+  - zwraca czas końca karencji,
+- dodać endpoint zapisu wyboru:
+  - waliduje, że oferta należy do agencji,
+  - waliduje, że liczba wybranych ofert nie przekracza limitu,
+  - waliduje, że oferty nie są archiwalne,
+  - działa tylko dla agencji ponad limitem,
+- podłączyć wybór do `AgencyLimitDowngradeEnforcementService`, żeby automatyczna
+  egzekucja najpierw zachowywała oferty wskazane przez użytkownika,
+- jeśli wybrane oferty przestaną być aktywne przed końcem karencji, egzekucja
+  powinna uzupełnić limit deterministyczną regułą fallback.
+
+Zakres frontend:
+
+- dodać widok / modal wyboru ofert w kontekście bannera `PlanLimitStatusBanner`,
+- pokazać licznik `Wybrane X z Y`,
+- zablokować zapis, jeśli użytkownik wybierze więcej niż limit,
+- umożliwić filtrowanie/sortowanie ofert po:
+  - statusie publikacji,
+  - dacie dodania,
+  - tytule,
+  - cenie,
+- jasno pokazać datę końca karencji,
+- po zapisie pokazać potwierdzenie i odświeżyć banner.
+
+Kryteria akceptacji:
+
+- użytkownik ponad limitem może wskazać dokładnie, które oferty zostają aktywne,
+- zapis wyboru nie pozwala wybrać cudzej ani archiwalnej oferty,
+- automatyczna egzekucja po karencji respektuje zapisany wybór,
+- jeśli użytkownik nic nie wybierze, działa obecna deterministyczna reguła fallback.
+
+## Sprint 7 - audyt automatycznych zmian i support visibility
+
+Status: Do zrobienia.
+
+Cel: każdą automatyczną zmianę wykonaną po downgrade da się wyjaśnić użytkownikowi
+i supportowi.
+
+Zakres backend:
+
+- dodać audyt activity dla ofert zmienianych automatycznie przez egzekucję limitów,
+- dla każdej zarchiwizowanej / odpublicznionej oferty zapisać:
+  - `agencyId`,
+  - `listingId`,
+  - poprzedni `status`,
+  - poprzedni `publicationStatus`,
+  - nowy `status`,
+  - nowy `publicationStatus`,
+  - limit planu,
+  - usage przed egzekucją,
+  - powód `plan_limit_downgrade_enforcement`,
+  - czas egzekucji,
+- dodać endpoint admin/support do podglądu ostatnich egzekucji limitów dla agencji,
+- dodać monitoring event `plan_limit_grace_started` przy starcie karencji,
+- dodać monitoring event `plan_limit_resource_blocked` przy blokadzie tworzenia zasobu,
+- dodać monitoring event `plan_limit_exceeded` przy wykryciu przekroczenia limitu po zmianie planu.
+
+Zakres frontend:
+
+- w panelu admina planów pokazać:
+  - czy trwa karencja,
+  - kiedy się kończy,
+  - kiedy egzekucja została wykonana,
+  - ile ofert zostało automatycznie zarchiwizowanych,
+- dodać czytelne komunikaty supportowe przy agencji ponad limitem.
+
+Kryteria akceptacji:
+
+- support może sprawdzić, dlaczego konkretna oferta została zarchiwizowana,
+- automatyczna egzekucja zostawia ślad audytowy per oferta,
+- monitoring rozróżnia start karencji, blokadę nowego użycia i egzekucję po karencji.
+
+## Sprint 8 - billing webhooki i automatyczne downgrade/past_due/canceled
+
+Status: Do zrobienia.
+
+Cel: flow limitów działa nie tylko po ręcznej zmianie planu przez admina, ale też
+po realnych zdarzeniach billingowych.
+
+Zakres:
+
+- podłączyć webhooki providera płatności dla zdarzeń:
+  - zmiana planu,
+  - `past_due`,
+  - `canceled`,
+  - powrót do aktywnej subskrypcji,
+- po downgrade albo `canceled` przeliczyć usage i uruchomić karencję, jeśli agencja jest ponad limitem,
+- po `past_due` ustalić osobną regułę:
+  - czy natychmiast blokujemy nowe użycie,
+  - czy dajemy krótszą karencję,
+  - czy tylko pokazujemy ostrzeżenie przez kilka dni,
+- po powrocie do wyższego planu:
+  - wyczyścić karencję, jeśli usage mieści się w limicie,
+  - nie przywracać automatycznie archiwizowanych ofert bez świadomej akcji użytkownika/admina,
+- dodać idempotencję webhooków na podstawie event id,
+- dodać testy jednostkowe i integracyjne dla najważniejszych eventów.
+
+Kryteria akceptacji:
+
+- realny downgrade z systemu płatności ustawia te same pola karencji co panel admina,
+- powtarzany webhook nie duplikuje efektów,
+- `past_due` i `canceled` mają jasno opisane, testowalne zachowanie,
+- upgrade usuwa niepotrzebne ostrzeżenia, jeśli agencja mieści się w nowym limicie.
+
+## Sprint 9 - odporność schedulera w wielu instancjach
+
+Status: Do zrobienia.
+
+Cel: scheduler pozostaje bezpieczny, gdy API działa w kilku instancjach.
+
+Zakres:
+
+- dodać transakcyjny lock albo PostgreSQL advisory lock dla batcha egzekucji,
+- lock powinien obejmować:
+  - uruchomienie schedulera,
+  - wybór agencji po zakończonej karencji,
+  - egzekucję limitu dla konkretnej agencji,
+- zabezpieczyć przed sytuacją, w której dwie instancje archiwizują te same oferty równolegle,
+- dodać metrykę / monitoring, gdy instancja pomija run, bo lock jest zajęty,
+- dodać test integracyjny albo test serwisu z mockiem lock managera.
+
+Kryteria akceptacji:
+
+- równoległe instancje API nie wykonują tej samej egzekucji dwa razy,
+- jeśli lock jest zajęty, scheduler kończy bez błędu i raportuje skip,
+- idempotencja na `limitGraceEnforcedAt` nadal działa jako dodatkowe zabezpieczenie.
+
+## Sprint 10 - testy integracyjne, regresja i manualny test plan
+
+Status: Do zrobienia.
+
+Cel: domknąć jakość flow, które dotyka billing, dane użytkownika i publiczne oferty.
+
+Zakres testów automatycznych:
+
+- downgrade agencji z ofertami ponad limit startuje karencję,
+- scheduler po końcu karencji archiwizuje nadmiar ofert,
+- ręczny wybór ofert jest respektowany przez egzekucję,
+- tworzenie oferty ponad limit jest blokowane,
+- przywracanie oferty ponad limit jest blokowane,
+- tworzenie klienta ponad limit jest blokowane,
+- import klientów ponad limit jest blokowany,
+- tworzenie spotkania ponad limit jest blokowane,
+- przeniesienie spotkania do miesiąca z wykorzystanym limitem jest blokowane,
+- webhook downgrade jest idempotentny,
+- webhook upgrade czyści karencję, jeśli usage mieści się w limicie.
+
+Manualny test plan:
+
+- admin zmienia plan z wyższego na niższy,
+- użytkownik widzi banner ponad limitem,
+- użytkownik wybiera oferty do zachowania,
+- kończy się karencja,
+- scheduler archiwizuje nadmiar,
+- support widzi audyt zmian,
+- użytkownik przechodzi na wyższy plan,
+- użytkownik ręcznie przywraca wybrane oferty, jeśli ma już wolny limit.
+
+Kryteria akceptacji:
+
+- krytyczne scenariusze mają test automatyczny albo opisany test manualny,
+- testy można uruchomić lokalnie bez produkcyjnego providera płatności,
+- dokument jasno opisuje, co support powinien sprawdzić przy zgłoszeniu dotyczącym limitów.
+
 ## Reguły bezpieczeństwa danych
 
 - Nie usuwamy danych automatycznie.
