@@ -3,11 +3,16 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Appointment } from './entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { UsersModule } from '../users';
+import { MonitoringModule } from '../monitoring';
 import { AppointmentsService } from './appointments.service';
 import { AppointmentsController } from './appointments.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Appointment, Agent]), UsersModule],
+  imports: [
+    TypeOrmModule.forFeature([Appointment, Agent]),
+    UsersModule,
+    MonitoringModule,
+  ],
   controllers: [AppointmentsController],
   providers: [AppointmentsService],
   exports: [AppointmentsService],

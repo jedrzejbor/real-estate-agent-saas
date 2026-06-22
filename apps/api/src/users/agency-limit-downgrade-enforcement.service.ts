@@ -1,8 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
+import { ActivityLog } from '../activity/entities/activity-log.entity';
 import { MonitoringService } from '../monitoring';
 import {
+  ActivityAction,
+  ActivityEntityType,
   ListingPublicationStatus,
   ListingStatus,
 } from '../common/enums';
@@ -45,6 +48,8 @@ export class AgencyLimitDowngradeEnforcementService {
     private readonly agentRepo: Repository<Agent>,
     @InjectRepository(Listing)
     private readonly listingRepo: Repository<Listing>,
+    @InjectRepository(ActivityLog)
+    private readonly activityRepo: Repository<ActivityLog>,
     private readonly agencyPlanService: AgencyPlanService,
     private readonly agencyLimitEnforcementService: AgencyLimitEnforcementService,
     private readonly monitoringService: MonitoringService,
@@ -185,6 +190,12 @@ export class AgencyLimitDowngradeEnforcementService {
           unpublishedAt: now,
         },
       );
+      await this.logAutomaticListingEnforcement({
+        listings: excessListings,
+        limit,
+        usage: activeListings.length,
+        enforcedAt: now,
+      });
     }
 
     agency.limitGraceEnforcedAt = now;
@@ -240,5 +251,57 @@ export class AgencyLimitDowngradeEnforcementService {
 
       return left.id.localeCompare(right.id);
     });
+  }
+
+  private async logAutomaticListingEnforcement(input: {
+    listings: Listing[];
+    limit: number;
+    usage: number;
+    enforcedAt: Date;
+  }): Promise<void> {
+    const logs = input.listings.map((listing) =>
+      this.activityRepo.create({
+        agentId: listing.agentId,
+        entityType: ActivityEntityType.LISTING,
+        entityId: listing.id,
+        action: ActivityAction.ARCHIVED,
+        description:
+          'Oferta została automatycznie zarchiwizowana po zakończeniu karencji limitu planu.',
+        changes: [
+          {
+            field: 'status',
+            oldValue: listing.status,
+            newValue: ListingStatus.ARCHIVED,
+          },
+          {
+            field: 'publicationStatus',
+            oldValue: listing.publicationStatus,
+            newValue: ListingPublicationStatus.UNPUBLISHED,
+          },
+          {
+            field: 'unpublishedAt',
+            oldValue: listing.unpublishedAt ?? null,
+            newValue: input.enforcedAt.toISOString(),
+          },
+          {
+            field: 'planLimit',
+            oldValue: null,
+            newValue: input.limit,
+          },
+          {
+            field: 'usageBeforeEnforcement',
+            oldValue: null,
+            newValue: input.usage,
+          },
+          {
+            field: 'reason',
+            oldValue: null,
+            newValue: 'plan_limit_downgrade_enforcement',
+          },
+        ],
+      }),
+    );
+
+    await this.activityRepo.save(logs);
   }
 }

@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { MonitoringService } from '../monitoring';
 import { AgencyPlan } from '../common/enums';
 import {
   AgencyLimitDowngradeEnforcementService,
@@ -66,6 +67,7 @@ export class AdminAgencyPlansService {
     private readonly agencyPlanService: AgencyPlanService,
     private readonly agencyLimitDowngradeEnforcementService: AgencyLimitDowngradeEnforcementService,
     private readonly configService: ConfigService,
+    private readonly monitoringService: MonitoringService,
   ) {}
 
   async findAgencies(
@@ -267,6 +269,31 @@ export class AdminAgencyPlansService {
       this.getLimitDowngradeGraceDays(),
     );
     agency.limitGraceEnforcedAt = null;
+
+    this.monitoringService.recordWarning(
+      'plan_limit_enforcement',
+      'plan_limit_exceeded',
+      {
+        agencyId: agency.id,
+        resource: 'activeListings',
+        planCode: entitlements.plan.code,
+        limit: activeListingsLimit,
+        usage: usage.activeListings,
+      },
+    );
+    this.monitoringService.recordWarning(
+      'plan_limit_enforcement',
+      'plan_limit_grace_started',
+      {
+        agencyId: agency.id,
+        resource: 'activeListings',
+        planCode: entitlements.plan.code,
+        limit: activeListingsLimit,
+        usage: usage.activeListings,
+        graceStartedAt: agency.limitGraceStartedAt.toISOString(),
+        graceEndsAt: agency.limitGraceEndsAt.toISOString(),
+      },
+    );
   }
 
   private clearLimitGracePeriod(agency: Agency): void {

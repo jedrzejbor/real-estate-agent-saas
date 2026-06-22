@@ -120,6 +120,9 @@ function buildService(params: {
   const configService = {
     get: jest.fn((key: string) => params.config?.[key]),
   };
+  const monitoringService = {
+    recordWarning: jest.fn(),
+  };
 
   const queryBuilder = {
     orderBy: jest.fn().mockReturnThis(),
@@ -137,6 +140,7 @@ function buildService(params: {
       agencyPlanService as never,
       agencyLimitDowngradeEnforcementService as never,
       configService as never,
+      monitoringService as never,
     ),
     agencyRepo,
     agentRepo,
@@ -144,6 +148,7 @@ function buildService(params: {
     agencyPlanService,
     agencyLimitDowngradeEnforcementService,
     configService,
+    monitoringService,
     agency,
     queryBuilder,
   };
@@ -262,7 +267,7 @@ describe('AdminAgencyPlansService', () => {
   });
 
   it('starts listing limit grace period when the updated plan is below current usage', async () => {
-    const { service, agencyRepo } = buildService({
+    const { service, agencyRepo, monitoringService } = buildService({
       usage: {
         activeListings: 9,
         clients: 10,
@@ -285,6 +290,28 @@ describe('AdminAgencyPlansService', () => {
         limitGraceStartedAt: new Date('2026-06-20T10:00:00.000Z'),
         limitGraceEndsAt: new Date('2026-06-27T10:00:00.000Z'),
         limitGraceEnforcedAt: null,
+      }),
+    );
+    expect(monitoringService.recordWarning).toHaveBeenCalledWith(
+      'plan_limit_enforcement',
+      'plan_limit_exceeded',
+      expect.objectContaining({
+        agencyId: 'agency-1',
+        resource: 'activeListings',
+        limit: 5,
+        usage: 9,
+      }),
+    );
+    expect(monitoringService.recordWarning).toHaveBeenCalledWith(
+      'plan_limit_enforcement',
+      'plan_limit_grace_started',
+      expect.objectContaining({
+        agencyId: 'agency-1',
+        resource: 'activeListings',
+        limit: 5,
+        usage: 9,
+        graceStartedAt: '2026-06-20T10:00:00.000Z',
+        graceEndsAt: '2026-06-27T10:00:00.000Z',
       }),
     );
   });

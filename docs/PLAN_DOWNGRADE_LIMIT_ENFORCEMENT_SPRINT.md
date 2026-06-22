@@ -424,7 +424,37 @@ Kryteria akceptacji:
 
 ## Sprint 5 - monitoring, audyt i testy E2E
 
-Status: Do zrobienia.
+Status: W trakcie - etap 1 zrobiony.
+
+Wykonano w etapie 1:
+
+- dodano monitoring event `plan_limit_exceeded` przy wykryciu przekroczenia limitu aktywnych ofert po zmianie planu przez panel admina,
+- dodano monitoring event `plan_limit_grace_started` przy automatycznym starcie karencji po downgrade planu,
+- dodano monitoring event `plan_limit_resource_blocked` przy blokadzie nowego użycia ponad limit dla:
+  - aktywnych ofert,
+  - klientów,
+  - miesięcznych spotkań,
+- uzupełniono automatyczną egzekucję limitu ofert o wpisy activity dla każdej oferty zarchiwizowanej przez system,
+- wpis activity dla automatycznie zarchiwizowanej oferty zapisuje:
+  - zmianę `status`,
+  - zmianę `publicationStatus`,
+  - zmianę `unpublishedAt`,
+  - limit planu,
+  - usage przed egzekucją,
+  - powód `plan_limit_downgrade_enforcement`,
+- podłączono potrzebne moduły monitoringu do serwisów klientów, spotkań i admin planów,
+- dodano testy jednostkowe dla:
+  - monitoringu startu karencji,
+  - monitoringu wykrycia przekroczenia limitu,
+  - audytu ofert archiwizowanych automatycznie.
+
+Pozostało na kolejną iterację Sprintu 5:
+
+- dodać monitoring `plan_limit_near`, jeśli zdecydujemy gdzie i jak często go emitować bez spamowania logów,
+- dodać pełne testy integracyjne endpointów limitów,
+- dodać manualny test plan jako osobną sekcję operacyjną,
+- rozszerzyć widoczność audytu w panelu admin/support,
+- dodać monitoring blokad limitów obrazów per oferta, jeśli ma być raportowany razem z limitami planu.
 
 Cel: zapewnić obserwowalność i regresję dla krytycznego flow billingowego.
 

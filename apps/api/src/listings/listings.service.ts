@@ -1093,6 +1093,18 @@ export class ListingsService {
       );
 
     if (limitState.isOverLimit && limitState.limit !== null) {
+      this.monitoringService.recordWarning(
+        'plan_limit_enforcement',
+        'plan_limit_resource_blocked',
+        {
+          agencyId: agencyAccess.agency.id,
+          resource: 'activeListings',
+          planCode: agencyAccess.entitlements.plan.code,
+          limit: limitState.limit,
+          currentUsage,
+          attemptedUsage,
+        },
+      );
       throw new PlanLimitReachedException({
         resource: 'listings',
         limit: limitState.limit,

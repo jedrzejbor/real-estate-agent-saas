@@ -15,6 +15,7 @@ import { Agent } from '../users/entities/agent.entity';
 import { AgencyLimitEnforcementService, UsersService } from '../users';
 import { ActivityAction, ActivityEntityType } from '../common/enums';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
+import { MonitoringService } from '../monitoring';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ClientQueryDto } from './dto/client-query.dto';
@@ -53,6 +54,7 @@ export class ClientsService {
     private readonly usersService: UsersService,
     private readonly agencyLimitEnforcementService: AgencyLimitEnforcementService,
     private readonly activityService: ActivityService,
+    private readonly monitoringService: MonitoringService,
   ) {}
 
   // ── Create ──
@@ -470,6 +472,19 @@ export class ClientsService {
       );
 
     if (limitState.isOverLimit && limitState.limit !== null) {
+      this.monitoringService.recordWarning(
+        'plan_limit_enforcement',
+        'plan_limit_resource_blocked',
+        {
+          agencyId: access.agency.id,
+          resource: 'clients',
+          planCode: access.entitlements.plan.code,
+          limit: limitState.limit,
+          currentUsage,
+          attemptedUsage,
+          addedUsage,
+        },
+      );
       throw new PlanLimitReachedException({
         resource: 'clients',
         limit: limitState.limit,

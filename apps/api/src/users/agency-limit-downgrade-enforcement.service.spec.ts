@@ -84,6 +84,10 @@ function buildService(input: {
     find: jest.fn().mockResolvedValue(input.listings ?? []),
     update: jest.fn().mockResolvedValue({ affected: 0 }),
   };
+  const activityRepo = {
+    create: jest.fn((value) => value),
+    save: jest.fn().mockResolvedValue([]),
+  };
   const monitoringService = {
     recordFailure: jest.fn(),
     recordWarning: jest.fn(),
@@ -92,6 +96,7 @@ function buildService(input: {
     agencyRepo as never,
     agentRepo as never,
     listingRepo as never,
+    activityRepo as never,
     { getEntitlements: jest.fn().mockReturnValue(entitlements) } as never,
     new AgencyLimitEnforcementService(),
     monitoringService as never,
@@ -103,6 +108,7 @@ function buildService(input: {
     agencyRepo,
     agentRepo,
     listingRepo,
+    activityRepo,
     monitoringService,
   };
 }
@@ -208,7 +214,7 @@ describe('AgencyLimitDowngradeEnforcementService', () => {
         createdAt: new Date('2026-03-01T00:00:00.000Z'),
       }),
     ];
-    const { service, agencyRepo, listingRepo, monitoringService } =
+    const { service, agencyRepo, listingRepo, activityRepo, monitoringService } =
       buildService({ listings });
 
     const result = await service.enforceAgencyListingLimit('agency-1', {
@@ -238,6 +244,20 @@ describe('AgencyLimitDowngradeEnforcementService', () => {
         limitGraceEnforcedAt: new Date('2026-06-20T00:00:00.000Z'),
       }),
     );
+    expect(activityRepo.save).toHaveBeenCalledWith([
+      expect.objectContaining({
+        agentId: 'agent-1',
+        entityId: 'old-published',
+        action: 'archived',
+        description:
+          'Oferta została automatycznie zarchiwizowana po zakończeniu karencji limitu planu.',
+      }),
+      expect.objectContaining({
+        agentId: 'agent-1',
+        entityId: 'draft-excess',
+        action: 'archived',
+      }),
+    ]);
     expect(monitoringService.recordWarning).toHaveBeenCalledWith(
       'plan_limit_enforcement',
       'plan_limit_enforced',

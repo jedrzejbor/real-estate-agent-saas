@@ -6,6 +6,7 @@ import { ClientPreference } from './entities/client-preference.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { UsersModule } from '../users';
 import { ActivityModule } from '../activity';
+import { MonitoringModule } from '../monitoring';
 import { ClientsService } from './clients.service';
 import { ClientsController } from './clients.controller';
 
@@ -14,6 +15,7 @@ import { ClientsController } from './clients.controller';
     TypeOrmModule.forFeature([Client, ClientNote, ClientPreference, Agent]),
     UsersModule,
     ActivityModule,
+    MonitoringModule,
   ],
   controllers: [ClientsController],
   providers: [ClientsService],

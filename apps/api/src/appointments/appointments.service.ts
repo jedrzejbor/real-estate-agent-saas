@@ -11,6 +11,7 @@ import { Appointment } from './entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { AgencyLimitEnforcementService, UsersService } from '../users';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
+import { MonitoringService } from '../monitoring';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { AppointmentQueryDto } from './dto/appointment-query.dto';
@@ -37,6 +38,7 @@ export class AppointmentsService {
     private readonly agentRepo: Repository<Agent>,
     private readonly usersService: UsersService,
     private readonly agencyLimitEnforcementService: AgencyLimitEnforcementService,
+    private readonly monitoringService: MonitoringService,
   ) {}
 
   // ── Create ──
@@ -202,6 +204,19 @@ export class AppointmentsService {
       );
 
     if (limitState.isOverLimit && limitState.limit !== null) {
+      this.monitoringService.recordWarning(
+        'plan_limit_enforcement',
+        'plan_limit_resource_blocked',
+        {
+          agencyId: access.agency.id,
+          resource: 'monthlyAppointments',
+          planCode: access.entitlements.plan.code,
+          limit: limitState.limit,
+          currentUsage,
+          attemptedUsage,
+          month: new Date(startTime).toISOString().slice(0, 7),
+        },
+      );
       throw new PlanLimitReachedException({
         resource: 'appointments',
         limit: limitState.limit,
