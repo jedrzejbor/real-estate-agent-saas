@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { AlertTriangle, ArrowRight, LockKeyhole } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ interface PlanLimitStatusBannerProps {
   user: AuthUser;
   resources?: LimitMetricKey[];
   source: string;
+  children?: ReactNode;
 }
 
 const metricConfig: Record<LimitMetricKey, LimitMetricConfig> = {
@@ -66,6 +68,7 @@ export function PlanLimitStatusBanner({
   user,
   resources,
   source,
+  children,
 }: PlanLimitStatusBannerProps) {
   const states = getLimitMetricStates(user, resources);
 
@@ -146,18 +149,21 @@ export function PlanLimitStatusBanner({
           </p>
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9 shrink-0 rounded-xl bg-card"
-          onClick={handleClick}
-          render={<Link href={href} />}
-        >
-          <LockKeyhole className="h-3.5 w-3.5" />
-          Zobacz plany
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Button>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {children}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 rounded-xl bg-card"
+            onClick={handleClick}
+            render={<Link href={href} />}
+          >
+            <LockKeyhole className="h-3.5 w-3.5" />
+            Zobacz plany
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
     </section>
   );

@@ -638,7 +638,7 @@ startuje karencję, a support może diagnozować każdy przypadek.
 
 ## Sprint 6 - ręczny wybór ofert do zachowania
 
-Status: W trakcie - etap 1 zrobiony.
+Status: W trakcie - etap 2 zrobiony.
 
 Wykonano w etapie 1:
 
@@ -670,15 +670,35 @@ Wykonano w etapie 1:
   - transakcyjnego zapisu poprawnego wyboru,
   - respektowania wyboru użytkownika przez automatyczną egzekucję.
 
+Wykonano w etapie 2:
+
+- dodano klienta API web dla endpointów:
+  - `GET /api/listings/retention-choices`,
+  - `PATCH /api/listings/retention-choices`,
+- dodano panel `ListingRetentionChoicePanel` na stronie ofert dla workspace ponad limitem aktywnych ofert,
+- panel pokazuje:
+  - licznik `Wybrane X/Y`,
+  - datę końca karencji,
+  - listę aktywnych ofert możliwych do zachowania,
+  - status publikacji każdej oferty,
+  - typ nieruchomości, typ transakcji, lokalizację, datę dodania i cenę,
+- dodano filtrowanie ofert po statusie publikacji,
+- dodano wyszukiwanie po tytule, mieście, dzielnicy, typie nieruchomości i typie transakcji,
+- dodano sortowanie po:
+  - dacie dodania rosnąco/malejąco,
+  - tytule,
+  - cenie rosnąco/malejąco,
+- UI blokuje zaznaczanie kolejnych ofert po osiągnięciu limitu,
+- zapis wyboru pokazuje komunikat sukcesu albo błąd walidacji z API,
+- `PlanLimitStatusBanner` dostał opcjonalny slot na akcję kontekstową,
+- na stronie ofert dodano CTA `Wybierz oferty`, które prowadzi z bannera do panelu wyboru.
+
 Pozostało na kolejną iterację Sprintu 6:
 
-- dodać UI / modal wyboru ofert w dashboardzie,
-- podłączyć CTA z `PlanLimitStatusBanner` do widoku wyboru ofert,
-- pokazać licznik `Wybrane X z Y`,
-- dodać filtrowanie/sortowanie ofert w UI,
-- pokazać datę końca karencji,
-- dodać komunikaty sukcesu i walidacji po zapisie wyboru,
-- odświeżać banner po zapisie wyboru.
+- zdecydować, czy panel ma zostać jako docelowy widok, czy przenieść go do modala,
+- po zapisie wyboru odświeżać globalny stan użytkownika / banner, jeśli backend zacznie zwracać dodatkowy stan wyboru w `me`,
+- dodać analytics dla otwarcia panelu i zapisu wyboru,
+- dodać test komponentu UI dla limitu zaznaczania oraz zapisu wyboru.
 
 Cel: pozwolić użytkownikowi samodzielnie wskazać, które oferty mają pozostać
 aktywne przed końcem karencji.

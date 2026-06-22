@@ -478,6 +478,33 @@ export interface PaginatedListings {
   meta: PaginationMeta;
 }
 
+export interface RetentionChoiceListing {
+  id: string;
+  title: string;
+  propertyType: PropertyType;
+  transactionType: TransactionType;
+  price: number | string;
+  currency: string;
+  status: ListingStatus;
+  publicationStatus: ListingPublicationStatus;
+  createdAt: string;
+  updatedAt: string;
+  address?: {
+    city?: string | null;
+    district?: string | null;
+  } | null;
+}
+
+export interface RetentionChoicesResponse {
+  agencyId: string;
+  limit: number | null;
+  usage: number;
+  isOverLimit: boolean;
+  limitGraceEndsAt: string | null;
+  selectedListingIds: string[];
+  listings: RetentionChoiceListing[];
+}
+
 export interface ListingFilters {
   propertyType?: PropertyType;
   status?: ListingStatus;
@@ -693,6 +720,19 @@ export async function fetchListings(
 
 export async function fetchListing(id: string): Promise<Listing> {
   return apiFetch<Listing>(`/listings/${id}`);
+}
+
+export async function fetchRetentionChoices(): Promise<RetentionChoicesResponse> {
+  return apiFetch<RetentionChoicesResponse>('/listings/retention-choices');
+}
+
+export async function saveRetentionChoices(
+  listingIds: string[],
+): Promise<RetentionChoicesResponse> {
+  return apiFetch<RetentionChoicesResponse>('/listings/retention-choices', {
+    method: 'PATCH',
+    body: { listingIds },
+  });
 }
 
 export async function fetchPublicListing(slug: string): Promise<PublicListing> {
