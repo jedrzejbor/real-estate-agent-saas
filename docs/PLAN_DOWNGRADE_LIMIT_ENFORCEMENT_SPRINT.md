@@ -755,7 +755,7 @@ Kryteria akceptacji:
 
 ## Sprint 7 - audyt automatycznych zmian i support visibility
 
-Status: W trakcie - etap 1 zrobiony.
+Status: W trakcie - etap 3 zrobiony.
 
 Wykonano w etapie 1:
 
@@ -800,9 +800,25 @@ Wykonano w etapie 2:
 - endpoint waliduje istnienie agencji przed zwróceniem audytu,
 - rozszerzono testy `AdminAgencyPlansService` o filtrowanie, limitowanie i mapowanie odpowiedzi supportowej.
 
+Wykonano w etapie 3:
+
+- rozszerzono odpowiedź `GET /api/admin/agencies/:id/plan` o pola karencji:
+  - `limitGraceStartedAt`,
+  - `limitGraceEndsAt`,
+  - `limitGraceEnforcedAt`,
+- dodano klienta web dla `GET /api/admin/agencies/:id/plan/enforcements`,
+- w panelu admina planów dodano sekcję `Karencja i egzekucje limitów`,
+- sekcja pokazuje:
+  - stan karencji (`Brak karencji`, `Karencja aktywna`, `Karencja po terminie`, `Egzekucja wykonana`),
+  - datę końca karencji,
+  - datę ostatniej egzekucji,
+  - liczbę ostatnich automatycznie zarchiwizowanych ofert,
+  - listę ostatnich wpisów audytu egzekucji z `listingId`, statusem przed/po, publikacją przed/po, limitem, usage i datą egzekucji,
+- dane audytu są pobierane po wyborze agencji i odświeżane razem z panelem,
+- dodano regresję backendową potwierdzającą zwracanie pól karencji w odpowiedzi planu agencji.
+
 Pozostało na kolejną iterację Sprintu 7:
 
-- w panelu admina planów pokazać stan karencji, datę końca, ostatnią egzekucję i liczbę automatycznie zarchiwizowanych ofert,
 - rozważyć dedykowaną tabelę audytu egzekucji, jeśli support będzie potrzebował raportowania niezależnego od historii pojedynczej oferty.
 
 Cel: każdą automatyczną zmianę wykonaną po downgrade da się wyjaśnić użytkownikowi

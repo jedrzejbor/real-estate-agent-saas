@@ -84,6 +84,9 @@ export interface AdminAgencyPlanResponse {
     plan: AgencyPlanCode;
     subscription: string;
     planChangedAt: string | null;
+    limitGraceStartedAt: string | null;
+    limitGraceEndsAt: string | null;
+    limitGraceEnforcedAt: string | null;
   };
   planOverrides: AgencyPlanOverrides | null;
   entitlements: {
@@ -107,6 +110,23 @@ export interface AdminAgencyPlanResponse {
     limit: number;
     message: string;
   }>;
+}
+
+export interface AdminLimitEnforcementAuditItem {
+  id: string;
+  agencyId: string | null;
+  listingId: string | null;
+  agentId: string;
+  action: string;
+  reason: string | null;
+  previousStatus: unknown;
+  newStatus: unknown;
+  previousPublicationStatus: unknown;
+  newPublicationStatus: unknown;
+  planLimit: unknown;
+  usageBeforeEnforcement: unknown;
+  enforcedAt: string | null;
+  createdAt: string;
 }
 
 export type UpdatePlanInput = Partial<
@@ -166,6 +186,16 @@ export function fetchAdminAgencyPlan(
   agencyId: string,
 ): Promise<AdminAgencyPlanResponse> {
   return apiFetch<AdminAgencyPlanResponse>(`/admin/agencies/${agencyId}/plan`);
+}
+
+export function fetchAdminAgencyLimitEnforcements(
+  agencyId: string,
+  limit = 10,
+): Promise<AdminLimitEnforcementAuditItem[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return apiFetch<AdminLimitEnforcementAuditItem[]>(
+    `/admin/agencies/${agencyId}/plan/enforcements?${params.toString()}`,
+  );
 }
 
 export function updateAdminAgencyPlan(

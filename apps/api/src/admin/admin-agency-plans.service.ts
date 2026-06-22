@@ -46,6 +46,9 @@ export interface AdminAgencyPlanResponse {
     plan: string;
     subscription: string;
     planChangedAt: Date | null;
+    limitGraceStartedAt: Date | null;
+    limitGraceEndsAt: Date | null;
+    limitGraceEnforcedAt: Date | null;
   };
   planOverrides: AgencyPlanOverrides | null;
   entitlements: AgencyEntitlements;
@@ -271,6 +274,9 @@ export class AdminAgencyPlansService {
         plan: agency.plan,
         subscription: agency.subscription,
         planChangedAt: agency.planChangedAt ?? null,
+        limitGraceStartedAt: agency.limitGraceStartedAt ?? null,
+        limitGraceEndsAt: agency.limitGraceEndsAt ?? null,
+        limitGraceEnforcedAt: agency.limitGraceEnforcedAt ?? null,
       },
       planOverrides: agency.planOverrides ?? null,
       entitlements,

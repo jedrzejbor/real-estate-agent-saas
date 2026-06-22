@@ -185,13 +185,22 @@ describe('AdminAgencyPlansService', () => {
   });
 
   it('returns current agency plan, usage, entitlements and limit warnings', async () => {
-    const { service } = buildService();
+    const { service } = buildService({
+      agency: buildAgency({
+        limitGraceStartedAt: new Date('2026-06-20T10:00:00.000Z'),
+        limitGraceEndsAt: new Date('2026-06-27T10:00:00.000Z'),
+        limitGraceEnforcedAt: null,
+      }),
+    });
 
     const response = await service.findAgencyPlan('agency-1');
 
     expect(response.agency).toMatchObject({
       id: 'agency-1',
       plan: AgencyPlan.FREE,
+      limitGraceStartedAt: new Date('2026-06-20T10:00:00.000Z'),
+      limitGraceEndsAt: new Date('2026-06-27T10:00:00.000Z'),
+      limitGraceEnforcedAt: null,
     });
     expect(response.usage.activeListings).toBe(6);
     expect(response.limitWarnings).toEqual([

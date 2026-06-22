@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
+  Archive,
   Building2,
   CheckCircle2,
+  Clock3,
   RefreshCw,
   Save,
   Search,
@@ -19,12 +21,14 @@ import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
   fetchAdminAgencies,
+  fetchAdminAgencyLimitEnforcements,
   fetchAdminAgencyPlan,
   fetchAdminPlans,
   resetAdminAgencyPlanOverrides,
   updateAdminAgencyPlan,
   updateAdminPlan,
   type AdminAgencyListItem,
+  type AdminLimitEnforcementAuditItem,
   type AdminAgencyPlanResponse,
   type AdminPlan,
   type AgencyPlanCode,
@@ -110,10 +114,14 @@ export default function AdminPlansPage() {
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
   const [agencyPlan, setAgencyPlan] =
     useState<AdminAgencyPlanResponse | null>(null);
+  const [limitEnforcements, setLimitEnforcements] = useState<
+    AdminLimitEnforcementAuditItem[]
+  >([]);
   const [agencySearch, setAgencySearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [isSavingAgency, setIsSavingAgency] = useState(false);
+  const [isLoadingEnforcements, setIsLoadingEnforcements] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const isAdmin = user?.role === 'admin';
@@ -173,6 +181,7 @@ export default function AdminPlansPage() {
   useEffect(() => {
     if (!isAdmin || !selectedAgencyId) {
       setAgencyPlan(null);
+      setLimitEnforcements([]);
       return;
     }
 
@@ -189,6 +198,36 @@ export default function AdminPlansPage() {
           description: getApiErrorMessage(loadError),
         });
         setAgencyPlan(null);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAdmin, selectedAgencyId, showErrorToast, refreshToken]);
+
+  useEffect(() => {
+    if (!isAdmin || !selectedAgencyId) {
+      setLimitEnforcements([]);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingEnforcements(true);
+
+    fetchAdminAgencyLimitEnforcements(selectedAgencyId, 10)
+      .then((response) => {
+        if (isMounted) setLimitEnforcements(response);
+      })
+      .catch((loadError) => {
+        if (!isMounted) return;
+        showErrorToast({
+          title: 'Nie udało się pobrać audytu egzekucji limitów',
+          description: getApiErrorMessage(loadError),
+        });
+        setLimitEnforcements([]);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingEnforcements(false);
       });
 
     return () => {
@@ -428,6 +467,8 @@ export default function AdminPlansPage() {
           {agencyPlan ? (
             <AgencyPlanEditor
               value={agencyPlan}
+              enforcements={limitEnforcements}
+              isLoadingEnforcements={isLoadingEnforcements}
               onChange={setAgencyPlan}
               onSave={saveAgencyPlan}
               onReset={resetAgencyOverrides}
@@ -584,12 +625,16 @@ function PlanEditor({
 
 function AgencyPlanEditor({
   value,
+  enforcements,
+  isLoadingEnforcements,
   onChange,
   onSave,
   onReset,
   isSaving,
 }: {
   value: AdminAgencyPlanResponse;
+  enforcements: AdminLimitEnforcementAuditItem[];
+  isLoadingEnforcements: boolean;
   onChange: (value: AdminAgencyPlanResponse) => void;
   onSave: () => void;
   onReset: () => void;
@@ -654,6 +699,12 @@ function AgencyPlanEditor({
           ))}
         </div>
       ) : null}
+
+      <LimitEnforcementSupportPanel
+        agencyPlan={value}
+        enforcements={enforcements}
+        isLoading={isLoadingEnforcements}
+      />
 
       <div className="grid gap-3 md:grid-cols-3">
         <Field label="Plan">
@@ -801,6 +852,139 @@ function EditorGrid({
   );
 }
 
+function LimitEnforcementSupportPanel({
+  agencyPlan,
+  enforcements,
+  isLoading,
+}: {
+  agencyPlan: AdminAgencyPlanResponse;
+  enforcements: AdminLimitEnforcementAuditItem[];
+  isLoading: boolean;
+}) {
+  const graceStatus = getGraceStatus(agencyPlan);
+  const latestEnforcement = enforcements[0] ?? null;
+  const archivedCount = enforcements.length;
+
+  return (
+    <section className="rounded-xl border border-border bg-muted/30 px-4 py-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Clock3 className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">
+              Karencja i egzekucje limitów
+            </h3>
+            <Badge variant={graceStatus.variant}>
+              {graceStatus.label}
+            </Badge>
+          </div>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Dane diagnostyczne dla supportu przy downgrade planu i automatycznej
+            archiwizacji nadmiarowych ofert.
+          </p>
+        </div>
+
+        <div className="grid gap-2 text-xs sm:grid-cols-3 lg:min-w-[420px]">
+          <SupportMetric
+            label="Koniec karencji"
+            value={formatNullableDateTime(agencyPlan.agency.limitGraceEndsAt)}
+          />
+          <SupportMetric
+            label="Ostatnia egzekucja"
+            value={formatNullableDateTime(
+              agencyPlan.agency.limitGraceEnforcedAt ??
+                latestEnforcement?.enforcedAt ??
+                null,
+            )}
+          />
+          <SupportMetric
+            label="Zarchiwizowane"
+            value={isLoading ? '...' : String(archivedCount)}
+          />
+        </div>
+      </div>
+
+      <div className="mt-3 overflow-hidden rounded-lg border border-border bg-card">
+        {isLoading ? (
+          <p className="px-3 py-4 text-sm text-muted-foreground">
+            Ładowanie audytu egzekucji...
+          </p>
+        ) : enforcements.length === 0 ? (
+          <p className="px-3 py-4 text-sm text-muted-foreground">
+            Brak automatycznych egzekucji limitu dla tej agencji.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {enforcements.map((item) => (
+              <li
+                key={item.id}
+                className="grid gap-2 px-3 py-3 text-sm md:grid-cols-[minmax(0,1fr)_140px_120px]"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Archive className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="truncate font-medium text-foreground">
+                      {item.listingId ?? 'Oferta bez ID'}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span>
+                      Status: {formatAuditValue(item.previousStatus)} {'->'}{' '}
+                      {formatAuditValue(item.newStatus)}
+                    </span>
+                    <span>
+                      Publikacja:{' '}
+                      {formatAuditValue(item.previousPublicationStatus)} {'->'}{' '}
+                      {formatAuditValue(item.newPublicationStatus)}
+                    </span>
+                    <span>Agent: {item.agentId}</span>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  <div>Limit: {formatAuditValue(item.planLimit)}</div>
+                  <div>
+                    Usage: {formatAuditValue(item.usageBeforeEnforcement)}
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground md:text-right">
+                  {formatNullableDateTime(item.enforcedAt ?? item.createdAt)}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function SupportMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-card px-2 py-1.5">
+      <div className="text-[11px] uppercase text-muted-foreground">{label}</div>
+      <div className="mt-0.5 font-semibold text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function getGraceStatus(agencyPlan: AdminAgencyPlanResponse): {
+  label: string;
+  variant: 'success' | 'warning' | 'muted' | 'outline';
+} {
+  if (agencyPlan.agency.limitGraceEnforcedAt) {
+    return { label: 'Egzekucja wykonana', variant: 'success' };
+  }
+
+  if (agencyPlan.agency.limitGraceEndsAt) {
+    const endsAt = new Date(agencyPlan.agency.limitGraceEndsAt).getTime();
+    return endsAt > Date.now()
+      ? { label: 'Karencja aktywna', variant: 'warning' }
+      : { label: 'Karencja po terminie', variant: 'warning' };
+  }
+
+  return { label: 'Brak karencji', variant: 'muted' };
+}
+
 function Field({
   label,
   children,
@@ -847,4 +1031,25 @@ function formatMoney(value: number): string {
     currency: 'PLN',
     maximumFractionDigits: 0,
   }).format(value / 100);
+}
+
+function formatNullableDateTime(value: string | null): string {
+  if (!value) return 'Brak';
+
+  return new Intl.DateTimeFormat('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
+}
+
+function formatAuditValue(value: unknown): string {
+  if (value === null || value === undefined) return 'Brak';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return JSON.stringify(value);
 }
