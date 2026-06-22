@@ -638,7 +638,47 @@ startuje karencję, a support może diagnozować każdy przypadek.
 
 ## Sprint 6 - ręczny wybór ofert do zachowania
 
-Status: Do zrobienia.
+Status: W trakcie - etap 1 zrobiony.
+
+Wykonano w etapie 1:
+
+- dodano tabelę `agency_retained_listing_choices` do przechowywania wyboru ofert, które mają zostać aktywne po downgrade,
+- dodano encję `AgencyRetainedListingChoice`,
+- dodano migrację `20260622_retained_listing_choices.sql`,
+- dodano endpoint `GET /api/listings/retention-choices`, który zwraca:
+  - `agencyId`,
+  - limit aktywnych ofert,
+  - aktualne użycie,
+  - informację, czy workspace jest ponad limitem,
+  - `limitGraceEndsAt`,
+  - aktualnie wybrane oferty,
+  - aktywne oferty dostępne do wyboru,
+- dodano endpoint `PATCH /api/listings/retention-choices` do zapisu wyboru ofert,
+- zapis wyboru:
+  - deduplikuje `listingIds`,
+  - blokuje wybór większej liczby ofert niż limit planu,
+  - blokuje zapis, jeśli workspace nie przekracza limitu,
+  - blokuje ofertę spoza workspace,
+  - blokuje ofertę archiwalną,
+  - zapisuje wybór w transakcji,
+- podłączono zapisany wybór do `AgencyLimitDowngradeEnforcementService`,
+- automatyczna egzekucja po karencji zachowuje najpierw oferty wskazane przez użytkownika,
+- jeśli zapisany wybór nie wypełnia limitu albo część wybranych ofert przestała być aktywna, system uzupełnia limit dotychczasową deterministyczną regułą fallback,
+- dodano testy jednostkowe dla:
+  - pobierania kandydatów i filtrowania nieaktywnych zapisanych wyborów,
+  - blokady zapisu powyżej limitu,
+  - transakcyjnego zapisu poprawnego wyboru,
+  - respektowania wyboru użytkownika przez automatyczną egzekucję.
+
+Pozostało na kolejną iterację Sprintu 6:
+
+- dodać UI / modal wyboru ofert w dashboardzie,
+- podłączyć CTA z `PlanLimitStatusBanner` do widoku wyboru ofert,
+- pokazać licznik `Wybrane X z Y`,
+- dodać filtrowanie/sortowanie ofert w UI,
+- pokazać datę końca karencji,
+- dodać komunikaty sukcesu i walidacji po zapisie wyboru,
+- odświeżać banner po zapisie wyboru.
 
 Cel: pozwolić użytkownikowi samodzielnie wskazać, które oferty mają pozostać
 aktywne przed końcem karencji.

@@ -9,3 +9,4 @@ export {
   ReorderListingImagesDto,
   UpdateListingImageDto,
 } from './listing-image.dto';
+export { SaveRetainedListingChoicesDto } from './retained-listing-choices.dto';

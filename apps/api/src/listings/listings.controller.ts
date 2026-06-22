@@ -21,6 +21,7 @@ import {
   ListingQueryDto,
   PublicListingCatalogQueryDto,
   ReorderListingImagesDto,
+  SaveRetainedListingChoicesDto,
   UpdateListingDto,
   UpdateListingImageDto,
 } from './dto';
@@ -120,6 +121,21 @@ export class ListingsController {
   @Get('public/:slug')
   async findPublicBySlug(@Param('slug', PublicSlugPipe) slug: string) {
     return this.listingsService.findPublicBySlug(slug);
+  }
+
+  /** GET /api/listings/retention-choices — get active listings available for downgrade retention selection. */
+  @Get('retention-choices')
+  async findRetentionChoices(@CurrentUser('id') userId: string) {
+    return this.listingsService.findRetentionChoices(userId);
+  }
+
+  /** PATCH /api/listings/retention-choices — save listings selected to stay active after downgrade grace period. */
+  @Patch('retention-choices')
+  async saveRetentionChoices(
+    @CurrentUser('id') userId: string,
+    @Body() dto: SaveRetainedListingChoicesDto,
+  ) {
+    return this.listingsService.saveRetentionChoices(userId, dto.listingIds);
   }
 
   /** GET /api/listings/:id/history — get audit log for a listing. */

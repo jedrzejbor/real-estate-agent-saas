@@ -10,7 +10,7 @@ import {
   ListingStatus,
 } from '../common/enums';
 import { Listing } from '../listings/entities/listing.entity';
-import { Agency, Agent } from './entities';
+import { Agency, AgencyRetainedListingChoice, Agent } from './entities';
 import { AgencyLimitEnforcementService } from './agency-limit-enforcement.service';
 import { AgencyPlanService } from './agency-plan.service';
 
@@ -50,6 +50,8 @@ export class AgencyLimitDowngradeEnforcementService {
     private readonly listingRepo: Repository<Listing>,
     @InjectRepository(ActivityLog)
     private readonly activityRepo: Repository<ActivityLog>,
+    @InjectRepository(AgencyRetainedListingChoice)
+    private readonly retainedListingChoiceRepo: Repository<AgencyRetainedListingChoice>,
     private readonly agencyPlanService: AgencyPlanService,
     private readonly agencyLimitEnforcementService: AgencyLimitEnforcementService,
     private readonly monitoringService: MonitoringService,
@@ -169,7 +171,15 @@ export class AgencyLimitDowngradeEnforcementService {
       };
     }
 
-    const orderedListings = this.sortListingsForLimitRetention(activeListings);
+    const retainedChoices = await this.retainedListingChoiceRepo.find({
+      where: { agencyId },
+      order: { createdAt: 'ASC', id: 'ASC' },
+      select: ['listingId'],
+    });
+    const orderedListings = this.applyRetainedListingChoices(
+      activeListings,
+      retainedChoices.map((choice) => choice.listingId),
+    );
     const keptListings = orderedListings.slice(0, limit);
     const excessListings = orderedListings.slice(limit);
     const archivedListingIds = excessListings.map((listing) => listing.id);
@@ -251,6 +261,33 @@ export class AgencyLimitDowngradeEnforcementService {
 
       return left.id.localeCompare(right.id);
     });
+  }
+
+  private applyRetainedListingChoices(
+    listings: Listing[],
+    retainedListingIds: string[],
+  ): Listing[] {
+    if (retainedListingIds.length === 0) {
+      return this.sortListingsForLimitRetention(listings);
+    }
+
+    const listingById = new Map(
+      listings.map((listing) => [listing.id, listing] as const),
+    );
+    const retainedListings = retainedListingIds
+      .map((listingId) => listingById.get(listingId))
+      .filter((listing): listing is Listing => Boolean(listing));
+    const retainedListingIdSet = new Set(
+      retainedListings.map((listing) => listing.id),
+    );
+    const fallbackListings = listings.filter(
+      (listing) => !retainedListingIdSet.has(listing.id),
+    );
+
+    return [
+      ...retainedListings,
+      ...this.sortListingsForLimitRetention(fallbackListings),
+    ];
   }
 
   private async logAutomaticListingEnforcement(input: {

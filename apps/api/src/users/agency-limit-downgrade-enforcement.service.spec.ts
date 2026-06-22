@@ -68,6 +68,7 @@ function buildService(input: {
   agency?: Agency;
   agents?: Agent[];
   listings?: Listing[];
+  retainedListingIds?: string[];
 }) {
   const agency = input.agency ?? buildAgency();
   const agencyRepo = {
@@ -88,6 +89,15 @@ function buildService(input: {
     create: jest.fn((value) => value),
     save: jest.fn().mockResolvedValue([]),
   };
+  const retainedListingChoiceRepo = {
+    find: jest.fn().mockResolvedValue(
+      (input.retainedListingIds ?? []).map((listingId, index) => ({
+        id: `choice-${index}`,
+        listingId,
+        createdAt: new Date(`2026-06-18T00:00:0${index}.000Z`),
+      })),
+    ),
+  };
   const monitoringService = {
     recordFailure: jest.fn(),
     recordWarning: jest.fn(),
@@ -97,6 +107,7 @@ function buildService(input: {
     agentRepo as never,
     listingRepo as never,
     activityRepo as never,
+    retainedListingChoiceRepo as never,
     { getEntitlements: jest.fn().mockReturnValue(entitlements) } as never,
     new AgencyLimitEnforcementService(),
     monitoringService as never,
@@ -109,6 +120,7 @@ function buildService(input: {
     agentRepo,
     listingRepo,
     activityRepo,
+    retainedListingChoiceRepo,
     monitoringService,
   };
 }
@@ -270,5 +282,37 @@ describe('AgencyLimitDowngradeEnforcementService', () => {
         unpublishedCount: 1,
       }),
     );
+  });
+
+  it('keeps retained listing choices before applying fallback ordering', async () => {
+    const listings = [
+      buildListing({
+        id: 'old-published',
+        createdAt: new Date('2026-05-01T00:00:00.000Z'),
+      }),
+      buildListing({
+        id: 'new-published',
+        createdAt: new Date('2026-06-10T00:00:00.000Z'),
+      }),
+      buildListing({
+        id: 'premium-published',
+        isPremium: true,
+        createdAt: new Date('2026-04-01T00:00:00.000Z'),
+      }),
+    ];
+    const { service } = buildService({
+      listings,
+      retainedListingIds: ['old-published'],
+    });
+
+    const result = await service.enforceAgencyListingLimit('agency-1', {
+      now: new Date('2026-06-20T00:00:00.000Z'),
+    });
+
+    expect(result).toMatchObject({
+      status: 'enforced',
+      keptListingIds: ['old-published', 'premium-published'],
+      archivedListingIds: ['new-published'],
+    });
   });
 });

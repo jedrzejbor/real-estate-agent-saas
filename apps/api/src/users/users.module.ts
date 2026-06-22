@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ActivityLog } from '../activity/entities/activity-log.entity';
-import { User, Agent, Agency } from './entities';
+import { User, Agent, Agency, AgencyRetainedListingChoice } from './entities';
 import { Listing } from '../listings/entities/listing.entity';
 import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
@@ -19,6 +19,7 @@ import { UsersService } from './users.service';
       User,
       Agent,
       Agency,
+      AgencyRetainedListingChoice,
       Listing,
       Client,
       Appointment,

@@ -4,6 +4,7 @@ import { Listing } from './entities/listing.entity';
 import { ListingImage } from './entities/listing-image.entity';
 import { Address } from './entities/address.entity';
 import { Agent } from '../users/entities/agent.entity';
+import { AgencyRetainedListingChoice } from '../users/entities';
 import { AnalyticsEvent } from '../analytics/entities/analytics-event.entity';
 import { Location } from '../locations/entities';
 import { UsersModule } from '../users';
@@ -21,6 +22,7 @@ import { ListingsController } from './listings.controller';
       Agent,
       Location,
       AnalyticsEvent,
+      AgencyRetainedListingChoice,
     ]),
     UsersModule,
     ActivityModule,

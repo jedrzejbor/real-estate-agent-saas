@@ -57,6 +57,7 @@ describe('plan limit resource blocked monitoring', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
       { getAgencyAccessContext: jest.fn().mockResolvedValue(access) } as never,
       new AgencyLimitEnforcementService(),
       {} as never,

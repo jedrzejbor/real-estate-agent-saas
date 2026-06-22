@@ -18,6 +18,7 @@ import { Address } from './entities/address.entity';
 import { ListingImage } from './entities/listing-image.entity';
 import { AnalyticsEvent } from '../analytics/entities/analytics-event.entity';
 import { Agent } from '../users/entities/agent.entity';
+import { AgencyRetainedListingChoice } from '../users/entities';
 import { Location } from '../locations/entities';
 import { AgencyLimitEnforcementService, UsersService } from '../users';
 import {
@@ -76,6 +77,33 @@ export interface PaginatedResult<T> {
     limit: number;
     totalPages: number;
   };
+}
+
+export interface RetentionChoiceListing {
+  id: string;
+  title: string;
+  status: ListingStatus;
+  publicationStatus: ListingPublicationStatus;
+  price: number | string;
+  currency: string;
+  propertyType: string;
+  transactionType: string;
+  city: string | null;
+  district: string | null;
+  areaM2: number | string | null;
+  rooms: number | null;
+  isPremium: boolean;
+  createdAt: Date;
+}
+
+export interface RetentionChoicesResponse {
+  agencyId: string;
+  limit: number | null;
+  usage: number;
+  isOverLimit: boolean;
+  graceEndsAt: Date | null;
+  selectedListingIds: string[];
+  listings: RetentionChoiceListing[];
 }
 
 interface UploadedListingImageFile {
@@ -176,6 +204,8 @@ export class ListingsService {
     private readonly locationRepo: Repository<Location>,
     @InjectRepository(AnalyticsEvent)
     private readonly analyticsEventRepo: Repository<AnalyticsEvent>,
+    @InjectRepository(AgencyRetainedListingChoice)
+    private readonly retainedListingChoiceRepo: Repository<AgencyRetainedListingChoice>,
     private readonly usersService: UsersService,
     private readonly agencyLimitEnforcementService: AgencyLimitEnforcementService,
     private readonly activityService: ActivityService,
@@ -291,6 +321,101 @@ export class ListingsService {
       ActivityEntityType.LISTING,
       id,
     );
+  }
+
+  async findRetentionChoices(
+    userId: string,
+  ): Promise<RetentionChoicesResponse> {
+    const access = await this.usersService.getAgencyAccessContext(userId);
+    const [activeListings, choices] = await Promise.all([
+      this.findAgencyActiveListings(access.agencyAgentIds),
+      this.retainedListingChoiceRepo.find({
+        where: { agencyId: access.agency.id },
+        select: ['listingId'],
+      }),
+    ]);
+    const activeListingIds = new Set(activeListings.map((listing) => listing.id));
+    const selectedListingIds = choices
+      .map((choice) => choice.listingId)
+      .filter((listingId) => activeListingIds.has(listingId));
+    const limit = access.entitlements.limits.activeListings;
+
+    return {
+      agencyId: access.agency.id,
+      limit,
+      usage: activeListings.length,
+      isOverLimit: limit !== null && activeListings.length > limit,
+      graceEndsAt: access.agency.limitGraceEndsAt ?? null,
+      selectedListingIds,
+      listings: activeListings.map((listing) =>
+        this.toRetentionChoiceListing(listing),
+      ),
+    };
+  }
+
+  async saveRetentionChoices(
+    userId: string,
+    listingIds: string[],
+  ): Promise<RetentionChoicesResponse> {
+    const access = await this.usersService.getAgencyAccessContext(userId);
+    const limit = access.entitlements.limits.activeListings;
+
+    if (limit === null) {
+      throw new BadRequestException('Ten plan nie ogranicza aktywnych ofert');
+    }
+
+    const uniqueListingIds = [...new Set(listingIds)];
+
+    if (uniqueListingIds.length > limit) {
+      throw new BadRequestException(
+        `Możesz wybrać maksymalnie ${limit} ofert do zachowania`,
+      );
+    }
+
+    const activeListings = await this.findAgencyActiveListings(
+      access.agencyAgentIds,
+    );
+
+    if (activeListings.length <= limit) {
+      throw new BadRequestException(
+        'Workspace nie przekracza limitu aktywnych ofert',
+      );
+    }
+
+    const activeListingIds = new Set(activeListings.map((listing) => listing.id));
+    const hasInvalidListing = uniqueListingIds.some(
+      (listingId) => !activeListingIds.has(listingId),
+    );
+
+    if (hasInvalidListing) {
+      throw new BadRequestException(
+        'Wybór zawiera ofertę spoza workspace albo ofertę archiwalną',
+      );
+    }
+
+    await this.retainedListingChoiceRepo.manager.transaction(
+      async (manager) => {
+        await manager.delete(AgencyRetainedListingChoice, {
+          agencyId: access.agency.id,
+        });
+
+        if (uniqueListingIds.length === 0) {
+          return;
+        }
+
+        await manager.save(
+          AgencyRetainedListingChoice,
+          uniqueListingIds.map((listingId) =>
+            manager.create(AgencyRetainedListingChoice, {
+              agencyId: access.agency.id,
+              listingId,
+            }),
+          ),
+        );
+      },
+    );
+
+    return this.findRetentionChoices(userId);
   }
 
   async rollbackStatus(id: string, userId: string): Promise<Listing> {
@@ -1061,6 +1186,45 @@ export class ListingsService {
   /** Resolve the Agent entity from a User id. */
   private async resolveAgent(userId: string): Promise<Agent> {
     return this.usersService.resolveAgentForUser(userId);
+  }
+
+  private findAgencyActiveListings(agencyAgentIds: string[]): Promise<Listing[]> {
+    if (agencyAgentIds.length === 0) {
+      return Promise.resolve([]);
+    }
+
+    return this.listingRepo.find({
+      where: {
+        agentId: In(agencyAgentIds),
+        status: Not(ListingStatus.ARCHIVED),
+      },
+      relations: ['address'],
+      order: {
+        isPremium: 'DESC',
+        publicationStatus: 'ASC',
+        createdAt: 'DESC',
+        id: 'ASC',
+      },
+    });
+  }
+
+  private toRetentionChoiceListing(listing: Listing): RetentionChoiceListing {
+    return {
+      id: listing.id,
+      title: listing.title,
+      status: listing.status,
+      publicationStatus: listing.publicationStatus,
+      price: listing.price,
+      currency: listing.currency,
+      propertyType: listing.propertyType,
+      transactionType: listing.transactionType,
+      city: listing.address?.city ?? null,
+      district: listing.address?.district ?? null,
+      areaM2: listing.areaM2 ?? null,
+      rooms: listing.rooms ?? null,
+      isPremium: listing.isPremium,
+      createdAt: listing.createdAt,
+    };
   }
 
   private async assertListingCreateWithinPlanLimit(
