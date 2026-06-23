@@ -1017,7 +1017,7 @@ Uwagi:
 
 ## Sprint 10 - testy integracyjne, regresja i manualny test plan
 
-Status: Do zrobienia.
+Status: W trakcie - etap 1 zrobiony.
 
 Cel: domknąć jakość flow, które dotyka billing, dane użytkownika i publiczne oferty.
 
@@ -1051,6 +1051,28 @@ Kryteria akceptacji:
 - krytyczne scenariusze mają test automatyczny albo opisany test manualny,
 - testy można uruchomić lokalnie bez produkcyjnego providera płatności,
 - dokument jasno opisuje, co support powinien sprawdzić przy zgłoszeniu dotyczącym limitów.
+
+Wykonano w etapie 1:
+
+- rozszerzono regresje w `plan-limit-resource-blocked-monitoring.spec.ts` o
+  blokadę przywrócenia archiwalnej oferty, gdy limit aktywnych ofert jest już
+  wykorzystany,
+- dodano test importu klientów ponad limit, który potwierdza, że transakcja
+  importu nie startuje po wykryciu przekroczenia,
+- dodano test przeniesienia spotkania do miesiąca z wykorzystanym limitem,
+  który potwierdza, że zapis spotkania nie wykonuje się po blokadzie,
+- uruchomiono szerszy zestaw testów regresyjnych dla downgrade, schedulera,
+  wyboru ofert do zachowania, billing events i blokad zasobów,
+- potwierdzono `type-check` API.
+
+Pozostało:
+
+- dodać testy integracyjne z prawdziwą bazą dla pełnego flow admin downgrade ->
+  karencja -> scheduler -> archiwizacja,
+- dopisać manualny test plan dla supportu i QA z konkretnymi krokami oraz
+  oczekiwanymi polami audytu,
+- opcjonalnie rozdzielić testy regresji na osobny zestaw uruchamiany w CI jako
+  smoke dla limitów planu.
 
 ## Reguły bezpieczeństwa danych
 
