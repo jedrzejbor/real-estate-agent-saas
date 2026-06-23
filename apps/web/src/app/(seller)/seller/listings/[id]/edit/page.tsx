@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -37,8 +37,10 @@ import {
 } from '@/lib/public-listing-submissions';
 import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { Logo } from '@/components/common/logo';
+import { BulkSelectionToolbar } from '@/components/common/bulk-selection-toolbar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useBulkSelection } from '@/hooks/use-bulk-selection';
 import { cn } from '@/lib/utils';
 
 interface SellerListingEditDraft {
@@ -88,6 +90,14 @@ export default function SellerListingEditPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isResubmitting, setIsResubmitting] = useState(false);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const imageSelectionIds = useMemo(
+    () =>
+      (draft?.images ?? []).map((image, index) =>
+        getSubmissionImageSelectionId(image, index),
+      ),
+    [draft?.images],
+  );
+  const imageSelection = useBulkSelection(imageSelectionIds);
 
   useEffect(() => {
     if (isLoading) return;
@@ -207,6 +217,23 @@ export default function SellerListingEditPage() {
         draft.images.filter((_, currentIndex) => currentIndex !== index),
       ),
     );
+  }
+
+  function removeSelectedImages() {
+    if (!draft || imageSelection.selectedCount === 0) return;
+
+    updateDraft(
+      'images',
+      normalizeSubmissionImages(
+        draft.images.filter(
+          (image, index) =>
+            !imageSelection.selectedIdSet.has(
+              getSubmissionImageSelectionId(image, index),
+            ),
+        ),
+      ),
+    );
+    imageSelection.clear();
   }
 
   function setPrimaryImage(index: number) {
@@ -555,58 +582,94 @@ export default function SellerListingEditPage() {
             </div>
 
             {draft.images.length > 0 ? (
-              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {draft.images.map((image, index) => (
-                  <article
-                    key={`${image.url}-${index}`}
-                    className="overflow-hidden rounded-xl border border-border bg-card"
-                  >
-                    <div
-                      className="relative aspect-[4/3] bg-muted bg-cover bg-center"
-                      style={{ backgroundImage: `url(${image.url})` }}
-                    >
-                      {image.isPrimary || index === 0 ? (
-                        <span className="absolute left-3 top-3 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-900">
-                          Główne
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="grid gap-2 p-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs text-muted-foreground">
-                          Zdjęcie {index + 1}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon-sm"
-                          aria-label="Usuń zdjęcie"
-                          onClick={() => removeImage(index)}
-                          className="rounded-xl"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <Button
-                        type="button"
-                        variant={
-                          image.isPrimary || index === 0
-                            ? 'secondary'
-                            : 'outline'
-                        }
-                        size="sm"
-                        disabled={image.isPrimary || index === 0}
-                        onClick={() => setPrimaryImage(index)}
-                        className="w-full rounded-xl"
+              <div className="mt-5 space-y-4">
+                <BulkSelectionToolbar
+                  allSelected={imageSelection.allSelected}
+                  selectedCount={imageSelection.selectedCount}
+                  totalCount={draft.images.length}
+                  onToggleAll={imageSelection.toggleAll}
+                  onClear={imageSelection.clear}
+                  onDeleteSelected={removeSelectedImages}
+                />
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {draft.images.map((image, index) => {
+                    const imageSelectionId = getSubmissionImageSelectionId(
+                      image,
+                      index,
+                    );
+                    const isSelected =
+                      imageSelection.selectedIdSet.has(imageSelectionId);
+
+                    return (
+                      <article
+                        key={`${image.url}-${index}`}
+                        className={cn(
+                          'overflow-hidden rounded-xl border bg-card transition',
+                          isSelected
+                            ? 'border-primary shadow-sm ring-2 ring-primary/25'
+                            : 'border-border',
+                        )}
                       >
-                        <Star className="h-4 w-4" />
-                        {image.isPrimary || index === 0
-                          ? 'Zdjęcie główne'
-                          : 'Ustaw jako główne'}
-                      </Button>
-                    </div>
-                  </article>
-                ))}
+                        <div
+                          className="relative aspect-[4/3] bg-muted bg-cover bg-center"
+                          style={{ backgroundImage: `url(${image.url})` }}
+                        >
+                          <label className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl border border-white/80 bg-background/90 shadow-sm backdrop-blur">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() =>
+                                imageSelection.toggle(imageSelectionId)
+                              }
+                              aria-label="Zaznacz zdjęcie"
+                              className="h-4 w-4 rounded border-border text-primary focus:ring-ring"
+                            />
+                          </label>
+                          {image.isPrimary || index === 0 ? (
+                            <span className="absolute left-3 top-3 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-900">
+                              Główne
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="grid gap-2 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs text-muted-foreground">
+                              Zdjęcie {index + 1}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon-sm"
+                              aria-label="Usuń zdjęcie"
+                              onClick={() => removeImage(index)}
+                              className="rounded-xl"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <Button
+                            type="button"
+                            variant={
+                              image.isPrimary || index === 0
+                                ? 'secondary'
+                                : 'outline'
+                            }
+                            size="sm"
+                            disabled={image.isPrimary || index === 0}
+                            onClick={() => setPrimaryImage(index)}
+                            className="w-full rounded-xl"
+                          >
+                            <Star className="h-4 w-4" />
+                            {image.isPrimary || index === 0
+                              ? 'Zdjęcie główne'
+                              : 'Ustaw jako główne'}
+                          </Button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
               </div>
             ) : null}
           </section>
@@ -976,4 +1039,11 @@ function normalizeSubmissionImages(
     order: index,
     isPrimary: index === 0,
   }));
+}
+
+function getSubmissionImageSelectionId(
+  image: PublicListingSubmissionImage,
+  index: number,
+): string {
+  return `${image.url}-${image.order ?? index}`;
 }

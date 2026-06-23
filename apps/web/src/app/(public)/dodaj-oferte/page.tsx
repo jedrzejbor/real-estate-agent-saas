@@ -18,11 +18,13 @@ import {
 import { z } from 'zod';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { BulkSelectionToolbar } from '@/components/common/bulk-selection-toolbar';
 import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { DistrictAutocomplete } from '@/components/locations/district-autocomplete';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
 import { useAuth } from '@/contexts/auth-context';
+import { useBulkSelection } from '@/hooks/use-bulk-selection';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { isPrivateSellerUser, type AuthUser } from '@/lib/auth';
 import {
@@ -690,6 +692,15 @@ function StepImages({
     value: PublicListingWizardDraft[K],
   ) => void;
 }) {
+  const imageSelectionIds = React.useMemo(
+    () =>
+      draft.images.map((image, index) =>
+        getSubmissionImageSelectionId(image, index),
+      ),
+    [draft.images],
+  );
+  const imageSelection = useBulkSelection(imageSelectionIds);
+
   function removeImage(index: number) {
     updateDraft(
       'images',
@@ -697,6 +708,23 @@ function StepImages({
         draft.images.filter((_, currentIndex) => currentIndex !== index),
       ),
     );
+  }
+
+  function removeSelectedImages() {
+    if (imageSelection.selectedCount === 0) return;
+
+    updateDraft(
+      'images',
+      normalizeSubmissionImages(
+        draft.images.filter(
+          (image, index) =>
+            !imageSelection.selectedIdSet.has(
+              getSubmissionImageSelectionId(image, index),
+            ),
+        ),
+      ),
+    );
+    imageSelection.clear();
   }
 
   function setPrimaryImage(index: number) {
@@ -750,62 +778,106 @@ function StepImages({
       </div>
 
       {draft.images.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {draft.images.map((image, index) => (
-            <article
-              key={`${image.url}-${index}`}
-              className="overflow-hidden rounded-xl border border-border bg-card"
-            >
-              <div className="relative aspect-[4/3] bg-muted">
-                <img
-                  src={image.url}
-                  alt={image.altText || draft.title || 'Zdjęcie oferty'}
-                  className="h-full w-full object-cover"
-                />
-                {image.isPrimary || index === 0 ? (
-                  <Badge className="absolute left-3 top-3" variant="success">
-                    Główne
-                  </Badge>
-                ) : null}
-              </div>
-              <div className="grid gap-2 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-muted-foreground">
-                    Zdjęcie {index + 1}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon-sm"
-                    aria-label="Usuń zdjęcie"
-                    onClick={() => removeImage(index)}
-                    className="rounded-xl"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                <Button
-                  type="button"
-                  variant={
-                    image.isPrimary || index === 0 ? 'secondary' : 'outline'
-                  }
-                  size="sm"
-                  disabled={image.isPrimary || index === 0}
-                  onClick={() => setPrimaryImage(index)}
-                  className="w-full rounded-xl"
+        <div className="space-y-4">
+          <BulkSelectionToolbar
+            allSelected={imageSelection.allSelected}
+            selectedCount={imageSelection.selectedCount}
+            totalCount={draft.images.length}
+            onToggleAll={imageSelection.toggleAll}
+            onClear={imageSelection.clear}
+            onDeleteSelected={removeSelectedImages}
+          />
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {draft.images.map((image, index) => {
+              const imageSelectionId = getSubmissionImageSelectionId(
+                image,
+                index,
+              );
+              const isSelected =
+                imageSelection.selectedIdSet.has(imageSelectionId);
+
+              return (
+                <article
+                  key={`${image.url}-${index}`}
+                  className={cn(
+                    'overflow-hidden rounded-xl border bg-card transition',
+                    isSelected
+                      ? 'border-primary shadow-sm ring-2 ring-primary/25'
+                      : 'border-border',
+                  )}
                 >
-                  <Star className="h-4 w-4" />
-                  {image.isPrimary || index === 0
-                    ? 'Zdjęcie główne'
-                    : 'Ustaw jako główne'}
-                </Button>
-              </div>
-            </article>
-          ))}
+                  <div className="relative aspect-[4/3] bg-muted">
+                    <img
+                      src={image.url}
+                      alt={image.altText || draft.title || 'Zdjęcie oferty'}
+                      className="h-full w-full object-cover"
+                    />
+                    <label className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl border border-white/80 bg-background/90 shadow-sm backdrop-blur">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => imageSelection.toggle(imageSelectionId)}
+                        aria-label="Zaznacz zdjęcie"
+                        className="h-4 w-4 rounded border-border text-primary focus:ring-ring"
+                      />
+                    </label>
+                    {image.isPrimary || index === 0 ? (
+                      <Badge
+                        className="absolute left-3 top-3"
+                        variant="success"
+                      >
+                        Główne
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <div className="grid gap-2 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs text-muted-foreground">
+                        Zdjęcie {index + 1}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon-sm"
+                        aria-label="Usuń zdjęcie"
+                        onClick={() => removeImage(index)}
+                        className="rounded-xl"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Button
+                      type="button"
+                      variant={
+                        image.isPrimary || index === 0 ? 'secondary' : 'outline'
+                      }
+                      size="sm"
+                      disabled={image.isPrimary || index === 0}
+                      onClick={() => setPrimaryImage(index)}
+                      className="w-full rounded-xl"
+                    >
+                      <Star className="h-4 w-4" />
+                      {image.isPrimary || index === 0
+                        ? 'Zdjęcie główne'
+                        : 'Ustaw jako główne'}
+                    </Button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </div>
       ) : null}
     </div>
   );
+}
+
+function getSubmissionImageSelectionId(
+  image: PublicListingSubmissionImage,
+  index: number,
+): string {
+  return `${image.url}-${image.order ?? index}`;
 }
 
 function StepContact({

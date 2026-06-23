@@ -13,10 +13,12 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { BulkSelectionToolbar } from '@/components/common/bulk-selection-toolbar';
 import { LimitUpgradeBanner } from '@/components/growth/limit-upgrade-banner';
 import { useAuth } from '@/contexts/auth-context';
 import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
+import { useBulkSelection } from '@/hooks/use-bulk-selection';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
   deleteListingImage,
@@ -46,6 +48,7 @@ export function ListingImageManager({
   const { success: showSuccessToast, error: showErrorToast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = React.useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
   const [busyImageId, setBusyImageId] = React.useState<string | null>(null);
   const [altDrafts, setAltDrafts] = React.useState<Record<string, string>>({});
 
@@ -53,6 +56,11 @@ export function ListingImageManager({
     () => getOrderedImages(listing.images ?? []),
     [listing.images],
   );
+  const imageIds = React.useMemo(
+    () => images.map((image) => image.id),
+    [images],
+  );
+  const imageSelection = useBulkSelection(imageIds);
   const imageLimit = user?.entitlements.limits.imagesPerListing ?? null;
   const remainingSlots =
     imageLimit === null ? null : Math.max(imageLimit - images.length, 0);
@@ -65,6 +73,12 @@ export function ListingImageManager({
       ),
     );
   }, [images]);
+
+  const selectedImages = React.useMemo(
+    () => images.filter((image) => imageSelection.selectedIdSet.has(image.id)),
+    [images, imageSelection.selectedIdSet],
+  );
+  const selectedImageCount = selectedImages.length;
 
   async function handleFilesSelected(
     event: React.ChangeEvent<HTMLInputElement>,
@@ -155,6 +169,52 @@ export function ListingImageManager({
       });
     } finally {
       setBusyImageId(null);
+    }
+  }
+
+  async function handleDeleteSelected() {
+    if (selectedImages.length === 0) return;
+
+    const includesPrimaryImage = selectedImages.some(
+      (image) => image.isPrimary,
+    );
+    const confirmed = await confirm({
+      title:
+        selectedImages.length === 1
+          ? 'Usunąć zaznaczone zdjęcie?'
+          : `Usunąć ${selectedImages.length} zaznaczone zdjęcia?`,
+      description: includesPrimaryImage
+        ? 'W zaznaczonych zdjęciach jest zdjęcie główne. Po usunięciu system wybierze kolejne zdjęcie z galerii.'
+        : 'Zaznaczone zdjęcia znikną z panelu i publicznej strony oferty.',
+      confirmLabel:
+        selectedImages.length === 1 ? 'Usuń zdjęcie' : 'Usuń zdjęcia',
+      cancelLabel: 'Anuluj',
+      variant: 'destructive',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      setIsBulkDeleting(true);
+
+      for (const image of selectedImages) {
+        const updated = await deleteListingImage(listing.id, image.id);
+        onListingChange(updated);
+      }
+
+      imageSelection.clear();
+      showSuccessToast({
+        title:
+          selectedImages.length === 1 ? 'Zdjęcie usunięte' : 'Zdjęcia usunięte',
+        description: 'Galeria oferty została zaktualizowana.',
+      });
+    } catch (error) {
+      showErrorToast({
+        title: 'Nie udało się usunąć zaznaczonych zdjęć',
+        description: getApiErrorMessage(error),
+      });
+    } finally {
+      setIsBulkDeleting(false);
     }
   }
 
@@ -291,112 +351,146 @@ export function ListingImageManager({
           </p>
         </div>
       ) : (
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          {images.map((image, index) => {
-            const isBusy = busyImageId === image.id;
-            const altDraft = altDrafts[image.id] ?? '';
-            const altChanged = altDraft !== (image.altText ?? '');
+        <>
+          <div className="mt-5">
+            <BulkSelectionToolbar
+              allSelected={imageSelection.allSelected}
+              selectedCount={selectedImageCount}
+              totalCount={images.length}
+              disabled={isBulkDeleting}
+              isDeleting={isBulkDeleting}
+              onToggleAll={imageSelection.toggleAll}
+              onClear={imageSelection.clear}
+              onDeleteSelected={handleDeleteSelected}
+            />
+          </div>
 
-            return (
-              <article
-                key={image.id}
-                className="overflow-hidden rounded-xl border border-border bg-card"
-              >
-                <div className="relative aspect-[4/3] bg-muted">
-                  <img
-                    src={image.url}
-                    alt={image.altText || listing.title}
-                    className="h-full w-full object-cover"
-                  />
-                  {image.isPrimary ? (
-                    <Badge className="absolute left-3 top-3" variant="success">
-                      Główne
-                    </Badge>
-                  ) : null}
-                </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {images.map((image, index) => {
+              const isBusy = busyImageId === image.id || isBulkDeleting;
+              const isSelected = imageSelection.selectedIdSet.has(image.id);
+              const altDraft = altDrafts[image.id] ?? '';
+              const altChanged = altDraft !== (image.altText ?? '');
 
-                <div className="space-y-3 p-3">
-                  <div className="grid grid-cols-[1fr_auto] gap-2">
-                    <Input
-                      value={altDraft}
-                      onChange={(event) =>
-                        setAltDrafts((drafts) => ({
-                          ...drafts,
-                          [image.id]: event.target.value,
-                        }))
-                      }
-                      maxLength={255}
-                      placeholder="Opis zdjęcia"
-                      className="h-9 rounded-xl"
+              return (
+                <article
+                  key={image.id}
+                  className={cn(
+                    'overflow-hidden rounded-xl border bg-card transition',
+                    isSelected
+                      ? 'border-primary shadow-sm ring-2 ring-primary/25'
+                      : 'border-border',
+                  )}
+                >
+                  <div className="relative aspect-[4/3] bg-muted">
+                    <img
+                      src={image.url}
+                      alt={image.altText || listing.title}
+                      className="h-full w-full object-cover"
                     />
-                    <Button
-                      type="button"
-                      size="icon-lg"
-                      variant="outline"
-                      aria-label="Zapisz opis zdjęcia"
-                      disabled={isBusy || !altChanged}
-                      onClick={() => handleSaveAltText(image)}
-                      className="rounded-xl"
-                    >
-                      <Save className="h-4 w-4" />
-                    </Button>
+                    <label className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl border border-white/80 bg-background/90 shadow-sm backdrop-blur">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => imageSelection.toggle(image.id)}
+                        disabled={isBulkDeleting}
+                        aria-label="Zaznacz zdjęcie"
+                        className="h-4 w-4 rounded border-border text-primary focus:ring-ring"
+                      />
+                    </label>
+                    {image.isPrimary ? (
+                      <Badge
+                        className="absolute left-3 top-3"
+                        variant="success"
+                      >
+                        Główne
+                      </Badge>
+                    ) : null}
                   </div>
 
-                  <div className="grid grid-cols-5 gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-lg"
-                      aria-label="Przesuń zdjęcie w górę"
-                      disabled={isBusy || index === 0}
-                      onClick={() => handleMove(image.id, -1)}
-                      className="rounded-xl"
-                    >
-                      <ArrowUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-lg"
-                      aria-label="Przesuń zdjęcie w dół"
-                      disabled={isBusy || index === images.length - 1}
-                      onClick={() => handleMove(image.id, 1)}
-                      className="rounded-xl"
-                    >
-                      <ArrowDown className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-lg"
-                      aria-label="Ustaw jako zdjęcie główne"
-                      disabled={isBusy || image.isPrimary}
-                      onClick={() => handleSetPrimary(image)}
-                      className={cn(
-                        'rounded-xl',
-                        image.isPrimary ? 'text-primary' : '',
-                      )}
-                    >
-                      <Star className="h-4 w-4" />
-                    </Button>
-                    <div />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon-lg"
-                      aria-label="Usuń zdjęcie"
-                      disabled={isBusy}
-                      onClick={() => handleDelete(image)}
-                      className="rounded-xl"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <div className="space-y-3 p-3">
+                    <div className="grid grid-cols-[1fr_auto] gap-2">
+                      <Input
+                        value={altDraft}
+                        onChange={(event) =>
+                          setAltDrafts((drafts) => ({
+                            ...drafts,
+                            [image.id]: event.target.value,
+                          }))
+                        }
+                        maxLength={255}
+                        placeholder="Opis zdjęcia"
+                        className="h-9 rounded-xl"
+                      />
+                      <Button
+                        type="button"
+                        size="icon-lg"
+                        variant="outline"
+                        aria-label="Zapisz opis zdjęcia"
+                        disabled={isBusy || !altChanged}
+                        onClick={() => handleSaveAltText(image)}
+                        className="rounded-xl"
+                      >
+                        <Save className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-lg"
+                        aria-label="Przesuń zdjęcie w górę"
+                        disabled={isBusy || index === 0}
+                        onClick={() => handleMove(image.id, -1)}
+                        className="rounded-xl"
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-lg"
+                        aria-label="Przesuń zdjęcie w dół"
+                        disabled={isBusy || index === images.length - 1}
+                        onClick={() => handleMove(image.id, 1)}
+                        className="rounded-xl"
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-lg"
+                        aria-label="Ustaw jako zdjęcie główne"
+                        disabled={isBusy || image.isPrimary}
+                        onClick={() => handleSetPrimary(image)}
+                        className={cn(
+                          'rounded-xl',
+                          image.isPrimary ? 'text-primary' : '',
+                        )}
+                      >
+                        <Star className="h-4 w-4" />
+                      </Button>
+                      <div />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon-lg"
+                        aria-label="Usuń zdjęcie"
+                        disabled={isBusy}
+                        onClick={() => handleDelete(image)}
+                        className="rounded-xl"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                </article>
+              );
+            })}
+          </div>
+        </>
       )}
     </section>
   );

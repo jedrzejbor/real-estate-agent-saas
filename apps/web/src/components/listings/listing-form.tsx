@@ -20,11 +20,13 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { InlineSelect } from '@/components/ui/inline-select';
+import { BulkSelectionToolbar } from '@/components/common/bulk-selection-toolbar';
 import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { DistrictAutocomplete } from '@/components/locations/district-autocomplete';
 import { geocodeListingAddress } from '@/lib/locations';
 import { LimitUpgradeBanner } from '@/components/growth/limit-upgrade-banner';
 import { useToast } from '@/contexts/toast-context';
+import { useBulkSelection } from '@/hooks/use-bulk-selection';
 import { useListingForm } from '@/hooks/use-listing-form';
 import { ListingDescriptionAssistant } from '@/components/listings/listing-description-assistant';
 import { getApiErrorMessage } from '@/lib/api-client';
@@ -329,7 +331,9 @@ export function ListingForm({
     }
   }
 
-  function handleCoordinatePaste(event: React.ClipboardEvent<HTMLInputElement>) {
+  function handleCoordinatePaste(
+    event: React.ClipboardEvent<HTMLInputElement>,
+  ) {
     const parsedCoordinates = parseCoordinatePair(
       event.clipboardData.getData('text'),
     );
@@ -1052,6 +1056,25 @@ function CreateListingImagesSection({
   onSetPrimary: (index: number) => void;
 }) {
   const isAtLimit = imageLimit !== null && files.length >= imageLimit;
+  const fileSelectionIds = React.useMemo(
+    () => files.map((file, index) => getFileSelectionId(file, index)),
+    [files],
+  );
+  const fileSelection = useBulkSelection(fileSelectionIds);
+
+  function removeSelectedFiles() {
+    if (fileSelection.selectedCount === 0) return;
+
+    for (let index = files.length - 1; index >= 0; index -= 1) {
+      if (
+        fileSelection.selectedIdSet.has(getFileSelectionId(files[index], index))
+      ) {
+        onRemove(index);
+      }
+    }
+
+    fileSelection.clear();
+  }
 
   return (
     <FormSection
@@ -1106,64 +1129,101 @@ function CreateListingImagesSection({
         </div>
 
         {files.length > 0 ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {files.map((file, index) => (
-              <div
-                key={`${file.name}-${file.lastModified}-${index}`}
-                className="overflow-hidden rounded-lg border border-border bg-card"
-              >
-                <SelectedListingImagePreview
-                  file={file}
-                  alt={`Podgląd zdjęcia ${index + 1}`}
-                />
-                <div className="grid gap-3 px-3 py-3">
-                  <div className="flex items-start gap-3">
-                    <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="min-w-0 truncate text-sm font-medium text-foreground">
-                          {file.name}
-                        </p>
-                        {index === 0 ? (
-                          <Badge variant="success">Główne</Badge>
-                        ) : null}
+          <div className="mt-4 space-y-4">
+            <BulkSelectionToolbar
+              allSelected={fileSelection.allSelected}
+              selectedCount={fileSelection.selectedCount}
+              totalCount={files.length}
+              onToggleAll={fileSelection.toggleAll}
+              onClear={fileSelection.clear}
+              onDeleteSelected={removeSelectedFiles}
+            />
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {files.map((file, index) => {
+                const fileSelectionId = getFileSelectionId(file, index);
+                const isSelected =
+                  fileSelection.selectedIdSet.has(fileSelectionId);
+
+                return (
+                  <div
+                    key={`${file.name}-${file.lastModified}-${index}`}
+                    className={cn(
+                      'overflow-hidden rounded-lg border bg-card transition',
+                      isSelected
+                        ? 'border-primary shadow-sm ring-2 ring-primary/25'
+                        : 'border-border',
+                    )}
+                  >
+                    <div className="relative">
+                      <SelectedListingImagePreview
+                        file={file}
+                        alt={`Podgląd zdjęcia ${index + 1}`}
+                      />
+                      <label className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl border border-white/80 bg-background/90 shadow-sm backdrop-blur">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => fileSelection.toggle(fileSelectionId)}
+                          aria-label={`Zaznacz ${file.name}`}
+                          className="h-4 w-4 rounded border-border text-primary focus:ring-ring"
+                        />
+                      </label>
+                    </div>
+                    <div className="grid gap-3 px-3 py-3">
+                      <div className="flex items-start gap-3">
+                        <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="min-w-0 truncate text-sm font-medium text-foreground">
+                              {file.name}
+                            </p>
+                            {index === 0 ? (
+                              <Badge variant="success">Główne</Badge>
+                            ) : null}
+                          </div>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {formatFileSize(file.size)}
+                          </p>
+                        </div>
                       </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {formatFileSize(file.size)}
-                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant={index === 0 ? 'secondary' : 'outline'}
+                          size="sm"
+                          disabled={index === 0}
+                          className="min-w-0 flex-1 rounded-xl"
+                          onClick={() => onSetPrimary(index)}
+                        >
+                          <Star className="h-4 w-4" />
+                          {index === 0 ? 'Zdjęcie główne' : 'Ustaw jako główne'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive"
+                          aria-label={`Usuń ${file.name}`}
+                          onClick={() => onRemove(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant={index === 0 ? 'secondary' : 'outline'}
-                      size="sm"
-                      disabled={index === 0}
-                      className="min-w-0 flex-1 rounded-xl"
-                      onClick={() => onSetPrimary(index)}
-                    >
-                      <Star className="h-4 w-4" />
-                      {index === 0 ? 'Zdjęcie główne' : 'Ustaw jako główne'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive"
-                      aria-label={`Usuń ${file.name}`}
-                      onClick={() => onRemove(index)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
         ) : null}
       </div>
     </FormSection>
   );
+}
+
+function getFileSelectionId(file: File, index: number): string {
+  return `${file.name}-${file.size}-${file.lastModified}-${index}`;
 }
 
 function SelectedListingImagePreview({
@@ -1186,7 +1246,11 @@ function SelectedListingImagePreview({
     <div className="relative aspect-[4/3] bg-muted">
       {previewUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={previewUrl} alt={alt} className="h-full w-full object-cover" />
+        <img
+          src={previewUrl}
+          alt={alt}
+          className="h-full w-full object-cover"
+        />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-muted-foreground">
           <ImageIcon className="h-6 w-6" />
