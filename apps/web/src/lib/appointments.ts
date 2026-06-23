@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { apiFetch } from './api-client';
 import { AnalyticsEventName, trackAnalyticsEvent } from './analytics';
+import type { ClientStatus } from './clients';
+import type { ListingStatus, PropertyType, TransactionType } from './listings';
 
 // ── Enums (mirroring backend) ──
 
@@ -66,11 +68,29 @@ export interface AppointmentClient {
   id: string;
   firstName: string;
   lastName: string;
+  email?: string | null;
+  phone?: string | null;
+  status?: ClientStatus;
 }
 
 export interface AppointmentListing {
   id: string;
   title: string;
+  propertyType?: PropertyType;
+  status?: ListingStatus;
+  transactionType?: TransactionType;
+  price?: number | string;
+  currency?: string;
+  areaM2?: number | string | null;
+  rooms?: number | null;
+  address?: AppointmentListingAddress | null;
+}
+
+export interface AppointmentListingAddress {
+  street?: string | null;
+  city?: string | null;
+  district?: string | null;
+  postalCode?: string | null;
 }
 
 export interface Appointment {
