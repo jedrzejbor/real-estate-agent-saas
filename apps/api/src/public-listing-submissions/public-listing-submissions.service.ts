@@ -47,6 +47,11 @@ import {
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { assertSafeImageUpload } from '../common/image-upload-security';
 import {
+  PUBLIC_UPLOAD_CATEGORIES,
+  buildPublicUploadUrl,
+  getLocalPublicUploadDirectory,
+} from '../common/file-storage.config';
+import {
   ClaimPublicListingSubmissionDto,
   CreatePublicListingSubmissionDto,
   RejectPublicListingSubmissionDto,
@@ -701,7 +706,10 @@ export class PublicListingSubmissionsService {
       throw new BadRequestException('Wybierz co najmniej jedno zdjęcie');
     }
 
-    const uploadDir = join(process.cwd(), 'uploads', 'public-submissions');
+    const uploadDir = getLocalPublicUploadDirectory(
+      PUBLIC_UPLOAD_CATEGORIES.PUBLIC_SUBMISSIONS,
+      this.configService,
+    );
     await mkdir(uploadDir, { recursive: true });
 
     const images: PublicListingSubmissionUploadedImage[] = [];
@@ -727,13 +735,11 @@ export class PublicListingSubmissionsService {
   }
 
   private buildUploadPublicUrl(filename: string): string {
-    const configuredBaseUrl =
-      this.configService.get<string>('API_PUBLIC_URL') ||
-      this.configService.get<string>('PUBLIC_API_URL') ||
-      `http://localhost:${this.configService.get('PORT', 4000)}`;
-    const baseUrl = configuredBaseUrl.replace(/\/+$/, '');
-
-    return `${baseUrl}/uploads/public-submissions/${filename}`;
+    return buildPublicUploadUrl(
+      PUBLIC_UPLOAD_CATEGORIES.PUBLIC_SUBMISSIONS,
+      filename,
+      this.configService,
+    );
   }
 
   async resendVerification(

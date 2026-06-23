@@ -6,12 +6,12 @@
 
 ## Wymagania wstępne
 
-| Narzędzie | Wersja | Sprawdzenie |
-|-----------|--------|-------------|
-| **Node.js** | >= 20 | `node -v` |
-| **pnpm** | 9.15.x | `pnpm -v` |
-| **Docker Desktop** | najnowsza | `docker -v` |
-| **pgAdmin 4** | najnowsza | zainstalowany lokalnie |
+| Narzędzie          | Wersja    | Sprawdzenie            |
+| ------------------ | --------- | ---------------------- |
+| **Node.js**        | >= 20     | `node -v`              |
+| **pnpm**           | 9.15.x    | `pnpm -v`              |
+| **Docker Desktop** | najnowsza | `docker -v`            |
+| **pgAdmin 4**      | najnowsza | zainstalowany lokalnie |
 
 > Jeśli nie masz pnpm: `npm install -g pnpm@9`
 
@@ -36,11 +36,11 @@ docker compose up --build
 
 ### 3. Gotowe! Serwisy dostępne pod:
 
-| Serwis | URL |
-|--------|-----|
-| **Frontend (Next.js)** | http://localhost:3000 |
+| Serwis                   | URL                       |
+| ------------------------ | ------------------------- |
+| **Frontend (Next.js)**   | http://localhost:3000     |
 | **Backend API (NestJS)** | http://localhost:4000/api |
-| **PostgreSQL** | `localhost:5432` |
+| **PostgreSQL**           | `localhost:5432`          |
 
 ### 4. Zatrzymanie
 
@@ -87,6 +87,10 @@ DB_NAME=real_estate_saas
 PORT=4000
 FRONTEND_URL=http://localhost:3000
 NODE_ENV=development
+FILE_STORAGE_DRIVER=local
+FILE_STORAGE_LOCAL_PUBLIC_ROOT=uploads
+FILE_STORAGE_LOCAL_PRIVATE_ROOT=private-uploads
+FILE_STORAGE_PUBLIC_BASE_URL=http://localhost:4000
 RELEASE_FLAG_PUBLIC_LISTINGS_ENABLED=false
 RELEASE_FLAG_PUBLIC_LEAD_FORMS_ENABLED=false
 RELEASE_FLAG_PUBLIC_CLAIM_FLOW_ENABLED=false
@@ -122,6 +126,7 @@ pnpm dev
 ```
 
 To odpali równocześnie:
+
 - **web** → Next.js dev server na **http://localhost:3000**
 - **api** → NestJS dev server na **http://localhost:4000**
 
@@ -129,13 +134,13 @@ To odpali równocześnie:
 
 Techniczne feature flags są sterowane po stronie API przez zmienne środowiskowe:
 
-| Zmienna | Domyślna wartość | Rola |
-|--------|------------------|------|
-| `RELEASE_FLAG_PUBLIC_LISTINGS_ENABLED` | `false` | rollout publicznych stron ofert |
-| `RELEASE_FLAG_PUBLIC_LEAD_FORMS_ENABLED` | `false` | rollout formularzy leadowych |
-| `RELEASE_FLAG_PUBLIC_CLAIM_FLOW_ENABLED` | `false` | rollout claim flow dla publicznych ofert |
-| `RELEASE_FLAG_FREEMIUM_UPSELL_ENABLED` | `true` | pokazywanie CTA upsell / premium entry pointów |
-| `RELEASE_FLAG_PREMIUM_REPORTS_ENABLED` | `true` | udostępnianie premium raportów / ich placeholderów |
+| Zmienna                                  | Domyślna wartość | Rola                                               |
+| ---------------------------------------- | ---------------- | -------------------------------------------------- |
+| `RELEASE_FLAG_PUBLIC_LISTINGS_ENABLED`   | `false`          | rollout publicznych stron ofert                    |
+| `RELEASE_FLAG_PUBLIC_LEAD_FORMS_ENABLED` | `false`          | rollout formularzy leadowych                       |
+| `RELEASE_FLAG_PUBLIC_CLAIM_FLOW_ENABLED` | `false`          | rollout claim flow dla publicznych ofert           |
+| `RELEASE_FLAG_FREEMIUM_UPSELL_ENABLED`   | `true`           | pokazywanie CTA upsell / premium entry pointów     |
+| `RELEASE_FLAG_PREMIUM_REPORTS_ENABLED`   | `true`           | udostępnianie premium raportów / ich placeholderów |
 
 Zmiana flag wymaga restartu procesu API.
 
@@ -147,13 +152,13 @@ domyślnie włączony poza środowiskiem `test`.
 
 Konfiguracja opcjonalna:
 
-| Zmienna | Domyślna wartość | Rola |
-|--------|------------------|------|
-| `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_ENABLED` | `true`, poza `NODE_ENV=test` | włącza automatyczną egzekucję zakończonych karencji |
-| `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_HOUR` | `2` | godzina lokalnego czasu procesu API |
-| `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_MINUTE` | `15` | minuta lokalnego czasu procesu API |
-| `PLAN_LIMIT_DOWNGRADE_GRACE_DAYS` | `7` | liczba dni karencji ustawiana po zmianie planu, gdy aktualne użycie przekracza nowy limit ofert |
-| `BILLING_WEBHOOK_SECRET` | brak | sekret HMAC dla `POST /api/billing/webhooks/subscription-events`; bez niego endpoint zwraca kontrolowany błąd 503 |
+| Zmienna                                    | Domyślna wartość             | Rola                                                                                                              |
+| ------------------------------------------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_ENABLED` | `true`, poza `NODE_ENV=test` | włącza automatyczną egzekucję zakończonych karencji                                                               |
+| `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_HOUR`    | `2`                          | godzina lokalnego czasu procesu API                                                                               |
+| `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_MINUTE`  | `15`                         | minuta lokalnego czasu procesu API                                                                                |
+| `PLAN_LIMIT_DOWNGRADE_GRACE_DAYS`          | `7`                          | liczba dni karencji ustawiana po zmianie planu, gdy aktualne użycie przekracza nowy limit ofert                   |
+| `BILLING_WEBHOOK_SECRET`                   | brak                         | sekret HMAC dla `POST /api/billing/webhooks/subscription-events`; bez niego endpoint zwraca kontrolowany błąd 503 |
 
 Ręczne wymuszenie dla supportu/admina pozostaje dostępne przez:
 
@@ -161,7 +166,26 @@ Ręczne wymuszenie dla supportu/admina pozostaje dostępne przez:
 POST /api/admin/agencies/:id/plan/enforce-limits
 ```
 
-### 5c. Geokodowanie adresów ofert
+### 5c. Storage plików lokalnie i beta
+
+API używa lokalnego storage tylko dla developmentu i kontrolowanej bety. Publiczne
+zdjęcia ofert są serwowane przez `/uploads/*`, a dokumenty transakcyjne są
+trzymane pod prywatnym rootem bez publicznego URL-a.
+
+| Zmienna                                  | Domyślna wartość                                                | Rola                                                                                            |
+| ---------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `FILE_STORAGE_DRIVER`                    | `local`                                                         | obecnie wspierany adapter runtime; adapter S3/R2 jest decyzją produkcyjną do osobnej iteracji   |
+| `FILE_STORAGE_LOCAL_PUBLIC_ROOT`         | `uploads`                                                       | lokalny katalog publicznych zdjęć ofert i publicznych submissionów                              |
+| `FILE_STORAGE_LOCAL_PRIVATE_ROOT`        | `private-uploads`                                               | lokalny katalog prywatnych dokumentów ofert                                                     |
+| `FILE_STORAGE_PUBLIC_BASE_URL`           | `API_PUBLIC_URL`, `PUBLIC_API_URL` albo `http://localhost:4000` | baza URL dla publicznych zdjęć zwracanych przez API                                             |
+| `FILE_STORAGE_ALLOW_LOCAL_IN_PRODUCTION` | `false`                                                         | awaryjne, jawne dopuszczenie lokalnego storage w `NODE_ENV=production` tylko dla świadomej bety |
+
+W `NODE_ENV=production` API nie wystartuje na lokalnym storage bez
+`FILE_STORAGE_ALLOW_LOCAL_IN_PRODUCTION=true`. Publiczny launch powinien użyć
+S3-compatible storage, np. Cloudflare R2, z prywatną częścią dla dokumentów i
+CDN/publicznym URL-em dla zdjęć.
+
+### 5d. Geokodowanie adresów ofert
 
 Dokładny punkt mapy w formularzu oferty może zostać ustawiony przez endpoint:
 
@@ -175,13 +199,13 @@ a agent zapisuje ofertę zwykłym formularzem.
 
 Konfiguracja opcjonalna:
 
-| Zmienna | Domyślna wartość | Rola |
-|--------|------------------|------|
-| `GEOCODING_PROVIDER` | brak | obecnie wspierane: `google` |
-| `GEOCODING_API_KEY` | brak | klucz providera, trzymany tylko po stronie API |
-| `GEOCODING_COUNTRY_BIAS` | `PL` | bias kraju dla geokodowania |
-| `GEOCODING_REQUEST_TIMEOUT_MS` | `3500` | timeout requestu do providera |
-| `GEOCODING_CACHE_TTL_DAYS` | `180` | TTL cache wyników geokodowania |
+| Zmienna                        | Domyślna wartość | Rola                                           |
+| ------------------------------ | ---------------- | ---------------------------------------------- |
+| `GEOCODING_PROVIDER`           | brak             | obecnie wspierane: `google`                    |
+| `GEOCODING_API_KEY`            | brak             | klucz providera, trzymany tylko po stronie API |
+| `GEOCODING_COUNTRY_BIAS`       | `PL`             | bias kraju dla geokodowania                    |
+| `GEOCODING_REQUEST_TIMEOUT_MS` | `3500`           | timeout requestu do providera                  |
+| `GEOCODING_CACHE_TTL_DAYS`     | `180`            | TTL cache wyników geokodowania                 |
 
 Jeśli `GEOCODING_PROVIDER` albo `GEOCODING_API_KEY` nie są ustawione, API
 zwróci `503 Geocoding is not configured`. To jest oczekiwane zachowanie w
@@ -192,6 +216,7 @@ analitycznych. Monitoring geokodowania zapisuje tylko metadane, np. provider,
 czy był kod pocztowy, precyzję i confidence wyniku.
 
 > Alternatywnie, możesz uruchomić je osobno w dwóch terminalach:
+>
 > ```bash
 > # Terminal 1 — Backend
 > pnpm turbo dev --filter=api
@@ -212,24 +237,25 @@ Kliknij prawym przyciskiem na **Servers** → **Register** → **Server...**
 
 ### 3. Zakładka „General"
 
-| Pole | Wartość |
-|------|---------|
+| Pole     | Wartość            |
+| -------- | ------------------ |
 | **Name** | `EstateFlow Local` |
 
 ### 4. Zakładka „Connection"
 
-| Pole | Wartość |
-|------|---------|
-| **Host name/address** | `localhost` |
-| **Port** | `5432` |
+| Pole                     | Wartość            |
+| ------------------------ | ------------------ |
+| **Host name/address**    | `localhost`        |
+| **Port**                 | `5432`             |
 | **Maintenance database** | `real_estate_saas` |
-| **Username** | `postgres` |
-| **Password** | `postgres` |
-| **Save password?** | ✅ Tak |
+| **Username**             | `postgres`         |
+| **Password**             | `postgres`         |
+| **Save password?**       | ✅ Tak             |
 
 ### 5. Kliknij **Save**
 
 Powinieneś zobaczyć:
+
 - **Servers** → **EstateFlow Local** → **Databases** → **real_estate_saas**
 
 > **Uwaga:** TypeORM z opcją `synchronize: true` (w trybie dev) automatycznie tworzy tabele na podstawie entity. Na razie baza będzie pusta — tabele pojawią się gdy zostaną zaimplementowane entity (User, Listing itd.).
@@ -264,18 +290,18 @@ Powinno zwrócić wersję PostgreSQL 16.x.
 
 ## Porty i dane dostępowe — podsumowanie
 
-| Serwis | Host | Port | Uwagi |
-|--------|------|------|-------|
-| **Frontend** | localhost | 3000 | Next.js 16 + Turbopack |
+| Serwis          | Host      | Port | Uwagi                    |
+| --------------- | --------- | ---- | ------------------------ |
+| **Frontend**    | localhost | 3000 | Next.js 16 + Turbopack   |
 | **Backend API** | localhost | 4000 | NestJS 11, prefix `/api` |
-| **PostgreSQL** | localhost | 5432 | DB: `real_estate_saas` |
-| **pgAdmin 4** | localhost | — | Aplikacja desktopowa |
+| **PostgreSQL**  | localhost | 5432 | DB: `real_estate_saas`   |
+| **pgAdmin 4**   | localhost | —    | Aplikacja desktopowa     |
 
-| Zmienna | Wartość |
-|---------|---------|
-| `DB_USERNAME` | `postgres` |
-| `DB_PASSWORD` | `postgres` |
-| `DB_NAME` | `real_estate_saas` |
+| Zmienna       | Wartość            |
+| ------------- | ------------------ |
+| `DB_USERNAME` | `postgres`         |
+| `DB_PASSWORD` | `postgres`         |
+| `DB_NAME`     | `real_estate_saas` |
 
 ---
 
@@ -322,14 +348,14 @@ Sprawdź czy plik `apps/api/.env.local` istnieje i zawiera poprawne dane. Porów
 
 ## Przydatne komendy
 
-| Komenda | Opis |
-|---------|------|
-| `pnpm dev` | Uruchom wszystkie serwisy (frontend + backend) |
-| `pnpm build` | Build produkcyjny |
-| `pnpm lint` | Linting we wszystkich pakietach |
-| `pnpm turbo dev --filter=api` | Tylko backend |
-| `pnpm turbo dev --filter=web` | Tylko frontend |
-| `docker compose up --build` | Pełne środowisko w Dockerze |
-| `docker compose down -v` | Reset środowiska (z danymi) |
-| `docker compose logs -f api` | Logi backendu (Docker) |
-| `docker compose logs -f db` | Logi bazy danych (Docker) |
+| Komenda                       | Opis                                           |
+| ----------------------------- | ---------------------------------------------- |
+| `pnpm dev`                    | Uruchom wszystkie serwisy (frontend + backend) |
+| `pnpm build`                  | Build produkcyjny                              |
+| `pnpm lint`                   | Linting we wszystkich pakietach                |
+| `pnpm turbo dev --filter=api` | Tylko backend                                  |
+| `pnpm turbo dev --filter=web` | Tylko frontend                                 |
+| `docker compose up --build`   | Pełne środowisko w Dockerze                    |
+| `docker compose down -v`      | Reset środowiska (z danymi)                    |
+| `docker compose logs -f api`  | Logi backendu (Docker)                         |
+| `docker compose logs -f db`   | Logi bazy danych (Docker)                      |

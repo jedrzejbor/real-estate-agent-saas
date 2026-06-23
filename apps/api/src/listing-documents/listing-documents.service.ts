@@ -15,6 +15,7 @@ import {
   getDocumentExtension,
   type DocumentUploadFile,
 } from '../common/document-upload-security';
+import { getLocalPrivateStorageRoot } from '../common/file-storage.config';
 import {
   ListingDocumentCategory,
   ListingDocumentEventType,
@@ -109,11 +110,8 @@ export interface ListingDocumentAttentionSummary {
 
 @Injectable()
 export class ListingDocumentsService {
-  private readonly storageRoot = resolve(
-    process.cwd(),
-    'private-uploads',
-    'listing-documents',
-  );
+  private readonly storageRoot =
+    getLocalPrivateStorageRoot('listing-documents');
 
   constructor(
     @InjectRepository(ListingDocument)

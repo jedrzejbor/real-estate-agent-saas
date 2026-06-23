@@ -34,6 +34,11 @@ import {
 import { FeatureAccessDeniedException } from '../common/exceptions/feature-access-denied.exception';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { assertSafeImageUpload } from '../common/image-upload-security';
+import {
+  PUBLIC_UPLOAD_CATEGORIES,
+  buildPublicUploadUrl,
+  getLocalPublicUploadDirectory,
+} from '../common/file-storage.config';
 import { assertPublicListingModerationPassed } from '../common/public-listing-moderation';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingImageDto } from './dto/listing-image.dto';
@@ -2232,19 +2237,20 @@ export class ListingsService {
   }
 
   private buildUploadPublicUrl(filename: string): string {
-    const configuredBaseUrl =
-      this.configService.get<string>('API_PUBLIC_URL') ||
-      this.configService.get<string>('PUBLIC_API_URL') ||
-      `http://localhost:${this.configService.get('PORT', 4000)}`;
-    const baseUrl = configuredBaseUrl.replace(/\/+$/, '');
-
-    return `${baseUrl}/uploads/listings/${filename}`;
+    return buildPublicUploadUrl(
+      PUBLIC_UPLOAD_CATEGORIES.LISTINGS,
+      filename,
+      this.configService,
+    );
   }
 
   private async persistUploadedImages(
     files: UploadedListingImageFile[],
   ): Promise<Array<{ filename: string; url: string }>> {
-    const uploadDir = join(process.cwd(), 'uploads', 'listings');
+    const uploadDir = getLocalPublicUploadDirectory(
+      PUBLIC_UPLOAD_CATEGORIES.LISTINGS,
+      this.configService,
+    );
     await mkdir(uploadDir, { recursive: true });
 
     const savedFiles: Array<{ filename: string; url: string }> = [];
@@ -2281,13 +2287,24 @@ export class ListingsService {
       return;
     }
 
-    const relativePath = pathname.replace(/^\/uploads\//, '');
+    const filename = pathname.replace(/^\/uploads\/listings\//, '');
+    if (filename.includes('/') || filename.includes('\\')) {
+      return;
+    }
 
     try {
-      await unlink(join(process.cwd(), 'uploads', relativePath));
+      await unlink(
+        join(
+          getLocalPublicUploadDirectory(
+            PUBLIC_UPLOAD_CATEGORIES.LISTINGS,
+            this.configService,
+          ),
+          filename,
+        ),
+      );
     } catch (error) {
       this.logger.warn(
-        `Could not remove listing image file ${relativePath}: ${
+        `Could not remove listing image file listings/${filename}: ${
           error instanceof Error ? error.message : 'unknown error'
         }`,
       );

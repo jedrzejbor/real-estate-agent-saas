@@ -71,6 +71,43 @@ iterację.
 Pozostały znany warning builda Next 16: konwencja `middleware` jest deprecated
 na rzecz `proxy`. To jest punkt P1 z tego dokumentu, nie blocker P0.
 
+## Status wykonania P1 - 2026-06-23
+
+Rozpoczęto P1 od najważniejszego ryzyka produkcyjnego: storage plików.
+Zakres tej iteracji obejmuje decyzję release'ową, centralizację konfiguracji i
+fail-fast guardy. Pełny adapter S3/R2 oraz migracja istniejących plików powinny
+być osobną iteracją implementacyjną.
+
+### Co zostało zrobione
+
+1. Storage zdjęć i dokumentów:
+   - Dodano centralny kontrakt konfiguracji storage w
+     `apps/api/src/common/file-storage.config.ts`.
+   - Publiczne uploady zdjęć ofert i publicznych submissionów korzystają teraz
+     z jednego helpera do katalogów lokalnych i publicznych URL-i.
+   - Prywatne dokumenty ofert korzystają ze wspólnego rootu prywatnego
+     `FILE_STORAGE_LOCAL_PRIVATE_ROOT`, bez publicznego URL-a.
+   - `apps/api/src/main.ts` rejestruje `/uploads/*` przez wspólny helper zamiast
+     ręcznie tworzyć katalog.
+   - W `NODE_ENV=production` lokalny storage jest blokowany domyślnie. Można go
+     dopuścić tylko jawnie przez `FILE_STORAGE_ALLOW_LOCAL_IN_PRODUCTION=true`
+     dla kontrolowanej bety.
+   - Driver inny niż `local`, np. `STORAGE_DRIVER=s3`, celowo failuje z jasnym
+     błędem, dopóki adapter obiektowy nie zostanie zaimplementowany.
+   - Dodano testy jednostkowe konfiguracji storage, w tym blokadę produkcyjną,
+     walidację segmentów ścieżek i rejestrację statycznych assetów.
+   - Zaktualizowano `docs/LOCAL_SETUP.md` o zmienne storage i produkcyjne
+     ograniczenia lokalnego `/uploads`.
+
+### Weryfikacja po P1 storage
+
+| Komenda                                                 | Wynik | Uwagi                                                  |
+| ------------------------------------------------------- | ----- | ------------------------------------------------------ |
+| `pnpm --filter api test -- file-storage.config.spec.ts` | OK    | Testy konfiguracji storage przechodzą.                 |
+| `pnpm --filter api lint`                                | OK    | ESLint API przechodzi po zmianach storage.             |
+| `pnpm --filter api type-check`                          | OK    | TypeScript API przechodzi po zmianach storage.         |
+| `pnpm --filter api test`                                | OK    | 34 suites, 169 testów; logi schedulerów są oczekiwane. |
+
 ## Krytyczne / release blockers
 
 ### 1. Web lint jest czerwony
@@ -251,7 +288,7 @@ Rekomendacja:
 
 ### P1 - przed publicznym launch/beta z realnymi użytkownikami
 
-1. Ustalić produkcyjny storage dla zdjęć i dokumentów.
+1. [x] Ustalić produkcyjny storage dla zdjęć i dokumentów.
 2. Dodać Playwright smoke suite dla najważniejszych przepływów.
 3. Dodać monitoring/alerty dla billing, limit enforcement, uploadów i auth.
 4. Uporządkować middleware/proxy w Next 16.
