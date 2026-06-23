@@ -23,10 +23,11 @@ import { cn } from '@/lib/utils';
 interface ClientFormProps {
   /** Pass existing client for edit mode, omit for create mode. */
   client?: Client;
+  initialValues?: Partial<CreateClientFormData>;
 }
 
 /** Form for creating or editing a client with preferences. */
-export function ClientForm({ client }: ClientFormProps) {
+export function ClientForm({ client, initialValues }: ClientFormProps) {
   const router = useRouter();
   const { user } = useAuth();
   const isEdit = !!client;
@@ -83,7 +84,7 @@ export function ClientForm({ client }: ClientFormProps) {
           >
             <Input
               name="firstName"
-              defaultValue={client?.firstName}
+              defaultValue={client?.firstName ?? initialValues?.firstName}
               placeholder="np. Anna"
               className="h-10 rounded-xl"
               aria-invalid={!!getFieldError('firstName')}
@@ -98,7 +99,7 @@ export function ClientForm({ client }: ClientFormProps) {
           >
             <Input
               name="lastName"
-              defaultValue={client?.lastName}
+              defaultValue={client?.lastName ?? initialValues?.lastName}
               placeholder="np. Kowalska"
               className="h-10 rounded-xl"
               aria-invalid={!!getFieldError('lastName')}
@@ -109,7 +110,7 @@ export function ClientForm({ client }: ClientFormProps) {
             <Input
               name="email"
               type="email"
-              defaultValue={client?.email ?? ''}
+              defaultValue={client?.email ?? initialValues?.email ?? ''}
               placeholder="np. anna@example.com"
               className="h-10 rounded-xl"
             />
@@ -123,7 +124,7 @@ export function ClientForm({ client }: ClientFormProps) {
             <Input
               name="phone"
               type="tel"
-              defaultValue={client?.phone ?? ''}
+              defaultValue={client?.phone ?? initialValues?.phone ?? ''}
               placeholder="np. +48 600 123 456"
               className="h-10 rounded-xl"
             />
@@ -136,7 +137,7 @@ export function ClientForm({ client }: ClientFormProps) {
           >
             <FormSelect
               name="source"
-              defaultValue={client?.source}
+              defaultValue={client?.source ?? initialValues?.source}
               placeholder="Wybierz źródło"
               options={Object.entries(CLIENT_SOURCE_LABELS).map(
                 ([value, label]) => ({ value, label }),
@@ -193,7 +194,7 @@ export function ClientForm({ client }: ClientFormProps) {
           >
             <textarea
               name="notes"
-              defaultValue={client?.notes ?? ''}
+              defaultValue={client?.notes ?? initialValues?.notes ?? ''}
               rows={3}
               placeholder="Dodatkowe informacje o kliencie..."
               className={cn(

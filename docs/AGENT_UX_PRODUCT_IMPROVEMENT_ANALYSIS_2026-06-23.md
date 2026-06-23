@@ -391,6 +391,15 @@ Status etapu 1, 2026-06-23:
   robione etapowo w sprintach UX-1 i kolejnych, żeby nie zwiększać niepotrzebnie
   ryzyka regresji.
 
+Status etapu 2, 2026-06-24:
+
+- UX-0 uznajemy za domknięty dla obecnego zakresu, ponieważ wspólne komponenty i
+  helpery istnieją, są używane w realnych widokach i spełniają kryteria
+  akceptacji,
+- kolejne użycia komponentów wspólnych powinny być realizowane w sprintach
+  funkcjonalnych, głównie UX-1, zamiast rozbudowywać fundament bez konkretnego
+  przypadku użycia.
+
 ### Sprint UX-1: Quick wins w istniejących widokach
 
 Cel:
@@ -479,6 +488,23 @@ Status etapu 1, 2026-06-23:
   szerokościach,
 - nie rozszerzano jeszcze endpointów szczegółów o pełne listy relacji; to
   zostaje na kolejny etap UX-1, razem z widokiem zapytań i testami backendu.
+
+Status etapu 2, 2026-06-24:
+
+- ujednolicono kartę zapytania publicznego z komponentami `ContactAction` i
+  `RelationCard`,
+- email i telefon w zapytaniu są klikalne oraz możliwe do skopiowania,
+- dodano jasny link do oferty powiązanej z zapytaniem w CRM,
+- dla zapytań już przekonwertowanych do klienta dodano szybkie CTA
+  "Spotkanie", które otwiera formularz spotkania z przypisanym klientem i
+  ofertą,
+- dla zapytań bez klienta CRM dodano CTA "Utwórz klienta", które otwiera
+  formularz klienta z uzupełnionym imieniem, nazwiskiem, emailem, telefonem i
+  notatką z treści zapytania,
+- dodano obsługę prefill formularza nowego klienta z parametrów URL,
+- backend nie był zmieniany w tym etapie, ponieważ lista zapytań już zwraca
+  powiązaną ofertę i klienta po konwersji; pełne listy relacji klient/oferta
+  nadal zostają na osobną iterację UX-1.
 
 ### Sprint UX-2: Widok "Dzisiaj"
 

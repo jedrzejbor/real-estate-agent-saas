@@ -1,10 +1,21 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { ClientForm } from '@/components/clients/client-form';
+import type { CreateClientFormData } from '@/lib/clients';
 
 export default function NewClientPage() {
+  const searchParams = useSearchParams();
+  const initialValues: Partial<CreateClientFormData> = {
+    firstName: searchParams.get('firstName') ?? undefined,
+    lastName: searchParams.get('lastName') ?? undefined,
+    email: searchParams.get('email') ?? undefined,
+    phone: searchParams.get('phone') ?? undefined,
+    notes: searchParams.get('notes') ?? undefined,
+  };
+
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
@@ -27,7 +38,7 @@ export default function NewClientPage() {
       </div>
 
       {/* Form */}
-      <ClientForm />
+      <ClientForm initialValues={initialValues} />
     </div>
   );
 }

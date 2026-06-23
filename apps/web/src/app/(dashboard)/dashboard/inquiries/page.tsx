@@ -4,17 +4,22 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
+  CalendarPlus,
   ExternalLink,
   ImageIcon,
   Inbox,
+  Mail,
   MessageSquareText,
+  Phone,
   RefreshCw,
   Search,
+  UserPlus,
   UserRound,
   X,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ContactAction, RelationCard } from '@/components/common';
 import { InlineSelect } from '@/components/ui/inline-select';
 import { Input } from '@/components/ui/input';
 import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
@@ -30,6 +35,11 @@ import {
   type PublicLeadSource,
   type PublicLeadStatus,
 } from '@/lib/public-inquiries';
+import { buildPhoneHref } from '@/lib/contact-links';
+import {
+  buildNewAppointmentUrl,
+  buildNewClientUrl,
+} from '@/lib/dashboard-links';
 import { fetchListings, type Listing } from '@/lib/listings';
 
 const DEFAULT_FILTERS: PublicInquiryFilters = {
@@ -222,6 +232,21 @@ function PublicInquiryFiltersBar({
 function PublicInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
   const statusVariant = PUBLIC_LEAD_STATUS_BADGE_VARIANT[inquiry.status];
   const primaryImage = inquiry.listing?.primaryImage;
+  const convertedClientName = inquiry.convertedClient
+    ? `${inquiry.convertedClient.firstName} ${inquiry.convertedClient.lastName}`.trim()
+    : null;
+  const newClientUrl = buildNewClientUrl({
+    fullName: inquiry.fullName,
+    email: inquiry.email,
+    phone: inquiry.phone,
+    notes: buildInquiryClientNotes(inquiry),
+  });
+  const appointmentUrl = buildNewAppointmentUrl({
+    clientId: inquiry.convertedClient?.id,
+    clientLabel: convertedClientName ?? undefined,
+    listingId: inquiry.listing?.id,
+    listingLabel: inquiry.listing?.title,
+  });
 
   return (
     <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -279,17 +304,70 @@ function PublicInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
               </p>
             )}
 
-            <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-              <span>{inquiry.email ?? 'Brak emaila'}</span>
-              <span>{inquiry.phone ?? 'Brak telefonu'}</span>
-              {inquiry.marketingConsent ? (
-                <span>Zgoda marketingowa</span>
-              ) : null}
+            <div className="grid gap-3 md:grid-cols-2">
+              <ContactAction
+                icon={Mail}
+                label="Email"
+                value={inquiry.email}
+                href={inquiry.email ? `mailto:${inquiry.email}` : undefined}
+              />
+              <ContactAction
+                icon={Phone}
+                label="Telefon"
+                value={inquiry.phone}
+                href={inquiry.phone ? buildPhoneHref(inquiry.phone) : undefined}
+              />
             </div>
+
+            <div className="grid gap-3 xl:grid-cols-2">
+              {inquiry.listing ? (
+                <RelationCard
+                  href={`/dashboard/listings/${inquiry.listing.id}`}
+                  title={inquiry.listing.title}
+                  description="Oferta powiązana z zapytaniem"
+                />
+              ) : null}
+
+              {inquiry.convertedClient ? (
+                <RelationCard
+                  href={`/dashboard/clients/${inquiry.convertedClient.id}`}
+                  title={convertedClientName || 'Klient CRM'}
+                  description="Klient utworzony z tego zapytania"
+                />
+              ) : (
+                <RelationCard
+                  href={newClientUrl}
+                  title="Utwórz klienta z zapytania"
+                  description="Dane kontaktowe i notatka zostaną wstępnie uzupełnione."
+                />
+              )}
+            </div>
+
+            {inquiry.marketingConsent ? (
+              <p className="text-xs text-muted-foreground">
+                Klient wyraził zgodę marketingową.
+              </p>
+            ) : null}
           </div>
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
+          {inquiry.convertedClient ? (
+            <Link href={appointmentUrl}>
+              <Button variant="outline" size="sm" className="gap-2">
+                <CalendarPlus className="h-4 w-4" />
+                Spotkanie
+              </Button>
+            </Link>
+          ) : (
+            <Link href={newClientUrl}>
+              <Button variant="outline" size="sm" className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                Utwórz klienta
+              </Button>
+            </Link>
+          )}
+
           {inquiry.convertedClient ? (
             <Link href={`/dashboard/clients/${inquiry.convertedClient.id}`}>
               <Button variant="outline" size="sm" className="gap-2">
@@ -314,6 +392,22 @@ function PublicInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
       </div>
     </article>
   );
+}
+
+function buildInquiryClientNotes(inquiry: PublicInquiry): string {
+  const parts = [
+    `Źródło: zapytanie publiczne (${PUBLIC_LEAD_SOURCE_LABELS[inquiry.source]}).`,
+    inquiry.listing ? `Oferta: ${inquiry.listing.title}.` : null,
+    inquiry.message ? `Wiadomość: ${inquiry.message}` : null,
+    inquiry.utmCampaign ? `Kampania UTM: ${inquiry.utmCampaign}.` : null,
+  ].filter(Boolean);
+
+  return truncateNote(parts.join('\n'), 900);
+}
+
+function truncateNote(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 1).trim()}…`;
 }
 
 function EmptyState({ hasFilters }: { hasFilters: boolean }) {
