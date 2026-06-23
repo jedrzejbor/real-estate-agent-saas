@@ -32,6 +32,9 @@ import { cn } from '@/lib/utils';
 interface AppointmentFormProps {
   /** Pass existing appointment for edit mode. */
   appointment?: Appointment;
+  initialClientOption?: SelectOption;
+  initialListingOption?: SelectOption;
+  initialLocation?: string;
 }
 
 /** Format a date string to datetime-local input value. */
@@ -48,7 +51,12 @@ function getCalendarRedirectUrl(dateStr: string): string {
   return `/dashboard/calendar?year=${date.getFullYear()}&month=${date.getMonth() + 1}`;
 }
 
-export function AppointmentForm({ appointment }: AppointmentFormProps) {
+export function AppointmentForm({
+  appointment,
+  initialClientOption,
+  initialListingOption,
+  initialLocation,
+}: AppointmentFormProps) {
   const router = useRouter();
   const { user } = useAuth();
   const { success } = useToast();
@@ -209,7 +217,7 @@ export function AppointmentForm({ appointment }: AppointmentFormProps) {
           >
             <Input
               name="location"
-              defaultValue={appointment?.location ?? ''}
+              defaultValue={appointment?.location ?? initialLocation ?? ''}
               placeholder="np. ul. Marszałkowska 10, Warszawa"
               className="h-10 rounded-xl"
             />
@@ -272,7 +280,7 @@ export function AppointmentForm({ appointment }: AppointmentFormProps) {
                         ? `${appointment.client.firstName} ${appointment.client.lastName}`
                         : appointment.clientId,
                     }
-                  : undefined
+                  : initialClientOption
               }
               error={getFieldError('clientId')}
             />
@@ -294,7 +302,7 @@ export function AppointmentForm({ appointment }: AppointmentFormProps) {
                       label:
                         appointment.listing?.title ?? appointment.listingId,
                     }
-                  : undefined
+                  : initialListingOption
               }
               error={getFieldError('listingId')}
             />

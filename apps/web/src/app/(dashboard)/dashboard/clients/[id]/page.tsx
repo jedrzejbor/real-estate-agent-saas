@@ -11,9 +11,16 @@ import {
   Phone,
   Calendar,
   Wallet,
+  Info,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  ActionEmptyState,
+  ContactAction,
+  DetailCard,
+  RelationCard,
+} from '@/components/common';
 import { ActivityHistoryCard } from '@/components/activity/activity-history-card';
 import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
@@ -26,6 +33,9 @@ import {
   fetchClientHistory,
   getRollbackStatusChange,
 } from '@/lib/activity';
+import { buildPhoneHref } from '@/lib/contact-links';
+import { buildNewAppointmentUrl } from '@/lib/dashboard-links';
+import { formatDisplayDateNumeric } from '@/lib/date-format';
 import {
   fetchClient,
   deleteClient,
@@ -68,9 +78,7 @@ export default function ClientDetailPage() {
     fetchClient(params.id)
       .then(setClient)
       .catch((err) =>
-        setError(
-          err instanceof Error ? err.message : 'Nie znaleziono klienta',
-        ),
+        setError(err instanceof Error ? err.message : 'Nie znaleziono klienta'),
       )
       .finally(() => setIsLoading(false));
   }, [params.id]);
@@ -127,7 +135,11 @@ export default function ClientDetailPage() {
   );
 
   const handleStatusRollback = useCallback(async () => {
-    if (!client || !rollbackChange || typeof rollbackChange.oldValue !== 'string') {
+    if (
+      !client ||
+      !rollbackChange ||
+      typeof rollbackChange.oldValue !== 'string'
+    ) {
       return;
     }
 
@@ -197,6 +209,10 @@ export default function ClientDetailPage() {
 
   const budgetRange = formatBudgetRange(client.budgetMin, client.budgetMax);
   const statusActions = getClientStatusActions(client.status);
+  const scheduleAppointmentUrl = buildNewAppointmentUrl({
+    clientId: client.id,
+    clientLabel: clientFullName(client),
+  });
 
   return (
     <div className="space-y-6">
@@ -228,37 +244,21 @@ export default function ClientDetailPage() {
               </Badge>
             </div>
 
-            {/* Contact row */}
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-              {client.email && (
-                <a
-                  href={`mailto:${client.email}`}
-                  className="flex items-center gap-1.5 hover:text-foreground transition-colors"
-                >
-                  <Mail className="h-4 w-4" />
-                  {client.email}
-                </a>
-              )}
-              {client.phone && (
-                <a
-                  href={`tel:${client.phone}`}
-                  className="flex items-center gap-1.5 hover:text-foreground transition-colors"
-                >
-                  <Phone className="h-4 w-4" />
-                  {client.phone}
-                </a>
-              )}
-            </div>
+            <p className="text-sm text-muted-foreground">
+              Kontakt, preferencje i aktywność klienta w jednym miejscu.
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={scheduleAppointmentUrl}>
+            <Button variant="outline" size="sm" className="gap-1.5 rounded-xl">
+              <Calendar className="h-3.5 w-3.5" />
+              Spotkanie
+            </Button>
+          </Link>
           <Link href={`/dashboard/clients/${client.id}/edit`}>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 rounded-xl"
-            >
+            <Button variant="outline" size="sm" className="gap-1.5 rounded-xl">
               <Pencil className="h-3.5 w-3.5" />
               Edytuj
             </Button>
@@ -280,60 +280,112 @@ export default function ClientDetailPage() {
         {/* Left column — details & notes */}
         <div className="space-y-6 lg:col-span-2">
           {/* Budget card */}
-          {budgetRange !== '—' && (
-            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Wallet className="h-4 w-4" />
-                Budżet
-              </div>
-              <p className="mt-1 font-heading text-2xl font-bold text-primary">
+          <DetailCard title="Budżet" icon={Wallet}>
+            {budgetRange !== '—' ? (
+              <p className="font-heading text-2xl font-bold text-primary">
                 {budgetRange}
               </p>
-            </div>
-          )}
+            ) : (
+              <ActionEmptyState
+                action={
+                  <Link href={`/dashboard/clients/${client.id}/edit`}>
+                    <Button variant="outline" size="sm" className="rounded-xl">
+                      Uzupełnij budżet
+                    </Button>
+                  </Link>
+                }
+              >
+                Budżet klienta nie został jeszcze uzupełniony.
+              </ActionEmptyState>
+            )}
+          </DetailCard>
 
           {/* General notes */}
-          {client.notes && (
-            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-              <h2 className="font-heading text-base font-semibold text-foreground">
-                Informacje dodatkowe
-              </h2>
+          <DetailCard title="Informacje dodatkowe" icon={Info}>
+            {client.notes ? (
               <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
                 {client.notes}
               </p>
-            </div>
-          )}
+            ) : (
+              <ActionEmptyState
+                action={
+                  <Link href={`/dashboard/clients/${client.id}/edit`}>
+                    <Button variant="outline" size="sm" className="rounded-xl">
+                      Dodaj informacje
+                    </Button>
+                  </Link>
+                }
+              >
+                Brak dodatkowych informacji o kliencie.
+              </ActionEmptyState>
+            )}
+          </DetailCard>
 
           {/* Preferences */}
           <ClientPreferencesCard preference={client.preference} />
 
           {/* Notes timeline */}
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-            <ClientNotes clientId={client.id} onHistoryChanged={refreshHistory} />
+            <ClientNotes
+              clientId={client.id}
+              onHistoryChanged={refreshHistory}
+            />
           </div>
         </div>
 
         {/* Right column — sidebar */}
         <div className="space-y-6">
+          <DetailCard title="Kontakt" icon={Mail}>
+            <div className="grid gap-3">
+              <ContactAction
+                icon={Mail}
+                label="Email"
+                value={client.email}
+                href={client.email ? `mailto:${client.email}` : undefined}
+              />
+              <ContactAction
+                icon={Phone}
+                label="Telefon"
+                value={client.phone}
+                href={client.phone ? buildPhoneHref(client.phone) : undefined}
+              />
+            </div>
+          </DetailCard>
+
+          <DetailCard title="Powiązania" icon={Calendar}>
+            <div className="space-y-3">
+              <RelationCard
+                href={scheduleAppointmentUrl}
+                title="Zaplanuj spotkanie z klientem"
+                description="Formularz spotkania otworzy się z przypisanym klientem."
+              />
+              <ActionEmptyState>
+                Powiązane oferty i historia spotkań pojawią się tutaj po
+                dopisaniu pierwszej aktywności dla klienta.
+              </ActionEmptyState>
+            </div>
+          </DetailCard>
+
           {/* Status management */}
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <h2 className="font-heading text-base font-semibold text-foreground">
               Zarządzanie statusem
             </h2>
             <div className="mt-4 space-y-2">
-              {rollbackChange && typeof rollbackChange.oldValue === 'string' && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="w-full justify-start gap-2 rounded-xl"
-                  onClick={handleStatusRollback}
-                  disabled={isRollingBackStatus}
-                >
-                  {isRollingBackStatus
-                    ? 'Cofanie statusu...'
-                    : `Cofnij do: ${CLIENT_STATUS_LABELS[rollbackChange.oldValue as ClientStatus]}`}
-                </Button>
-              )}
+              {rollbackChange &&
+                typeof rollbackChange.oldValue === 'string' && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full justify-start gap-2 rounded-xl"
+                    onClick={handleStatusRollback}
+                    disabled={isRollingBackStatus}
+                  >
+                    {isRollingBackStatus
+                      ? 'Cofanie statusu...'
+                      : `Cofnij do: ${CLIENT_STATUS_LABELS[rollbackChange.oldValue as ClientStatus]}`}
+                  </Button>
+                )}
               {statusActions.map((action) => (
                 <Button
                   key={action.status}
@@ -374,13 +426,13 @@ export default function ClientDetailPage() {
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Utworzono</dt>
                 <dd className="text-foreground">
-                  {new Date(client.createdAt).toLocaleDateString('pl-PL')}
+                  {formatDisplayDateNumeric(client.createdAt)}
                 </dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Ostatnia zmiana</dt>
                 <dd className="text-foreground">
-                  {new Date(client.updatedAt).toLocaleDateString('pl-PL')}
+                  {formatDisplayDateNumeric(client.updatedAt)}
                 </dd>
               </div>
             </dl>

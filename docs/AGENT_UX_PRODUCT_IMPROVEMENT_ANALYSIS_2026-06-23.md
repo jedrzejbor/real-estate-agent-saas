@@ -462,6 +462,24 @@ Kolejność implementacji:
 3. Oferta.
 4. Zapytanie.
 
+Status etapu 1, 2026-06-23:
+
+- wykorzystano komponenty z UX-0 w widoku szczegółów klienta,
+- dodano kartę kontaktu klienta z klikalnym `mailto`, `tel` oraz kopiowaniem
+  wartości do schowka,
+- dodano szybkie CTA "Spotkanie" z widoku klienta, które otwiera formularz
+  spotkania z przypisanym klientem,
+- dodano obsługę prefill `clientId`, `listingId`, etykiet i lokalizacji w
+  formularzu nowego spotkania,
+- ujednolicono format dat w metadanych klienta i oferty do `DD-MM-YYYY`,
+- dodano klikalny adres oferty prowadzący do Google Maps,
+- dodano szybkie CTA "Spotkanie" z widoku oferty, które otwiera formularz
+  spotkania z przypisaną ofertą i lokalizacją,
+- poprawiono zawijanie akcji w nagłówkach klienta i oferty na mniejszych
+  szerokościach,
+- nie rozszerzano jeszcze endpointów szczegółów o pełne listy relacji; to
+  zostaje na kolejny etap UX-1, razem z widokiem zapytań i testami backendu.
+
 ### Sprint UX-2: Widok "Dzisiaj"
 
 Cel:

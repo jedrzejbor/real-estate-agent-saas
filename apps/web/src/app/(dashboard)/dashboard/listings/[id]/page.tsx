@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { AddressLink } from '@/components/common';
 import { ActivityHistoryCard } from '@/components/activity/activity-history-card';
 import { ListingDocumentsPanel } from '@/components/listings/listing-documents-panel';
 import { ListingPublicationPanel } from '@/components/listings/listing-publication-panel';
@@ -36,6 +37,8 @@ import {
   getRollbackStatusChange,
   LISTING_HISTORY_FIELD_LABELS,
 } from '@/lib/activity';
+import { buildNewAppointmentUrl } from '@/lib/dashboard-links';
+import { formatDisplayDateNumeric } from '@/lib/date-format';
 import {
   fetchListing,
   deleteListing,
@@ -238,12 +241,7 @@ export default function ListingDetailPage() {
   }
 
   const { address } = listing;
-  const locationParts = [
-    address?.street,
-    address?.district,
-    address?.city,
-    address?.voivodeship,
-  ].filter(Boolean);
+  const listingAddress = formatDashboardListingAddress(address);
 
   // Available status transitions
   const statusActions = getStatusActions(listing.status);
@@ -274,14 +272,26 @@ export default function ListingDetailPage() {
             <ListingStatusBadge status={listing.status} />
             <ListingPublicationBadge status={listing.publicationStatus} />
           </div>
-          {locationParts.length > 0 && (
+          {listingAddress && (
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <MapPin className="h-4 w-4 shrink-0" />
-              <span>{locationParts.join(', ')}</span>
+              <AddressLink address={listingAddress} />
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={buildNewAppointmentUrl({
+              listingId: listing.id,
+              listingLabel: listing.title,
+              location: listingAddress,
+            })}
+          >
+            <Button variant="outline" size="sm" className="gap-1.5 rounded-xl">
+              <Calendar className="h-3.5 w-3.5" />
+              Spotkanie
+            </Button>
+          </Link>
           <Link href={`/dashboard/transactions?listingId=${listing.id}`}>
             <Button variant="outline" size="sm" className="gap-1.5 rounded-xl">
               <Handshake className="h-3.5 w-3.5" />
@@ -360,8 +370,8 @@ export default function ListingDetailPage() {
         />
         <ListingSummaryCard
           label="Ostatnia zmiana"
-          value={new Date(listing.updatedAt).toLocaleDateString('pl-PL')}
-          subtitle={`Utworzono ${new Date(listing.createdAt).toLocaleDateString('pl-PL')}`}
+          value={formatDisplayDateNumeric(listing.updatedAt)}
+          subtitle={`Utworzono ${formatDisplayDateNumeric(listing.createdAt)}`}
           icon={Calendar}
         />
       </div>
@@ -784,18 +794,18 @@ function ListingMetadataCard({ listing }: { listing: Listing }) {
           <ListingStatusBadge status={listing.status} />
         </MetadataRow>
         <MetadataRow label="Utworzono">
-          {new Date(listing.createdAt).toLocaleDateString('pl-PL')}
+          {formatDisplayDateNumeric(listing.createdAt)}
         </MetadataRow>
         {listing.publishedAt ? (
           <MetadataRow label="Opublikowano">
-            {new Date(listing.publishedAt).toLocaleDateString('pl-PL')}
+            {formatDisplayDateNumeric(listing.publishedAt)}
           </MetadataRow>
         ) : null}
         <MetadataRow label="Wyświetlenia">
           {listing.publicViewCount ?? 0}
         </MetadataRow>
         <MetadataRow label="Ostatnia zmiana">
-          {new Date(listing.updatedAt).toLocaleDateString('pl-PL')}
+          {formatDisplayDateNumeric(listing.updatedAt)}
         </MetadataRow>
       </dl>
     </div>
@@ -804,6 +814,7 @@ function ListingMetadataCard({ listing }: { listing: Listing }) {
 
 function ListingLocationCard({ listing }: { listing: Listing }) {
   const address = listing.address;
+  const listingAddress = formatDashboardListingAddress(address);
 
   if (!address) {
     return null;
@@ -815,13 +826,30 @@ function ListingLocationCard({ listing }: { listing: Listing }) {
         Lokalizacja
       </h3>
       <div className="mt-3 space-y-1 text-sm text-muted-foreground">
-        {address.street ? <p>{address.street}</p> : null}
+        {listingAddress ? <AddressLink address={listingAddress} /> : null}
+        {address.street ? <p className="pt-2">{address.street}</p> : null}
         <p>{[address.postalCode, address.city].filter(Boolean).join(' ')}</p>
         {address.district ? <p>{address.district}</p> : null}
         {address.voivodeship ? <p>{address.voivodeship}</p> : null}
       </div>
     </div>
   );
+}
+
+function formatDashboardListingAddress(
+  address: Listing['address'] | null | undefined,
+): string | null {
+  if (!address) return null;
+
+  const parts = [
+    address.street,
+    address.postalCode,
+    address.city,
+    address.district,
+    address.voivodeship,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(', ') : null;
 }
 
 function MetadataRow({

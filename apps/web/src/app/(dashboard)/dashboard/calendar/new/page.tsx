@@ -1,10 +1,18 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { AppointmentForm } from '@/components/calendar/appointment-form';
 
 export default function NewAppointmentPage() {
+  const searchParams = useSearchParams();
+  const clientId = searchParams.get('clientId')?.trim();
+  const clientLabel = searchParams.get('clientLabel')?.trim();
+  const listingId = searchParams.get('listingId')?.trim();
+  const listingLabel = searchParams.get('listingLabel')?.trim();
+  const location = searchParams.get('location')?.trim();
+
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
@@ -27,7 +35,25 @@ export default function NewAppointmentPage() {
       </div>
 
       {/* Form */}
-      <AppointmentForm />
+      <AppointmentForm
+        initialClientOption={
+          clientId
+            ? {
+                id: clientId,
+                label: clientLabel || clientId,
+              }
+            : undefined
+        }
+        initialListingOption={
+          listingId
+            ? {
+                id: listingId,
+                label: listingLabel || listingId,
+              }
+            : undefined
+        }
+        initialLocation={location || undefined}
+      />
     </div>
   );
 }
