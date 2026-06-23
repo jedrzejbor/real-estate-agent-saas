@@ -16,6 +16,8 @@ import {
   Mail,
   Phone,
   Tag,
+  Copy,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,7 +54,7 @@ export default function AppointmentDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const { confirm } = useConfirm();
-  const { error: showErrorToast } = useToast();
+  const { error: showErrorToast, success: showSuccessToast } = useToast();
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +100,22 @@ export default function AppointmentDetailPage({
           err instanceof Error ? err.message : 'Spróbuj ponownie za chwilę.',
       });
       setIsDeleting(false);
+    }
+  };
+
+  const handleCopy = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      showSuccessToast({
+        title: 'Skopiowano',
+        description: `${label} skopiowano do schowka.`,
+      });
+    } catch {
+      showErrorToast({
+        title: 'Nie udało się skopiować',
+        description:
+          'Skopiuj wartość ręcznie albo sprawdź uprawnienia przeglądarki.',
+      });
     }
   };
 
@@ -199,9 +217,15 @@ export default function AppointmentDetailPage({
 
             {appointment.location && (
               <DetailRow icon={MapPin} label="Lokalizacja">
-                <span className="text-sm text-foreground">
+                <a
+                  href={buildGoogleMapsUrl(appointment.location)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                >
                   {appointment.location}
-                </span>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
               </DetailRow>
             )}
           </div>
@@ -230,7 +254,7 @@ export default function AppointmentDetailPage({
             Klient
           </h2>
           {appointment.client ? (
-            <ClientSummary client={appointment.client} />
+            <ClientSummary client={appointment.client} onCopy={handleCopy} />
           ) : appointment.clientId ? (
             <RelationFallback
               href={`/dashboard/clients/${appointment.clientId}`}
@@ -266,7 +290,13 @@ export default function AppointmentDetailPage({
   );
 }
 
-function ClientSummary({ client }: { client: Appointment['client'] }) {
+function ClientSummary({
+  client,
+  onCopy,
+}: {
+  client: Appointment['client'];
+  onCopy: (value: string, label: string) => void;
+}) {
   if (!client) return null;
 
   const fullName = `${client.firstName} ${client.lastName}`.trim();
@@ -290,8 +320,20 @@ function ClientSummary({ client }: { client: Appointment['client'] }) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <ContactItem icon={Mail} label="Email" value={client.email} />
-        <ContactItem icon={Phone} label="Telefon" value={client.phone} />
+        <ContactItem
+          icon={Mail}
+          label="Email"
+          value={client.email}
+          href={client.email ? `mailto:${client.email}` : undefined}
+          onCopy={onCopy}
+        />
+        <ContactItem
+          icon={Phone}
+          label="Telefon"
+          value={client.phone}
+          href={client.phone ? buildPhoneHref(client.phone) : undefined}
+          onCopy={onCopy}
+        />
       </div>
     </div>
   );
@@ -301,6 +343,7 @@ function ListingSummary({ listing }: { listing: Appointment['listing'] }) {
   if (!listing) return null;
 
   const address = formatListingAddress(listing.address);
+  const mapsUrl = address ? buildGoogleMapsUrl(address) : undefined;
   const metaItems = [
     listing.propertyType ? PROPERTY_TYPE_LABELS[listing.propertyType] : null,
     listing.transactionType
@@ -342,7 +385,7 @@ function ListingSummary({ listing }: { listing: Appointment['listing'] }) {
           }
         />
         <InfoTile icon={Home} label="Parametry" value={metaItems.join(' / ')} />
-        <InfoTile icon={MapPin} label="Adres" value={address} />
+        <InfoTile icon={MapPin} label="Adres" value={address} href={mapsUrl} />
       </div>
     </div>
   );
@@ -352,20 +395,46 @@ function ContactItem({
   icon: Icon,
   label,
   value,
+  href,
+  onCopy,
 }: {
   icon: React.ElementType;
   label: string;
   value?: string | null;
+  href?: string;
+  onCopy: (value: string, label: string) => void;
 }) {
+  const copyValue = value?.trim();
+
   return (
     <div className="flex min-h-16 items-start gap-3 rounded-xl border border-border bg-muted/20 p-3">
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="mt-0.5 break-words text-sm font-medium text-foreground">
-          {value || 'Brak danych'}
-        </p>
+        {copyValue && href ? (
+          <a
+            href={href}
+            className="mt-0.5 inline-flex min-w-0 max-w-full items-center gap-1 break-all text-sm font-medium text-primary hover:underline"
+          >
+            <span className="min-w-0 break-all">{copyValue}</span>
+          </a>
+        ) : (
+          <p className="mt-0.5 break-words text-sm font-medium text-foreground">
+            {copyValue || 'Brak danych'}
+          </p>
+        )}
       </div>
+      {copyValue ? (
+        <button
+          type="button"
+          onClick={() => onCopy(copyValue, label)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
+          aria-label={`Kopiuj ${label.toLowerCase()}`}
+          title={`Kopiuj ${label.toLowerCase()}`}
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -374,10 +443,12 @@ function InfoTile({
   icon: Icon,
   label,
   value,
+  href,
 }: {
   icon: React.ElementType;
   label: string;
   value?: string | null;
+  href?: string;
 }) {
   return (
     <div className="min-h-20 rounded-xl border border-border bg-muted/20 p-3">
@@ -385,9 +456,21 @@ function InfoTile({
         <Icon className="h-3.5 w-3.5" />
         {label}
       </div>
-      <p className="mt-2 break-words text-sm font-medium text-foreground">
-        {value || 'Brak danych'}
-      </p>
+      {value && href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 inline-flex items-start gap-1 break-words text-sm font-medium text-primary hover:underline"
+        >
+          <span>{value}</span>
+          <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        </a>
+      ) : (
+        <p className="mt-2 break-words text-sm font-medium text-foreground">
+          {value || 'Brak danych'}
+        </p>
+      )}
     </div>
   );
 }
@@ -454,4 +537,12 @@ function formatListingAddress(
     .join(', ');
 
   return address.district ? `${parts} (${address.district})` : parts || null;
+}
+
+function buildGoogleMapsUrl(query: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function buildPhoneHref(phone: string): string {
+  return `tel:${phone.replace(/[^\d+]/g, '')}`;
 }
