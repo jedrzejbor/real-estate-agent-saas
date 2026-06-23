@@ -4,6 +4,7 @@ import * as React from 'react';
 import {
   ArrowDown,
   ArrowUp,
+  Check,
   ImageIcon,
   ImagePlus,
   Save,
@@ -65,6 +66,7 @@ export function ListingImageManager({
   const remainingSlots =
     imageLimit === null ? null : Math.max(imageLimit - images.length, 0);
   const isAtLimit = remainingSlots !== null && remainingSlots <= 0;
+  const isSavingImages = isUploading || isBulkDeleting || busyImageId !== null;
 
   React.useEffect(() => {
     setAltDrafts(
@@ -306,7 +308,29 @@ export function ListingImageManager({
           </p>
         </div>
 
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() =>
+              showSuccessToast({
+                title: isSavingImages
+                  ? 'Trwa zapisywanie zdjęć'
+                  : 'Zdjęcia są zapisane',
+                description: isSavingImages
+                  ? 'Poczekaj, aż bieżąca akcja w galerii się zakończy.'
+                  : 'Zmiany w galerii zapisują się automatycznie po każdej akcji.',
+              })
+            }
+            className="gap-2 rounded-xl"
+          >
+            {isSavingImages ? (
+              <Save className="h-4 w-4" />
+            ) : (
+              <Check className="h-4 w-4" />
+            )}
+            {isSavingImages ? 'Zapisywanie...' : 'Zapisane automatycznie'}
+          </Button>
           <input
             ref={fileInputRef}
             type="file"
