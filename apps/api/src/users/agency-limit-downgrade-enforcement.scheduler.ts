@@ -7,9 +7,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { MonitoringService } from '../monitoring';
 import { AgencyLimitDowngradeEnforcementService } from './agency-limit-downgrade-enforcement.service';
+import { PostgresAdvisoryLockService } from './postgres-advisory-lock.service';
 
 const DEFAULT_RUN_HOUR = 2;
 const DEFAULT_RUN_MINUTE = 15;
+const SCHEDULER_LOCK_NAME = 'plan_limit_downgrade_enforcement_scheduler';
 
 @Injectable()
 export class AgencyLimitDowngradeEnforcementScheduler
@@ -25,6 +27,7 @@ export class AgencyLimitDowngradeEnforcementScheduler
     private readonly enforcementService: AgencyLimitDowngradeEnforcementService,
     private readonly monitoringService: MonitoringService,
     private readonly configService: ConfigService,
+    private readonly advisoryLockService: PostgresAdvisoryLockService,
   ) {}
 
   onModuleInit(): void {
@@ -56,30 +59,20 @@ export class AgencyLimitDowngradeEnforcementScheduler
     const startedAt = new Date();
 
     try {
-      const results =
-        await this.enforcementService.enforceExpiredListingGracePeriods(now);
-      const enforcedCount = results.filter(
-        (result) => result.status === 'enforced',
-      ).length;
-      const archivedCount = results.reduce(
-        (sum, result) => sum + result.archivedListingIds.length,
-        0,
+      const lockResult = await this.advisoryLockService.withLock(
+        SCHEDULER_LOCK_NAME,
+        () => this.runEnforcementBatch(now, startedAt),
       );
 
-      this.monitoringService.recordSuccess(
-        'plan_limit_enforcement',
-        'scheduler_run_completed',
-        {
-          checkedAgencies: results.length,
-          enforcedAgencies: enforcedCount,
-          archivedListings: archivedCount,
-          durationMs: Date.now() - startedAt.getTime(),
-        },
-      );
-      this.logger.log(
-        `Plan limit enforcement scheduler completed: ` +
-          `${enforcedCount}/${results.length} agencies enforced`,
-      );
+      if (!lockResult.acquired) {
+        this.monitoringService.recordWarning(
+          'plan_limit_enforcement',
+          'scheduler_run_skipped_lock_busy',
+        );
+        this.logger.warn(
+          'Plan limit enforcement scheduler skipped because advisory lock is busy',
+        );
+      }
     } catch (error) {
       this.monitoringService.recordFailure(
         'plan_limit_enforcement',
@@ -93,6 +86,33 @@ export class AgencyLimitDowngradeEnforcementScheduler
     } finally {
       this.isRunning = false;
     }
+  }
+
+  private async runEnforcementBatch(now: Date, startedAt: Date): Promise<void> {
+    const results =
+      await this.enforcementService.enforceExpiredListingGracePeriods(now);
+    const enforcedCount = results.filter(
+      (result) => result.status === 'enforced',
+    ).length;
+    const archivedCount = results.reduce(
+      (sum, result) => sum + result.archivedListingIds.length,
+      0,
+    );
+
+    this.monitoringService.recordSuccess(
+      'plan_limit_enforcement',
+      'scheduler_run_completed',
+      {
+        checkedAgencies: results.length,
+        enforcedAgencies: enforcedCount,
+        archivedListings: archivedCount,
+        durationMs: Date.now() - startedAt.getTime(),
+      },
+    );
+    this.logger.log(
+      `Plan limit enforcement scheduler completed: ` +
+        `${enforcedCount}/${results.length} agencies enforced`,
+    );
   }
 
   private scheduleNextRun(now = new Date()): void {

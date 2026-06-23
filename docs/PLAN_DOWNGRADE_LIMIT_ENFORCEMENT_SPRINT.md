@@ -971,7 +971,7 @@ Kryteria akceptacji:
 
 ## Sprint 9 - odporność schedulera w wielu instancjach
 
-Status: Do zrobienia.
+Status: Zrobione.
 
 Cel: scheduler pozostaje bezpieczny, gdy API działa w kilku instancjach.
 
@@ -991,6 +991,29 @@ Kryteria akceptacji:
 - równoległe instancje API nie wykonują tej samej egzekucji dwa razy,
 - jeśli lock jest zajęty, scheduler kończy bez błędu i raportuje skip,
 - idempotencja na `limitGraceEnforcedAt` nadal działa jako dodatkowe zabezpieczenie.
+
+Wykonano:
+
+- dodano `PostgresAdvisoryLockService`, który używa `pg_try_advisory_lock` i
+  zawsze zwalnia lock przez `pg_advisory_unlock` po zakończeniu callbacka,
+- podpięto advisory lock w `AgencyLimitDowngradeEnforcementScheduler` dla całego
+  batcha `enforceExpiredListingGracePeriods`, więc jedna instancja API obejmuje
+  lockiem uruchomienie schedulera, wybór agencji po karencji i egzekucję limitu,
+- zostawiono lokalne `isRunning` jako ochronę przed nakładaniem runów w tej samej
+  instancji procesu,
+- dodano monitoring skipa `scheduler_run_skipped_lock_busy`, gdy inna instancja
+  trzyma lock,
+- dodano test schedulera dla zajętego locka oraz testy serwisu advisory lock dla:
+  poprawnego wykonania callbacka, skipa bez callbacka i zwolnienia locka po błędzie.
+
+Uwagi:
+
+- batchowy lock rozproszony rozwiązuje problem dwóch instancji archiwizujących te
+  same oferty równolegle,
+- `limitGraceEnforcedAt` nadal zostaje dodatkową warstwą idempotencji na poziomie
+  danych,
+- ewentualny test z realnym PostgreSQL można dopiąć w sprincie 10 jako element
+  szerszych testów integracyjnych.
 
 ## Sprint 10 - testy integracyjne, regresja i manualny test plan
 

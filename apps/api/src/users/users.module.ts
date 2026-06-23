@@ -11,6 +11,7 @@ import { AgencyLimitDowngradeEnforcementService } from './agency-limit-downgrade
 import { AgencyLimitDowngradeEnforcementScheduler } from './agency-limit-downgrade-enforcement.scheduler';
 import { AgencyLimitEnforcementService } from './agency-limit-enforcement.service';
 import { AgencyPlanService } from './agency-plan.service';
+import { PostgresAdvisoryLockService } from './postgres-advisory-lock.service';
 import { UsersService } from './users.service';
 
 @Module({
@@ -34,6 +35,7 @@ import { UsersService } from './users.service';
     AgencyLimitEnforcementService,
     AgencyLimitDowngradeEnforcementService,
     AgencyLimitDowngradeEnforcementScheduler,
+    PostgresAdvisoryLockService,
   ],
   exports: [
     UsersService,
