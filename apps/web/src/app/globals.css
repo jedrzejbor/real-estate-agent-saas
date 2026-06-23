@@ -1,15 +1,15 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "leaflet/dist/leaflet.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import 'leaflet/dist/leaflet.css';
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   /* === Fonts === */
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-outfit);
+  --font-sans: var(--font-system-sans);
+  --font-mono: var(--font-system-mono);
+  --font-heading: var(--font-system-heading);
 
   /* === Colors (mapped from CSS vars) === */
   --color-background: var(--background);
@@ -84,87 +84,98 @@
 }
 
 :root {
+  --font-system-sans:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', sans-serif;
+  --font-system-heading:
+    Outfit, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', sans-serif;
+  --font-system-mono:
+    'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+:root {
   color-scheme: light;
 
   /* === Brand palette === */
   --brand-emerald: #059669;
   --brand-emerald-dark: #047857;
-  --brand-emerald-light: #ECFDF5;
-  --brand-gold: #D4A853;
-  --brand-gold-dark: #B8922F;
-  --brand-gold-light: #FFF9E6;
-  --brand-terracotta: #C2724B;
+  --brand-emerald-light: #ecfdf5;
+  --brand-gold: #d4a853;
+  --brand-gold-dark: #b8922f;
+  --brand-gold-light: #fff9e6;
+  --brand-terracotta: #c2724b;
 
   /* === Status palette === */
-  --status-success: #16A34A;
-  --status-success-bg: #F0FDF4;
-  --status-warning: #EA580C;
-  --status-warning-bg: #FFF7ED;
-  --status-info: #2563EB;
-  --status-info-bg: #EFF6FF;
+  --status-success: #16a34a;
+  --status-success-bg: #f0fdf4;
+  --status-warning: #ea580c;
+  --status-warning-bg: #fff7ed;
+  --status-info: #2563eb;
+  --status-info-bg: #eff6ff;
 
   /* === Warm palette === */
-  --warm-white: #FAFAF9;
-  --warm-cream: #F5F0EB;
-  --warm-text: #1C1917;
-  --warm-text-secondary: #44403C;
-  --warm-text-muted: #78716C;
+  --warm-white: #fafaf9;
+  --warm-cream: #f5f0eb;
+  --warm-text: #1c1917;
+  --warm-text-secondary: #44403c;
+  --warm-text-muted: #78716c;
 
   /* === Background === */
-  --background: #FAFAF9;
-  --foreground: #1C1917;
+  --background: #fafaf9;
+  --foreground: #1c1917;
 
   /* === Card / Surface === */
-  --card: #FFFFFF;
-  --card-foreground: #1C1917;
+  --card: #ffffff;
+  --card-foreground: #1c1917;
 
   /* === Popover === */
-  --popover: #FFFFFF;
-  --popover-foreground: #1C1917;
+  --popover: #ffffff;
+  --popover-foreground: #1c1917;
 
   /* === Primary (Emerald Green) === */
   --primary: #059669;
-  --primary-foreground: #FFFFFF;
+  --primary-foreground: #ffffff;
 
   /* === Secondary (Rich Gold) === */
-  --secondary: #D4A853;
-  --secondary-foreground: #FFFFFF;
+  --secondary: #d4a853;
+  --secondary-foreground: #ffffff;
 
   /* === Muted / Cream === */
-  --muted: #F5F0EB;
-  --muted-foreground: #78716C;
+  --muted: #f5f0eb;
+  --muted-foreground: #78716c;
 
   /* === Accent (Terracotta) === */
-  --accent: #C2724B;
-  --accent-foreground: #FFFFFF;
+  --accent: #c2724b;
+  --accent-foreground: #ffffff;
 
   /* === Destructive === */
-  --destructive: #DC2626;
+  --destructive: #dc2626;
 
   /* === Borders === */
-  --border: #E7E5E4;
-  --input: #E7E5E4;
+  --border: #e7e5e4;
+  --input: #e7e5e4;
   --ring: #059669;
 
   /* === Radius (12px base) === */
   --radius: 0.75rem;
 
   /* === Sidebar === */
-  --sidebar: #F5F0EB;
-  --sidebar-foreground: #1C1917;
+  --sidebar: #f5f0eb;
+  --sidebar-foreground: #1c1917;
   --sidebar-primary: #059669;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #E7E5E4;
-  --sidebar-accent-foreground: #1C1917;
-  --sidebar-border: #E7E5E4;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e7e5e4;
+  --sidebar-accent-foreground: #1c1917;
+  --sidebar-border: #e7e5e4;
   --sidebar-ring: #059669;
 
   /* === Chart colors === */
   --chart-1: #059669;
-  --chart-2: #D4A853;
-  --chart-3: #C2724B;
-  --chart-4: #16A34A;
-  --chart-5: #EA580C;
+  --chart-2: #d4a853;
+  --chart-3: #c2724b;
+  --chart-4: #16a34a;
+  --chart-5: #ea580c;
 
   /* === Shadows (warm stone tint) === */
   --shadow-warm: 28 25 23;
@@ -176,81 +187,81 @@
   color-scheme: dark;
 
   /* === Brand palette === */
-  --brand-emerald: #34D399;
-  --brand-emerald-dark: #10B981;
-  --brand-emerald-light: #052E22;
-  --brand-gold: #F2C46D;
-  --brand-gold-dark: #E0A837;
-  --brand-gold-light: #3A2A12;
-  --brand-terracotta: #F09A73;
+  --brand-emerald: #34d399;
+  --brand-emerald-dark: #10b981;
+  --brand-emerald-light: #052e22;
+  --brand-gold: #f2c46d;
+  --brand-gold-dark: #e0a837;
+  --brand-gold-light: #3a2a12;
+  --brand-terracotta: #f09a73;
 
   /* === Status palette === */
-  --status-success: #4ADE80;
-  --status-success-bg: #052E16;
-  --status-warning: #FB923C;
+  --status-success: #4ade80;
+  --status-success-bg: #052e16;
+  --status-warning: #fb923c;
   --status-warning-bg: #431407;
-  --status-info: #60A5FA;
+  --status-info: #60a5fa;
   --status-info-bg: #172554;
 
   /* === Warm palette === */
-  --warm-white: #0F1115;
-  --warm-cream: #181A20;
-  --warm-text: #F5F5F4;
-  --warm-text-secondary: #D6D3D1;
-  --warm-text-muted: #A8A29E;
+  --warm-white: #0f1115;
+  --warm-cream: #181a20;
+  --warm-text: #f5f5f4;
+  --warm-text-secondary: #d6d3d1;
+  --warm-text-muted: #a8a29e;
 
   /* === Background === */
-  --background: #0F1115;
-  --foreground: #F5F5F4;
+  --background: #0f1115;
+  --foreground: #f5f5f4;
 
   /* === Card / Surface === */
-  --card: #181A20;
-  --card-foreground: #F5F5F4;
+  --card: #181a20;
+  --card-foreground: #f5f5f4;
 
   /* === Popover === */
-  --popover: #1F222A;
-  --popover-foreground: #F5F5F4;
+  --popover: #1f222a;
+  --popover-foreground: #f5f5f4;
 
   /* === Primary (Emerald Green) === */
-  --primary: #34D399;
-  --primary-foreground: #052E22;
+  --primary: #34d399;
+  --primary-foreground: #052e22;
 
   /* === Secondary (Rich Gold) === */
-  --secondary: #F2C46D;
-  --secondary-foreground: #2B1F0B;
+  --secondary: #f2c46d;
+  --secondary-foreground: #2b1f0b;
 
   /* === Muted / Cream === */
   --muted: #242832;
-  --muted-foreground: #A8A29E;
+  --muted-foreground: #a8a29e;
 
   /* === Accent (Terracotta) === */
-  --accent: #F09A73;
-  --accent-foreground: #2B1208;
+  --accent: #f09a73;
+  --accent-foreground: #2b1208;
 
   /* === Destructive === */
-  --destructive: #F87171;
+  --destructive: #f87171;
 
   /* === Borders === */
-  --border: #30343D;
-  --input: #30343D;
-  --ring: #34D399;
+  --border: #30343d;
+  --input: #30343d;
+  --ring: #34d399;
 
   /* === Sidebar === */
-  --sidebar: #14161B;
-  --sidebar-foreground: #F5F5F4;
-  --sidebar-primary: #34D399;
-  --sidebar-primary-foreground: #052E22;
+  --sidebar: #14161b;
+  --sidebar-foreground: #f5f5f4;
+  --sidebar-primary: #34d399;
+  --sidebar-primary-foreground: #052e22;
   --sidebar-accent: #242832;
-  --sidebar-accent-foreground: #F5F5F4;
-  --sidebar-border: #30343D;
-  --sidebar-ring: #34D399;
+  --sidebar-accent-foreground: #f5f5f4;
+  --sidebar-border: #30343d;
+  --sidebar-ring: #34d399;
 
   /* === Chart colors === */
-  --chart-1: #34D399;
-  --chart-2: #F2C46D;
-  --chart-3: #F09A73;
-  --chart-4: #4ADE80;
-  --chart-5: #FB923C;
+  --chart-1: #34d399;
+  --chart-2: #f2c46d;
+  --chart-3: #f09a73;
+  --chart-4: #4ade80;
+  --chart-5: #fb923c;
 
   /* === Shadows (cool neutral tint) === */
   --shadow-warm: 0 0 0;

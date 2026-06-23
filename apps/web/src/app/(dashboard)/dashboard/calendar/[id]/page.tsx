@@ -47,7 +47,6 @@ export default function AppointmentDetailPage({
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
     fetchAppointment(id)
       .then((data) => {
         if (!cancelled) setAppointment(data);

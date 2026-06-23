@@ -15,7 +15,7 @@ export const RegisterAccountType = {
   PRIVATE_SELLER: 'private_seller',
 } as const;
 
-export type RegisterAccountType =
+export type RegisterAccountTypeValue =
   (typeof RegisterAccountType)[keyof typeof RegisterAccountType];
 
 export class RegisterDto {
@@ -23,7 +23,7 @@ export class RegisterDto {
   @IsIn(Object.values(RegisterAccountType), {
     message: 'Nieprawidłowy typ konta',
   })
-  accountType?: RegisterAccountType;
+  accountType?: RegisterAccountTypeValue;
 
   @IsOptional()
   @IsIn(

@@ -15,15 +15,26 @@ export default function EditClientPage() {
 
   useEffect(() => {
     if (!params.id) return;
-    setIsLoading(true);
+    let cancelled = false;
+
     fetchClient(params.id)
-      .then(setClient)
-      .catch((err) =>
-        setError(
-          err instanceof Error ? err.message : 'Nie znaleziono klienta',
-        ),
-      )
-      .finally(() => setIsLoading(false));
+      .then((data) => {
+        if (!cancelled) setClient(data);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : 'Nie znaleziono klienta',
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [params.id]);
 
   if (isLoading) {

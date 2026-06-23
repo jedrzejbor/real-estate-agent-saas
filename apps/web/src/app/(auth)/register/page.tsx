@@ -56,16 +56,19 @@ function RegisterForm() {
   const searchParams = useSearchParams();
   const claimToken = searchParams.get('claimToken');
   const initialPlan = getRegisterPlan(searchParams.get('plan'));
+  const initialAccountType = claimToken ? 'private_seller' : 'agent';
   const hasClaimedAuthenticatedTokenRef = useRef(false);
   const [accountType, setAccountType] = useState<'agent' | 'private_seller'>(
-    claimToken ? 'private_seller' : 'agent',
+    initialAccountType,
   );
   const [selectedPlan, setSelectedPlan] = useState<
     Exclude<AgencyPlanCode, 'custom'>
   >(initialPlan ?? 'free');
   const [plans, setPlans] = useState<RegisterPlan[]>([]);
   const [plansError, setPlansError] = useState<string | null>(null);
-  const [isLoadingPlans, setIsLoadingPlans] = useState(false);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(
+    initialAccountType === 'agent',
+  );
   const [authenticatedClaimError, setAuthenticatedClaimError] = useState<
     string | null
   >(null);
@@ -74,7 +77,6 @@ function RegisterForm() {
     if (claimToken || accountType !== 'agent') return;
 
     let isMounted = true;
-    setIsLoadingPlans(true);
 
     fetchPublicPlans()
       .then((response) => {
@@ -102,6 +104,13 @@ function RegisterForm() {
       isMounted = false;
     };
   }, [accountType, claimToken]);
+
+  function handleAccountTypeChange(
+    nextAccountType: 'agent' | 'private_seller',
+  ) {
+    setAccountType(nextAccountType);
+    setIsLoadingPlans(nextAccountType === 'agent' && plans.length === 0);
+  }
 
   useEffect(() => {
     if (isAuthLoading || !user) return;
@@ -198,154 +207,154 @@ function RegisterForm() {
         >
           <div className="space-y-5">
             <div>
-            <p className="mb-2 text-sm font-medium text-foreground">
-              Typ konta
-            </p>
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="relative block cursor-pointer rounded-xl border border-border bg-card p-4 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
-                <input
-                  type="radio"
-                  name="accountType"
-                  value="agent"
-                  defaultChecked={!claimToken}
-                  disabled={Boolean(claimToken)}
-                  onChange={() => setAccountType('agent')}
-                  className="peer sr-only"
-                />
-                <span className="flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <Building2 className="h-4 w-4" />
-                  </span>
-                  <span>
-                    <span className="block text-sm font-semibold text-foreground">
-                      Konto agenta
+              <p className="mb-2 text-sm font-medium text-foreground">
+                Typ konta
+              </p>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="relative block cursor-pointer rounded-xl border border-border bg-card p-4 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                  <input
+                    type="radio"
+                    name="accountType"
+                    value="agent"
+                    defaultChecked={!claimToken}
+                    disabled={Boolean(claimToken)}
+                    onChange={() => handleAccountTypeChange('agent')}
+                    className="peer sr-only"
+                  />
+                  <span className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Building2 className="h-4 w-4" />
                     </span>
-                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                      CRM, klienci, spotkania i zarządzanie wieloma ofertami.
+                    <span>
+                      <span className="block text-sm font-semibold text-foreground">
+                        Konto agenta
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                        CRM, klienci, spotkania i zarządzanie wieloma ofertami.
+                      </span>
                     </span>
                   </span>
-                </span>
-              </label>
+                </label>
 
-              <label className="relative block cursor-pointer rounded-xl border border-border bg-card p-4 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
-                <input
-                  type="radio"
-                  name="accountType"
-                  value="private_seller"
-                  defaultChecked={Boolean(claimToken)}
-                  onChange={() => setAccountType('private_seller')}
-                  className="peer sr-only"
-                />
-                <span className="flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <Home className="h-4 w-4" />
-                  </span>
-                  <span>
-                    <span className="block text-sm font-semibold text-foreground">
-                      Tylko ogłoszenie
+                <label className="relative block cursor-pointer rounded-xl border border-border bg-card p-4 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                  <input
+                    type="radio"
+                    name="accountType"
+                    value="private_seller"
+                    defaultChecked={Boolean(claimToken)}
+                    onChange={() => handleAccountTypeChange('private_seller')}
+                    className="peer sr-only"
+                  />
+                  <span className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Home className="h-4 w-4" />
                     </span>
-                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                      Dla właściciela, który chce dodać pojedynczą ofertę.
+                    <span>
+                      <span className="block text-sm font-semibold text-foreground">
+                        Tylko ogłoszenie
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                        Dla właściciela, który chce dodać pojedynczą ofertę.
+                      </span>
                     </span>
                   </span>
-                </span>
-              </label>
-            </div>
-            {claimToken ? (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Zweryfikowana oferta zostanie automatycznie przypisana do
-                konta właściciela.
-              </p>
-            ) : null}
-            {getFieldError('accountType') ? (
-              <p className="mt-2 text-xs text-destructive">
-                {getFieldError('accountType')}
-              </p>
-            ) : null}
+                </label>
+              </div>
+              {claimToken ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Zweryfikowana oferta zostanie automatycznie przypisana do
+                  konta właściciela.
+                </p>
+              ) : null}
+              {getFieldError('accountType') ? (
+                <p className="mt-2 text-xs text-destructive">
+                  {getFieldError('accountType')}
+                </p>
+              ) : null}
             </div>
 
             {accountType === 'agent' && !claimToken ? (
               <div>
-              <input type="hidden" name="selectedPlan" value={selectedPlan} />
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-foreground">
-                  Pakiet startowy
-                </p>
-                <Link
-                  href="/cennik"
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  Porównaj plany
-                </Link>
-              </div>
-
-              {plansError ? (
-                <div className="mb-3 flex items-center gap-2 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-xs text-destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  {plansError}
+                <input type="hidden" name="selectedPlan" value={selectedPlan} />
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium text-foreground">
+                    Pakiet startowy
+                  </p>
+                  <Link
+                    href="/cennik"
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    Porównaj plany
+                  </Link>
                 </div>
-              ) : null}
 
-              {isLoadingPlans ? (
-                <div className="flex items-center justify-center rounded-xl border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Ładowanie planów
-                </div>
-              ) : (
-                <div className="grid gap-3 md:grid-cols-2">
-                  {plans.map((plan) => (
-                    <button
-                      key={plan.code}
-                      type="button"
-                      onClick={() => setSelectedPlan(plan.code)}
-                      className={cn(
-                        'flex min-h-[220px] flex-col rounded-xl border p-4 text-left transition-colors',
-                        selectedPlan === plan.code
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border bg-card hover:bg-muted/30',
-                      )}
-                    >
-                      <span className="flex items-start justify-between gap-3">
-                        <span>
-                          <span className="block text-sm font-semibold text-foreground">
-                            {plan.label}
+                {plansError ? (
+                  <div className="mb-3 flex items-center gap-2 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-xs text-destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    {plansError}
+                  </div>
+                ) : null}
+
+                {isLoadingPlans ? (
+                  <div className="flex items-center justify-center rounded-xl border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Ładowanie planów
+                  </div>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {plans.map((plan) => (
+                      <button
+                        key={plan.code}
+                        type="button"
+                        onClick={() => setSelectedPlan(plan.code)}
+                        className={cn(
+                          'flex min-h-[220px] flex-col rounded-xl border p-4 text-left transition-colors',
+                          selectedPlan === plan.code
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border bg-card hover:bg-muted/30',
+                        )}
+                      >
+                        <span className="flex items-start justify-between gap-3">
+                          <span>
+                            <span className="block text-sm font-semibold text-foreground">
+                              {plan.label}
+                            </span>
+                            <span className="mt-1 block min-h-[3.75rem] text-xs leading-5 text-muted-foreground">
+                              {plan.description ??
+                                getPlanFallbackDescription(plan)}
+                            </span>
                           </span>
-                          <span className="mt-1 block min-h-[3.75rem] text-xs leading-5 text-muted-foreground">
-                            {plan.description ??
-                              getPlanFallbackDescription(plan)}
-                          </span>
+                          {selectedPlan === plan.code ? (
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                          ) : null}
                         </span>
-                        {selectedPlan === plan.code ? (
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
-                        ) : null}
-                      </span>
-                      <span className="mt-3 block font-heading text-xl font-semibold text-foreground">
-                        {formatPlanPrice(plan, 'monthly')}
-                      </span>
-                      <ul className="mt-3 space-y-1.5 text-xs leading-5 text-muted-foreground">
-                        {getPlanHighlights(plan)
-                          .slice(0, 3)
-                          .map((highlight) => (
-                            <li key={highlight} className="flex gap-1.5">
-                              <span className="text-primary">•</span>
-                              <span>{highlight}</span>
-                            </li>
-                          ))}
-                      </ul>
-                    </button>
-                  ))}
-                </div>
-              )}
+                        <span className="mt-3 block font-heading text-xl font-semibold text-foreground">
+                          {formatPlanPrice(plan, 'monthly')}
+                        </span>
+                        <ul className="mt-3 space-y-1.5 text-xs leading-5 text-muted-foreground">
+                          {getPlanHighlights(plan)
+                            .slice(0, 3)
+                            .map((highlight) => (
+                              <li key={highlight} className="flex gap-1.5">
+                                <span className="text-primary">•</span>
+                                <span>{highlight}</span>
+                              </li>
+                            ))}
+                        </ul>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                Płatności Stripe wdrożymy w kolejnym etapie. Teraz wybór
-                pakietu ustawia konfigurację startową workspace.
-              </p>
-              {getFieldError('selectedPlan') ? (
-                <p className="mt-2 text-xs text-destructive">
-                  {getFieldError('selectedPlan')}
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  Płatności Stripe wdrożymy w kolejnym etapie. Teraz wybór
+                  pakietu ustawia konfigurację startową workspace.
                 </p>
-              ) : null}
+                {getFieldError('selectedPlan') ? (
+                  <p className="mt-2 text-xs text-destructive">
+                    {getFieldError('selectedPlan')}
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </div>

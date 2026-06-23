@@ -1,6 +1,5 @@
 'use client';
 
-/* eslint-disable @next/next/no-img-element */
 import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
@@ -50,6 +49,24 @@ export function PublicListingCatalog({
   initialCatalog,
   initialError,
 }: PublicListingCatalogProps) {
+  const initialStateKey =
+    buildCatalogQueryString(initialFilters) || 'base-catalog';
+
+  return (
+    <PublicListingCatalogContent
+      key={initialStateKey}
+      initialFilters={initialFilters}
+      initialCatalog={initialCatalog}
+      initialError={initialError}
+    />
+  );
+}
+
+function PublicListingCatalogContent({
+  initialFilters,
+  initialCatalog,
+  initialError,
+}: PublicListingCatalogProps) {
   const [filters, setFilters] = useState(initialFilters);
   const [formCity, setFormCity] = useState(initialFilters.city ?? '');
   const [formDistrict, setFormDistrict] = useState(
@@ -63,16 +80,6 @@ export function PublicListingCatalog({
     [filters],
   );
   const formKey = buildCatalogQueryString(filters) || 'base-catalog';
-  const initialStateKey =
-    buildCatalogQueryString(initialFilters) || 'base-catalog';
-
-  useEffect(() => {
-    setFilters(initialFilters);
-    setFormCity(initialFilters.city ?? '');
-    setFormDistrict(initialFilters.district ?? '');
-    setCatalog(initialCatalog);
-    setError(initialError);
-  }, [initialStateKey, initialCatalog, initialError, initialFilters]);
 
   function loadCatalog(
     nextFilters: PublicListingCatalogFilters,
@@ -108,9 +115,12 @@ export function PublicListingCatalog({
 
   useEffect(() => {
     function handlePopState() {
-      loadCatalog(parseCatalogFiltersFromUrlSearchParams(window.location.search), {
-        updateUrl: false,
-      });
+      loadCatalog(
+        parseCatalogFiltersFromUrlSearchParams(window.location.search),
+        {
+          updateUrl: false,
+        },
+      );
     }
 
     window.addEventListener('popstate', handlePopState);
@@ -132,7 +142,11 @@ export function PublicListingCatalog({
   }
 
   function clearFilters() {
-    loadCatalog({ limit: DEFAULT_LIMIT, sort: PublicListingCatalogSort.NEWEST, page: 1 });
+    loadCatalog({
+      limit: DEFAULT_LIMIT,
+      sort: PublicListingCatalogSort.NEWEST,
+      page: 1,
+    });
   }
 
   function clearBbox() {
@@ -295,7 +309,9 @@ export function PublicListingCatalog({
                 defaultValue={filters.sort ?? PublicListingCatalogSort.NEWEST}
                 className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition focus:border-primary"
               >
-                <option value={PublicListingCatalogSort.NEWEST}>Najnowsze</option>
+                <option value={PublicListingCatalogSort.NEWEST}>
+                  Najnowsze
+                </option>
                 <option value={PublicListingCatalogSort.PRICE_ASC}>
                   Cena rosnąco
                 </option>
@@ -645,7 +661,10 @@ function Pagination({
 
   return (
     <nav className="mt-8 flex items-center justify-between gap-3">
-      <PaginationButton disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+      <PaginationButton
+        disabled={page <= 1}
+        onClick={() => onPageChange(page - 1)}
+      >
         Poprzednia
       </PaginationButton>
       <span className="text-sm text-muted-foreground">
@@ -722,7 +741,11 @@ function parseCatalogFiltersFromUrlSearchParams(
     agentId: getStringSearchParam(searchParams, 'agentId'),
     city: getStringSearchParam(searchParams, 'city'),
     district: getStringSearchParam(searchParams, 'district'),
-    propertyType: getEnumSearchParam(searchParams, 'propertyType', PropertyType),
+    propertyType: getEnumSearchParam(
+      searchParams,
+      'propertyType',
+      PropertyType,
+    ),
     transactionType: getEnumSearchParam(
       searchParams,
       'transactionType',
@@ -876,17 +899,17 @@ function hasRestrictiveCatalogFilters(
 ): boolean {
   return Boolean(
     filters.district ||
-      filters.voivodeship ||
-      filters.propertyType ||
-      filters.transactionType ||
-      filters.priceMin !== undefined ||
-      filters.priceMax !== undefined ||
-      filters.areaMin !== undefined ||
-      filters.areaMax !== undefined ||
-      filters.roomsMin !== undefined ||
-      filters.roomsMax !== undefined ||
-      filters.q ||
-      filters.bbox,
+    filters.voivodeship ||
+    filters.propertyType ||
+    filters.transactionType ||
+    filters.priceMin !== undefined ||
+    filters.priceMax !== undefined ||
+    filters.areaMin !== undefined ||
+    filters.areaMax !== undefined ||
+    filters.roomsMin !== undefined ||
+    filters.roomsMax !== undefined ||
+    filters.q ||
+    filters.bbox,
   );
 }
 

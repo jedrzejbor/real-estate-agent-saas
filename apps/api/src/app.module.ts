@@ -26,6 +26,17 @@ import { AdminModule } from './admin';
 import { PlansModule } from './plans';
 import { BillingModule } from './billing';
 
+function getBooleanConfig(
+  configService: ConfigService,
+  key: string,
+  defaultValue = false,
+) {
+  const value = configService.get<string>(key);
+  if (value === undefined) return defaultValue;
+
+  return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
+}
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -43,7 +54,7 @@ import { BillingModule } from './billing';
         password: configService.get('DB_PASSWORD', 'postgres'),
         database: configService.get('DB_NAME', 'real_estate_saas'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: configService.get('NODE_ENV') !== 'production',
+        synchronize: getBooleanConfig(configService, 'TYPEORM_SYNCHRONIZE'),
         logging: configService.get('NODE_ENV') !== 'production',
       }),
     }),

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import { Repository, Between, MoreThanOrEqual } from 'typeorm';
 import { Listing } from '../listings/entities/listing.entity';
 import { buildListingCommissionSumSql } from '../listings/listing-commission-query';
 import { Client } from '../clients/entities/client.entity';
@@ -195,9 +195,7 @@ export class DashboardService {
       closedWon,
       closedLost,
       conversionRate:
-        closedTotal > 0
-          ? Math.round((closedWon / closedTotal) * 100)
-          : 0,
+        closedTotal > 0 ? Math.round((closedWon / closedTotal) * 100) : 0,
     };
   }
 
@@ -294,9 +292,7 @@ export class DashboardService {
 
   // ── Recent activity ──
 
-  private async getRecentActivity(
-    agentId: string,
-  ): Promise<RecentActivity[]> {
+  private async getRecentActivity(agentId: string): Promise<RecentActivity[]> {
     // Fetch recent items from each entity type, merge and sort
     const [listings, clients, appointments] = await Promise.all([
       this.listingRepo.find({

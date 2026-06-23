@@ -17,6 +17,60 @@ Projekt ma solidne fundamenty po stronie API: globalne guardy JWT/CSRF/roles/thr
 | `pnpm --filter api exec eslint "{src,apps,libs,test}/**/*.ts"` | FAIL konfiguracji | ESLint 9 nie znajduje `eslint.config.*` dla API.                                           |
 | `pnpm --filter web build`                                      | FAIL środowiskowo | Next build nie może pobrać fontów `Inter` i `Outfit` z Google Fonts.                       |
 
+## Status wykonania P0 - 2026-06-23
+
+Wykonano pierwszy etap P0. Zakres był ograniczony do blockerów z sekcji
+`P0 - przed kolejnym większym merge/release`; punkty P1/P2 zostają na kolejną
+iterację.
+
+### Co zostało zrobione
+
+1. Web lint:
+   - Usunięto 7 błędów `react-hooks/set-state-in-effect`.
+   - Loader stanów async przestał ustawiać `isLoading=true` synchronicznie w
+     efektach tam, gdzie stan startowy już reprezentował ładowanie.
+   - Synchronizację stanu z propsami katalogu publicznego zastąpiono
+     kluczowanym komponentem wewnętrznym.
+   - Global search przepisano tak, aby loading/error/results były wyprowadzane
+     z zapytania i cache bez synchronicznych resetów w efekcie.
+   - Theme provider inicjalizuje motyw przez initializer `useState`, a efekt
+     służy tylko do zastosowania motywu w DOM.
+
+2. Stabilny web build:
+   - Usunięto `next/font/google` z `apps/web/src/app/layout.tsx`.
+   - Fonty aplikacji są mapowane na systemowe stacki CSS w
+     `apps/web/src/app/globals.css`, więc build nie zależy już od pobrania
+     Google Fonts w czasie kompilacji.
+
+3. API ESLint:
+   - Dodano `apps/api/eslint.config.mjs` w formacie ESLint 9 flat config.
+   - Rozdzielono `lint` i `lint:fix` w `apps/api/package.json`; podstawowy
+     `lint` nie modyfikuje plików.
+   - Uzupełniono devDependencies API i zaktualizowano `pnpm-lock.yaml`.
+   - Po uruchomieniu realnego lintu poprawiono ujawnione problemy: nieużywane
+     importy, konflikt nazwy typu/value w DTO rejestracji, zbędne escape'y w
+     SQL search, sortowanie primary image bez redundantnych `Boolean()` oraz
+     martwy generic w mocku repozytorium.
+
+4. TypeORM synchronize:
+   - `synchronize` nie zależy już od `NODE_ENV !== 'production'`.
+   - Domyślnie jest `false` i można go włączyć jawnie przez
+     `TYPEORM_SYNCHRONIZE=1|true|yes|on`.
+
+### Weryfikacja po P0
+
+| Komenda                        | Wynik | Uwagi                                                                      |
+| ------------------------------ | ----- | -------------------------------------------------------------------------- |
+| `pnpm --filter web lint`       | OK    | 0 błędów, 13 warningów pozostaje poza P0.                                  |
+| `pnpm --filter web build`      | OK    | Uruchomione poza sandboxem; w sandboxie Turbopack nie może bindować portu. |
+| `pnpm --filter web type-check` | OK    | TypeScript web przechodzi.                                                 |
+| `pnpm --filter api lint`       | OK    | ESLint 9 działa z flat config.                                             |
+| `pnpm --filter api type-check` | OK    | TypeScript API przechodzi.                                                 |
+| `pnpm --filter api test`       | OK    | 33 suites, 162 testy; logi schedulerów są oczekiwane.                      |
+
+Pozostały znany warning builda Next 16: konwencja `middleware` jest deprecated
+na rzecz `proxy`. To jest punkt P1 z tego dokumentu, nie blocker P0.
+
 ## Krytyczne / release blockers
 
 ### 1. Web lint jest czerwony
@@ -190,10 +244,10 @@ Rekomendacja:
 
 ### P0 - przed kolejnym większym merge/release
 
-1. Naprawić `pnpm --filter web lint`.
-2. Ustabilizować `pnpm --filter web build` przez lokalne fonty albo CI cache/network policy.
-3. Naprawić API ESLint config i usunąć `--fix` z podstawowego `lint`.
-4. Wyłączyć TypeORM `synchronize` domyślnie i sterować tym osobną zmienną.
+1. [x] Naprawić `pnpm --filter web lint`.
+2. [x] Ustabilizować `pnpm --filter web build` przez lokalne fonty albo CI cache/network policy.
+3. [x] Naprawić API ESLint config i usunąć `--fix` z podstawowego `lint`.
+4. [x] Wyłączyć TypeORM `synchronize` domyślnie i sterować tym osobną zmienną.
 
 ### P1 - przed publicznym launch/beta z realnymi użytkownikami
 

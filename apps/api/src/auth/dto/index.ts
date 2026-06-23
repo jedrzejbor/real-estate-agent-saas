@@ -1,7 +1,7 @@
 export {
   RegisterDto,
   RegisterAccountType,
-  type RegisterAccountType as RegisterAccountTypeValue,
+  type RegisterAccountTypeValue,
 } from './register.dto';
 export { LoginDto } from './login.dto';
 export { UpdateMyProfileDto } from './update-my-profile.dto';

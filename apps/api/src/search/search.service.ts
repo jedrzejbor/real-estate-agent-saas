@@ -92,13 +92,13 @@ export class SearchService {
       .andWhere(
         new Brackets((qb) => {
           qb.where('LOWER(listing.title) LIKE :term', { term })
-            .orWhere('LOWER(COALESCE(listing.description, \"\")) LIKE :term', {
+            .orWhere("LOWER(COALESCE(listing.description, '')) LIKE :term", {
               term,
             })
-            .orWhere('LOWER(COALESCE(address.city, \"\")) LIKE :term', {
+            .orWhere("LOWER(COALESCE(address.city, '')) LIKE :term", {
               term,
             })
-            .orWhere('LOWER(COALESCE(address.street, \"\")) LIKE :term', {
+            .orWhere("LOWER(COALESCE(address.street, '')) LIKE :term", {
               term,
             });
         }),
@@ -136,8 +136,8 @@ export class SearchService {
               "LOWER(CONCAT(client.firstName, ' ', client.lastName)) LIKE :term",
               { term },
             )
-            .orWhere('LOWER(COALESCE(client.email, \"\")) LIKE :term', { term })
-            .orWhere('LOWER(COALESCE(client.phone, \"\")) LIKE :term', { term });
+            .orWhere("LOWER(COALESCE(client.email, '')) LIKE :term", { term })
+            .orWhere("LOWER(COALESCE(client.phone, '')) LIKE :term", { term });
         }),
       )
       .orderBy('client.updatedAt', 'DESC')
@@ -168,20 +168,20 @@ export class SearchService {
       .andWhere(
         new Brackets((qb) => {
           qb.where('LOWER(appointment.title) LIKE :term', { term })
-            .orWhere('LOWER(COALESCE(appointment.location, \"\")) LIKE :term', {
+            .orWhere("LOWER(COALESCE(appointment.location, '')) LIKE :term", {
               term,
             })
-            .orWhere('LOWER(COALESCE(client.firstName, \"\")) LIKE :term', {
+            .orWhere("LOWER(COALESCE(client.firstName, '')) LIKE :term", {
               term,
             })
-            .orWhere('LOWER(COALESCE(client.lastName, \"\")) LIKE :term', {
+            .orWhere("LOWER(COALESCE(client.lastName, '')) LIKE :term", {
               term,
             })
             .orWhere(
               "LOWER(CONCAT(COALESCE(client.firstName, ''), ' ', COALESCE(client.lastName, ''))) LIKE :term",
               { term },
             )
-            .orWhere('LOWER(COALESCE(listing.title, \"\")) LIKE :term', { term });
+            .orWhere("LOWER(COALESCE(listing.title, '')) LIKE :term", { term });
         }),
       )
       .orderBy('appointment.startTime', 'ASC')

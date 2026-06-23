@@ -24,6 +24,7 @@ export default function EditListingPage() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
+  const tabFromUrl = parseEditListingTabId(tabParam);
   const [listing, setListing] = useState<Listing | null>(null);
   const [activeTab, setActiveTab] = useState<EditListingTabId>('details');
   const [isLoading, setIsLoading] = useState(true);
@@ -38,13 +39,6 @@ export default function EditListingPage() {
       )
       .finally(() => setIsLoading(false));
   }, [params.id]);
-
-  useEffect(() => {
-    const tab = parseEditListingTabId(tabParam);
-    if (tab) {
-      setActiveTab(tab);
-    }
-  }, [tabParam]);
 
   if (isLoading) {
     return (
@@ -74,7 +68,8 @@ export default function EditListingPage() {
   }
 
   const tabs = getEditListingTabs(listing);
-  const selectedTab = tabs.find((tab) => tab.id === activeTab) ?? tabs[0]!;
+  const selectedTab =
+    tabs.find((tab) => tab.id === (tabFromUrl ?? activeTab)) ?? tabs[0]!;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -160,7 +155,10 @@ export default function EditListingPage() {
           ) : null}
 
           {selectedTab.id === 'images' ? (
-            <ListingImageManager listing={listing} onListingChange={setListing} />
+            <ListingImageManager
+              listing={listing}
+              onListingChange={setListing}
+            />
           ) : null}
 
           {selectedTab.id === 'publication' ? (

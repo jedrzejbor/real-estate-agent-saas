@@ -5,7 +5,7 @@ import { Agent } from './entities/agent.entity';
 import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
 
-type RepoMock<T> = {
+type RepoMock = {
   findOne: jest.Mock;
   save: jest.Mock;
   create: jest.Mock;
@@ -17,7 +17,7 @@ type RepoMock<T> = {
   };
 };
 
-function buildRepoMock<T>(): RepoMock<T> {
+function buildRepoMock(): RepoMock {
   return {
     findOne: jest.fn(),
     save: jest.fn(),
@@ -90,12 +90,12 @@ function buildUser(overrides: Partial<User> = {}): User {
 }
 
 function buildService(userOverrides: Partial<User> = {}) {
-  const userRepo = buildRepoMock<User>();
-  const agentRepo = buildRepoMock<Agent>();
-  const agencyRepo = buildRepoMock<Agency>();
-  const listingRepo = buildRepoMock<never>();
-  const clientRepo = buildRepoMock<never>();
-  const appointmentRepo = buildRepoMock<never>();
+  const userRepo = buildRepoMock();
+  const agentRepo = buildRepoMock();
+  const agencyRepo = buildRepoMock();
+  const listingRepo = buildRepoMock();
+  const clientRepo = buildRepoMock();
+  const appointmentRepo = buildRepoMock();
   const agencyPlanService = {
     getEntitlements: jest.fn(),
   };

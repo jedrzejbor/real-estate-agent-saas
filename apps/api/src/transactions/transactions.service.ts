@@ -8,7 +8,6 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
 import {
-  ListingCommissionType,
   ListingPublicationStatus,
   ListingStatus,
   TransactionType,

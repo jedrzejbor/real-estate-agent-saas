@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Script from 'next/script';
-import { Outfit, Inter } from 'next/font/google';
 import { CookieConsentManager } from '@/components/legal';
 import { AuthProvider } from '@/contexts/auth-context';
 import { ConfirmProvider } from '@/contexts/confirm-context';
@@ -8,20 +7,6 @@ import { CookieConsentProvider } from '@/contexts/cookie-consent-context';
 import { ThemeProvider } from '@/contexts/theme-context';
 import { ToastProvider } from '@/contexts/toast-context';
 import './globals.css';
-
-const outfit = Outfit({
-  subsets: ['latin', 'latin-ext'],
-  variable: '--font-outfit',
-  display: 'swap',
-  weight: ['400', '500', '600', '700'],
-});
-
-const inter = Inter({
-  subsets: ['latin', 'latin-ext'],
-  variable: '--font-inter',
-  display: 'swap',
-  weight: ['400', '500', '600'],
-});
 
 const themeInitScript = `
   (function () {
@@ -48,11 +33,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="pl"
-      suppressHydrationWarning
-      className={`${outfit.variable} ${inter.variable} h-full antialiased`}
-    >
+    <html lang="pl" suppressHydrationWarning className="h-full antialiased">
       <body className="flex min-h-full flex-col bg-background font-sans text-foreground">
         <Script id="theme-init" strategy="beforeInteractive">
           {themeInitScript}

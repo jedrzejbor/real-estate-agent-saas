@@ -17,9 +17,7 @@ import { UsersService } from '../users';
 import { AgencyEntitlements } from '../users/agency-plan.service';
 import { FeatureAccessDeniedException } from '../common/exceptions/feature-access-denied.exception';
 import {
-  AppointmentType,
   AppointmentStatus,
-  ClientSource,
   ClientStatus,
   ListingCommissionType,
   ListingStatus,

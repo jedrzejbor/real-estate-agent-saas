@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { fetchGlobalSearch, type SearchResponse } from '@/lib/search';
 import { useDebouncedValue } from './use-debounced-value';
 
@@ -19,73 +19,78 @@ const EMPTY_RESULTS: SearchResponse = {
 export function useGlobalSearch() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResponse>(EMPTY_RESULTS);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const cacheRef = useRef(new Map<string, SearchResponse>());
+  const [error, setError] = useState<{ query: string; message: string } | null>(
+    null,
+  );
+  const [cachedResultsByQuery, setCachedResultsByQuery] = useState(
+    () => new Map<string, SearchResponse>(),
+  );
 
   const trimmedQuery = useMemo(() => query.trim(), [query]);
   const debouncedQuery = useDebouncedValue(trimmedQuery, SEARCH_DEBOUNCE_MS);
+  const isSearchableQuery = debouncedQuery.length >= 2;
+  const cachedResponse = isSearchableQuery
+    ? cachedResultsByQuery.get(debouncedQuery)
+    : undefined;
+  const displayedResults = !isSearchableQuery
+    ? EMPTY_RESULTS
+    : (cachedResponse ??
+      (results.query === debouncedQuery ? results : EMPTY_RESULTS));
+  const displayedError = error?.query === debouncedQuery ? error.message : null;
+  const isLoading =
+    isSearchableQuery &&
+    !cachedResponse &&
+    results.query !== debouncedQuery &&
+    error?.query !== debouncedQuery;
 
   useEffect(() => {
-    if (debouncedQuery.length < 2) {
-      setResults((current) =>
-        current.total === 0 && current.query === '' ? current : EMPTY_RESULTS,
-      );
-      setIsLoading(false);
-      setError(null);
-      return;
-    }
-
-    const cachedResponse = cacheRef.current.get(debouncedQuery);
-    if (cachedResponse) {
-      setResults(cachedResponse);
-      setIsLoading(false);
-      setError(null);
+    if (!isSearchableQuery || cachedResultsByQuery.has(debouncedQuery)) {
       return;
     }
 
     const controller = new AbortController();
     let cancelled = false;
 
-    setIsLoading(true);
-    setError(null);
-
     void fetchGlobalSearch(debouncedQuery, controller.signal)
       .then((response) => {
         if (cancelled) return;
-        cacheRef.current.set(debouncedQuery, response);
+        setCachedResultsByQuery((current) => {
+          const next = new Map(current);
+          next.set(debouncedQuery, response);
+          return next;
+        });
         setResults(response);
+        setError((current) =>
+          current?.query === debouncedQuery ? null : current,
+        );
       })
       .catch((err) => {
         if (cancelled || controller.signal.aborted) {
           return;
         }
 
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Nie udało się pobrać wyników wyszukiwania',
-        );
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+        setError({
+          query: debouncedQuery,
+          message:
+            err instanceof Error
+              ? err.message
+              : 'Nie udało się pobrać wyników wyszukiwania',
+        });
       });
 
     return () => {
       cancelled = true;
       controller.abort();
     };
-  }, [debouncedQuery]);
+  }, [cachedResultsByQuery, debouncedQuery, isSearchableQuery]);
 
   return {
     query,
     setQuery,
     trimmedQuery,
-    results,
+    results: displayedResults,
     isLoading,
-    error,
+    error: displayedError,
     clearQuery: () => setQuery(''),
   };
 }

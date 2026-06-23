@@ -1691,8 +1691,11 @@ function sortImageDataByPrimary(
   images: Array<Partial<ListingImage>>,
 ): Array<Partial<ListingImage>> {
   return images.slice().sort((a, b) => {
-    if (Boolean(a.isPrimary) !== Boolean(b.isPrimary)) {
-      return Boolean(a.isPrimary) ? -1 : 1;
+    const aIsPrimary = a.isPrimary === true;
+    const bIsPrimary = b.isPrimary === true;
+
+    if (aIsPrimary !== bIsPrimary) {
+      return aIsPrimary ? -1 : 1;
     }
 
     return (a.order ?? 0) - (b.order ?? 0);
@@ -1859,8 +1862,11 @@ function getFirstImageUrl(
   const firstImage = (payload.images ?? [])
     .filter((image) => getNullableString(image.url))
     .sort((a, b) => {
-      if (Boolean(a.isPrimary) !== Boolean(b.isPrimary)) {
-        return Boolean(a.isPrimary) ? -1 : 1;
+      const aIsPrimary = a.isPrimary === true;
+      const bIsPrimary = b.isPrimary === true;
+
+      if (aIsPrimary !== bIsPrimary) {
+        return aIsPrimary ? -1 : 1;
       }
 
       return (
