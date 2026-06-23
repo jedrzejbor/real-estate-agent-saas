@@ -30,7 +30,7 @@ import {
   APPOINTMENT_STATUS_LABELS,
   TYPE_COLORS,
   STATUS_BADGE_VARIANT,
-  formatAppointmentDate,
+  formatAppointmentDateNumeric,
   formatTimeRange,
 } from '@/lib/appointments';
 import { CLIENT_STATUS_LABELS } from '@/lib/clients';
@@ -177,9 +177,9 @@ export default function AppointmentDetailPage({
       </div>
 
       {/* Details */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
+      <div className="grid auto-rows-fr items-stretch gap-6 lg:grid-cols-2">
         {/* Info Card */}
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
+        <div className="min-h-[185px] space-y-4 rounded-2xl border border-border bg-card p-6">
           <h2 className="font-heading text-base font-semibold text-foreground">
             Szczegóły spotkania
           </h2>
@@ -187,7 +187,7 @@ export default function AppointmentDetailPage({
           <div className="space-y-3">
             <DetailRow icon={CalendarDays} label="Data">
               <span className="text-sm font-medium text-foreground">
-                {formatAppointmentDate(appointment.startTime)}
+                {formatAppointmentDateNumeric(appointment.startTime)}
               </span>
             </DetailRow>
 
@@ -207,34 +207,8 @@ export default function AppointmentDetailPage({
           </div>
         </div>
 
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
-          <h2 className="flex items-center gap-2 font-heading text-base font-semibold text-foreground">
-            <User className="h-4 w-4 text-muted-foreground" />
-            Klient
-          </h2>
-          {appointment.client ? (
-            <ClientSummary client={appointment.client} />
-          ) : (
-            <EmptyRelation>
-              Spotkanie nie ma przypisanego klienta.
-            </EmptyRelation>
-          )}
-        </div>
-
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-6 xl:col-span-2">
-          <h2 className="flex items-center gap-2 font-heading text-base font-semibold text-foreground">
-            <Home className="h-4 w-4 text-muted-foreground" />
-            Oferta
-          </h2>
-          {appointment.listing ? (
-            <ListingSummary listing={appointment.listing} />
-          ) : (
-            <EmptyRelation>Spotkanie nie ma przypisanej oferty.</EmptyRelation>
-          )}
-        </div>
-
         {/* Notes Card */}
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
+        <div className="min-h-[185px] space-y-4 rounded-2xl border border-border bg-card p-6">
           <h2 className="flex items-center gap-2 font-heading text-base font-semibold text-foreground">
             <StickyNote className="h-4 w-4 text-muted-foreground" />
             Notatki
@@ -247,6 +221,44 @@ export default function AppointmentDetailPage({
             <p className="text-sm italic text-muted-foreground/60">
               Brak notatek
             </p>
+          )}
+        </div>
+
+        <div className="min-h-[185px] space-y-4 rounded-2xl border border-border bg-card p-6">
+          <h2 className="flex items-center gap-2 font-heading text-base font-semibold text-foreground">
+            <User className="h-4 w-4 text-muted-foreground" />
+            Klient
+          </h2>
+          {appointment.client ? (
+            <ClientSummary client={appointment.client} />
+          ) : appointment.clientId ? (
+            <RelationFallback
+              href={`/dashboard/clients/${appointment.clientId}`}
+              title="Przypisany klient"
+              description="Szczegóły klienta nie zostały zwrócone przez API."
+            />
+          ) : (
+            <EmptyRelation>
+              Spotkanie nie ma przypisanego klienta.
+            </EmptyRelation>
+          )}
+        </div>
+
+        <div className="min-h-[185px] space-y-4 rounded-2xl border border-border bg-card p-6">
+          <h2 className="flex items-center gap-2 font-heading text-base font-semibold text-foreground">
+            <Home className="h-4 w-4 text-muted-foreground" />
+            Oferta
+          </h2>
+          {appointment.listing ? (
+            <ListingSummary listing={appointment.listing} />
+          ) : appointment.listingId ? (
+            <RelationFallback
+              href={`/dashboard/listings/${appointment.listingId}`}
+              title="Przypisana oferta"
+              description="Szczegóły oferty nie zostały zwrócone przez API."
+            />
+          ) : (
+            <EmptyRelation>Spotkanie nie ma przypisanej oferty.</EmptyRelation>
           )}
         </div>
       </div>
@@ -384,6 +396,28 @@ function EmptyRelation({ children }: { children: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
       {children}
+    </div>
+  );
+}
+
+function RelationFallback({
+  href,
+  title,
+  description,
+}: {
+  href: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 p-4">
+      <Link
+        href={href}
+        className="text-sm font-medium text-primary hover:underline"
+      >
+        {title}
+      </Link>
+      <p className="mt-1 text-xs text-muted-foreground">{description}</p>
     </div>
   );
 }

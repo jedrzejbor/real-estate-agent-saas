@@ -21,7 +21,11 @@ export class Appointment {
   title: string;
 
   @Index()
-  @Column({ type: 'enum', enum: AppointmentType, default: AppointmentType.OTHER })
+  @Column({
+    type: 'enum',
+    enum: AppointmentType,
+    default: AppointmentType.OTHER,
+  })
   type: AppointmentType;
 
   @Index()
@@ -62,13 +66,13 @@ export class Appointment {
   @JoinColumn({ name: 'client_id' })
   client: Client;
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ type: 'uuid', name: 'client_id', nullable: true })
   clientId: string;
 
   @ManyToOne(() => Listing, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'listing_id' })
   listing: Listing;
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ type: 'uuid', name: 'listing_id', nullable: true })
   listingId: string;
 }

@@ -280,6 +280,16 @@ export function formatAppointmentDate(dateStr: string): string {
   });
 }
 
+/** Format date for compact display: "25-06-2026" */
+export function formatAppointmentDateNumeric(dateStr: string): string {
+  const date = new Date(dateStr);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+
+  return `${day}-${month}-${year}`;
+}
+
 /** Format time only: "14:30" */
 export function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString('pl-PL', {
