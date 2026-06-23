@@ -459,55 +459,59 @@ export function ListingImageManager({
                       </Button>
                     </div>
 
-                    <div className="grid grid-cols-5 gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-lg"
-                        aria-label="Przesuń zdjęcie w górę"
-                        disabled={isBusy || index === 0}
-                        onClick={() => handleMove(image.id, -1)}
-                        className="rounded-xl"
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-lg"
-                        aria-label="Przesuń zdjęcie w dół"
-                        disabled={isBusy || index === images.length - 1}
-                        onClick={() => handleMove(image.id, 1)}
-                        className="rounded-xl"
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-lg"
-                        aria-label="Ustaw jako zdjęcie główne"
-                        disabled={isBusy || image.isPrimary}
-                        onClick={() => handleSetPrimary(image)}
-                        className={cn(
-                          'rounded-xl',
-                          image.isPrimary ? 'text-primary' : '',
-                        )}
-                      >
-                        <Star className="h-4 w-4" />
-                      </Button>
-                      <div />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon-lg"
-                        aria-label="Usuń zdjęcie"
-                        disabled={isBusy}
-                        onClick={() => handleDelete(image)}
-                        className="rounded-xl"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-lg"
+                          aria-label="Przesuń zdjęcie w górę"
+                          disabled={isBusy || index === 0}
+                          onClick={() => handleMove(image.id, -1)}
+                          className="rounded-xl"
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-lg"
+                          aria-label="Przesuń zdjęcie w dół"
+                          disabled={isBusy || index === images.length - 1}
+                          onClick={() => handleMove(image.id, 1)}
+                          className="rounded-xl"
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-lg"
+                          aria-label="Ustaw jako zdjęcie główne"
+                          disabled={isBusy || image.isPrimary}
+                          onClick={() => handleSetPrimary(image)}
+                          className={cn(
+                            'rounded-xl',
+                            image.isPrimary ? 'text-primary' : '',
+                          )}
+                        >
+                          <Star className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon-lg"
+                          aria-label="Usuń zdjęcie"
+                          disabled={isBusy}
+                          onClick={() => handleDelete(image)}
+                          className="rounded-xl"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </article>
