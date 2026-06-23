@@ -5,6 +5,7 @@ import { MonitoringModule } from '../monitoring';
 import { UsersModule } from '../users';
 import { Agency, Agent } from '../users/entities';
 import { BillingSubscriptionEventsService } from './billing-subscription-events.service';
+import { BillingWebhooksController } from './billing-webhooks.controller';
 import { BillingWebhookEvent } from './entities/billing-webhook-event.entity';
 
 @Module({
@@ -14,6 +15,7 @@ import { BillingWebhookEvent } from './entities/billing-webhook-event.entity';
     UsersModule,
     MonitoringModule,
   ],
+  controllers: [BillingWebhooksController],
   providers: [BillingSubscriptionEventsService],
   exports: [BillingSubscriptionEventsService],
 })

@@ -860,7 +860,7 @@ Kryteria akceptacji:
 
 ## Sprint 8 - billing webhooki i automatyczne downgrade/past_due/canceled
 
-Status: W trakcie - etap 1 zrobiony.
+Status: W trakcie - etap 2 zrobiony.
 
 Wykonano w etapie 1:
 
@@ -893,10 +893,33 @@ Wykonano w etapie 1:
   - `canceled` -> fallback `free` + start karencji,
   - upgrade/aktualizacji subskrypcji czyszczącej karencję, gdy usage mieści się w nowym limicie.
 
+Wykonano w etapie 2:
+
+- dodano publiczny endpoint `POST /api/billing/webhooks/subscription-events`,
+- endpoint przyjmuje znormalizowane zdarzenia subskrypcji i przekazuje je do `BillingSubscriptionEventsService`,
+- dodano DTO `BillingSubscriptionWebhookDto` z walidacją:
+  - `provider`,
+  - `eventId`,
+  - `eventType`,
+  - identyfikatorów agencji/subskrypcji/klienta billingowego,
+  - planu,
+  - statusu subskrypcji,
+  - billing interval,
+  - dat `currentPeriodEnd` i `occurredAt`,
+  - `rawPayload`,
+- endpoint wymaga podpisu HMAC-SHA256 w nagłówku `x-estateflow-billing-signature`,
+- podpis jest liczony z kanonicznego JSON payloadu i sekretu `BILLING_WEBHOOK_SECRET`,
+- brak sekretu zwraca kontrolowany błąd konfiguracji `503`,
+- brak albo niepoprawny podpis zwraca `401` i nie wywołuje serwisu domenowego,
+- dodano `BILLING_WEBHOOK_SECRET` do `.env.example` i `docs/LOCAL_SETUP.md`,
+- dodano testy jednostkowe kontrolera webhooka dla:
+  - poprawnego podpisu,
+  - błędnego podpisu,
+  - braku skonfigurowanego sekretu.
+
 Pozostało na kolejną iterację Sprintu 8:
 
-- dodać publiczny endpoint webhooka providera z weryfikacją podpisu,
-- zmapować realne payloady providera płatności na `BillingSubscriptionEventsService`,
+- zmapować realne payloady providera płatności, np. Stripe, na `BillingSubscriptionEventsService`,
 - dodać trwałe oznaczanie eventów błędnych, jeśli agency lookup albo przetwarzanie się nie powiedzie,
 - doprecyzować produktową regułę `past_due`, jeśli ma mieć osobną krótszą karencję albo blokady inne niż standardowy downgrade,
 - dodać testy integracyjne endpointu webhooka.

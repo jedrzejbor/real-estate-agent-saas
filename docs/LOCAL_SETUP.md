@@ -96,6 +96,7 @@ PLAN_LIMIT_ENFORCEMENT_SCHEDULER_ENABLED=true
 PLAN_LIMIT_ENFORCEMENT_SCHEDULER_HOUR=2
 PLAN_LIMIT_ENFORCEMENT_SCHEDULER_MINUTE=15
 PLAN_LIMIT_DOWNGRADE_GRACE_DAYS=7
+BILLING_WEBHOOK_SECRET=change-me-local-billing-webhook-secret
 # Opcjonalne: geokodowanie dokładnego punktu adresu ofert.
 # Bez tych zmiennych endpoint zwróci kontrolowany błąd 503.
 GEOCODING_PROVIDER=
@@ -152,6 +153,7 @@ Konfiguracja opcjonalna:
 | `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_HOUR` | `2` | godzina lokalnego czasu procesu API |
 | `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_MINUTE` | `15` | minuta lokalnego czasu procesu API |
 | `PLAN_LIMIT_DOWNGRADE_GRACE_DAYS` | `7` | liczba dni karencji ustawiana po zmianie planu, gdy aktualne użycie przekracza nowy limit ofert |
+| `BILLING_WEBHOOK_SECRET` | brak | sekret HMAC dla `POST /api/billing/webhooks/subscription-events`; bez niego endpoint zwraca kontrolowany błąd 503 |
 
 Ręczne wymuszenie dla supportu/admina pozostaje dostępne przez:
 
