@@ -374,6 +374,23 @@ Ryzyka:
 - zbyt wczesna abstrakcja może utrudnić pracę; komponenty tworzyć dopiero, gdy
   są użyte minimum w dwóch miejscach albo mają oczywisty wspólny kontrakt.
 
+Status etapu 1, 2026-06-23:
+
+- wykonano pierwszy, ograniczony zakres sprintu UX-0 jako fundament pod kolejne
+  iteracje,
+- dodano wspólne komponenty `DetailCard`, `InfoTile`, `ContactAction`,
+  `AddressLink`, `CopyButton`, `RelationCard` i `ActionEmptyState` w
+  `apps/web/src/components/common`,
+- dodano helpery `copyTextToClipboard`, `buildGoogleMapsSearchUrl`,
+  `buildPhoneHref`, `formatDisplayDateNumeric`, `formatDisplayTime` i
+  `formatDisplayTimeRange`,
+- przepięto szczegóły spotkania na nowe komponenty wspólne, żeby realnie
+  zweryfikować kontrakty komponentów na istniejącym ekranie,
+- ujednolicono format zakresu godziny do `HH:mm - HH:mm`,
+- nie refaktoryzowano jeszcze wszystkich widoków szczegółowych; to powinno być
+  robione etapowo w sprintach UX-1 i kolejnych, żeby nie zwiększać niepotrzebnie
+  ryzyka regresji.
+
 ### Sprint UX-1: Quick wins w istniejących widokach
 
 Cel:

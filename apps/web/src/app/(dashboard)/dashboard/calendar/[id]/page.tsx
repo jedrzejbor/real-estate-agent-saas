@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import {
+  useEffect,
+  useState,
+  use,
+  type ElementType,
+  type ReactNode,
+} from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -16,11 +22,17 @@ import {
   Mail,
   Phone,
   Tag,
-  Copy,
-  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  ActionEmptyState,
+  AddressLink,
+  ContactAction,
+  DetailCard,
+  InfoTile,
+  RelationCard,
+} from '@/components/common';
 import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
 import {
@@ -32,10 +44,13 @@ import {
   APPOINTMENT_STATUS_LABELS,
   TYPE_COLORS,
   STATUS_BADGE_VARIANT,
-  formatAppointmentDateNumeric,
-  formatTimeRange,
 } from '@/lib/appointments';
 import { CLIENT_STATUS_LABELS } from '@/lib/clients';
+import { buildPhoneHref } from '@/lib/contact-links';
+import {
+  formatDisplayDateNumeric,
+  formatDisplayTimeRange,
+} from '@/lib/date-format';
 import {
   LISTING_STATUS_LABELS,
   PROPERTY_TYPE_LABELS,
@@ -54,7 +69,7 @@ export default function AppointmentDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const { confirm } = useConfirm();
-  const { error: showErrorToast, success: showSuccessToast } = useToast();
+  const { error: showErrorToast } = useToast();
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,22 +115,6 @@ export default function AppointmentDetailPage({
           err instanceof Error ? err.message : 'Spróbuj ponownie za chwilę.',
       });
       setIsDeleting(false);
-    }
-  };
-
-  const handleCopy = async (value: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      showSuccessToast({
-        title: 'Skopiowano',
-        description: `${label} skopiowano do schowka.`,
-      });
-    } catch {
-      showErrorToast({
-        title: 'Nie udało się skopiować',
-        description:
-          'Skopiuj wartość ręcznie albo sprawdź uprawnienia przeglądarki.',
-      });
     }
   };
 
@@ -197,46 +196,33 @@ export default function AppointmentDetailPage({
       {/* Details */}
       <div className="grid auto-rows-fr items-stretch gap-6 lg:grid-cols-2">
         {/* Info Card */}
-        <div className="min-h-[185px] space-y-4 rounded-2xl border border-border bg-card p-6">
-          <h2 className="font-heading text-base font-semibold text-foreground">
-            Szczegóły spotkania
-          </h2>
-
+        <DetailCard title="Szczegóły spotkania">
           <div className="space-y-3">
             <DetailRow icon={CalendarDays} label="Data">
               <span className="text-sm font-medium text-foreground">
-                {formatAppointmentDateNumeric(appointment.startTime)}
+                {formatDisplayDateNumeric(appointment.startTime)}
               </span>
             </DetailRow>
 
             <DetailRow icon={Clock} label="Godzina">
               <span className="text-sm font-medium text-foreground">
-                {formatTimeRange(appointment.startTime, appointment.endTime)}
+                {formatDisplayTimeRange(
+                  appointment.startTime,
+                  appointment.endTime,
+                )}
               </span>
             </DetailRow>
 
             {appointment.location && (
               <DetailRow icon={MapPin} label="Lokalizacja">
-                <a
-                  href={buildGoogleMapsUrl(appointment.location)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-                >
-                  {appointment.location}
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
+                <AddressLink address={appointment.location} />
               </DetailRow>
             )}
           </div>
-        </div>
+        </DetailCard>
 
         {/* Notes Card */}
-        <div className="min-h-[185px] space-y-4 rounded-2xl border border-border bg-card p-6">
-          <h2 className="flex items-center gap-2 font-heading text-base font-semibold text-foreground">
-            <StickyNote className="h-4 w-4 text-muted-foreground" />
-            Notatki
-          </h2>
+        <DetailCard title="Notatki" icon={StickyNote}>
           {appointment.notes ? (
             <p className="whitespace-pre-wrap text-sm text-muted-foreground">
               {appointment.notes}
@@ -246,57 +232,45 @@ export default function AppointmentDetailPage({
               Brak notatek
             </p>
           )}
-        </div>
+        </DetailCard>
 
-        <div className="min-h-[185px] space-y-4 rounded-2xl border border-border bg-card p-6">
-          <h2 className="flex items-center gap-2 font-heading text-base font-semibold text-foreground">
-            <User className="h-4 w-4 text-muted-foreground" />
-            Klient
-          </h2>
+        <DetailCard title="Klient" icon={User}>
           {appointment.client ? (
-            <ClientSummary client={appointment.client} onCopy={handleCopy} />
+            <ClientSummary client={appointment.client} />
           ) : appointment.clientId ? (
-            <RelationFallback
+            <RelationCard
               href={`/dashboard/clients/${appointment.clientId}`}
               title="Przypisany klient"
               description="Szczegóły klienta nie zostały zwrócone przez API."
             />
           ) : (
-            <EmptyRelation>
+            <ActionEmptyState>
               Spotkanie nie ma przypisanego klienta.
-            </EmptyRelation>
+            </ActionEmptyState>
           )}
-        </div>
+        </DetailCard>
 
-        <div className="min-h-[185px] space-y-4 rounded-2xl border border-border bg-card p-6">
-          <h2 className="flex items-center gap-2 font-heading text-base font-semibold text-foreground">
-            <Home className="h-4 w-4 text-muted-foreground" />
-            Oferta
-          </h2>
+        <DetailCard title="Oferta" icon={Home}>
           {appointment.listing ? (
             <ListingSummary listing={appointment.listing} />
           ) : appointment.listingId ? (
-            <RelationFallback
+            <RelationCard
               href={`/dashboard/listings/${appointment.listingId}`}
               title="Przypisana oferta"
               description="Szczegóły oferty nie zostały zwrócone przez API."
             />
           ) : (
-            <EmptyRelation>Spotkanie nie ma przypisanej oferty.</EmptyRelation>
+            <ActionEmptyState>
+              Spotkanie nie ma przypisanej oferty.
+            </ActionEmptyState>
           )}
-        </div>
+        </DetailCard>
       </div>
     </div>
   );
 }
 
-function ClientSummary({
-  client,
-  onCopy,
-}: {
-  client: Appointment['client'];
-  onCopy: (value: string, label: string) => void;
-}) {
+function ClientSummary({ client }: { client: Appointment['client'] }) {
   if (!client) return null;
 
   const fullName = `${client.firstName} ${client.lastName}`.trim();
@@ -320,19 +294,17 @@ function ClientSummary({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <ContactItem
+        <ContactAction
           icon={Mail}
           label="Email"
           value={client.email}
           href={client.email ? `mailto:${client.email}` : undefined}
-          onCopy={onCopy}
         />
-        <ContactItem
+        <ContactAction
           icon={Phone}
           label="Telefon"
           value={client.phone}
           href={client.phone ? buildPhoneHref(client.phone) : undefined}
-          onCopy={onCopy}
         />
       </div>
     </div>
@@ -343,7 +315,6 @@ function ListingSummary({ listing }: { listing: Appointment['listing'] }) {
   if (!listing) return null;
 
   const address = formatListingAddress(listing.address);
-  const mapsUrl = address ? buildGoogleMapsUrl(address) : undefined;
   const metaItems = [
     listing.propertyType ? PROPERTY_TYPE_LABELS[listing.propertyType] : null,
     listing.transactionType
@@ -385,122 +356,12 @@ function ListingSummary({ listing }: { listing: Appointment['listing'] }) {
           }
         />
         <InfoTile icon={Home} label="Parametry" value={metaItems.join(' / ')} />
-        <InfoTile icon={MapPin} label="Adres" value={address} href={mapsUrl} />
+        <InfoTile
+          icon={MapPin}
+          label="Adres"
+          value={address ? <AddressLink address={address} /> : null}
+        />
       </div>
-    </div>
-  );
-}
-
-function ContactItem({
-  icon: Icon,
-  label,
-  value,
-  href,
-  onCopy,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value?: string | null;
-  href?: string;
-  onCopy: (value: string, label: string) => void;
-}) {
-  const copyValue = value?.trim();
-
-  return (
-    <div className="flex min-h-16 items-start gap-3 rounded-xl border border-border bg-muted/20 p-3">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        {copyValue && href ? (
-          <a
-            href={href}
-            className="mt-0.5 inline-flex min-w-0 max-w-full items-center gap-1 break-all text-sm font-medium text-primary hover:underline"
-          >
-            <span className="min-w-0 break-all">{copyValue}</span>
-          </a>
-        ) : (
-          <p className="mt-0.5 break-words text-sm font-medium text-foreground">
-            {copyValue || 'Brak danych'}
-          </p>
-        )}
-      </div>
-      {copyValue ? (
-        <button
-          type="button"
-          onClick={() => onCopy(copyValue, label)}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
-          aria-label={`Kopiuj ${label.toLowerCase()}`}
-          title={`Kopiuj ${label.toLowerCase()}`}
-        >
-          <Copy className="h-3.5 w-3.5" />
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function InfoTile({
-  icon: Icon,
-  label,
-  value,
-  href,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value?: string | null;
-  href?: string;
-}) {
-  return (
-    <div className="min-h-20 rounded-xl border border-border bg-muted/20 p-3">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
-      </div>
-      {value && href ? (
-        <a
-          href={href}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-2 inline-flex items-start gap-1 break-words text-sm font-medium text-primary hover:underline"
-        >
-          <span>{value}</span>
-          <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        </a>
-      ) : (
-        <p className="mt-2 break-words text-sm font-medium text-foreground">
-          {value || 'Brak danych'}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function EmptyRelation({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-      {children}
-    </div>
-  );
-}
-
-function RelationFallback({
-  href,
-  title,
-  description,
-}: {
-  href: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-muted/20 p-4">
-      <Link
-        href={href}
-        className="text-sm font-medium text-primary hover:underline"
-      >
-        {title}
-      </Link>
-      <p className="mt-1 text-xs text-muted-foreground">{description}</p>
     </div>
   );
 }
@@ -510,9 +371,9 @@ function DetailRow({
   label,
   children,
 }: {
-  icon: React.ElementType;
+  icon: ElementType;
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="flex items-start gap-3">
@@ -537,12 +398,4 @@ function formatListingAddress(
     .join(', ');
 
   return address.district ? `${parts} (${address.district})` : parts || null;
-}
-
-function buildGoogleMapsUrl(query: string): string {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-}
-
-function buildPhoneHref(phone: string): string {
-  return `tel:${phone.replace(/[^\d+]/g, '')}`;
 }

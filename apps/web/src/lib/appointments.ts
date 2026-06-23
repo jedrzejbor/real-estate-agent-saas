@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import { apiFetch } from './api-client';
+import {
+  formatDisplayDateNumeric,
+  formatDisplayTime,
+  formatDisplayTimeRange,
+} from './date-format';
 import { AnalyticsEventName, trackAnalyticsEvent } from './analytics';
 import type { ClientStatus } from './clients';
 import type { ListingStatus, PropertyType, TransactionType } from './listings';
@@ -282,25 +287,17 @@ export function formatAppointmentDate(dateStr: string): string {
 
 /** Format date for compact display: "25-06-2026" */
 export function formatAppointmentDateNumeric(dateStr: string): string {
-  const date = new Date(dateStr);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-
-  return `${day}-${month}-${year}`;
+  return formatDisplayDateNumeric(dateStr);
 }
 
 /** Format time only: "14:30" */
 export function formatTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleTimeString('pl-PL', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDisplayTime(dateStr);
 }
 
 /** Format time range: "14:30 – 15:30" */
 export function formatTimeRange(start: string, end: string): string {
-  return `${formatTime(start)} – ${formatTime(end)}`;
+  return formatDisplayTimeRange(start, end);
 }
 
 /** Format date as day header: "Poniedziałek, 12 kwietnia 2025" */
