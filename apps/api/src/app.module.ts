@@ -24,6 +24,7 @@ import { ProductFeedbackModule } from './product-feedback';
 import { BlogModule } from './blog';
 import { AdminModule } from './admin';
 import { PlansModule } from './plans';
+import { BillingModule } from './billing';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { PlansModule } from './plans';
     ProductFeedbackModule,
     BlogModule,
     PlansModule,
+    BillingModule,
     AdminModule,
   ],
   controllers: [AppController],

@@ -755,7 +755,7 @@ Kryteria akceptacji:
 
 ## Sprint 7 - audyt automatycznych zmian i support visibility
 
-Status: W trakcie - etap 3 zrobiony.
+Status: Zrobione w zakresie MVP.
 
 Wykonano w etapie 1:
 
@@ -817,7 +817,7 @@ Wykonano w etapie 3:
 - dane audytu są pobierane po wyborze agencji i odświeżane razem z panelem,
 - dodano regresję backendową potwierdzającą zwracanie pól karencji w odpowiedzi planu agencji.
 
-Pozostało na kolejną iterację Sprintu 7:
+Follow-up poza MVP Sprintu 7:
 
 - rozważyć dedykowaną tabelę audytu egzekucji, jeśli support będzie potrzebował raportowania niezależnego od historii pojedynczej oferty.
 
@@ -860,7 +860,46 @@ Kryteria akceptacji:
 
 ## Sprint 8 - billing webhooki i automatyczne downgrade/past_due/canceled
 
-Status: Do zrobienia.
+Status: W trakcie - etap 1 zrobiony.
+
+Wykonano w etapie 1:
+
+- dodano tabelę `billing_webhook_events` do trwałej idempotencji zdarzeń billingowych,
+- dodano migrację `20260623_billing_webhook_events.sql`,
+- dodano encję `BillingWebhookEvent` z unikalnym kluczem `provider + eventId`,
+- dodano `BillingModule`,
+- dodano `BillingSubscriptionEventsService` jako provider-agnosticzną warstwę domenową dla zdarzeń subskrypcji,
+- serwis obsługuje znormalizowane zdarzenia:
+  - `subscription_updated`,
+  - `subscription_past_due`,
+  - `subscription_canceled`,
+- serwis wyszukuje agencję po:
+  - `agencyId`,
+  - `billingSubscriptionId`,
+  - `billingCustomerId`,
+- powtórzone zdarzenie `provider + eventId` jest ignorowane bez ponownej zmiany agencji,
+- `subscription_canceled` ustawia subskrypcję na `canceled` i fallback planu na `free`, jeśli event nie wskaże innego planu,
+- `subscription_past_due` ustawia status `past_due` i zachowuje obecny plan, jeśli event nie wskaże zmiany planu,
+- `subscription_updated` aktualizuje plan, status subskrypcji, billing interval i `currentPeriodEnd`,
+- po zmianie planu/statusu serwis przelicza użycie aktywnych ofert i:
+  - uruchamia karencję, jeśli `activeListings > limit`,
+  - czyści karencję, jeśli użycie mieści się w limicie albo plan nie ma limitu,
+- billingowy start karencji emituje monitoring:
+  - `plan_limit_exceeded`,
+  - `plan_limit_grace_started`,
+  - z `source: billing_webhook`,
+- dodano testy jednostkowe dla:
+  - ignorowania duplikatu eventu,
+  - `canceled` -> fallback `free` + start karencji,
+  - upgrade/aktualizacji subskrypcji czyszczącej karencję, gdy usage mieści się w nowym limicie.
+
+Pozostało na kolejną iterację Sprintu 8:
+
+- dodać publiczny endpoint webhooka providera z weryfikacją podpisu,
+- zmapować realne payloady providera płatności na `BillingSubscriptionEventsService`,
+- dodać trwałe oznaczanie eventów błędnych, jeśli agency lookup albo przetwarzanie się nie powiedzie,
+- doprecyzować produktową regułę `past_due`, jeśli ma mieć osobną krótszą karencję albo blokady inne niż standardowy downgrade,
+- dodać testy integracyjne endpointu webhooka.
 
 Cel: flow limitów działa nie tylko po ręcznej zmianie planu przez admina, ale też
 po realnych zdarzeniach billingowych.
