@@ -495,10 +495,17 @@ export function ListingImageManager({
                           onClick={() => handleSetPrimary(image)}
                           className={cn(
                             'rounded-xl',
-                            image.isPrimary ? 'text-primary' : '',
+                            image.isPrimary
+                              ? 'border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-50 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300'
+                              : '',
                           )}
                         >
-                          <Star className="h-4 w-4" />
+                          <Star
+                            className={cn(
+                              'h-4 w-4',
+                              image.isPrimary ? 'fill-current' : '',
+                            )}
+                          />
                         </Button>
                         <Button
                           type="button"
