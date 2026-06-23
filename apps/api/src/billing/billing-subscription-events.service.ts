@@ -63,36 +63,35 @@ export class BillingSubscriptionEventsService {
     });
 
     if (existingEvent) {
-      return { status: 'ignored_duplicate', agencyId: existingEvent.agencyId ?? undefined };
+      return {
+        status: 'ignored_duplicate',
+        agencyId: existingEvent.agencyId ?? undefined,
+      };
     }
 
-    const agency = await this.findAgencyForEvent(input);
-    const now = input.occurredAt ?? new Date();
+    try {
+      const agency = await this.findAgencyForEvent(input);
+      const now = input.occurredAt ?? new Date();
 
-    this.applySubscriptionEventToAgency(agency, input, now);
-    await this.applyListingLimitGracePeriod(agency, now);
+      this.applySubscriptionEventToAgency(agency, input, now);
+      await this.applyListingLimitGracePeriod(agency, now);
 
-    const savedAgency = await this.agencyRepo.save(agency);
-    await this.webhookEventRepo.save(
-      this.webhookEventRepo.create({
-        provider: input.provider,
-        eventId: input.eventId,
-        eventType: input.eventType,
+      const savedAgency = await this.agencyRepo.save(agency);
+      await this.saveWebhookEvent(input, 'processed', savedAgency.id);
+
+      return {
         status: 'processed',
         agencyId: savedAgency.id,
-        payload: this.buildAuditPayload(input),
-      }),
-    );
-
-    return {
-      status: 'processed',
-      agencyId: savedAgency.id,
-      plan: savedAgency.plan,
-      subscription: savedAgency.subscription,
-      limitGraceStartedAt: savedAgency.limitGraceStartedAt ?? null,
-      limitGraceEndsAt: savedAgency.limitGraceEndsAt ?? null,
-      limitGraceEnforcedAt: savedAgency.limitGraceEnforcedAt ?? null,
-    };
+        plan: savedAgency.plan,
+        subscription: savedAgency.subscription,
+        limitGraceStartedAt: savedAgency.limitGraceStartedAt ?? null,
+        limitGraceEndsAt: savedAgency.limitGraceEndsAt ?? null,
+        limitGraceEnforcedAt: savedAgency.limitGraceEnforcedAt ?? null,
+      };
+    } catch (error) {
+      await this.saveWebhookEvent(input, 'failed', null, error);
+      throw error;
+    }
   }
 
   private async findAgencyForEvent(
@@ -263,6 +262,33 @@ export class BillingSubscriptionEventsService {
     const nextDate = new Date(date);
     nextDate.setDate(nextDate.getDate() + days);
     return nextDate;
+  }
+
+  private async saveWebhookEvent(
+    input: BillingSubscriptionEventInput,
+    status: 'processed' | 'failed',
+    agencyId: string | null,
+    error?: unknown,
+  ): Promise<void> {
+    await this.webhookEventRepo.save(
+      this.webhookEventRepo.create({
+        provider: input.provider,
+        eventId: input.eventId,
+        eventType: input.eventType,
+        status,
+        agencyId,
+        payload: this.buildAuditPayload(input),
+        error: error ? this.getErrorMessage(error) : null,
+      }),
+    );
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return String(error);
   }
 
   private buildAuditPayload(

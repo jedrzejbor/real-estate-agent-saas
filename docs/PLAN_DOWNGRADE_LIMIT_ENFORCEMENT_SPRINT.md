@@ -860,7 +860,7 @@ Kryteria akceptacji:
 
 ## Sprint 8 - billing webhooki i automatyczne downgrade/past_due/canceled
 
-Status: W trakcie - etap 2 zrobiony.
+Status: W trakcie - etap 3 zrobiony.
 
 Wykonano w etapie 1:
 
@@ -917,10 +917,27 @@ Wykonano w etapie 2:
   - błędnego podpisu,
   - braku skonfigurowanego sekretu.
 
+Wykonano w etapie 3:
+
+- dodano trwałe oznaczanie błędnych eventów billingowych w `billing_webhook_events`,
+- jeśli przetwarzanie zdarzenia zakończy się błędem, event jest zapisywany ze statusem `failed`,
+- zapis `failed` zawiera:
+  - `provider`,
+  - `eventId`,
+  - `eventType`,
+  - payload audytowy,
+  - komunikat błędu,
+  - `agencyId = null`, jeśli agencji nie udało się ustalić,
+- po zapisaniu błędnego eventu serwis nadal rzuca oryginalny błąd do kontrolera,
+- powtórzenie tego samego `provider + eventId` jest potem ignorowane przez mechanizm idempotencji,
+- dodano test jednostkowy dla błędu lookupu agencji, który potwierdza:
+  - brak zapisu zmian na agencji,
+  - zapis eventu ze statusem `failed`,
+  - zachowanie komunikatu błędu.
+
 Pozostało na kolejną iterację Sprintu 8:
 
 - zmapować realne payloady providera płatności, np. Stripe, na `BillingSubscriptionEventsService`,
-- dodać trwałe oznaczanie eventów błędnych, jeśli agency lookup albo przetwarzanie się nie powiedzie,
 - doprecyzować produktową regułę `past_due`, jeśli ma mieć osobną krótszą karencję albo blokady inne niż standardowy downgrade,
 - dodać testy integracyjne endpointu webhooka.
 

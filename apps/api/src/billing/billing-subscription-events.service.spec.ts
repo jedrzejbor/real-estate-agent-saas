@@ -1,4 +1,7 @@
 import {
+  NotFoundException,
+} from '@nestjs/common';
+import {
   AgencyPlan,
   SubscriptionStatus,
 } from '../common/enums';
@@ -190,6 +193,33 @@ describe('BillingSubscriptionEventsService', () => {
         source: 'billing_webhook',
         limit: 5,
         usage: 9,
+      }),
+    );
+  });
+
+  it('persists failed events when agency lookup fails', async () => {
+    const { service, agencyRepo, webhookEventRepo } = buildService();
+
+    await expect(
+      service.processSubscriptionEvent({
+        provider: 'stripe',
+        eventId: 'evt_missing_agency',
+        eventType: 'subscription_updated',
+        agencyId: 'missing-agency',
+        billingCustomerId: 'missing-customer',
+        plan: AgencyPlan.STARTER,
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(agencyRepo.save).not.toHaveBeenCalled();
+    expect(webhookEventRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'stripe',
+        eventId: 'evt_missing_agency',
+        eventType: 'subscription_updated',
+        status: 'failed',
+        agencyId: null,
+        error: 'Agencja dla zdarzenia billingowego nie istnieje',
       }),
     );
   });
