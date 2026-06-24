@@ -22,6 +22,7 @@ import {
   RelationCard,
 } from '@/components/common';
 import { ActivityHistoryCard } from '@/components/activity/activity-history-card';
+import { ActivityTimeline } from '@/components/activity/activity-timeline';
 import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
 import { useActivityHistory } from '@/hooks/use-activity-history';
@@ -31,8 +32,10 @@ import { ClientNotes } from '@/components/clients/client-notes';
 import { ClientPreferencesCard } from '@/components/clients/client-preferences';
 import {
   CLIENT_HISTORY_FIELD_LABELS,
+  fetchClientActivity,
   fetchClientHistory,
   getRollbackStatusChange,
+  type ActivityTimelineItem,
 } from '@/lib/activity';
 import { buildPhoneHref } from '@/lib/contact-links';
 import { buildNewAppointmentUrl } from '@/lib/dashboard-links';
@@ -70,6 +73,11 @@ export default function ClientDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRollingBackStatus, setIsRollingBackStatus] = useState(false);
+  const [activityItems, setActivityItems] = useState<ActivityTimelineItem[]>(
+    [],
+  );
+  const [isActivityLoading, setIsActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState<string | null>(null);
   const {
     items: historyItems,
     isLoading: isHistoryLoading,
@@ -107,6 +115,38 @@ export default function ClientDetailPage() {
       )
       .finally(() => setIsLoading(false));
   }, [params.id]);
+
+  const loadActivity = useCallback(async () => {
+    if (!params.id) return;
+
+    setIsActivityLoading(true);
+    setActivityError(null);
+
+    try {
+      const response = await fetchClientActivity(params.id, {
+        page: 1,
+        limit: 30,
+      });
+      setActivityItems(response.data);
+    } catch (err) {
+      setActivityError(
+        err instanceof Error
+          ? err.message
+          : 'Nie udało się pobrać aktywności klienta',
+      );
+    } finally {
+      setIsActivityLoading(false);
+    }
+  }, [params.id]);
+
+  useEffect(() => {
+    void loadActivity();
+  }, [loadActivity]);
+
+  const refreshClientActivity = useCallback(() => {
+    void refreshHistory();
+    void loadActivity();
+  }, [loadActivity, refreshHistory]);
 
   const handleDelete = useCallback(async () => {
     if (!client) return;
@@ -147,7 +187,7 @@ export default function ClientDetailPage() {
       try {
         const updated = await updateClient(client.id, { status: newStatus });
         setClient(updated);
-        void refreshHistory();
+        refreshClientActivity();
       } catch (err) {
         showErrorToast({
           title: 'Nie udało się zmienić statusu',
@@ -156,7 +196,7 @@ export default function ClientDetailPage() {
         });
       }
     },
-    [client, confirm, refreshHistory, showErrorToast],
+    [client, confirm, refreshClientActivity, showErrorToast],
   );
 
   const handleStatusRollback = useCallback(async () => {
@@ -182,7 +222,7 @@ export default function ClientDetailPage() {
       setIsRollingBackStatus(true);
       const updated = await rollbackClientStatus(client.id);
       setClient(updated);
-      await refreshHistory();
+      refreshClientActivity();
       showSuccessToast({
         title: 'Status klienta cofnięty',
         description: `Przywrócono status „${CLIENT_STATUS_LABELS[updated.status]}”.`,
@@ -199,7 +239,7 @@ export default function ClientDetailPage() {
   }, [
     client,
     confirm,
-    refreshHistory,
+    refreshClientActivity,
     rollbackChange,
     showErrorToast,
     showSuccessToast,
@@ -353,9 +393,16 @@ export default function ClientDetailPage() {
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <ClientNotes
               clientId={client.id}
-              onHistoryChanged={refreshHistory}
+              onHistoryChanged={refreshClientActivity}
             />
           </div>
+
+          <ActivityTimeline
+            items={activityItems}
+            isLoading={isActivityLoading}
+            error={activityError}
+            onRefresh={loadActivity}
+          />
         </div>
 
         {/* Right column — sidebar */}

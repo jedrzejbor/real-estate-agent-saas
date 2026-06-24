@@ -8,9 +8,12 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { ActivityService } from '../activity';
+import { Appointment } from '../appointments/entities/appointment.entity';
 import { Client } from './entities/client.entity';
 import { ClientNote } from './entities/client-note.entity';
 import { ClientPreference } from './entities/client-preference.entity';
+import { PublicLead } from '../public-leads/entities/public-lead.entity';
+import { Task } from '../tasks/entities';
 import { Agent } from '../users/entities/agent.entity';
 import { AgencyLimitEnforcementService, UsersService } from '../users';
 import { ActivityAction, ActivityEntityType } from '../common/enums';
@@ -18,6 +21,7 @@ import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reach
 import { MonitoringService } from '../monitoring';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { ClientActivityQueryDto } from './dto/client-activity-query.dto';
 import { ClientQueryDto } from './dto/client-query.dto';
 import { CreateClientNoteDto } from './dto/create-client-note.dto';
 import { ImportClientsDto } from './dto/import-clients.dto';
@@ -38,6 +42,31 @@ export interface ImportClientsResult {
   clients: Client[];
 }
 
+export type ClientActivityTimelineItemType =
+  | 'activity'
+  | 'note'
+  | 'appointment'
+  | 'task'
+  | 'public_lead';
+
+export interface ClientActivityTimelineItem {
+  id: string;
+  type: ClientActivityTimelineItemType;
+  title: string;
+  description: string | null;
+  createdAt: string;
+  actor: {
+    id: string | null;
+    name: string | null;
+    email: string | null;
+  } | null;
+  metadata: Record<string, unknown>;
+  href: string | null;
+}
+
+export type ClientActivityTimelineResult =
+  PaginatedResult<ClientActivityTimelineItem>;
+
 @Injectable()
 export class ClientsService {
   private readonly logger = new Logger(ClientsService.name);
@@ -49,6 +78,12 @@ export class ClientsService {
     private readonly noteRepo: Repository<ClientNote>,
     @InjectRepository(ClientPreference)
     private readonly preferenceRepo: Repository<ClientPreference>,
+    @InjectRepository(Appointment)
+    private readonly appointmentRepo: Repository<Appointment>,
+    @InjectRepository(PublicLead)
+    private readonly publicLeadRepo: Repository<PublicLead>,
+    @InjectRepository(Task)
+    private readonly taskRepo: Repository<Task>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
     private readonly usersService: UsersService,
@@ -221,6 +256,78 @@ export class ClientsService {
       ActivityEntityType.CLIENT,
       id,
     );
+  }
+
+  async findActivity(
+    id: string,
+    userId: string,
+    query: ClientActivityQueryDto,
+  ): Promise<ClientActivityTimelineResult> {
+    const client = await this.findOneOrFail(id);
+    await this.assertOwnership(client, userId);
+
+    const agent = await this.resolveAgent(userId);
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 30;
+    const sourceLimit = Math.max(page * limit, 100);
+
+    const [history, notes, appointments, tasks, publicLeads] =
+      await Promise.all([
+        this.activityService.findEntityHistory(
+          userId,
+          ActivityEntityType.CLIENT,
+          id,
+        ),
+        this.noteRepo.find({
+          where: { client: { id }, agent: { id: agent.id } },
+          order: { createdAt: 'DESC' },
+          take: sourceLimit,
+        }),
+        this.appointmentRepo.find({
+          where: { agentId: agent.id, clientId: id },
+          relations: ['listing'],
+          order: { startTime: 'DESC' },
+          take: sourceLimit,
+        }),
+        this.taskRepo.find({
+          where: { agentId: agent.id, clientId: id },
+          relations: ['appointment', 'listing'],
+          order: { createdAt: 'DESC' },
+          take: sourceLimit,
+        }),
+        this.publicLeadRepo.find({
+          where: { agentId: agent.id, convertedClientId: id },
+          relations: ['listing'],
+          order: { createdAt: 'DESC' },
+          take: sourceLimit,
+        }),
+      ]);
+
+    const items = [
+      ...history.map((item) => this.mapHistoryToTimelineItem(item)),
+      ...notes.map((note) => this.mapNoteToTimelineItem(note)),
+      ...appointments.map((appointment) =>
+        this.mapAppointmentToTimelineItem(appointment),
+      ),
+      ...tasks.map((task) => this.mapTaskToTimelineItem(task)),
+      ...publicLeads.map((lead) => this.mapPublicLeadToTimelineItem(lead)),
+    ].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+
+    const total = items.length;
+    const offset = (page - 1) * limit;
+
+    return {
+      data: items.slice(offset, offset + limit),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async rollbackStatus(id: string, userId: string): Promise<Client> {
@@ -464,12 +571,11 @@ export class ClientsService {
       },
     });
     const attemptedUsage = currentUsage + addedUsage;
-    const limitState =
-      this.agencyLimitEnforcementService.evaluateResourceLimit(
-        access.entitlements,
-        'clients',
-        attemptedUsage,
-      );
+    const limitState = this.agencyLimitEnforcementService.evaluateResourceLimit(
+      access.entitlements,
+      'clients',
+      attemptedUsage,
+    );
 
     if (limitState.isOverLimit && limitState.limit !== null) {
       this.monitoringService.recordWarning(
@@ -517,6 +623,173 @@ export class ClientsService {
     if (client.agentId !== agent.id) {
       throw new ForbiddenException('Brak dostępu do tego klienta');
     }
+  }
+
+  private mapHistoryToTimelineItem(
+    item: Awaited<ReturnType<ActivityService['findEntityHistory']>>[number],
+  ): ClientActivityTimelineItem {
+    return {
+      id: `activity:${item.id}`,
+      type: 'activity',
+      title: item.description || this.formatActivityAction(item.action),
+      description:
+        item.changes.length > 0
+          ? `Zmieniono pól: ${item.changes.length}`
+          : null,
+      createdAt: this.toIsoString(item.createdAt),
+      actor: {
+        id: item.actor?.id ?? null,
+        name: this.formatActorName(item.actor),
+        email: item.actor?.email ?? null,
+      },
+      metadata: {
+        action: item.action,
+        entityType: item.entityType,
+        changes: item.changes,
+      },
+      href: null,
+    };
+  }
+
+  private mapNoteToTimelineItem(note: ClientNote): ClientActivityTimelineItem {
+    return {
+      id: `note:${note.id}`,
+      type: 'note',
+      title: 'Notatka',
+      description: note.content,
+      createdAt: this.toIsoString(note.createdAt),
+      actor: null,
+      metadata: { noteId: note.id },
+      href: null,
+    };
+  }
+
+  private mapAppointmentToTimelineItem(
+    appointment: Appointment,
+  ): ClientActivityTimelineItem {
+    return {
+      id: `appointment:${appointment.id}`,
+      type: 'appointment',
+      title: appointment.title,
+      description: [
+        `Status: ${appointment.status}`,
+        `Typ: ${appointment.type}`,
+        appointment.listing?.title
+          ? `Oferta: ${appointment.listing.title}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      createdAt: this.toIsoString(appointment.startTime),
+      actor: null,
+      metadata: {
+        appointmentId: appointment.id,
+        status: appointment.status,
+        type: appointment.type,
+        location: appointment.location,
+        listingId: appointment.listingId,
+      },
+      href: `/dashboard/calendar/${appointment.id}`,
+    };
+  }
+
+  private mapTaskToTimelineItem(task: Task): ClientActivityTimelineItem {
+    const eventDate = task.completedAt ?? task.dueAt ?? task.createdAt;
+
+    return {
+      id: `task:${task.id}`,
+      type: 'task',
+      title: task.title,
+      description:
+        task.description ||
+        [
+          `Status: ${task.status}`,
+          task.listing?.title ? `Oferta: ${task.listing.title}` : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      createdAt: this.toIsoString(eventDate),
+      actor: null,
+      metadata: {
+        taskId: task.id,
+        status: task.status,
+        priority: task.priority,
+        type: task.type,
+        appointmentId: task.appointmentId,
+        listingId: task.listingId,
+      },
+      href: task.appointmentId
+        ? `/dashboard/calendar/${task.appointmentId}`
+        : task.listingId
+          ? `/dashboard/listings/${task.listingId}`
+          : null,
+    };
+  }
+
+  private mapPublicLeadToTimelineItem(
+    lead: PublicLead,
+  ): ClientActivityTimelineItem {
+    return {
+      id: `public-lead:${lead.id}`,
+      type: 'public_lead',
+      title: `Zapytanie publiczne: ${lead.fullName}`,
+      description:
+        lead.message ||
+        (lead.listing?.title ? `Oferta: ${lead.listing.title}` : null),
+      createdAt: this.toIsoString(lead.createdAt),
+      actor: null,
+      metadata: {
+        leadId: lead.id,
+        status: lead.status,
+        source: lead.source,
+        listingId: lead.listingId,
+      },
+      href: '/dashboard/inquiries',
+    };
+  }
+
+  private formatActivityAction(action: ActivityAction): string {
+    const labels: Record<ActivityAction, string> = {
+      [ActivityAction.CREATED]: 'Utworzono',
+      [ActivityAction.UPDATED]: 'Zaktualizowano',
+      [ActivityAction.STATUS_CHANGED]: 'Zmieniono status',
+      [ActivityAction.STATUS_ROLLED_BACK]: 'Cofnięto status',
+      [ActivityAction.DELETED]: 'Usunięto',
+      [ActivityAction.ARCHIVED]: 'Zarchiwizowano',
+      [ActivityAction.PUBLISHED]: 'Opublikowano',
+      [ActivityAction.UNPUBLISHED]: 'Cofnięto publikację',
+      [ActivityAction.CLAIMED]: 'Przejęto',
+      [ActivityAction.NOTE_ADDED]: 'Dodano notatkę',
+      [ActivityAction.NOTE_REMOVED]: 'Usunięto notatkę',
+    };
+
+    return labels[action] ?? String(action);
+  }
+
+  private formatActorName(
+    actor:
+      | Awaited<
+          ReturnType<ActivityService['findEntityHistory']>
+        >[number]['actor']
+      | null
+      | undefined,
+  ): string | null {
+    if (!actor) {
+      return null;
+    }
+
+    const fullName = [actor.firstName, actor.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    return fullName || actor.email || null;
+  }
+
+  private toIsoString(value: Date | string): string {
+    return value instanceof Date
+      ? value.toISOString()
+      : new Date(value).toISOString();
   }
 
   /** Apply optional filters to the query builder. */

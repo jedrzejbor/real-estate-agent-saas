@@ -868,6 +868,50 @@ Kryteria akceptacji:
 - paginacja chroni przed ciężkim ładowaniem,
 - widok jest czytelny na mobile.
 
+Status UX-4 / iteracja 1:
+
+Zrobione:
+
+1. Sprawdzono istniejący `ActivityService` i zostawiono obecny endpoint historii
+   zmian bez zmian, ponieważ jest używany do audit logu oraz cofania statusu.
+2. Dodano endpoint `GET /api/clients/:id/activity` z paginacją `page`/`limit`.
+3. Endpoint normalizuje aktywność klienta do wspólnego modelu:
+   - `type`,
+   - `title`,
+   - `description`,
+   - `createdAt`,
+   - `actor`,
+   - `metadata`,
+   - `href`.
+4. Timeline klienta agreguje obecnie:
+   - wpisy audit logu klienta,
+   - notatki klienta,
+   - spotkania przypisane do klienta,
+   - follow-upy i zadania przypisane do klienta,
+   - zapytania publiczne skonwertowane do tego klienta.
+5. Dodano filtrowanie po właścicielu klienta oraz `agentId` na zapytaniach
+   pomocniczych, aby timeline nie mieszał danych innych agentów.
+6. Dodano test jednostkowy backendu dla sortowania, normalizacji i filtrowania
+   po agencie.
+7. Dodano frontendowy model API `fetchClientActivity`.
+8. Dodano komponent `ActivityTimeline` z:
+   - czytelnym empty state,
+   - typami zdarzeń,
+   - datą i godziną,
+   - linkami do powiązanych spotkań/ofert, jeśli są dostępne,
+   - ręcznym odświeżaniem.
+9. Dodano sekcję aktywności na profilu klienta i odświeżanie jej po zmianie
+   statusu, cofnięciu statusu oraz dodaniu/usunięciu notatki.
+
+Do kolejnej iteracji UX-4:
+
+1. Dodać analogiczny endpoint `GET /api/listings/:id/activity`.
+2. Dodać sekcję timeline na profilu oferty.
+3. Rozważyć wyciągnięcie wspólnego normalizatora timeline po stronie backendu,
+   gdy timeline klienta i oferty będą miały wspólne mapery.
+4. Dodać paginację "pokaż więcej" po stronie UI, jeśli w testach użytkowych
+   okaże się, że 30 wpisów na start to za mało.
+
 ### Sprint UX-5: Szybkie akcje kontaktu i szablony wiadomości MVP
 
 Cel:

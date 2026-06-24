@@ -18,6 +18,9 @@ export type ActivityAction =
   | 'status_rolled_back'
   | 'deleted'
   | 'archived'
+  | 'published'
+  | 'unpublished'
+  | 'claimed'
   | 'note_added'
   | 'note_removed';
 
@@ -43,6 +46,38 @@ export interface ActivityHistoryItem {
   };
 }
 
+export type ActivityTimelineItemType =
+  | 'activity'
+  | 'note'
+  | 'appointment'
+  | 'task'
+  | 'public_lead';
+
+export interface ActivityTimelineItem {
+  id: string;
+  type: ActivityTimelineItemType;
+  title: string;
+  description: string | null;
+  createdAt: string;
+  actor: {
+    id: string | null;
+    name: string | null;
+    email: string | null;
+  } | null;
+  metadata: Record<string, unknown>;
+  href: string | null;
+}
+
+export interface ActivityTimelineResponse {
+  data: ActivityTimelineItem[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export const ACTIVITY_ACTION_LABELS: Record<ActivityAction, string> = {
   created: 'Utworzono',
   updated: 'Zaktualizowano',
@@ -50,6 +85,9 @@ export const ACTIVITY_ACTION_LABELS: Record<ActivityAction, string> = {
   status_rolled_back: 'Cofnięto status',
   deleted: 'Usunięto',
   archived: 'Zarchiwizowano',
+  published: 'Opublikowano',
+  unpublished: 'Cofnięto publikację',
+  claimed: 'Przejęto',
   note_added: 'Dodano notatkę',
   note_removed: 'Usunięto notatkę',
 };
@@ -109,6 +147,26 @@ export async function fetchClientHistory(
   return apiFetch<ActivityHistoryItem[]>(`/clients/${id}/history`);
 }
 
+export async function fetchClientActivity(
+  id: string,
+  params: { page?: number; limit?: number } = {},
+): Promise<ActivityTimelineResponse> {
+  const search = new URLSearchParams();
+
+  if (params.page) {
+    search.set('page', String(params.page));
+  }
+
+  if (params.limit) {
+    search.set('limit', String(params.limit));
+  }
+
+  const query = search.toString();
+  return apiFetch<ActivityTimelineResponse>(
+    `/clients/${id}/activity${query ? `?${query}` : ''}`,
+  );
+}
+
 export function getRollbackStatusChange(
   items: ActivityHistoryItem[],
   currentStatus: string,
@@ -155,30 +213,39 @@ export function formatActivityValue(
 
   if (field === 'status' && typeof value === 'string') {
     return entityType === 'listing'
-      ? LISTING_STATUS_LABELS[value as keyof typeof LISTING_STATUS_LABELS] ?? value
-      : CLIENT_STATUS_LABELS[value as keyof typeof CLIENT_STATUS_LABELS] ?? value;
+      ? (LISTING_STATUS_LABELS[value as keyof typeof LISTING_STATUS_LABELS] ??
+          value)
+      : (CLIENT_STATUS_LABELS[value as keyof typeof CLIENT_STATUS_LABELS] ??
+          value);
   }
 
   if (field === 'propertyType' && typeof value === 'string') {
-    return LISTING_PROPERTY_TYPE_LABELS[
-      value as keyof typeof LISTING_PROPERTY_TYPE_LABELS
-    ] ?? value;
+    return (
+      LISTING_PROPERTY_TYPE_LABELS[
+        value as keyof typeof LISTING_PROPERTY_TYPE_LABELS
+      ] ?? value
+    );
   }
 
   if (field === 'transactionType' && typeof value === 'string') {
-    return TRANSACTION_TYPE_LABELS[
-      value as keyof typeof TRANSACTION_TYPE_LABELS
-    ] ?? value;
+    return (
+      TRANSACTION_TYPE_LABELS[value as keyof typeof TRANSACTION_TYPE_LABELS] ??
+      value
+    );
   }
 
   if (field === 'source' && typeof value === 'string') {
-    return CLIENT_SOURCE_LABELS[value as keyof typeof CLIENT_SOURCE_LABELS] ?? value;
+    return (
+      CLIENT_SOURCE_LABELS[value as keyof typeof CLIENT_SOURCE_LABELS] ?? value
+    );
   }
 
   if (field === 'preference.propertyType' && typeof value === 'string') {
-    return CLIENT_PROPERTY_TYPE_LABELS[
-      value as keyof typeof CLIENT_PROPERTY_TYPE_LABELS
-    ] ?? value;
+    return (
+      CLIENT_PROPERTY_TYPE_LABELS[
+        value as keyof typeof CLIENT_PROPERTY_TYPE_LABELS
+      ] ?? value
+    );
   }
 
   if (typeof value === 'boolean') {

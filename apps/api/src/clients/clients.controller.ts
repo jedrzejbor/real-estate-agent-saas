@@ -16,6 +16,7 @@ import {
   CreateClientDto,
   UpdateClientDto,
   ClientQueryDto,
+  ClientActivityQueryDto,
   CreateClientNoteDto,
   ImportClientsDto,
 } from './dto';
@@ -61,6 +62,16 @@ export class ClientsController {
     @CurrentUser('id') userId: string,
   ) {
     return this.clientsService.findHistory(id, userId);
+  }
+
+  /** GET /api/clients/:id/activity — get normalized client activity timeline. */
+  @Get(':id/activity')
+  async findActivity(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @Query() query: ClientActivityQueryDto,
+  ) {
+    return this.clientsService.findActivity(id, userId, query);
   }
 
   /** GET /api/clients/:id — get single client with notes & preference. */
