@@ -59,7 +59,7 @@ export class Appointment {
   agent: Agent;
 
   @Index()
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', name: 'agent_id' })
   agentId: string;
 
   @ManyToOne(() => Client, { onDelete: 'CASCADE', nullable: true })

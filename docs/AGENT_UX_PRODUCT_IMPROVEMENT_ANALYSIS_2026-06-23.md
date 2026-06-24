@@ -525,6 +525,19 @@ Status etapu 3, 2026-06-24:
   o historię relacji, jeśli będziemy chcieli zejść z dodatkowych requestów na
   ekranie.
 
+Status etapu 4, 2026-06-24:
+
+- dodano test regresji dla mapowania relacji `Appointment`,
+- test sprawdza, że `agentId`, `clientId` i `listingId` są mapowane na kolumny
+  `agent_id`, `client_id` i `listing_id`,
+- test sprawdza, że `@JoinColumn` dla relacji `agent`, `client` i `listing`
+  jest zgodny z kolumnami ID relacji,
+- podczas testowania wykryto i poprawiono brakujące mapowanie `agentId` na
+  kolumnę `agent_id`,
+- test zabezpiecza przypadek, który powodował fałszywy komunikat "nie
+  przypisano", gdy ID relacji istniało w bazie, ale mapowanie encji nie było
+  zgodne z nazwą kolumny.
+
 ### Sprint UX-2: Widok "Dzisiaj"
 
 Cel:
