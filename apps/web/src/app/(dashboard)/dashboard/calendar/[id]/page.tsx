@@ -22,6 +22,7 @@ import {
   Mail,
   Phone,
   Tag,
+  ClipboardList,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +41,7 @@ import {
   type AppointmentListingAddress,
   fetchAppointment,
   deleteAppointment,
+  createAppointmentFollowUp,
   APPOINTMENT_TYPE_LABELS,
   APPOINTMENT_STATUS_LABELS,
   TYPE_COLORS,
@@ -69,17 +71,27 @@ export default function AppointmentDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const { confirm } = useConfirm();
-  const { error: showErrorToast } = useToast();
+  const { error: showErrorToast, success: showSuccessToast } = useToast();
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [followUpTitle, setFollowUpTitle] = useState('');
+  const [followUpDescription, setFollowUpDescription] = useState('');
+  const [followUpDueAt, setFollowUpDueAt] = useState('');
+  const [isCreatingFollowUp, setIsCreatingFollowUp] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     fetchAppointment(id)
       .then((data) => {
-        if (!cancelled) setAppointment(data);
+        if (!cancelled) {
+          setAppointment(data);
+          const defaults = getDefaultFollowUpForm(data);
+          setFollowUpTitle(defaults.title);
+          setFollowUpDescription(defaults.description);
+          setFollowUpDueAt(defaults.dueAt);
+        }
       })
       .catch((err) => {
         if (!cancelled)
@@ -115,6 +127,35 @@ export default function AppointmentDetailPage({
           err instanceof Error ? err.message : 'Spróbuj ponownie za chwilę.',
       });
       setIsDeleting(false);
+    }
+  };
+
+  const handleCreateFollowUp = async () => {
+    if (!appointment || isCreatingFollowUp) return;
+
+    setIsCreatingFollowUp(true);
+    try {
+      await createAppointmentFollowUp(appointment.id, {
+        title: followUpTitle,
+        description: followUpDescription,
+        dueAt: followUpDueAt
+          ? new Date(followUpDueAt).toISOString()
+          : undefined,
+      });
+      showSuccessToast({
+        title: 'Follow-up dodany',
+        description:
+          'Zadanie pojawi się w panelu Dzisiaj, gdy będzie wymagało działania.',
+      });
+      router.refresh();
+    } catch (err) {
+      showErrorToast({
+        title: 'Nie udało się dodać follow-upu',
+        description:
+          err instanceof Error ? err.message : 'Spróbuj ponownie za chwilę.',
+      });
+    } finally {
+      setIsCreatingFollowUp(false);
     }
   };
 
@@ -265,6 +306,65 @@ export default function AppointmentDetailPage({
             </ActionEmptyState>
           )}
         </DetailCard>
+
+        <DetailCard title="Follow-up" icon={ClipboardList}>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Zaplanuj następny krok po spotkaniu. Jeśli follow-up już istnieje,
+              system zwróci istniejące otwarte zadanie zamiast tworzyć duplikat.
+            </p>
+
+            <div className="grid gap-3">
+              <label className="grid gap-1.5">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Tytuł
+                </span>
+                <input
+                  value={followUpTitle}
+                  onChange={(event) => setFollowUpTitle(event.target.value)}
+                  maxLength={255}
+                  className="h-10 rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
+                />
+              </label>
+
+              <label className="grid gap-1.5">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Termin
+                </span>
+                <input
+                  type="datetime-local"
+                  value={followUpDueAt}
+                  onChange={(event) => setFollowUpDueAt(event.target.value)}
+                  className="h-10 rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-primary"
+                />
+              </label>
+
+              <label className="grid gap-1.5">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Notatka
+                </span>
+                <textarea
+                  value={followUpDescription}
+                  onChange={(event) =>
+                    setFollowUpDescription(event.target.value)
+                  }
+                  rows={3}
+                  className="resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
+                />
+              </label>
+            </div>
+
+            <Button
+              type="button"
+              className="w-full justify-between rounded-xl"
+              onClick={handleCreateFollowUp}
+              disabled={isCreatingFollowUp || !followUpTitle.trim()}
+            >
+              {isCreatingFollowUp ? 'Dodawanie...' : 'Dodaj follow-up'}
+              <ClipboardList className="h-4 w-4" />
+            </Button>
+          </div>
+        </DetailCard>
       </div>
     </div>
   );
@@ -398,4 +498,40 @@ function formatListingAddress(
     .join(', ');
 
   return address.district ? `${parts} (${address.district})` : parts || null;
+}
+
+function getDefaultFollowUpForm(appointment: Appointment): {
+  title: string;
+  description: string;
+  dueAt: string;
+} {
+  return {
+    title: `Follow-up: ${appointment.title}`,
+    description:
+      'Skontaktuj się z klientem po spotkaniu i zapisz kolejny krok.',
+    dueAt: toDateTimeLocalValue(getNextBusinessDay(appointment.endTime)),
+  };
+}
+
+function getNextBusinessDay(value: string): Date {
+  const date = new Date(value);
+  date.setDate(date.getDate() + 1);
+
+  if (date.getDay() === 6) {
+    date.setDate(date.getDate() + 2);
+  } else if (date.getDay() === 0) {
+    date.setDate(date.getDate() + 1);
+  }
+
+  return date;
+}
+
+function toDateTimeLocalValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }

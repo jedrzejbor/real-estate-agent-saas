@@ -780,6 +780,22 @@ Status etapu 3, 2026-06-24:
 - nie dodano jeszcze formularza `Dodaj follow-up` w szczegółach spotkania ani
   pełnego widoku listy zadań; to zostaje na kolejną iterację UX-3.
 
+Status etapu 4, 2026-06-24:
+
+- dodano funkcję frontendową `createAppointmentFollowUp`, która wywołuje
+  `POST /api/appointments/:id/follow-up`,
+- w szczegółach spotkania dodano kartę `Follow-up` z polami: tytuł, termin i
+  notatka,
+- formularz ustawia domyślny tytuł `Follow-up: {tytuł spotkania}`, domyślną
+  notatkę oraz termin na kolejny dzień roboczy po zakończeniu spotkania,
+- akcja `Dodaj follow-up` korzysta z backendowej idempotencji, więc ponowne
+  kliknięcie nie tworzy duplikatu otwartego zadania dla tego spotkania,
+- po sukcesie użytkownik dostaje toast z informacją, że zadanie pojawi się w
+  panelu `Dzisiaj`, gdy będzie wymagało działania,
+- obsłużono stan ładowania i błąd tworzenia follow-upu,
+- nie dodano jeszcze pełnego widoku listy zadań; to może być ostatnia iteracja
+  UX-3 przed przejściem do UX-4.
+
 ### Sprint UX-4: Timeline aktywności klienta i oferty
 
 Cel:

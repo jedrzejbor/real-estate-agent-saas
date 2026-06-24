@@ -141,6 +141,12 @@ export interface AppointmentFilters {
   sortOrder?: 'ASC' | 'DESC';
 }
 
+export interface CreateAppointmentFollowUpInput {
+  title?: string;
+  description?: string;
+  dueAt?: string;
+}
+
 // ── Zod Schemas ──
 
 export const createAppointmentSchema = z
@@ -254,6 +260,16 @@ export async function updateAppointment(
 
 export async function deleteAppointment(id: string): Promise<void> {
   return apiFetch<void>(`/appointments/${id}`, { method: 'DELETE' });
+}
+
+export async function createAppointmentFollowUp(
+  id: string,
+  data: CreateAppointmentFollowUpInput,
+): Promise<unknown> {
+  return apiFetch<unknown>(`/appointments/${id}/follow-up`, {
+    method: 'POST',
+    body: cleanPayload({ ...data }),
+  });
 }
 
 // ── Helpers ──
