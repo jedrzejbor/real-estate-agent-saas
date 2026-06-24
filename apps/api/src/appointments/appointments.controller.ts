@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import {
+  CreateAppointmentFollowUpDto,
   CreateAppointmentDto,
   UpdateAppointmentDto,
   AppointmentQueryDto,
@@ -48,6 +49,16 @@ export class AppointmentsController {
     @CurrentUser('id') userId: string,
   ) {
     return this.appointmentsService.findOne(id, userId);
+  }
+
+  /** POST /api/appointments/:id/follow-up — create or return appointment follow-up task. */
+  @Post(':id/follow-up')
+  async createFollowUp(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: CreateAppointmentFollowUpDto,
+  ) {
+    return this.appointmentsService.createFollowUp(id, userId, dto);
   }
 
   /** PATCH /api/appointments/:id — update an appointment. */

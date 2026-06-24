@@ -28,6 +28,12 @@ export interface PaginatedTasksResult {
   };
 }
 
+export interface AppointmentFollowUpInput {
+  title?: string;
+  description?: string | null;
+  dueAt?: string | Date | null;
+}
+
 type TaskRelationIds = Pick<
   Task,
   | 'appointmentId'
@@ -116,6 +122,53 @@ export class TasksService {
     return this.taskRepo.save(task);
   }
 
+  async createAppointmentFollowUp(
+    userId: string,
+    appointmentId: string,
+    input: AppointmentFollowUpInput = {},
+  ): Promise<Task> {
+    const agent = await this.usersService.resolveAgentForUser(userId);
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId, agentId: agent.id },
+      relations: ['client', 'listing'],
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Nie znaleziono powiązanego spotkania');
+    }
+
+    const existing = await this.findOpenAppointmentFollowUp(
+      agent.id,
+      appointment.id,
+    );
+    if (existing) {
+      return existing;
+    }
+
+    const task = this.taskRepo.create({
+      agentId: agent.id,
+      title: this.normalizeTitle(
+        input.title ?? `Follow-up: ${appointment.title}`,
+      ),
+      description:
+        normalizeNullableText(input.description) ??
+        'Skontaktuj się z klientem po spotkaniu i zapisz kolejny krok.',
+      status: TaskStatus.TODO,
+      priority: TaskPriority.NORMAL,
+      type: TaskType.FOLLOW_UP,
+      dueAt:
+        parseOptionalDate(input.dueAt) ?? getDefaultFollowUpDueAt(appointment),
+      completedAt: null,
+      appointmentId: appointment.id,
+      clientId: appointment.clientId ?? null,
+      listingId: appointment.listingId ?? null,
+      relatedEntityType: TaskRelatedEntityType.APPOINTMENT,
+      relatedEntityId: appointment.id,
+    });
+
+    return this.taskRepo.save(task);
+  }
+
   async update(id: string, userId: string, dto: UpdateTaskDto): Promise<Task> {
     const agent = await this.usersService.resolveAgentForUser(userId);
     const task = await this.taskRepo.findOne({
@@ -154,6 +207,20 @@ export class TasksService {
     }
 
     return this.taskRepo.save(task);
+  }
+
+  private findOpenAppointmentFollowUp(
+    agentId: string,
+    appointmentId: string,
+  ): Promise<Task | null> {
+    return this.taskRepo.findOne({
+      where: {
+        agentId,
+        appointmentId,
+        type: TaskType.FOLLOW_UP,
+        status: TaskStatus.TODO,
+      },
+    });
   }
 
   private async normalizeAndAssertRelations(
@@ -364,7 +431,24 @@ function normalizeNullableUuid(
   return value ?? null;
 }
 
-function parseOptionalDate(value: string | null | undefined): Date | null {
+function parseOptionalDate(
+  value: string | Date | null | undefined,
+): Date | null {
   if (!value) return null;
+  if (value instanceof Date) return value;
   return new Date(value);
+}
+
+function getDefaultFollowUpDueAt(appointment: Appointment): Date {
+  const baseDate = appointment.endTime ?? appointment.startTime ?? new Date();
+  const dueAt = new Date(baseDate);
+  dueAt.setUTCDate(dueAt.getUTCDate() + 1);
+
+  if (dueAt.getUTCDay() === 6) {
+    dueAt.setUTCDate(dueAt.getUTCDate() + 2);
+  } else if (dueAt.getUTCDay() === 0) {
+    dueAt.setUTCDate(dueAt.getUTCDate() + 1);
+  }
+
+  return dueAt;
 }

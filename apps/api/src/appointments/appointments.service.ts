@@ -12,6 +12,9 @@ import { Agent } from '../users/entities/agent.entity';
 import { AgencyLimitEnforcementService, UsersService } from '../users';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { MonitoringService } from '../monitoring';
+import { AppointmentStatus, AppointmentType } from '../common/enums';
+import { TasksService } from '../tasks/tasks.service';
+import { CreateAppointmentFollowUpDto } from './dto/create-appointment-follow-up.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { AppointmentQueryDto } from './dto/appointment-query.dto';
@@ -39,6 +42,7 @@ export class AppointmentsService {
     private readonly usersService: UsersService,
     private readonly agencyLimitEnforcementService: AgencyLimitEnforcementService,
     private readonly monitoringService: MonitoringService,
+    private readonly tasksService: TasksService,
   ) {}
 
   // ── Create ──
@@ -96,10 +100,7 @@ export class AppointmentsService {
     // Sorting
     const allowedSortColumns = ['startTime', 'createdAt', 'title'];
     const column = allowedSortColumns.includes(sortBy) ? sortBy : 'startTime';
-    qb.orderBy(
-      `appointment.${column}`,
-      sortOrder === 'DESC' ? 'DESC' : 'ASC',
-    );
+    qb.orderBy(`appointment.${column}`, sortOrder === 'DESC' ? 'DESC' : 'ASC');
 
     // Pagination
     const skip = (page - 1) * limit;
@@ -126,6 +127,21 @@ export class AppointmentsService {
     return appointment;
   }
 
+  async createFollowUp(
+    id: string,
+    userId: string,
+    dto: CreateAppointmentFollowUpDto,
+  ) {
+    const appointment = await this.findOneOrFail(id);
+    await this.assertOwnership(appointment, userId);
+
+    return this.tasksService.createAppointmentFollowUp(userId, appointment.id, {
+      title: dto.title,
+      description: dto.description,
+      dueAt: dto.dueAt,
+    });
+  }
+
   // ── Update ──
 
   async update(
@@ -135,6 +151,7 @@ export class AppointmentsService {
   ): Promise<Appointment> {
     const appointment = await this.findOneOrFail(id);
     await this.assertOwnership(appointment, userId);
+    const previousStatus = appointment.status;
 
     // Validate date range if either date is being changed
     const startTime = dto.startTime
@@ -156,6 +173,10 @@ export class AppointmentsService {
 
     Object.assign(appointment, updateData);
     await this.appointmentRepo.save(appointment);
+
+    if (shouldCreatePresentationFollowUp(previousStatus, appointment)) {
+      await this.tasksService.createAppointmentFollowUp(userId, appointment.id);
+    }
 
     this.logger.log(`Appointment updated: ${id}`);
 
@@ -196,12 +217,11 @@ export class AppointmentsService {
       new Date(startTime),
     );
     const attemptedUsage = currentUsage + 1;
-    const limitState =
-      this.agencyLimitEnforcementService.evaluateResourceLimit(
-        access.entitlements,
-        'monthlyAppointments',
-        attemptedUsage,
-      );
+    const limitState = this.agencyLimitEnforcementService.evaluateResourceLimit(
+      access.entitlements,
+      'monthlyAppointments',
+      attemptedUsage,
+    );
 
     if (limitState.isOverLimit && limitState.limit !== null) {
       this.monitoringService.recordWarning(
@@ -272,10 +292,7 @@ export class AppointmentsService {
   }
 
   /** Validate that endTime is after startTime. */
-  private validateDateRange(
-    start: string | Date,
-    end: string | Date,
-  ): void {
+  private validateDateRange(start: string | Date, end: string | Date): void {
     const startDate = start instanceof Date ? start : new Date(start);
     const endDate = end instanceof Date ? end : new Date(end);
 
@@ -342,4 +359,15 @@ export class AppointmentsService {
       );
     }
   }
+}
+
+function shouldCreatePresentationFollowUp(
+  previousStatus: AppointmentStatus,
+  appointment: Appointment,
+): boolean {
+  return (
+    previousStatus !== AppointmentStatus.COMPLETED &&
+    appointment.status === AppointmentStatus.COMPLETED &&
+    appointment.type === AppointmentType.VIEWING
+  );
 }

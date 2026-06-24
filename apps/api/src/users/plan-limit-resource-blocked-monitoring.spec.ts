@@ -261,6 +261,7 @@ describe('plan limit resource blocked monitoring', () => {
       {} as never,
       new AgencyLimitEnforcementService(),
       monitoring as never,
+      {} as never,
     ) as unknown as {
       assertAppointmentMonthlyUsageWithinPlanLimit: (
         currentAccess: typeof access,
@@ -320,6 +321,7 @@ describe('plan limit resource blocked monitoring', () => {
       } as never,
       new AgencyLimitEnforcementService(),
       monitoring as never,
+      {} as never,
     );
 
     await expect(

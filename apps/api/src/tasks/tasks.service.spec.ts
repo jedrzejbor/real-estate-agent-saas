@@ -76,6 +76,74 @@ describe('TasksService', () => {
     expect(taskRepo.save).not.toHaveBeenCalled();
   });
 
+  it('returns an existing open appointment follow-up instead of creating a duplicate', async () => {
+    const { service, appointmentRepo, taskRepo } = createService();
+    appointmentRepo.findOne.mockResolvedValue({
+      id: 'appointment-1',
+      agentId: agent.id,
+      title: 'Prezentacja mieszkania',
+      startTime: new Date('2026-06-24T09:00:00.000Z'),
+      endTime: new Date('2026-06-24T10:00:00.000Z'),
+      clientId: 'client-1',
+      listingId: 'listing-1',
+    });
+    taskRepo.findOne.mockResolvedValue({
+      id: 'task-existing',
+      agentId: agent.id,
+      appointmentId: 'appointment-1',
+      type: TaskType.FOLLOW_UP,
+      status: TaskStatus.TODO,
+    });
+
+    const result = await service.createAppointmentFollowUp(
+      'user-1',
+      'appointment-1',
+    );
+
+    expect(result.id).toBe('task-existing');
+    expect(taskRepo.create).not.toHaveBeenCalled();
+    expect(taskRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('creates an appointment follow-up with default next business-day due date', async () => {
+    const { service, appointmentRepo, taskRepo } = createService();
+    appointmentRepo.findOne.mockResolvedValue({
+      id: 'appointment-1',
+      agentId: agent.id,
+      title: 'Prezentacja mieszkania',
+      startTime: new Date('2026-06-26T09:00:00.000Z'),
+      endTime: new Date('2026-06-26T10:00:00.000Z'),
+      clientId: 'client-1',
+      listingId: 'listing-1',
+    });
+    taskRepo.findOne.mockResolvedValue(null);
+    taskRepo.save.mockImplementation(async (task) => ({
+      id: 'task-1',
+      ...task,
+    }));
+
+    const result = await service.createAppointmentFollowUp(
+      'user-1',
+      'appointment-1',
+    );
+
+    expect(taskRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentId: agent.id,
+        title: 'Follow-up: Prezentacja mieszkania',
+        type: TaskType.FOLLOW_UP,
+        status: TaskStatus.TODO,
+        dueAt: new Date('2026-06-29T10:00:00.000Z'),
+        appointmentId: 'appointment-1',
+        clientId: 'client-1',
+        listingId: 'listing-1',
+        relatedEntityType: TaskRelatedEntityType.APPOINTMENT,
+        relatedEntityId: 'appointment-1',
+      }),
+    );
+    expect(result.id).toBe('task-1');
+  });
+
   it('lists tasks only for the resolved agent and applies filters', async () => {
     const { service, taskQb } = createService();
 
@@ -138,6 +206,7 @@ function createService() {
   };
   const appointmentRepo = {
     exist: jest.fn().mockResolvedValue(true),
+    findOne: jest.fn(),
   };
   const clientRepo = {
     exist: jest.fn().mockResolvedValue(true),

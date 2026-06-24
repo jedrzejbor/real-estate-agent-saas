@@ -4,6 +4,7 @@ import { Appointment } from './entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { UsersModule } from '../users';
 import { MonitoringModule } from '../monitoring';
+import { TasksModule } from '../tasks/tasks.module';
 import { AppointmentsService } from './appointments.service';
 import { AppointmentsController } from './appointments.controller';
 
@@ -12,6 +13,7 @@ import { AppointmentsController } from './appointments.controller';
     TypeOrmModule.forFeature([Appointment, Agent]),
     UsersModule,
     MonitoringModule,
+    TasksModule,
   ],
   controllers: [AppointmentsController],
   providers: [AppointmentsService],

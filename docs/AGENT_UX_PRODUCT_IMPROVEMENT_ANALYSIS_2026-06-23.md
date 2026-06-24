@@ -736,6 +736,29 @@ Status etapu 1, 2026-06-24:
   UI w szczegółach spotkania; to zostaje na kolejną iterację UX-3, bo wymaga
   idempotencji i integracji z aktualizacją appointmentów.
 
+Status etapu 2, 2026-06-24:
+
+- dodano DTO `CreateAppointmentFollowUpDto` oraz endpoint
+  `POST /api/appointments/:id/follow-up`,
+- endpoint tworzy albo zwraca istniejący otwarty follow-up powiązany ze
+  spotkaniem, dzięki czemu wielokrotne kliknięcie nie tworzy duplikatów,
+- dodano reusable metodę `TasksService.createAppointmentFollowUp`, która
+  buduje zadanie typu `follow_up`, przypina spotkanie, klienta i ofertę oraz
+  ustawia `relatedEntityType = appointment`,
+- domyślny termin follow-upu jest wyliczany na kolejny dzień po spotkaniu, z
+  przesunięciem weekendu na poniedziałek,
+- automatyczny follow-up jest tworzony po zmianie statusu spotkania typu
+  `viewing` z innego statusu na `completed`,
+- automatyczne tworzenie wykorzystuje tę samą idempotentną metodę w
+  `TasksService`, więc nie powstają duplikaty otwartych follow-upów dla tego
+  samego spotkania,
+- dodano testy dla idempotencji, domyślnego terminu follow-upu, ręcznego
+  endpointu serwisowego oraz automatycznego wywołania po zakończeniu
+  prezentacji,
+- nie dodano jeszcze UI `Dodaj follow-up`, listy tasków w panelu `Dzisiaj` ani
+  akcji `Oznacz jako wykonane`; to zostaje na kolejną iterację UX-3, ponieważ
+  kontrakt backendowy jest już gotowy do podpięcia frontendu.
+
 ### Sprint UX-4: Timeline aktywności klienta i oferty
 
 Cel:
