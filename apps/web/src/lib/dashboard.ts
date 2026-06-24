@@ -98,9 +98,14 @@ export type TodayItemType =
   | 'appointment'
   | 'public_lead'
   | 'document'
-  | 'listing';
+  | 'listing'
+  | 'task';
 export type TodayItemPriority = 'high' | 'medium' | 'low';
-export type TodayItemEntityType = 'appointment' | 'public_lead' | 'listing';
+export type TodayItemEntityType =
+  | 'appointment'
+  | 'public_lead'
+  | 'listing'
+  | 'task';
 
 export interface TodayItemAction {
   label: string;
@@ -133,6 +138,15 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
 export async function fetchDashboardToday(): Promise<DashboardTodayResponse> {
   return apiFetch<DashboardTodayResponse>('/dashboard/today');
+}
+
+export async function markTodayTaskDone(taskId: string): Promise<void> {
+  await apiFetch(`/tasks/${taskId}`, {
+    method: 'PATCH',
+    body: {
+      status: 'done',
+    },
+  });
 }
 
 // ── Helpers ──

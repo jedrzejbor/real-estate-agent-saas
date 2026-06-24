@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchDashboardToday,
+  markTodayTaskDone,
   type DashboardTodayResponse,
 } from '@/lib/dashboard';
 
@@ -11,6 +12,7 @@ interface UseDashboardTodayReturn {
   isLoading: boolean;
   error: string | null;
   refresh: () => void;
+  completeTask: (taskId: string) => Promise<void>;
 }
 
 export function useDashboardToday(): UseDashboardTodayReturn {
@@ -52,5 +54,13 @@ export function useDashboardToday(): UseDashboardTodayReturn {
     return () => abortRef.current?.abort();
   }, [load]);
 
-  return { today, isLoading, error, refresh: load };
+  const completeTask = useCallback(
+    async (taskId: string) => {
+      await markTodayTaskDone(taskId);
+      await load();
+    },
+    [load],
+  );
+
+  return { today, isLoading, error, refresh: load, completeTask };
 }

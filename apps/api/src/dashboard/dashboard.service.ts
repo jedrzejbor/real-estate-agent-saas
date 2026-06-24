@@ -4,6 +4,7 @@ import {
   Repository,
   Between,
   In,
+  IsNull,
   LessThanOrEqual,
   MoreThanOrEqual,
 } from 'typeorm';
@@ -13,6 +14,7 @@ import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { PublicLead } from '../public-leads/entities/public-lead.entity';
+import { Task } from '../tasks/entities';
 import { UsersService } from '../users';
 import {
   ListingDocumentsService,
@@ -23,6 +25,7 @@ import {
   ClientStatus,
   AppointmentStatus,
   PublicLeadStatus,
+  TaskStatus,
 } from '../common/enums';
 
 // ── Response DTOs ──
@@ -105,9 +108,14 @@ export type TodayItemType =
   | 'appointment'
   | 'public_lead'
   | 'document'
-  | 'listing';
+  | 'listing'
+  | 'task';
 export type TodayItemPriority = 'high' | 'medium' | 'low';
-export type TodayItemEntityType = 'appointment' | 'public_lead' | 'listing';
+export type TodayItemEntityType =
+  | 'appointment'
+  | 'public_lead'
+  | 'listing'
+  | 'task';
 
 export interface TodayItemAction {
   label: string;
@@ -147,6 +155,8 @@ export class DashboardService {
     private readonly agentRepo: Repository<Agent>,
     @InjectRepository(PublicLead)
     private readonly publicLeadRepo: Repository<PublicLead>,
+    @InjectRepository(Task)
+    private readonly taskRepo: Repository<Task>,
     private readonly usersService: UsersService,
     private readonly listingDocumentsService: ListingDocumentsService,
   ) {}
@@ -197,12 +207,13 @@ export class DashboardService {
       now.getTime() - 14 * 24 * 60 * 60 * 1000,
     );
 
-    const [appointments, publicLeads, documentAttention, staleListings] =
+    const [appointments, publicLeads, documentAttention, staleListings, tasks] =
       await Promise.all([
         this.getTodayAppointments(agentId, todayStart, todayEnd),
         this.getNewPublicLeads(agentId, leadWindowStart),
         this.listingDocumentsService.getAttentionSummaryForAgent(agentId),
         this.getStaleActiveListings(agentId, staleListingThreshold),
+        this.getOpenTasks(agentId, todayEnd),
       ]);
 
     const items = [
@@ -214,6 +225,7 @@ export class DashboardService {
         .slice(0, 5)
         .map((item) => this.toDocumentTodayItem(item)),
       ...staleListings.map((listing) => this.toStaleListingTodayItem(listing)),
+      ...tasks.map((task) => this.toTaskTodayItem(task, now)),
     ];
 
     items.sort(compareTodayItems);
@@ -506,6 +518,29 @@ export class DashboardService {
     });
   }
 
+  private getOpenTasks(agentId: string, todayEnd: Date): Promise<Task[]> {
+    return this.taskRepo.find({
+      where: [
+        {
+          agentId,
+          status: TaskStatus.TODO,
+          dueAt: LessThanOrEqual(todayEnd),
+        },
+        {
+          agentId,
+          status: TaskStatus.TODO,
+          dueAt: IsNull(),
+        },
+      ],
+      order: {
+        dueAt: 'ASC',
+        createdAt: 'ASC',
+      },
+      take: 8,
+      relations: ['appointment', 'client', 'listing'],
+    });
+  }
+
   private toAppointmentTodayItem(appointment: Appointment): TodayItem {
     const clientName = appointment.client
       ? `${appointment.client.firstName} ${appointment.client.lastName}`.trim()
@@ -595,6 +630,27 @@ export class DashboardService {
     };
   }
 
+  private toTaskTodayItem(task: Task, now: Date): TodayItem {
+    const href = getTaskHref(task);
+    const isOverdue = task.dueAt ? task.dueAt.getTime() < now.getTime() : false;
+
+    return {
+      id: `task-${task.id}`,
+      type: 'task',
+      priority: isOverdue ? 'high' : 'medium',
+      title: task.title,
+      description: getTaskDescription(task),
+      entityType: 'task',
+      entityId: task.id,
+      href,
+      dueAt: task.dueAt?.toISOString() ?? null,
+      action: {
+        label: 'Otwórz kontekst',
+        href,
+      },
+    };
+  }
+
   // ── Helpers ──
 
   private async resolveAgent(userId: string): Promise<Agent> {
@@ -651,4 +707,25 @@ function getDocumentTodayTitle(item: ListingDocumentAttentionItem): string {
 function getFullDaysBetween(left: Date, right: Date): number {
   const diffMs = right.getTime() - left.getTime();
   return Math.max(0, Math.floor(diffMs / (24 * 60 * 60 * 1000)));
+}
+
+function getTaskHref(task: Task): string {
+  if (task.appointmentId) return `/dashboard/calendar/${task.appointmentId}`;
+  if (task.clientId) return `/dashboard/clients/${task.clientId}`;
+  if (task.listingId) return `/dashboard/listings/${task.listingId}`;
+  return '/dashboard';
+}
+
+function getTaskDescription(task: Task): string {
+  const context = [
+    task.client
+      ? `${task.client.firstName} ${task.client.lastName}`.trim()
+      : null,
+    task.listing?.title ?? null,
+    task.appointment?.title ?? null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  return task.description ?? (context || 'Zadanie wymaga obsługi.');
 }

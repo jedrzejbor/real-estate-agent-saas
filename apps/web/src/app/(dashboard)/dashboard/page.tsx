@@ -23,6 +23,7 @@ import {
   MessageSquareText,
   Percent,
   AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -59,6 +60,7 @@ export default function DashboardPage() {
     isLoading: isTodayLoading,
     error: todayError,
     refresh: refreshToday,
+    completeTask,
   } = useDashboardToday();
   const [activeTab, setActiveTab] = useState<DashboardTabId>('overview');
 
@@ -210,6 +212,7 @@ export default function DashboardPage() {
                 isTodayLoading={isTodayLoading}
                 todayError={todayError}
                 onRefreshToday={refreshToday}
+                onCompleteTask={completeTask}
               />
             ) : null}
 
@@ -337,12 +340,14 @@ function DashboardOverviewContent({
   isTodayLoading,
   todayError,
   onRefreshToday,
+  onCompleteTask,
 }: {
   stats: DashboardStats;
   today: DashboardTodayResponse | null;
   isTodayLoading: boolean;
   todayError: string | null;
   onRefreshToday: () => void;
+  onCompleteTask: (taskId: string) => Promise<void>;
 }) {
   return (
     <div className="space-y-4">
@@ -351,6 +356,7 @@ function DashboardOverviewContent({
         isLoading={isTodayLoading}
         error={todayError}
         onRefresh={onRefreshToday}
+        onCompleteTask={onCompleteTask}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -426,11 +432,13 @@ function TodayPanel({
   isLoading,
   error,
   onRefresh,
+  onCompleteTask,
 }: {
   today: DashboardTodayResponse | null;
   isLoading: boolean;
   error: string | null;
   onRefresh: () => void;
+  onCompleteTask: (taskId: string) => Promise<void>;
 }) {
   const items = today?.items ?? [];
 
@@ -488,7 +496,11 @@ function TodayPanel({
       ) : (
         <div className="mt-4 grid gap-3 lg:grid-cols-3">
           {items.map((item) => (
-            <TodayItemCard key={item.id} item={item} />
+            <TodayItemCard
+              key={item.id}
+              item={item}
+              onCompleteTask={onCompleteTask}
+            />
           ))}
         </div>
       )}
@@ -496,8 +508,26 @@ function TodayPanel({
   );
 }
 
-function TodayItemCard({ item }: { item: TodayItem }) {
+function TodayItemCard({
+  item,
+  onCompleteTask,
+}: {
+  item: TodayItem;
+  onCompleteTask: (taskId: string) => Promise<void>;
+}) {
   const config = TODAY_ITEM_TYPE_CONFIG[item.type];
+  const [isCompleting, setIsCompleting] = useState(false);
+
+  const handleCompleteTask = async () => {
+    if (item.type !== 'task' || isCompleting) return;
+
+    setIsCompleting(true);
+    try {
+      await onCompleteTask(item.entityId);
+    } finally {
+      setIsCompleting(false);
+    }
+  };
 
   return (
     <article className="flex min-h-32 flex-col justify-between rounded-xl border border-border bg-muted/10 p-4">
@@ -534,12 +564,30 @@ function TodayItemCard({ item }: { item: TodayItem }) {
         </div>
       </div>
 
-      <Link href={item.action.href} className="mt-4">
-        <Button variant="outline" size="sm" className="w-full justify-between">
-          {item.action.label}
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Button>
-      </Link>
+      <div className="mt-4 grid gap-2">
+        {item.type === 'task' ? (
+          <Button
+            type="button"
+            size="sm"
+            className="w-full justify-between"
+            onClick={handleCompleteTask}
+            disabled={isCompleting}
+          >
+            {isCompleting ? 'Oznaczanie...' : 'Oznacz jako wykonane'}
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          </Button>
+        ) : null}
+        <Link href={item.action.href}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-between"
+          >
+            {item.action.label}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </Link>
+      </div>
     </article>
   );
 }
@@ -582,6 +630,11 @@ const TODAY_ITEM_TYPE_CONFIG: Record<
     icon: Home,
     color: 'text-brand-emerald',
     bg: 'bg-brand-emerald-light',
+  },
+  task: {
+    icon: ClipboardList,
+    color: 'text-primary',
+    bg: 'bg-primary/10',
   },
 };
 

@@ -1,8 +1,9 @@
-import { Between, In, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { Between, In, IsNull, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import {
   AppointmentStatus,
   ListingStatus,
   PublicLeadStatus,
+  TaskStatus,
 } from '../common/enums';
 import { DashboardService } from './dashboard.service';
 
@@ -30,7 +31,7 @@ describe('DashboardService getToday', () => {
   });
 
   it('scopes appointment and lead queries to the resolved agent', async () => {
-    const { service, appointmentRepo, publicLeadRepo, listingRepo } =
+    const { service, appointmentRepo, publicLeadRepo, listingRepo, taskRepo } =
       createService();
 
     await service.getToday('user-1');
@@ -77,6 +78,30 @@ describe('DashboardService getToday', () => {
     );
     expect(listingRepo.find.mock.calls[0][0].where.updatedAt).toEqual(
       LessThanOrEqual(new Date('2026-06-10T10:00:00.000Z')),
+    );
+    expect(taskRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: [
+          expect.objectContaining({
+            agentId: agent.id,
+            status: TaskStatus.TODO,
+            dueAt: expect.any(Object),
+          }),
+          expect.objectContaining({
+            agentId: agent.id,
+            status: TaskStatus.TODO,
+            dueAt: IsNull(),
+          }),
+        ],
+        order: {
+          dueAt: 'ASC',
+          createdAt: 'ASC',
+        },
+        take: 8,
+      }),
+    );
+    expect(taskRepo.find.mock.calls[0][0].where[0].dueAt).toEqual(
+      LessThanOrEqual(todayEnd),
     );
   });
 
@@ -187,6 +212,44 @@ describe('DashboardService getToday', () => {
       }),
     );
   });
+
+  it('returns open tasks due today as operational work', async () => {
+    const { service, taskRepo } = createService();
+    taskRepo.find.mockResolvedValue([
+      {
+        id: 'task-1',
+        title: 'Zadzwonić po prezentacji',
+        description: null,
+        dueAt: new Date('2026-06-24T11:00:00.000Z'),
+        appointmentId: 'appointment-1',
+        clientId: 'client-1',
+        listingId: 'listing-1',
+        client: { firstName: 'Adam', lastName: 'Kowal' },
+        listing: { title: 'Mieszkanie na Witebskiej' },
+        appointment: { title: 'Prezentacja mieszkania' },
+      },
+    ]);
+
+    const result = await service.getToday('user-1');
+
+    expect(result.items).toContainEqual(
+      expect.objectContaining({
+        id: 'task-task-1',
+        type: 'task',
+        priority: 'medium',
+        title: 'Zadzwonić po prezentacji',
+        description:
+          'Adam Kowal · Mieszkanie na Witebskiej · Prezentacja mieszkania',
+        entityType: 'task',
+        entityId: 'task-1',
+        href: '/dashboard/calendar/appointment-1',
+        action: {
+          label: 'Otwórz kontekst',
+          href: '/dashboard/calendar/appointment-1',
+        },
+      }),
+    );
+  });
 });
 
 function createService() {
@@ -197,6 +260,9 @@ function createService() {
     find: jest.fn().mockResolvedValue([]),
   };
   const publicLeadRepo = {
+    find: jest.fn().mockResolvedValue([]),
+  };
+  const taskRepo = {
     find: jest.fn().mockResolvedValue([]),
   };
   const documentsService = {
@@ -219,6 +285,7 @@ function createService() {
     appointmentRepo as never,
     {} as never,
     publicLeadRepo as never,
+    taskRepo as never,
     usersService as never,
     documentsService as never,
   );
@@ -228,6 +295,7 @@ function createService() {
     listingRepo,
     appointmentRepo,
     publicLeadRepo,
+    taskRepo,
     documentsService,
     usersService,
   };

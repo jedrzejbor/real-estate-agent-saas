@@ -759,6 +759,27 @@ Status etapu 2, 2026-06-24:
   akcji `Oznacz jako wykonane`; to zostaje na kolejną iterację UX-3, ponieważ
   kontrakt backendowy jest już gotowy do podpięcia frontendu.
 
+Status etapu 3, 2026-06-24:
+
+- dodano otwarte zadania CRM i follow-upy do endpointu
+  `GET /api/dashboard/today`,
+- panel `Dzisiaj` pobiera zadania o statusie `todo`, których termin jest do
+  końca bieżącego dnia albo nie mają ustawionego terminu,
+- zadania w `Dzisiaj` są filtrowane po `agentId`, sortowane po `dueAt` i
+  `createdAt` oraz limitowane do 8 rekordów przed wspólnym sortowaniem listy
+  operacyjnej,
+- zadania mapują się do `TodayItem` typu `task`, z priorytetem `high` dla
+  przeterminowanych zadań i `medium` dla pozostałych,
+- karta taska prowadzi do najlepszego dostępnego kontekstu: spotkania, klienta,
+  oferty albo dashboardu,
+- frontend panelu `Dzisiaj` obsługuje typ `task` z ikoną zadania,
+- dodano akcję `Oznacz jako wykonane`, która wywołuje `PATCH /api/tasks/:id`
+  ze statusem `done` i po sukcesie odświeża panel,
+- dodano test backendowy sprawdzający mapowanie otwartych tasków do
+  `TodayItem`,
+- nie dodano jeszcze formularza `Dodaj follow-up` w szczegółach spotkania ani
+  pełnego widoku listy zadań; to zostaje na kolejną iterację UX-3.
+
 ### Sprint UX-4: Timeline aktywności klienta i oferty
 
 Cel:
