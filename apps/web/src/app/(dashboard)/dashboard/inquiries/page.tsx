@@ -2,7 +2,8 @@
 
 /* eslint-disable @next/next/no-img-element */
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   CalendarPlus,
   ExternalLink,
@@ -30,10 +31,10 @@ import {
   PUBLIC_LEAD_SOURCE_LABELS,
   PUBLIC_LEAD_STATUS_BADGE_VARIANT,
   PUBLIC_LEAD_STATUS_LABELS,
+  PublicLeadStatus,
   type PublicInquiry,
   type PublicInquiryFilters,
   type PublicLeadSource,
-  type PublicLeadStatus,
 } from '@/lib/public-inquiries';
 import { buildPhoneHref } from '@/lib/contact-links';
 import {
@@ -50,6 +51,15 @@ const DEFAULT_FILTERS: PublicInquiryFilters = {
 };
 
 export default function PublicInquiriesPage() {
+  const searchParams = useSearchParams();
+  const initialFilters = useMemo<PublicInquiryFilters>(
+    () => ({
+      ...DEFAULT_FILTERS,
+      listingId: searchParams.get('listingId') ?? undefined,
+      status: parsePublicLeadStatus(searchParams.get('status')),
+    }),
+    [searchParams],
+  );
   const [listings, setListings] = useState<Listing[]>([]);
   const {
     inquiries,
@@ -61,7 +71,7 @@ export default function PublicInquiriesPage() {
     setFilters,
     setPage,
     refresh,
-  } = usePublicInquiries(DEFAULT_FILTERS);
+  } = usePublicInquiries(initialFilters);
 
   useEffect(() => {
     let isMounted = true;
@@ -140,6 +150,15 @@ export default function PublicInquiriesPage() {
       )}
     </div>
   );
+}
+
+function parsePublicLeadStatus(
+  value: string | null,
+): PublicLeadStatus | undefined {
+  if (!value) return undefined;
+  return Object.values(PublicLeadStatus).includes(value as PublicLeadStatus)
+    ? (value as PublicLeadStatus)
+    : undefined;
 }
 
 function PublicInquiryFiltersBar({

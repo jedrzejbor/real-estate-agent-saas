@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -25,6 +25,7 @@ import { ActivityHistoryCard } from '@/components/activity/activity-history-card
 import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
 import { useActivityHistory } from '@/hooks/use-activity-history';
+import { useAppointments } from '@/hooks/use-appointments';
 import { ClientStatusBadge } from '@/components/clients/client-status-badge';
 import { ClientNotes } from '@/components/clients/client-notes';
 import { ClientPreferencesCard } from '@/components/clients/client-preferences';
@@ -35,7 +36,15 @@ import {
 } from '@/lib/activity';
 import { buildPhoneHref } from '@/lib/contact-links';
 import { buildNewAppointmentUrl } from '@/lib/dashboard-links';
-import { formatDisplayDateNumeric } from '@/lib/date-format';
+import {
+  formatDisplayDateNumeric,
+  formatDisplayTimeRange,
+} from '@/lib/date-format';
+import {
+  APPOINTMENT_STATUS_LABELS,
+  APPOINTMENT_TYPE_LABELS,
+  type Appointment,
+} from '@/lib/appointments';
 import {
   fetchClient,
   deleteClient,
@@ -71,6 +80,22 @@ export default function ClientDetailPage() {
     historyItems,
     client?.status ?? '',
   );
+  const relatedAppointmentsFilters = useMemo(
+    () => ({
+      clientId: params.id,
+      from: new Date().toISOString(),
+      page: 1,
+      limit: 5,
+      sortBy: 'startTime' as const,
+      sortOrder: 'ASC' as const,
+    }),
+    [params.id],
+  );
+  const {
+    appointments: relatedAppointments,
+    isLoading: isRelatedAppointmentsLoading,
+    error: relatedAppointmentsError,
+  } = useAppointments(relatedAppointmentsFilters);
 
   useEffect(() => {
     if (!params.id) return;
@@ -353,17 +378,12 @@ export default function ClientDetailPage() {
           </DetailCard>
 
           <DetailCard title="Powiązania" icon={Calendar}>
-            <div className="space-y-3">
-              <RelationCard
-                href={scheduleAppointmentUrl}
-                title="Zaplanuj spotkanie z klientem"
-                description="Formularz spotkania otworzy się z przypisanym klientem."
-              />
-              <ActionEmptyState>
-                Powiązane oferty i historia spotkań pojawią się tutaj po
-                dopisaniu pierwszej aktywności dla klienta.
-              </ActionEmptyState>
-            </div>
+            <ClientRelationsContent
+              appointments={relatedAppointments}
+              isLoading={isRelatedAppointmentsLoading}
+              error={relatedAppointmentsError}
+              scheduleAppointmentUrl={scheduleAppointmentUrl}
+            />
           </DetailCard>
 
           {/* Status management */}
@@ -448,6 +468,83 @@ export default function ClientDetailPage() {
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function ClientRelationsContent({
+  appointments,
+  isLoading,
+  error,
+  scheduleAppointmentUrl,
+}: {
+  appointments: Appointment[];
+  isLoading: boolean;
+  error: string | null;
+  scheduleAppointmentUrl: string;
+}) {
+  if (isLoading) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Ładowanie powiązanych spotkań...
+      </p>
+    );
+  }
+
+  if (error) {
+    return (
+      <ActionEmptyState>
+        Nie udało się pobrać powiązanych spotkań. Spróbuj odświeżyć widok.
+      </ActionEmptyState>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <RelationCard
+        href={scheduleAppointmentUrl}
+        title="Zaplanuj spotkanie z klientem"
+        description="Formularz spotkania otworzy się z przypisanym klientem."
+      />
+
+      {appointments.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase text-muted-foreground">
+            Najbliższe spotkania
+          </p>
+          {appointments.map((appointment) => (
+            <Link
+              key={appointment.id}
+              href={`/dashboard/calendar/${appointment.id}`}
+              className="block rounded-xl border border-border/70 bg-muted/10 px-3 py-2 transition-colors hover:border-primary/40 hover:bg-muted/30"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {appointment.title}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {APPOINTMENT_TYPE_LABELS[appointment.type]} ·{' '}
+                    {APPOINTMENT_STATUS_LABELS[appointment.status]}
+                  </p>
+                </div>
+                <p className="shrink-0 text-right text-xs font-medium text-foreground">
+                  {formatDisplayDateNumeric(appointment.startTime)}
+                  <br />
+                  {formatDisplayTimeRange(
+                    appointment.startTime,
+                    appointment.endTime,
+                  )}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <ActionEmptyState>
+          Brak nadchodzących spotkań z tym klientem.
+        </ActionEmptyState>
+      )}
     </div>
   );
 }

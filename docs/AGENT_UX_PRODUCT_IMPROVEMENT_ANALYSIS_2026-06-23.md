@@ -506,6 +506,25 @@ Status etapu 2, 2026-06-24:
   powiązaną ofertę i klienta po konwersji; pełne listy relacji klient/oferta
   nadal zostają na osobną iterację UX-1.
 
+Status etapu 3, 2026-06-24:
+
+- dodano w szczegółach klienta realną listę najbliższych spotkań filtrowaną po
+  `clientId`,
+- zastąpiono ogólny empty state powiązań klienta konkretną sekcją z CTA
+  "Zaplanuj spotkanie" oraz listą nadchodzących spotkań,
+- dodano w szczegółach oferty sekcję "Spotkania oferty" filtrowaną po
+  `listingId`,
+- dodano w szczegółach oferty sekcję "Zapytania z oferty" filtrowaną po
+  `listingId`,
+- linki z sekcji zapytań oferty prowadzą do widoku zapytań publicznych z
+  aktywnym filtrem `listingId`,
+- widok zapytań publicznych obsługuje teraz inicjalne filtry z URL dla
+  `listingId` i bezpiecznie walidowanego `status`,
+- backend nadal nie wymagał zmian, ponieważ istniejące endpointy obsługują
+  potrzebne filtry; osobna iteracja może rozszerzyć endpoint szczegółów klienta
+  o historię relacji, jeśli będziemy chcieli zejść z dodatkowych requestów na
+  ekranie.
+
 ### Sprint UX-2: Widok "Dzisiaj"
 
 Cel:
