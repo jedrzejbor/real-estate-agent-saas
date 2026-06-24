@@ -1,5 +1,9 @@
-import { Between, In, MoreThanOrEqual } from 'typeorm';
-import { AppointmentStatus, PublicLeadStatus } from '../common/enums';
+import { Between, In, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import {
+  AppointmentStatus,
+  ListingStatus,
+  PublicLeadStatus,
+} from '../common/enums';
 import { DashboardService } from './dashboard.service';
 
 const agent = { id: 'agent-1' };
@@ -26,7 +30,8 @@ describe('DashboardService getToday', () => {
   });
 
   it('scopes appointment and lead queries to the resolved agent', async () => {
-    const { service, appointmentRepo, publicLeadRepo } = createService();
+    const { service, appointmentRepo, publicLeadRepo, listingRepo } =
+      createService();
 
     await service.getToday('user-1');
 
@@ -58,6 +63,20 @@ describe('DashboardService getToday', () => {
     );
     expect(publicLeadRepo.find.mock.calls[0][0].where.createdAt).toEqual(
       MoreThanOrEqual(new Date('2026-06-23T10:00:00.000Z')),
+    );
+    expect(listingRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          agentId: agent.id,
+          status: ListingStatus.ACTIVE,
+          updatedAt: expect.any(Object),
+        }),
+        order: { updatedAt: 'ASC' },
+        take: 5,
+      }),
+    );
+    expect(listingRepo.find.mock.calls[0][0].where.updatedAt).toEqual(
+      LessThanOrEqual(new Date('2026-06-10T10:00:00.000Z')),
     );
   });
 
@@ -141,9 +160,39 @@ describe('DashboardService getToday', () => {
 
     expect(result.items).toHaveLength(10);
   });
+
+  it('returns stale active listings as low priority work', async () => {
+    const { service, listingRepo } = createService();
+    listingRepo.find.mockResolvedValue([
+      {
+        id: 'listing-stale-1',
+        title: 'Mieszkanie bez aktywności',
+        updatedAt: new Date('2026-06-01T10:00:00.000Z'),
+      },
+    ]);
+
+    const result = await service.getToday('user-1');
+
+    expect(result.items).toContainEqual(
+      expect.objectContaining({
+        id: 'listing-stale-listing-stale-1',
+        type: 'listing',
+        priority: 'low',
+        title: 'Mieszkanie bez aktywności',
+        href: '/dashboard/listings/listing-stale-1',
+        action: {
+          label: 'Sprawdź ofertę',
+          href: '/dashboard/listings/listing-stale-1',
+        },
+      }),
+    );
+  });
 });
 
 function createService() {
+  const listingRepo = {
+    find: jest.fn().mockResolvedValue([]),
+  };
   const appointmentRepo = {
     find: jest.fn().mockResolvedValue([]),
   };
@@ -165,7 +214,7 @@ function createService() {
   };
 
   const service = new DashboardService(
-    {} as never,
+    listingRepo as never,
     {} as never,
     appointmentRepo as never,
     {} as never,
@@ -176,6 +225,7 @@ function createService() {
 
   return {
     service,
+    listingRepo,
     appointmentRepo,
     publicLeadRepo,
     documentsService,

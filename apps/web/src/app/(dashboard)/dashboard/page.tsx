@@ -578,6 +578,11 @@ const TODAY_ITEM_TYPE_CONFIG: Record<
     color: 'text-status-warning',
     bg: 'bg-status-warning-bg',
   },
+  listing: {
+    icon: Home,
+    color: 'text-brand-emerald',
+    bg: 'bg-brand-emerald-light',
+  },
 };
 
 function formatTodayDueAt(value: string): string {

@@ -1,6 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, In, MoreThanOrEqual } from 'typeorm';
+import {
+  Repository,
+  Between,
+  In,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+} from 'typeorm';
 import { Listing } from '../listings/entities/listing.entity';
 import { buildListingCommissionSumSql } from '../listings/listing-commission-query';
 import { Client } from '../clients/entities/client.entity';
@@ -95,7 +101,11 @@ export interface DashboardStats {
   upcomingAppointments: UpcomingAppointment[];
 }
 
-export type TodayItemType = 'appointment' | 'public_lead' | 'document';
+export type TodayItemType =
+  | 'appointment'
+  | 'public_lead'
+  | 'document'
+  | 'listing';
 export type TodayItemPriority = 'high' | 'medium' | 'low';
 export type TodayItemEntityType = 'appointment' | 'public_lead' | 'listing';
 
@@ -183,12 +193,17 @@ export class DashboardService {
     const todayEnd = new Date(now);
     todayEnd.setHours(23, 59, 59, 999);
     const leadWindowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const staleListingThreshold = new Date(
+      now.getTime() - 14 * 24 * 60 * 60 * 1000,
+    );
 
-    const [appointments, publicLeads, documentAttention] = await Promise.all([
-      this.getTodayAppointments(agentId, todayStart, todayEnd),
-      this.getNewPublicLeads(agentId, leadWindowStart),
-      this.listingDocumentsService.getAttentionSummaryForAgent(agentId),
-    ]);
+    const [appointments, publicLeads, documentAttention, staleListings] =
+      await Promise.all([
+        this.getTodayAppointments(agentId, todayStart, todayEnd),
+        this.getNewPublicLeads(agentId, leadWindowStart),
+        this.listingDocumentsService.getAttentionSummaryForAgent(agentId),
+        this.getStaleActiveListings(agentId, staleListingThreshold),
+      ]);
 
     const items = [
       ...appointments.map((appointment) =>
@@ -198,6 +213,7 @@ export class DashboardService {
       ...documentAttention.items
         .slice(0, 5)
         .map((item) => this.toDocumentTodayItem(item)),
+      ...staleListings.map((listing) => this.toStaleListingTodayItem(listing)),
     ];
 
     items.sort(compareTodayItems);
@@ -475,6 +491,21 @@ export class DashboardService {
     });
   }
 
+  private getStaleActiveListings(
+    agentId: string,
+    threshold: Date,
+  ): Promise<Listing[]> {
+    return this.listingRepo.find({
+      where: {
+        agentId,
+        status: ListingStatus.ACTIVE,
+        updatedAt: LessThanOrEqual(threshold),
+      },
+      order: { updatedAt: 'ASC' },
+      take: 5,
+    });
+  }
+
   private toAppointmentTodayItem(appointment: Appointment): TodayItem {
     const clientName = appointment.client
       ? `${appointment.client.firstName} ${appointment.client.lastName}`.trim()
@@ -544,6 +575,26 @@ export class DashboardService {
     };
   }
 
+  private toStaleListingTodayItem(listing: Listing): TodayItem {
+    const daysWithoutUpdate = getFullDaysBetween(listing.updatedAt, new Date());
+
+    return {
+      id: `listing-stale-${listing.id}`,
+      type: 'listing',
+      priority: daysWithoutUpdate >= 30 ? 'medium' : 'low',
+      title: listing.title,
+      description: `Aktywna oferta bez aktualizacji od ${daysWithoutUpdate} dni.`,
+      entityType: 'listing',
+      entityId: listing.id,
+      href: `/dashboard/listings/${listing.id}`,
+      dueAt: listing.updatedAt.toISOString(),
+      action: {
+        label: 'Sprawdź ofertę',
+        href: `/dashboard/listings/${listing.id}`,
+      },
+    };
+  }
+
   // ── Helpers ──
 
   private async resolveAgent(userId: string): Promise<Agent> {
@@ -595,4 +646,9 @@ function getDocumentTodayTitle(item: ListingDocumentAttentionItem): string {
   }
 
   return `${item.documentName ?? 'Dokument'} jest po terminie`;
+}
+
+function getFullDaysBetween(left: Date, right: Date): number {
+  const diffMs = right.getTime() - left.getTime();
+  return Math.max(0, Math.floor(diffMs / (24 * 60 * 60 * 1000)));
 }

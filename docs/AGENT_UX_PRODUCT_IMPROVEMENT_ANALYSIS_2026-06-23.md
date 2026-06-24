@@ -631,6 +631,20 @@ Status etapu 1, 2026-06-24:
 - nie dodawano jeszcze ofert bez aktywności ani follow-upów, bo wymagają
   kolejnych modeli lub doprecyzowania heurystyki aktywności.
 
+Status etapu 2, 2026-06-24:
+
+- dodano do `GET /api/dashboard/today` pozycje typu `listing` dla aktywnych
+  ofert bez aktualizacji przez co najmniej 14 dni,
+- aktywne oferty bez aktywności są filtrowane po `agentId`, statusie `ACTIVE`
+  i `updatedAt <= teraz - 14 dni`,
+- pozycja ma CTA `Sprawdź ofertę` prowadzące do szczegółów oferty,
+- oferty bez aktywności mają priorytet `low`, a po 30 dniach `medium`,
+- dodano test backendowy sprawdzający scope, próg 14 dni i mapowanie pozycji
+  oferty do `TodayItem`,
+- frontend panelu `Dzisiaj` obsługuje nowy typ `listing` z ikoną oferty,
+- nadal nie dodano follow-upów, ponieważ to należy do sprintu UX-3 i wymaga
+  modelu zadań.
+
 ### Sprint UX-3: Model zadań i follow-up po spotkaniu
 
 Cel:

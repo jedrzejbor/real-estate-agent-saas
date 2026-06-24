@@ -94,7 +94,11 @@ export interface DashboardStats {
   upcomingAppointments: UpcomingAppointment[];
 }
 
-export type TodayItemType = 'appointment' | 'public_lead' | 'document';
+export type TodayItemType =
+  | 'appointment'
+  | 'public_lead'
+  | 'document'
+  | 'listing';
 export type TodayItemPriority = 'high' | 'medium' | 'low';
 export type TodayItemEntityType = 'appointment' | 'public_lead' | 'listing';
 
