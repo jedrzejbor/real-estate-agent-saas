@@ -129,6 +129,32 @@ export enum TransactionEventType {
   RESTORED = 'restored',
 }
 
+export enum TaskStatus {
+  TODO = 'todo',
+  DONE = 'done',
+  CANCELLED = 'cancelled',
+}
+
+export enum TaskPriority {
+  LOW = 'low',
+  NORMAL = 'normal',
+  HIGH = 'high',
+}
+
+export enum TaskType {
+  FOLLOW_UP = 'follow_up',
+  CALL = 'call',
+  EMAIL = 'email',
+  DOCUMENT = 'document',
+  OTHER = 'other',
+}
+
+export enum TaskRelatedEntityType {
+  APPOINTMENT = 'appointment',
+  CLIENT = 'client',
+  LISTING = 'listing',
+}
+
 export enum ClientSource {
   WEBSITE = 'website',
   REFERRAL = 'referral',

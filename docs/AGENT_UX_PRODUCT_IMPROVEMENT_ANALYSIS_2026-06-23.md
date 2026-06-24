@@ -709,6 +709,33 @@ Kryteria akceptacji:
 - taski są widoczne w `Dzisiaj`,
 - zadania respektują scope agenta/agencji.
 
+Status etapu 1, 2026-06-24:
+
+- UX-2 uznajemy za domknięty dla obecnego MVP, ponieważ panel `Dzisiaj`
+  agreguje już spotkania, leady, dokumenty wymagające akcji i aktywne oferty
+  bez aktualizacji,
+- rozpoczęto UX-3 od backendowego fundamentu modelu zadań, bez mieszania go z
+  istniejącą checklistą zadań transakcyjnych,
+- dodano enumy `TaskStatus`, `TaskPriority`, `TaskType` i
+  `TaskRelatedEntityType`,
+- dodano encję `Task` oraz migrację `apps/api/migrations/20260624_tasks.sql`
+  dla tabeli `tasks`,
+- dodano moduł `TasksModule` z endpointami `GET /api/tasks`, `POST /api/tasks`
+  i `PATCH /api/tasks/:id`,
+- zadania są scope'owane przez aktualnego agenta i mogą być powiązane ze
+  spotkaniem, klientem albo ofertą,
+- serwis waliduje, czy powiązane spotkanie, klient lub oferta należy do tego
+  samego agenta, żeby nie dopuścić do podpinania zadań pod cudze dane,
+- `POST /api/tasks` tworzy manualne zadanie albo follow-up i automatycznie
+  ustawia `completedAt`, jeśli zadanie startuje jako wykonane,
+- `PATCH /api/tasks/:id` pozwala aktualizować status, priorytet, termin,
+  opis i powiązania oraz ustawia lub czyści `completedAt` zgodnie ze statusem,
+- dodano testy serwisu dla tworzenia zadania, scope relacji, filtrowanej listy
+  i oznaczania zadania jako wykonane,
+- nie dodano jeszcze automatycznego follow-upu po zmianie statusu spotkania ani
+  UI w szczegółach spotkania; to zostaje na kolejną iterację UX-3, bo wymaga
+  idempotencji i integracji z aktualizacją appointmentów.
+
 ### Sprint UX-4: Timeline aktywności klienta i oferty
 
 Cel:

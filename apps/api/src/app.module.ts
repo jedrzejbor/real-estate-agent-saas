@@ -25,6 +25,7 @@ import { BlogModule } from './blog';
 import { AdminModule } from './admin';
 import { PlansModule } from './plans';
 import { BillingModule } from './billing';
+import { TasksModule } from './tasks/tasks.module';
 
 function getBooleanConfig(
   configService: ConfigService,
@@ -67,6 +68,7 @@ function getBooleanConfig(
     ClientsModule,
     AppointmentsModule,
     DashboardModule,
+    TasksModule,
     ReportsModule,
     SearchModule,
     NotificationsModule,
