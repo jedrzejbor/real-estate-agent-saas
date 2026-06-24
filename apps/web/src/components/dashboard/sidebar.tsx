@@ -31,6 +31,7 @@ const navItems = [
   { label: 'Transakcje', href: '/dashboard/transactions', icon: Handshake },
   { label: 'Zapytania', href: '/dashboard/inquiries', icon: MessageSquareText },
   { label: 'Kalendarz', href: '/dashboard/calendar', icon: CalendarCheck },
+  { label: 'Zadania', href: '/dashboard/tasks', icon: ClipboardList },
   { label: 'Raporty', href: '/dashboard/reports', icon: BarChart3 },
   {
     label: 'Samouczek',

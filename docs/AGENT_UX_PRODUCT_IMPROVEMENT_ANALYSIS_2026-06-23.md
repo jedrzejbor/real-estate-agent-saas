@@ -796,6 +796,25 @@ Status etapu 4, 2026-06-24:
 - nie dodano jeszcze pełnego widoku listy zadań; to może być ostatnia iteracja
   UX-3 przed przejściem do UX-4.
 
+Status etapu 5, 2026-06-24:
+
+- dodano frontendowy moduł `apps/web/src/lib/tasks.ts` z typami tasków,
+  pobieraniem listy i aktualizacją statusu,
+- dodano widok `/dashboard/tasks` jako pełną listę zadań CRM i follow-upów,
+- widok zadań ma filtry `Do zrobienia`, `Wykonane` i `Wszystkie`,
+- każdy task pokazuje status, typ, priorytet, termin, opis oraz link do
+  najlepszego dostępnego kontekstu: spotkania, klienta, oferty albo dashboardu,
+- dodano akcję `Oznacz wykonane` oraz `Przywróć`, wykorzystującą
+  `PATCH /api/tasks/:id`,
+- dodano pozycję `Zadania` w głównej nawigacji dashboardu,
+- UX-3 spełnia obecne kryteria akceptacji MVP: model zadań istnieje, follow-upy
+  tworzą się ręcznie i automatycznie, nie powstają duplikaty, zadania są
+  widoczne w `Dzisiaj`, można je wykonać, a pełna lista zadań jest dostępna w
+  osobnym widoku,
+- prosty feedback po spotkaniu w postaci statusu zainteresowania, powodu i
+  następnej akcji pozostaje poza zakresem obecnego MVP i powinien wrócić jako
+  osobny etap, najlepiej razem z timeline z UX-4.
+
 ### Sprint UX-4: Timeline aktywności klienta i oferty
 
 Cel:
