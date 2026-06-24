@@ -11,4 +11,10 @@ export class DashboardController {
   async getStats(@CurrentUser('id') userId: string) {
     return this.dashboardService.getStats(userId);
   }
+
+  /** GET /api/dashboard/today — operational action list for current day. */
+  @Get('today')
+  async getToday(@CurrentUser('id') userId: string) {
+    return this.dashboardService.getToday(userId);
+  }
 }

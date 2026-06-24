@@ -614,6 +614,23 @@ Ryzyka:
 - zbyt dużo pozycji może przytłoczyć użytkownika; MVP powinno mieć limit i
   sortowanie priorytetów.
 
+Status etapu 1, 2026-06-24:
+
+- dodano endpoint `GET /api/dashboard/today` zwracający ujednolicony model
+  `TodayItem`,
+- MVP agreguje spotkania zaplanowane na dziś, nowe zapytania publiczne z
+  ostatnich 24 godzin oraz dokumenty wymagające akcji,
+- endpoint limituje wynik do 10 pozycji i sortuje je po priorytecie oraz
+  terminie,
+- dane są filtrowane przez `agentId` rozwiązywany z aktualnego użytkownika,
+- dodano testy backendowe dla pustego wyniku, scope agenta, sortowania
+  priorytetów i limitu wyników,
+- dodano frontendowy hook `useDashboardToday`,
+- dodano panel `Dzisiaj` w przeglądzie dashboardu z loading, error, empty state
+  oraz pojedynczym CTA dla każdej pozycji,
+- nie dodawano jeszcze ofert bez aktywności ani follow-upów, bo wymagają
+  kolejnych modeli lub doprecyzowania heurystyki aktywności.
+
 ### Sprint UX-3: Model zadań i follow-up po spotkaniu
 
 Cel:

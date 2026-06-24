@@ -94,10 +94,41 @@ export interface DashboardStats {
   upcomingAppointments: UpcomingAppointment[];
 }
 
+export type TodayItemType = 'appointment' | 'public_lead' | 'document';
+export type TodayItemPriority = 'high' | 'medium' | 'low';
+export type TodayItemEntityType = 'appointment' | 'public_lead' | 'listing';
+
+export interface TodayItemAction {
+  label: string;
+  href: string;
+}
+
+export interface TodayItem {
+  id: string;
+  type: TodayItemType;
+  priority: TodayItemPriority;
+  title: string;
+  description: string;
+  entityType: TodayItemEntityType;
+  entityId: string;
+  href: string;
+  dueAt: string | null;
+  action: TodayItemAction;
+}
+
+export interface DashboardTodayResponse {
+  items: TodayItem[];
+  generatedAt: string;
+}
+
 // ── API ──
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {
   return apiFetch<DashboardStats>('/dashboard/stats');
+}
+
+export async function fetchDashboardToday(): Promise<DashboardTodayResponse> {
+  return apiFetch<DashboardTodayResponse>('/dashboard/today');
 }
 
 // ── Helpers ──

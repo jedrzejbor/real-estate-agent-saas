@@ -22,6 +22,7 @@ import {
   LayoutDashboard,
   MessageSquareText,
   Percent,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +33,7 @@ import { PlanUsageCard } from '@/components/dashboard/plan-usage-card';
 import { FeatureSurveyList } from '@/components/feedback/feature-survey-list';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/hooks/use-dashboard';
+import { useDashboardToday } from '@/hooks/use-dashboard-today';
 import { isUsageWarning } from '@/lib/auth';
 import { getPlanUsageMetrics } from '@/lib/plan';
 import {
@@ -39,6 +41,10 @@ import {
   type DocumentAttentionItem,
   type RecentActivity,
   type UpcomingAppointment,
+  type DashboardTodayResponse,
+  type TodayItem,
+  type TodayItemPriority,
+  type TodayItemType,
   formatPricePL,
   formatRelativeTime,
   formatAppointmentTime,
@@ -48,6 +54,12 @@ import {
 export default function DashboardPage() {
   const { user } = useAuth();
   const { stats, isLoading, error, refresh } = useDashboard();
+  const {
+    today,
+    isLoading: isTodayLoading,
+    error: todayError,
+    refresh: refreshToday,
+  } = useDashboardToday();
   const [activeTab, setActiveTab] = useState<DashboardTabId>('overview');
 
   const firstName = user?.agent?.firstName?.trim() ?? '';
@@ -86,12 +98,17 @@ export default function DashboardPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={refresh}
-          disabled={isLoading}
+          onClick={() => {
+            refresh();
+            refreshToday();
+          }}
+          disabled={isLoading || isTodayLoading}
           className="gap-1.5 rounded-xl"
         >
           <RefreshCw
-            className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`}
+            className={`h-3.5 w-3.5 ${
+              isLoading || isTodayLoading ? 'animate-spin' : ''
+            }`}
           />
           Odśwież
         </Button>
@@ -187,7 +204,13 @@ export default function DashboardPage() {
 
           <div className="min-h-[560px] bg-background p-5">
             {selectedTab.id === 'overview' ? (
-              <DashboardOverviewContent stats={stats} />
+              <DashboardOverviewContent
+                stats={stats}
+                today={today}
+                isTodayLoading={isTodayLoading}
+                todayError={todayError}
+                onRefreshToday={refreshToday}
+              />
             ) : null}
 
             {selectedTab.id === 'onboarding' ? (
@@ -262,7 +285,9 @@ function getDashboardTabs({
       description: 'Najważniejsze liczby CRM i wartości portfela.',
       icon: LayoutDashboard,
       badge: String(
-        stats.listings.active + stats.clients.total + stats.appointments.thisWeek,
+        stats.listings.active +
+          stats.clients.total +
+          stats.appointments.thisWeek,
       ),
     },
     {
@@ -277,7 +302,9 @@ function getDashboardTabs({
       label: 'Aktywność',
       description: 'Ostatnie działania i nadchodzące spotkania.',
       icon: Activity,
-      badge: String(stats.recentActivity.length + stats.upcomingAppointments.length),
+      badge: String(
+        stats.recentActivity.length + stats.upcomingAppointments.length,
+      ),
     },
     {
       id: 'pipeline',
@@ -304,9 +331,28 @@ function getDashboardTabs({
   ];
 }
 
-function DashboardOverviewContent({ stats }: { stats: DashboardStats }) {
+function DashboardOverviewContent({
+  stats,
+  today,
+  isTodayLoading,
+  todayError,
+  onRefreshToday,
+}: {
+  stats: DashboardStats;
+  today: DashboardTodayResponse | null;
+  isTodayLoading: boolean;
+  todayError: string | null;
+  onRefreshToday: () => void;
+}) {
   return (
     <div className="space-y-4">
+      <TodayPanel
+        today={today}
+        isLoading={isTodayLoading}
+        error={todayError}
+        onRefresh={onRefreshToday}
+      />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Aktywne oferty"
@@ -373,6 +419,174 @@ function DashboardOverviewContent({ stats }: { stats: DashboardStats }) {
       <DocumentAttentionCard stats={stats.documentAttention} />
     </div>
   );
+}
+
+function TodayPanel({
+  today,
+  isLoading,
+  error,
+  onRefresh,
+}: {
+  today: DashboardTodayResponse | null;
+  isLoading: boolean;
+  error: string | null;
+  onRefresh: () => void;
+}) {
+  const items = today?.items ?? [];
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-heading text-lg font-semibold text-foreground">
+              Dzisiaj
+            </h2>
+            <Badge variant={items.length > 0 ? 'warning' : 'success'}>
+              {items.length > 0 ? `${items.length} akcji` : 'Czysto'}
+            </Badge>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Operacyjna lista najważniejszych spraw do obsłużenia teraz.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onRefresh}
+          disabled={isLoading}
+          className="gap-1 text-xs"
+        >
+          <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+          Odśwież
+        </Button>
+      </div>
+
+      {isLoading && !today ? (
+        <div className="mt-4 grid gap-3 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="min-h-28 animate-pulse rounded-xl border border-border bg-muted/30"
+            />
+          ))}
+        </div>
+      ) : error ? (
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">Nie udało się pobrać listy na dziś.</p>
+            <p className="mt-1 opacity-90">{error}</p>
+          </div>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+          Brak pilnych działań na dziś. Najważniejsze spotkania, leady i
+          dokumenty pojawią się tutaj automatycznie.
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-3 lg:grid-cols-3">
+          {items.map((item) => (
+            <TodayItemCard key={item.id} item={item} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function TodayItemCard({ item }: { item: TodayItem }) {
+  const config = TODAY_ITEM_TYPE_CONFIG[item.type];
+
+  return (
+    <article className="flex min-h-32 flex-col justify-between rounded-xl border border-border bg-muted/10 p-4">
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className={`rounded-lg p-2 ${config.bg}`}>
+              <config.icon className={`h-4 w-4 ${config.color}`} />
+            </div>
+            <Badge
+              variant={TODAY_PRIORITY_BADGE_VARIANT[item.priority]}
+              className="rounded-full"
+            >
+              {TODAY_PRIORITY_LABELS[item.priority]}
+            </Badge>
+          </div>
+          {item.dueAt ? (
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {formatTodayDueAt(item.dueAt)}
+            </span>
+          ) : null}
+        </div>
+
+        <div>
+          <Link
+            href={item.href}
+            className="line-clamp-2 text-sm font-semibold text-foreground hover:text-primary"
+          >
+            {item.title}
+          </Link>
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+            {item.description}
+          </p>
+        </div>
+      </div>
+
+      <Link href={item.action.href} className="mt-4">
+        <Button variant="outline" size="sm" className="w-full justify-between">
+          {item.action.label}
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Button>
+      </Link>
+    </article>
+  );
+}
+
+const TODAY_PRIORITY_LABELS: Record<TodayItemPriority, string> = {
+  high: 'Pilne',
+  medium: 'Ważne',
+  low: 'Do sprawdzenia',
+};
+
+const TODAY_PRIORITY_BADGE_VARIANT: Record<
+  TodayItemPriority,
+  React.ComponentProps<typeof Badge>['variant']
+> = {
+  high: 'destructive',
+  medium: 'warning',
+  low: 'secondary',
+};
+
+const TODAY_ITEM_TYPE_CONFIG: Record<
+  TodayItemType,
+  { icon: ElementType; color: string; bg: string }
+> = {
+  appointment: {
+    icon: CalendarCheck,
+    color: 'text-status-info',
+    bg: 'bg-status-info-bg',
+  },
+  public_lead: {
+    icon: MessageSquareText,
+    color: 'text-brand-gold-dark',
+    bg: 'bg-brand-gold-light',
+  },
+  document: {
+    icon: FileWarning,
+    color: 'text-status-warning',
+    bg: 'bg-status-warning-bg',
+  },
+};
+
+function formatTodayDueAt(value: string): string {
+  const date = new Date(value);
+
+  return date.toLocaleTimeString('pl-PL', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function DashboardPlanContent({

@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, MoreThanOrEqual } from 'typeorm';
+import { Repository, Between, In, MoreThanOrEqual } from 'typeorm';
 import { Listing } from '../listings/entities/listing.entity';
 import { buildListingCommissionSumSql } from '../listings/listing-commission-query';
 import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
+import { PublicLead } from '../public-leads/entities/public-lead.entity';
 import { UsersService } from '../users';
 import {
   ListingDocumentsService,
@@ -15,6 +16,7 @@ import {
   ListingStatus,
   ClientStatus,
   AppointmentStatus,
+  PublicLeadStatus,
 } from '../common/enums';
 
 // ── Response DTOs ──
@@ -93,6 +95,33 @@ export interface DashboardStats {
   upcomingAppointments: UpcomingAppointment[];
 }
 
+export type TodayItemType = 'appointment' | 'public_lead' | 'document';
+export type TodayItemPriority = 'high' | 'medium' | 'low';
+export type TodayItemEntityType = 'appointment' | 'public_lead' | 'listing';
+
+export interface TodayItemAction {
+  label: string;
+  href: string;
+}
+
+export interface TodayItem {
+  id: string;
+  type: TodayItemType;
+  priority: TodayItemPriority;
+  title: string;
+  description: string;
+  entityType: TodayItemEntityType;
+  entityId: string;
+  href: string;
+  dueAt: string | null;
+  action: TodayItemAction;
+}
+
+export interface DashboardTodayResponse {
+  items: TodayItem[];
+  generatedAt: string;
+}
+
 @Injectable()
 export class DashboardService {
   private readonly logger = new Logger(DashboardService.name);
@@ -106,6 +135,8 @@ export class DashboardService {
     private readonly appointmentRepo: Repository<Appointment>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    @InjectRepository(PublicLead)
+    private readonly publicLeadRepo: Repository<PublicLead>,
     private readonly usersService: UsersService,
     private readonly listingDocumentsService: ListingDocumentsService,
   ) {}
@@ -140,6 +171,40 @@ export class DashboardService {
       documentAttention,
       recentActivity,
       upcomingAppointments,
+    };
+  }
+
+  async getToday(userId: string): Promise<DashboardTodayResponse> {
+    const agent = await this.resolveAgent(userId);
+    const agentId = agent.id;
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(now);
+    todayEnd.setHours(23, 59, 59, 999);
+    const leadWindowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const [appointments, publicLeads, documentAttention] = await Promise.all([
+      this.getTodayAppointments(agentId, todayStart, todayEnd),
+      this.getNewPublicLeads(agentId, leadWindowStart),
+      this.listingDocumentsService.getAttentionSummaryForAgent(agentId),
+    ]);
+
+    const items = [
+      ...appointments.map((appointment) =>
+        this.toAppointmentTodayItem(appointment),
+      ),
+      ...publicLeads.map((lead) => this.toPublicLeadTodayItem(lead, now)),
+      ...documentAttention.items
+        .slice(0, 5)
+        .map((item) => this.toDocumentTodayItem(item)),
+    ];
+
+    items.sort(compareTodayItems);
+
+    return {
+      items: items.slice(0, 10),
+      generatedAt: now.toISOString(),
     };
   }
 
@@ -377,9 +442,157 @@ export class DashboardService {
     }));
   }
 
+  private getTodayAppointments(
+    agentId: string,
+    todayStart: Date,
+    todayEnd: Date,
+  ): Promise<Appointment[]> {
+    return this.appointmentRepo.find({
+      where: {
+        agentId,
+        status: AppointmentStatus.SCHEDULED,
+        startTime: Between(todayStart, todayEnd),
+      },
+      order: { startTime: 'ASC' },
+      take: 8,
+      relations: ['client', 'listing'],
+    });
+  }
+
+  private getNewPublicLeads(
+    agentId: string,
+    leadWindowStart: Date,
+  ): Promise<PublicLead[]> {
+    return this.publicLeadRepo.find({
+      where: {
+        agentId,
+        status: In([PublicLeadStatus.NEW, PublicLeadStatus.CONTACTED]),
+        createdAt: MoreThanOrEqual(leadWindowStart),
+      },
+      order: { createdAt: 'DESC' },
+      take: 8,
+      relations: ['listing', 'convertedClient'],
+    });
+  }
+
+  private toAppointmentTodayItem(appointment: Appointment): TodayItem {
+    const clientName = appointment.client
+      ? `${appointment.client.firstName} ${appointment.client.lastName}`.trim()
+      : null;
+    const listingTitle = appointment.listing?.title ?? null;
+    const context = [clientName, listingTitle].filter(Boolean).join(' · ');
+
+    return {
+      id: `appointment-${appointment.id}`,
+      type: 'appointment',
+      priority: 'high',
+      title: appointment.title,
+      description:
+        context || appointment.location || 'Spotkanie zaplanowane na dziś.',
+      entityType: 'appointment',
+      entityId: appointment.id,
+      href: `/dashboard/calendar/${appointment.id}`,
+      dueAt: appointment.startTime.toISOString(),
+      action: {
+        label: 'Otwórz spotkanie',
+        href: `/dashboard/calendar/${appointment.id}`,
+      },
+    };
+  }
+
+  private toPublicLeadTodayItem(lead: PublicLead, now: Date): TodayItem {
+    const ageMs = now.getTime() - lead.createdAt.getTime();
+    const isOlderThanFourHours = ageMs >= 4 * 60 * 60 * 1000;
+    const href = lead.listingId
+      ? `/dashboard/inquiries?listingId=${lead.listingId}&status=${lead.status}`
+      : `/dashboard/inquiries?status=${lead.status}`;
+
+    return {
+      id: `public-lead-${lead.id}`,
+      type: 'public_lead',
+      priority: isOlderThanFourHours ? 'high' : 'medium',
+      title: lead.fullName,
+      description: lead.listing?.title
+        ? `Nowe zapytanie do oferty: ${lead.listing.title}`
+        : 'Nowe zapytanie publiczne wymaga obsługi.',
+      entityType: 'public_lead',
+      entityId: lead.id,
+      href,
+      dueAt: lead.createdAt.toISOString(),
+      action: {
+        label: 'Obsłuż lead',
+        href,
+      },
+    };
+  }
+
+  private toDocumentTodayItem(item: ListingDocumentAttentionItem): TodayItem {
+    return {
+      id: `document-${item.id}`,
+      type: 'document',
+      priority: getDocumentTodayPriority(item.kind),
+      title: getDocumentTodayTitle(item),
+      description: item.listingTitle,
+      entityType: 'listing',
+      entityId: item.listingId,
+      href: `/dashboard/listings/${item.listingId}?tab=documents`,
+      dueAt: item.dueDate ?? item.createdAt,
+      action: {
+        label: 'Uzupełnij dokument',
+        href: `/dashboard/listings/${item.listingId}?tab=documents`,
+      },
+    };
+  }
+
   // ── Helpers ──
 
   private async resolveAgent(userId: string): Promise<Agent> {
     return this.usersService.resolveAgentForUser(userId);
   }
+}
+
+const TODAY_PRIORITY_WEIGHT: Record<TodayItemPriority, number> = {
+  high: 300,
+  medium: 200,
+  low: 100,
+};
+
+function compareTodayItems(left: TodayItem, right: TodayItem): number {
+  const priorityDiff =
+    TODAY_PRIORITY_WEIGHT[right.priority] -
+    TODAY_PRIORITY_WEIGHT[left.priority];
+  if (priorityDiff !== 0) return priorityDiff;
+
+  const leftDue = left.dueAt
+    ? new Date(left.dueAt).getTime()
+    : Number.MAX_SAFE_INTEGER;
+  const rightDue = right.dueAt
+    ? new Date(right.dueAt).getTime()
+    : Number.MAX_SAFE_INTEGER;
+
+  return leftDue - rightDue;
+}
+
+function getDocumentTodayPriority(
+  kind: ListingDocumentAttentionItem['kind'],
+): TodayItemPriority {
+  if (kind === 'overdue' || kind === 'expired') return 'high';
+  if (kind === 'needs_correction') return 'medium';
+  return 'low';
+}
+
+function getDocumentTodayTitle(item: ListingDocumentAttentionItem): string {
+  if (item.kind === 'missing_required') {
+    return `${item.count} brakujące wymagane dokumenty`;
+  }
+
+  if (item.kind === 'needs_correction') {
+    return `${item.documentName ?? 'Dokument'} wymaga poprawy`;
+  }
+
+  if (item.kind === 'expired') {
+    return `${item.documentName ?? 'Dokument'} stracił ważność`;
+  }
+
+  return `${item.documentName ?? 'Dokument'} jest po terminie`;
 }
