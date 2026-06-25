@@ -945,6 +945,33 @@ Do kolejnej iteracji UX-4:
 3. Rozważyć automatyczne odświeżenie timeline po akcjach w panelu dokumentów,
    jeśli użytkownicy często wracają od razu do zakładki historii.
 
+Status UX-4 / iteracja 3:
+
+Zrobione:
+
+1. Dodano wspólny hook `useActivityTimeline`, który obsługuje:
+   - pierwsze ładowanie aktywności,
+   - ręczne odświeżenie,
+   - doładowanie kolejnej strony,
+   - ochronę przed duplikatami przy dokładaniu wpisów.
+2. Rozszerzono komponent `ActivityTimeline` o:
+   - przycisk "Pokaż więcej",
+   - stan ładowania kolejnej strony,
+   - informację "Pokazano X z Y wpisów",
+   - zachowanie istniejącego empty state i refresh.
+3. Podłączono paginację aktywności na profilu klienta.
+4. Podłączono paginację aktywności na profilu oferty.
+5. Usunięto lokalnie zdublowaną logikę ładowania timeline z widoków klienta i
+   oferty na rzecz jednego hooka.
+
+Do kolejnej iteracji UX-4:
+
+1. Rozważyć automatyczne odświeżenie timeline po akcjach w panelu dokumentów.
+2. Wyciągnąć wspólne mapery timeline po stronie backendu, jeśli dojdą kolejne
+   źródła aktywności lub zacznie rosnąć koszt utrzymania mapowania klient/oferta.
+3. Jeżeli realne dane przekroczą typowe zakresy timeline, zastąpić agregację
+   per-source pełniejszym mechanizmem cursor-based pagination.
+
 ### Sprint UX-5: Szybkie akcje kontaktu i szablony wiadomości MVP
 
 Cel:

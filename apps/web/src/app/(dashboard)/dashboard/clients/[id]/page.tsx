@@ -26,6 +26,7 @@ import { ActivityTimeline } from '@/components/activity/activity-timeline';
 import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
 import { useActivityHistory } from '@/hooks/use-activity-history';
+import { useActivityTimeline } from '@/hooks/use-activity-timeline';
 import { useAppointments } from '@/hooks/use-appointments';
 import { ClientStatusBadge } from '@/components/clients/client-status-badge';
 import { ClientNotes } from '@/components/clients/client-notes';
@@ -35,7 +36,6 @@ import {
   fetchClientActivity,
   fetchClientHistory,
   getRollbackStatusChange,
-  type ActivityTimelineItem,
 } from '@/lib/activity';
 import { buildPhoneHref } from '@/lib/contact-links';
 import { buildNewAppointmentUrl } from '@/lib/dashboard-links';
@@ -73,17 +73,22 @@ export default function ClientDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRollingBackStatus, setIsRollingBackStatus] = useState(false);
-  const [activityItems, setActivityItems] = useState<ActivityTimelineItem[]>(
-    [],
-  );
-  const [isActivityLoading, setIsActivityLoading] = useState(true);
-  const [activityError, setActivityError] = useState<string | null>(null);
   const {
     items: historyItems,
     isLoading: isHistoryLoading,
     error: historyError,
     refresh: refreshHistory,
   } = useActivityHistory(params.id, fetchClientHistory);
+  const {
+    items: activityItems,
+    isLoading: isActivityLoading,
+    isLoadingMore: isActivityLoadingMore,
+    error: activityError,
+    total: activityTotal,
+    hasMore: hasMoreActivity,
+    refresh: refreshActivity,
+    loadMore: loadMoreActivity,
+  } = useActivityTimeline(params.id, fetchClientActivity);
   const rollbackChange = getRollbackStatusChange(
     historyItems,
     client?.status ?? '',
@@ -116,37 +121,10 @@ export default function ClientDetailPage() {
       .finally(() => setIsLoading(false));
   }, [params.id]);
 
-  const loadActivity = useCallback(async () => {
-    if (!params.id) return;
-
-    setIsActivityLoading(true);
-    setActivityError(null);
-
-    try {
-      const response = await fetchClientActivity(params.id, {
-        page: 1,
-        limit: 30,
-      });
-      setActivityItems(response.data);
-    } catch (err) {
-      setActivityError(
-        err instanceof Error
-          ? err.message
-          : 'Nie udało się pobrać aktywności klienta',
-      );
-    } finally {
-      setIsActivityLoading(false);
-    }
-  }, [params.id]);
-
-  useEffect(() => {
-    void loadActivity();
-  }, [loadActivity]);
-
   const refreshClientActivity = useCallback(() => {
     void refreshHistory();
-    void loadActivity();
-  }, [loadActivity, refreshHistory]);
+    void refreshActivity();
+  }, [refreshActivity, refreshHistory]);
 
   const handleDelete = useCallback(async () => {
     if (!client) return;
@@ -400,8 +378,12 @@ export default function ClientDetailPage() {
           <ActivityTimeline
             items={activityItems}
             isLoading={isActivityLoading}
+            isLoadingMore={isActivityLoadingMore}
             error={activityError}
-            onRefresh={loadActivity}
+            onRefresh={refreshActivity}
+            onLoadMore={loadMoreActivity}
+            hasMore={hasMoreActivity}
+            total={activityTotal}
           />
         </div>
 

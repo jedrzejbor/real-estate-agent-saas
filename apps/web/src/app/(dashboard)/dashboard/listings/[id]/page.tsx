@@ -32,6 +32,7 @@ import { ListingPublicationPanel } from '@/components/listings/listing-publicati
 import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
 import { useActivityHistory } from '@/hooks/use-activity-history';
+import { useActivityTimeline } from '@/hooks/use-activity-timeline';
 import { useAppointments } from '@/hooks/use-appointments';
 import { usePublicInquiries } from '@/hooks/use-public-inquiries';
 import { ListingStatusBadge } from '@/components/listings/listing-status-badge';
@@ -40,7 +41,6 @@ import {
   fetchListingHistory,
   getRollbackStatusChange,
   LISTING_HISTORY_FIELD_LABELS,
-  type ActivityTimelineItem,
 } from '@/lib/activity';
 import { buildNewAppointmentUrl } from '@/lib/dashboard-links';
 import {
@@ -96,17 +96,22 @@ export default function ListingDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRollingBackStatus, setIsRollingBackStatus] = useState(false);
-  const [activityItems, setActivityItems] = useState<ActivityTimelineItem[]>(
-    [],
-  );
-  const [isActivityLoading, setIsActivityLoading] = useState(true);
-  const [activityError, setActivityError] = useState<string | null>(null);
   const {
     items: historyItems,
     isLoading: isHistoryLoading,
     error: historyError,
     refresh: refreshHistory,
   } = useActivityHistory(params.id, fetchListingHistory);
+  const {
+    items: activityItems,
+    isLoading: isActivityLoading,
+    isLoadingMore: isActivityLoadingMore,
+    error: activityError,
+    total: activityTotal,
+    hasMore: hasMoreActivity,
+    refresh: refreshActivity,
+    loadMore: loadMoreActivity,
+  } = useActivityTimeline(params.id, fetchListingActivity);
   const rollbackChange = getRollbackStatusChange(
     historyItems,
     listing?.status ?? '',
@@ -167,37 +172,10 @@ export default function ListingDetailPage() {
     }
   }, [tabParam]);
 
-  const loadActivity = useCallback(async () => {
-    if (!params.id) return;
-
-    setIsActivityLoading(true);
-    setActivityError(null);
-
-    try {
-      const response = await fetchListingActivity(params.id, {
-        page: 1,
-        limit: 30,
-      });
-      setActivityItems(response.data);
-    } catch (err) {
-      setActivityError(
-        err instanceof Error
-          ? err.message
-          : 'Nie udało się pobrać aktywności oferty',
-      );
-    } finally {
-      setIsActivityLoading(false);
-    }
-  }, [params.id]);
-
-  useEffect(() => {
-    void loadActivity();
-  }, [loadActivity]);
-
   const refreshListingActivity = useCallback(() => {
     void refreshHistory();
-    void loadActivity();
-  }, [loadActivity, refreshHistory]);
+    void refreshActivity();
+  }, [refreshActivity, refreshHistory]);
 
   const handleListingChange = useCallback(
     (updated: Listing) => {
@@ -568,8 +546,12 @@ export default function ListingDetailPage() {
               <ActivityTimeline
                 items={activityItems}
                 isLoading={isActivityLoading}
+                isLoadingMore={isActivityLoadingMore}
                 error={activityError}
-                onRefresh={loadActivity}
+                onRefresh={refreshActivity}
+                onLoadMore={loadMoreActivity}
+                hasMore={hasMoreActivity}
+                total={activityTotal}
                 title="Aktywność oferty"
                 description="Publikacja, zapytania, spotkania, dokumenty i aktywność publiczna w jednej osi czasu."
                 emptyState="Brak aktywności, opublikuj ofertę albo zaplanuj spotkanie."

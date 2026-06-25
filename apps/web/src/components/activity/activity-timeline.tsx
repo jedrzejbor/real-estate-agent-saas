@@ -45,6 +45,10 @@ export function ActivityTimeline({
   isLoading,
   error,
   onRefresh,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
+  total,
   title = 'Aktywność',
   description = 'Spotkania, notatki, follow-upy i zmiany w jednej osi czasu.',
   emptyState = 'Brak aktywności, dodaj notatkę albo zaplanuj spotkanie.',
@@ -53,6 +57,10 @@ export function ActivityTimeline({
   isLoading: boolean;
   error: string | null;
   onRefresh?: () => void;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  total?: number;
   title?: string;
   description?: string;
   emptyState?: string;
@@ -89,6 +97,10 @@ export function ActivityTimeline({
           isLoading={isLoading}
           error={error}
           emptyState={emptyState}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={onLoadMore}
+          total={total}
         />
       </div>
     </div>
@@ -100,13 +112,21 @@ function ActivityTimelineContent({
   isLoading,
   error,
   emptyState,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
+  total,
 }: {
   items: ActivityTimelineItem[];
   isLoading: boolean;
   error: string | null;
   emptyState: string;
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  onLoadMore?: () => void;
+  total?: number;
 }) {
-  if (isLoading) {
+  if (isLoading && items.length === 0) {
     return (
       <div className="space-y-3">
         {Array.from({ length: 4 }).map((_, index) => (
@@ -132,14 +152,38 @@ function ActivityTimelineContent({
   }
 
   return (
-    <ol className="relative space-y-4 before:absolute before:bottom-3 before:left-4 before:top-3 before:w-px before:bg-border">
-      {items.map((item) => (
-        <li key={item.id} className="relative flex gap-3">
-          <TimelineIcon type={item.type} />
-          <TimelineItemBody item={item} />
-        </li>
-      ))}
-    </ol>
+    <div className="space-y-4">
+      <ol className="relative space-y-4 before:absolute before:bottom-3 before:left-4 before:top-3 before:w-px before:bg-border">
+        {items.map((item) => (
+          <li key={item.id} className="relative flex gap-3">
+            <TimelineIcon type={item.type} />
+            <TimelineItemBody item={item} />
+          </li>
+        ))}
+      </ol>
+
+      {hasMore && onLoadMore ? (
+        <div className="flex flex-col gap-2 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          {typeof total === 'number' ? (
+            <p className="text-xs text-muted-foreground">
+              Pokazano {items.length} z {total} wpisów
+            </p>
+          ) : (
+            <span />
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+            className="rounded-xl"
+          >
+            {isLoadingMore ? 'Ładowanie...' : 'Pokaż więcej'}
+          </Button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
