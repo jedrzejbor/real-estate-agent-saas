@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AddressLink } from '@/components/common';
 import { ActivityHistoryCard } from '@/components/activity/activity-history-card';
+import { ActivityTimeline } from '@/components/activity/activity-timeline';
 import { ListingDocumentsPanel } from '@/components/listings/listing-documents-panel';
 import { ListingPublicationPanel } from '@/components/listings/listing-publication-panel';
 import { useConfirm } from '@/contexts/confirm-context';
@@ -35,9 +36,11 @@ import { useAppointments } from '@/hooks/use-appointments';
 import { usePublicInquiries } from '@/hooks/use-public-inquiries';
 import { ListingStatusBadge } from '@/components/listings/listing-status-badge';
 import {
+  fetchListingActivity,
   fetchListingHistory,
   getRollbackStatusChange,
   LISTING_HISTORY_FIELD_LABELS,
+  type ActivityTimelineItem,
 } from '@/lib/activity';
 import { buildNewAppointmentUrl } from '@/lib/dashboard-links';
 import {
@@ -93,6 +96,11 @@ export default function ListingDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRollingBackStatus, setIsRollingBackStatus] = useState(false);
+  const [activityItems, setActivityItems] = useState<ActivityTimelineItem[]>(
+    [],
+  );
+  const [isActivityLoading, setIsActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState<string | null>(null);
   const {
     items: historyItems,
     isLoading: isHistoryLoading,
@@ -159,6 +167,46 @@ export default function ListingDetailPage() {
     }
   }, [tabParam]);
 
+  const loadActivity = useCallback(async () => {
+    if (!params.id) return;
+
+    setIsActivityLoading(true);
+    setActivityError(null);
+
+    try {
+      const response = await fetchListingActivity(params.id, {
+        page: 1,
+        limit: 30,
+      });
+      setActivityItems(response.data);
+    } catch (err) {
+      setActivityError(
+        err instanceof Error
+          ? err.message
+          : 'Nie udało się pobrać aktywności oferty',
+      );
+    } finally {
+      setIsActivityLoading(false);
+    }
+  }, [params.id]);
+
+  useEffect(() => {
+    void loadActivity();
+  }, [loadActivity]);
+
+  const refreshListingActivity = useCallback(() => {
+    void refreshHistory();
+    void loadActivity();
+  }, [loadActivity, refreshHistory]);
+
+  const handleListingChange = useCallback(
+    (updated: Listing) => {
+      setListing(updated);
+      refreshListingActivity();
+    },
+    [refreshListingActivity],
+  );
+
   const handleDelete = useCallback(async () => {
     if (!listing) return;
     const confirmed = await confirm({
@@ -200,7 +248,7 @@ export default function ListingDetailPage() {
           status: newStatus,
         });
         setListing(updated);
-        void refreshHistory();
+        refreshListingActivity();
       } catch (err) {
         showErrorToast({
           title: 'Nie udało się zmienić statusu',
@@ -209,7 +257,7 @@ export default function ListingDetailPage() {
         });
       }
     },
-    [confirm, listing, refreshHistory, showErrorToast],
+    [confirm, listing, refreshListingActivity, showErrorToast],
   );
 
   const handleStatusRollback = useCallback(async () => {
@@ -235,7 +283,7 @@ export default function ListingDetailPage() {
       setIsRollingBackStatus(true);
       const updated = await rollbackListingStatus(listing.id);
       setListing(updated);
-      await refreshHistory();
+      refreshListingActivity();
       showSuccessToast({
         title: 'Status oferty cofnięty',
         description: `Przywrócono status „${LISTING_STATUS_LABELS[updated.status]}”.`,
@@ -252,7 +300,7 @@ export default function ListingDetailPage() {
   }, [
     confirm,
     listing,
-    refreshHistory,
+    refreshListingActivity,
     rollbackChange,
     showErrorToast,
     showSuccessToast,
@@ -507,7 +555,7 @@ export default function ListingDetailPage() {
           {selectedTab.id === 'publication' ? (
             <ListingPublicationPanel
               listing={listing}
-              onListingChange={setListing}
+              onListingChange={handleListingChange}
             />
           ) : null}
 
@@ -516,14 +564,26 @@ export default function ListingDetailPage() {
           ) : null}
 
           {selectedTab.id === 'history' ? (
-            <ActivityHistoryCard
-              entityType="listing"
-              items={historyItems}
-              isLoading={isHistoryLoading}
-              error={historyError}
-              onRefresh={refreshHistory}
-              fieldLabels={LISTING_HISTORY_FIELD_LABELS}
-            />
+            <div className="space-y-5">
+              <ActivityTimeline
+                items={activityItems}
+                isLoading={isActivityLoading}
+                error={activityError}
+                onRefresh={loadActivity}
+                title="Aktywność oferty"
+                description="Publikacja, zapytania, spotkania, dokumenty i aktywność publiczna w jednej osi czasu."
+                emptyState="Brak aktywności, opublikuj ofertę albo zaplanuj spotkanie."
+              />
+
+              <ActivityHistoryCard
+                entityType="listing"
+                items={historyItems}
+                isLoading={isHistoryLoading}
+                error={historyError}
+                onRefresh={refreshHistory}
+                fieldLabels={LISTING_HISTORY_FIELD_LABELS}
+              />
+            </div>
           ) : null}
         </div>
       </section>

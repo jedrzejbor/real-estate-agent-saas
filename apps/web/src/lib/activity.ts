@@ -51,7 +51,9 @@ export type ActivityTimelineItemType =
   | 'note'
   | 'appointment'
   | 'task'
-  | 'public_lead';
+  | 'public_lead'
+  | 'document'
+  | 'public_activity';
 
 export interface ActivityTimelineItem {
   id: string;
@@ -164,6 +166,26 @@ export async function fetchClientActivity(
   const query = search.toString();
   return apiFetch<ActivityTimelineResponse>(
     `/clients/${id}/activity${query ? `?${query}` : ''}`,
+  );
+}
+
+export async function fetchListingActivity(
+  id: string,
+  params: { page?: number; limit?: number } = {},
+): Promise<ActivityTimelineResponse> {
+  const search = new URLSearchParams();
+
+  if (params.page) {
+    search.set('page', String(params.page));
+  }
+
+  if (params.limit) {
+    search.set('limit', String(params.limit));
+  }
+
+  const query = search.toString();
+  return apiFetch<ActivityTimelineResponse>(
+    `/listings/${id}/activity${query ? `?${query}` : ''}`,
   );
 }
 

@@ -3,10 +3,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Listing } from './entities/listing.entity';
 import { ListingImage } from './entities/listing-image.entity';
 import { Address } from './entities/address.entity';
+import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { AgencyRetainedListingChoice } from '../users/entities';
 import { AnalyticsEvent } from '../analytics/entities/analytics-event.entity';
+import { ListingDocumentEvent } from '../listing-documents/entities';
 import { Location } from '../locations/entities';
+import { PublicLead } from '../public-leads/entities/public-lead.entity';
+import { Task } from '../tasks/entities';
 import { UsersModule } from '../users';
 import { ActivityModule } from '../activity';
 import { MonitoringModule } from '../monitoring';
@@ -19,9 +23,13 @@ import { ListingsController } from './listings.controller';
       Listing,
       ListingImage,
       Address,
+      Appointment,
       Agent,
       Location,
       AnalyticsEvent,
+      ListingDocumentEvent,
+      PublicLead,
+      Task,
       AgencyRetainedListingChoice,
     ]),
     UsersModule,

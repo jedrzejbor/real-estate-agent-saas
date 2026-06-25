@@ -4,9 +4,11 @@ import Link from 'next/link';
 import {
   CalendarCheck,
   ClipboardList,
+  FileText,
   History,
   MessageSquareText,
   RefreshCw,
+  RadioTower,
   StickyNote,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,6 +26,8 @@ const TIMELINE_TYPE_LABELS: Record<ActivityTimelineItemType, string> = {
   appointment: 'Spotkanie',
   task: 'Zadanie',
   public_lead: 'Zapytanie',
+  document: 'Dokument',
+  public_activity: 'Publiczne',
 };
 
 const TIMELINE_TYPE_ICONS = {
@@ -32,6 +36,8 @@ const TIMELINE_TYPE_ICONS = {
   appointment: CalendarCheck,
   task: ClipboardList,
   public_lead: MessageSquareText,
+  document: FileText,
+  public_activity: RadioTower,
 } satisfies Record<ActivityTimelineItemType, typeof History>;
 
 export function ActivityTimeline({
@@ -39,22 +45,26 @@ export function ActivityTimeline({
   isLoading,
   error,
   onRefresh,
+  title = 'Aktywność',
+  description = 'Spotkania, notatki, follow-upy i zmiany w jednej osi czasu.',
+  emptyState = 'Brak aktywności, dodaj notatkę albo zaplanuj spotkanie.',
 }: {
   items: ActivityTimelineItem[];
   isLoading: boolean;
   error: string | null;
   onRefresh?: () => void;
+  title?: string;
+  description?: string;
+  emptyState?: string;
 }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="font-heading text-base font-semibold text-foreground">
-            Aktywność
+            {title}
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Spotkania, notatki, follow-upy i zmiany klienta w jednej osi czasu.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         </div>
         {onRefresh && (
           <Button
@@ -78,6 +88,7 @@ export function ActivityTimeline({
           items={items}
           isLoading={isLoading}
           error={error}
+          emptyState={emptyState}
         />
       </div>
     </div>
@@ -88,10 +99,12 @@ function ActivityTimelineContent({
   items,
   isLoading,
   error,
+  emptyState,
 }: {
   items: ActivityTimelineItem[];
   isLoading: boolean;
   error: string | null;
+  emptyState: string;
 }) {
   if (isLoading) {
     return (
@@ -115,11 +128,7 @@ function ActivityTimelineContent({
   }
 
   if (items.length === 0) {
-    return (
-      <ActionEmptyState>
-        Brak aktywności, dodaj notatkę albo zaplanuj spotkanie.
-      </ActionEmptyState>
-    );
+    return <ActionEmptyState>{emptyState}</ActionEmptyState>;
   }
 
   return (

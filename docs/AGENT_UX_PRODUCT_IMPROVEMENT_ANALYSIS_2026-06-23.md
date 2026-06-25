@@ -912,6 +912,39 @@ Do kolejnej iteracji UX-4:
 4. Dodać paginację "pokaż więcej" po stronie UI, jeśli w testach użytkowych
    okaże się, że 30 wpisów na start to za mało.
 
+Status UX-4 / iteracja 2:
+
+Zrobione:
+
+1. Dodano endpoint `GET /api/listings/:id/activity` z paginacją `page`/`limit`.
+2. Endpoint normalizuje aktywność oferty do tego samego modelu timeline, który
+   jest używany na profilu klienta.
+3. Timeline oferty agreguje obecnie:
+   - wpisy audit logu oferty,
+   - spotkania przypisane do oferty,
+   - zadania i follow-upy przypisane do oferty,
+   - zapytania publiczne dotyczące oferty,
+   - eventy dokumentów oferty,
+   - aktywność publiczną z analytics: wyświetlenia, kliknięcia, galerię,
+     kopiowanie linku i zgłoszenia.
+4. Dodano filtrowanie po właścicielu oferty oraz `agentId`/`listingId` na
+   zapytaniach pomocniczych, aby timeline nie mieszał danych innych agentów.
+5. Rozszerzono wspólny komponent `ActivityTimeline`, aby obsługiwał aktywność
+   klientów i ofert bez duplikacji UI.
+6. Dodano sekcję "Aktywność oferty" w zakładce historii profilu oferty, nad
+   techniczną historią zmian.
+7. Dodano test jednostkowy backendu dla sortowania, normalizacji i filtrowania
+   timeline oferty.
+
+Do kolejnej iteracji UX-4:
+
+1. Wyciągnąć wspólne mapery timeline po stronie backendu, jeśli dojdą kolejne
+   źródła aktywności.
+2. Dodać "pokaż więcej" w komponencie `ActivityTimeline`, jeżeli 30 wpisów
+   startowych nie wystarczy w realnym użyciu.
+3. Rozważyć automatyczne odświeżenie timeline po akcjach w panelu dokumentów,
+   jeśli użytkownicy często wracają od razu do zakładki historii.
+
 ### Sprint UX-5: Szybkie akcje kontaktu i szablony wiadomości MVP
 
 Cel:

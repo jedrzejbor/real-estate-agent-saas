@@ -38,6 +38,10 @@ describe('public listing privacy', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
     ) as unknown as typeof service;
   });
 
@@ -202,11 +206,7 @@ function findCommissionKeys(value: unknown, path = '$'): string[] {
   return findKeys(value, COMMISSION_KEYS, path);
 }
 
-function findKeys(
-  value: unknown,
-  keys: string[],
-  path = '$',
-): string[] {
+function findKeys(value: unknown, keys: string[], path = '$'): string[] {
   if (!value || typeof value !== 'object') {
     return [];
   }

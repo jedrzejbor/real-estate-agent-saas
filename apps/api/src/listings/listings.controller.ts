@@ -18,6 +18,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { ListingsService } from './listings.service';
 import {
   CreateListingDto,
+  ListingActivityQueryDto,
   ListingQueryDto,
   PublicListingCatalogQueryDto,
   ReorderListingImagesDto,
@@ -145,6 +146,16 @@ export class ListingsController {
     @CurrentUser('id') userId: string,
   ) {
     return this.listingsService.findHistory(id, userId);
+  }
+
+  /** GET /api/listings/:id/activity — get normalized listing activity timeline. */
+  @Get(':id/activity')
+  async findActivity(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @Query() query: ListingActivityQueryDto,
+  ) {
+    return this.listingsService.findActivity(id, userId, query);
   }
 
   /** GET /api/listings/:id — get single listing. */

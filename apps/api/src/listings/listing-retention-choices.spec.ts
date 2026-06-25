@@ -83,9 +83,11 @@ function buildService(input?: {
     }),
   );
   const retainedListingChoiceRepo = {
-    find: jest.fn().mockResolvedValue(
-      (input?.retainedListingIds ?? []).map((listingId) => ({ listingId })),
-    ),
+    find: jest
+      .fn()
+      .mockResolvedValue(
+        (input?.retainedListingIds ?? []).map((listingId) => ({ listingId })),
+      ),
     manager: { transaction },
   };
   const usersService = {
@@ -93,6 +95,10 @@ function buildService(input?: {
   };
   const service = new ListingsService(
     listingRepo as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
     {} as never,
     {} as never,
     {} as never,

@@ -13,10 +13,14 @@ import { randomUUID } from 'crypto';
 import { extname, join } from 'path';
 import { ActivityService } from '../activity';
 import { MonitoringService } from '../monitoring';
+import { Appointment } from '../appointments/entities/appointment.entity';
 import { Listing } from './entities/listing.entity';
 import { Address } from './entities/address.entity';
 import { ListingImage } from './entities/listing-image.entity';
 import { AnalyticsEvent } from '../analytics/entities/analytics-event.entity';
+import { ListingDocumentEvent } from '../listing-documents/entities';
+import { PublicLead } from '../public-leads/entities/public-lead.entity';
+import { Task } from '../tasks/entities';
 import { Agent } from '../users/entities/agent.entity';
 import { AgencyRetainedListingChoice } from '../users/entities';
 import { Location } from '../locations/entities';
@@ -41,6 +45,7 @@ import {
 } from '../common/file-storage.config';
 import { assertPublicListingModerationPassed } from '../common/public-listing-moderation';
 import { CreateListingDto } from './dto/create-listing.dto';
+import { ListingActivityQueryDto } from './dto/listing-activity-query.dto';
 import { UpdateListingImageDto } from './dto/listing-image.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ListingQueryDto } from './dto/listing-query.dto';
@@ -110,6 +115,32 @@ export interface RetentionChoicesResponse {
   selectedListingIds: string[];
   listings: RetentionChoiceListing[];
 }
+
+export type ListingActivityTimelineItemType =
+  | 'activity'
+  | 'appointment'
+  | 'task'
+  | 'public_lead'
+  | 'document'
+  | 'public_activity';
+
+export interface ListingActivityTimelineItem {
+  id: string;
+  type: ListingActivityTimelineItemType;
+  title: string;
+  description: string | null;
+  createdAt: string;
+  actor: {
+    id: string | null;
+    name: string | null;
+    email: string | null;
+  } | null;
+  metadata: Record<string, unknown>;
+  href: string | null;
+}
+
+export type ListingActivityTimelineResult =
+  PaginatedResult<ListingActivityTimelineItem>;
 
 interface UploadedListingImageFile {
   buffer: Buffer;
@@ -203,12 +234,20 @@ export class ListingsService {
     private readonly addressRepo: Repository<Address>,
     @InjectRepository(ListingImage)
     private readonly listingImageRepo: Repository<ListingImage>,
+    @InjectRepository(Appointment)
+    private readonly appointmentRepo: Repository<Appointment>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
     @InjectRepository(Location)
     private readonly locationRepo: Repository<Location>,
     @InjectRepository(AnalyticsEvent)
     private readonly analyticsEventRepo: Repository<AnalyticsEvent>,
+    @InjectRepository(ListingDocumentEvent)
+    private readonly listingDocumentEventRepo: Repository<ListingDocumentEvent>,
+    @InjectRepository(PublicLead)
+    private readonly publicLeadRepo: Repository<PublicLead>,
+    @InjectRepository(Task)
+    private readonly taskRepo: Repository<Task>,
     @InjectRepository(AgencyRetainedListingChoice)
     private readonly retainedListingChoiceRepo: Repository<AgencyRetainedListingChoice>,
     private readonly usersService: UsersService,
@@ -328,6 +367,108 @@ export class ListingsService {
     );
   }
 
+  async findActivity(
+    id: string,
+    userId: string,
+    query: ListingActivityQueryDto,
+  ): Promise<ListingActivityTimelineResult> {
+    const listing = await this.findOneOrFail(id);
+    await this.assertOwnership(listing, userId);
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 30;
+    const sourceLimit = Math.max(page * limit, 100);
+
+    const [
+      history,
+      appointments,
+      tasks,
+      publicLeads,
+      documentEvents,
+      publicActivity,
+    ] = await Promise.all([
+      this.activityService.findEntityHistory(
+        userId,
+        ActivityEntityType.LISTING,
+        id,
+      ),
+      this.appointmentRepo.find({
+        where: { agentId: listing.agentId, listingId: id },
+        relations: ['client'],
+        order: { startTime: 'DESC' },
+        take: sourceLimit,
+      }),
+      this.taskRepo.find({
+        where: { agentId: listing.agentId, listingId: id },
+        relations: ['appointment', 'client'],
+        order: { createdAt: 'DESC' },
+        take: sourceLimit,
+      }),
+      this.publicLeadRepo.find({
+        where: { agentId: listing.agentId, listingId: id },
+        order: { createdAt: 'DESC' },
+        take: sourceLimit,
+      }),
+      this.listingDocumentEventRepo.find({
+        where: { agentId: listing.agentId, listingId: id },
+        relations: ['document', 'actor'],
+        order: { createdAt: 'DESC' },
+        take: sourceLimit,
+      }),
+      this.analyticsEventRepo
+        .createQueryBuilder('event')
+        .where('event.agentId = :agentId', { agentId: listing.agentId })
+        .andWhere("event.properties ->> 'listingId' = :listingId", {
+          listingId: id,
+        })
+        .andWhere('event.name IN (:...names)', {
+          names: [
+            'public_listing_viewed',
+            'public_listing_share_clicked',
+            'public_listing_link_copied',
+            'public_listing_gallery_opened',
+            'public_listing_gallery_image_viewed',
+            'public_listing_catalog_result_clicked',
+            'public_listing_abuse_reported',
+          ],
+        })
+        .orderBy('event.createdAt', 'DESC')
+        .take(sourceLimit)
+        .getMany(),
+    ]);
+
+    const items = [
+      ...history.map((item) => this.mapHistoryToTimelineItem(item)),
+      ...appointments.map((appointment) =>
+        this.mapAppointmentToTimelineItem(appointment),
+      ),
+      ...tasks.map((task) => this.mapTaskToTimelineItem(task)),
+      ...publicLeads.map((lead) => this.mapPublicLeadToTimelineItem(lead)),
+      ...documentEvents.map((event) =>
+        this.mapDocumentEventToTimelineItem(event),
+      ),
+      ...publicActivity.map((event) =>
+        this.mapAnalyticsEventToTimelineItem(event),
+      ),
+    ].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+
+    const total = items.length;
+    const offset = (page - 1) * limit;
+
+    return {
+      data: items.slice(offset, offset + limit),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   async findRetentionChoices(
     userId: string,
   ): Promise<RetentionChoicesResponse> {
@@ -339,7 +480,9 @@ export class ListingsService {
         select: ['listingId'],
       }),
     ]);
-    const activeListingIds = new Set(activeListings.map((listing) => listing.id));
+    const activeListingIds = new Set(
+      activeListings.map((listing) => listing.id),
+    );
     const selectedListingIds = choices
       .map((choice) => choice.listingId)
       .filter((listingId) => activeListingIds.has(listingId));
@@ -387,7 +530,9 @@ export class ListingsService {
       );
     }
 
-    const activeListingIds = new Set(activeListings.map((listing) => listing.id));
+    const activeListingIds = new Set(
+      activeListings.map((listing) => listing.id),
+    );
     const hasInvalidListing = uniqueListingIds.some(
       (listingId) => !activeListingIds.has(listingId),
     );
@@ -1193,7 +1338,9 @@ export class ListingsService {
     return this.usersService.resolveAgentForUser(userId);
   }
 
-  private findAgencyActiveListings(agencyAgentIds: string[]): Promise<Listing[]> {
+  private findAgencyActiveListings(
+    agencyAgentIds: string[],
+  ): Promise<Listing[]> {
     if (agencyAgentIds.length === 0) {
       return Promise.resolve([]);
     }
@@ -1254,12 +1401,11 @@ export class ListingsService {
       },
     });
     const attemptedUsage = currentUsage + addedUsage;
-    const limitState =
-      this.agencyLimitEnforcementService.evaluateResourceLimit(
-        agencyAccess.entitlements,
-        'activeListings',
-        attemptedUsage,
-      );
+    const limitState = this.agencyLimitEnforcementService.evaluateResourceLimit(
+      agencyAccess.entitlements,
+      'activeListings',
+      attemptedUsage,
+    );
 
     if (limitState.isOverLimit && limitState.limit !== null) {
       this.monitoringService.recordWarning(
@@ -1821,7 +1967,9 @@ export class ListingsService {
     return [
       location.normalizedName,
       normalizeLocationSearch(location.name),
-      ...(location.aliases ?? []).map((alias) => normalizeLocationSearch(alias)),
+      ...(location.aliases ?? []).map((alias) =>
+        normalizeLocationSearch(alias),
+      ),
       ...location.searchText
         .split(/\s+/)
         .map((part) => normalizeLocationSearch(part)),
@@ -2217,6 +2365,253 @@ export class ListingsService {
     if (listing.agentId !== agent.id) {
       throw new ForbiddenException('Brak dostępu do tej oferty');
     }
+  }
+
+  private mapHistoryToTimelineItem(
+    item: Awaited<ReturnType<ActivityService['findEntityHistory']>>[number],
+  ): ListingActivityTimelineItem {
+    return {
+      id: `activity:${item.id}`,
+      type: 'activity',
+      title: item.description || this.formatActivityAction(item.action),
+      description:
+        item.changes.length > 0
+          ? `Zmieniono pól: ${item.changes.length}`
+          : null,
+      createdAt: this.toIsoString(item.createdAt),
+      actor: {
+        id: item.actor?.id ?? null,
+        name: this.formatActivityActorName(item.actor),
+        email: item.actor?.email ?? null,
+      },
+      metadata: {
+        action: item.action,
+        entityType: item.entityType,
+        changes: item.changes,
+      },
+      href: null,
+    };
+  }
+
+  private mapAppointmentToTimelineItem(
+    appointment: Appointment,
+  ): ListingActivityTimelineItem {
+    return {
+      id: `appointment:${appointment.id}`,
+      type: 'appointment',
+      title: appointment.title,
+      description: [
+        `Status: ${appointment.status}`,
+        `Typ: ${appointment.type}`,
+        appointment.client
+          ? `Klient: ${this.formatClientName(appointment.client)}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      createdAt: this.toIsoString(appointment.startTime),
+      actor: null,
+      metadata: {
+        appointmentId: appointment.id,
+        status: appointment.status,
+        type: appointment.type,
+        location: appointment.location,
+        clientId: appointment.clientId,
+      },
+      href: `/dashboard/calendar/${appointment.id}`,
+    };
+  }
+
+  private mapTaskToTimelineItem(task: Task): ListingActivityTimelineItem {
+    const eventDate = task.completedAt ?? task.dueAt ?? task.createdAt;
+
+    return {
+      id: `task:${task.id}`,
+      type: 'task',
+      title: task.title,
+      description:
+        task.description ||
+        [
+          `Status: ${task.status}`,
+          task.client ? `Klient: ${this.formatClientName(task.client)}` : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      createdAt: this.toIsoString(eventDate),
+      actor: null,
+      metadata: {
+        taskId: task.id,
+        status: task.status,
+        priority: task.priority,
+        type: task.type,
+        appointmentId: task.appointmentId,
+        clientId: task.clientId,
+      },
+      href: task.appointmentId
+        ? `/dashboard/calendar/${task.appointmentId}`
+        : task.clientId
+          ? `/dashboard/clients/${task.clientId}`
+          : null,
+    };
+  }
+
+  private mapPublicLeadToTimelineItem(
+    lead: PublicLead,
+  ): ListingActivityTimelineItem {
+    return {
+      id: `public-lead:${lead.id}`,
+      type: 'public_lead',
+      title: `Zapytanie: ${lead.fullName}`,
+      description: lead.message ?? null,
+      createdAt: this.toIsoString(lead.createdAt),
+      actor: null,
+      metadata: {
+        leadId: lead.id,
+        status: lead.status,
+        source: lead.source,
+        email: lead.email,
+        phone: lead.phone,
+      },
+      href: '/dashboard/inquiries',
+    };
+  }
+
+  private mapDocumentEventToTimelineItem(
+    event: ListingDocumentEvent,
+  ): ListingActivityTimelineItem {
+    return {
+      id: `document:${event.id}`,
+      type: 'document',
+      title: this.formatDocumentEventTitle(event),
+      description: event.document?.displayName ?? null,
+      createdAt: this.toIsoString(event.createdAt),
+      actor: {
+        id: event.actor?.id ?? null,
+        name: this.formatUserName(event.actor),
+        email: event.actor?.email ?? null,
+      },
+      metadata: {
+        eventId: event.id,
+        documentId: event.documentId,
+        documentCategory: event.document?.category,
+        documentStatus: event.document?.status,
+        eventType: event.type,
+        ...event.metadata,
+      },
+      href: null,
+    };
+  }
+
+  private mapAnalyticsEventToTimelineItem(
+    event: AnalyticsEvent,
+  ): ListingActivityTimelineItem {
+    return {
+      id: `public-activity:${event.id}`,
+      type: 'public_activity',
+      title: this.formatAnalyticsEventTitle(event.name),
+      description: event.path ?? null,
+      createdAt: this.toIsoString(event.createdAt),
+      actor: null,
+      metadata: {
+        eventId: event.id,
+        name: event.name,
+        path: event.path,
+        ...event.properties,
+      },
+      href: event.path ?? null,
+    };
+  }
+
+  private formatActivityAction(action: ActivityAction): string {
+    const labels: Record<ActivityAction, string> = {
+      [ActivityAction.CREATED]: 'Utworzono',
+      [ActivityAction.UPDATED]: 'Zaktualizowano',
+      [ActivityAction.STATUS_CHANGED]: 'Zmieniono status',
+      [ActivityAction.STATUS_ROLLED_BACK]: 'Cofnięto status',
+      [ActivityAction.DELETED]: 'Usunięto',
+      [ActivityAction.ARCHIVED]: 'Zarchiwizowano',
+      [ActivityAction.PUBLISHED]: 'Opublikowano',
+      [ActivityAction.UNPUBLISHED]: 'Cofnięto publikację',
+      [ActivityAction.CLAIMED]: 'Przejęto',
+      [ActivityAction.NOTE_ADDED]: 'Dodano notatkę',
+      [ActivityAction.NOTE_REMOVED]: 'Usunięto notatkę',
+    };
+
+    return labels[action] ?? String(action);
+  }
+
+  private formatDocumentEventTitle(event: ListingDocumentEvent): string {
+    const labels: Record<string, string> = {
+      uploaded: 'Dodano dokument',
+      status_changed: 'Zmieniono status dokumentu',
+      metadata_updated: 'Zaktualizowano dokument',
+      downloaded: 'Pobrano dokument',
+      deleted: 'Usunięto dokument',
+      restored: 'Przywrócono dokument',
+    };
+
+    return labels[event.type] ?? 'Aktywność dokumentu';
+  }
+
+  private formatAnalyticsEventTitle(name: string): string {
+    const labels: Record<string, string> = {
+      public_listing_viewed: 'Wyświetlenie publiczne',
+      public_listing_share_clicked: 'Kliknięto udostępnianie',
+      public_listing_link_copied: 'Skopiowano link publiczny',
+      public_listing_gallery_opened: 'Otworzono galerię',
+      public_listing_gallery_image_viewed: 'Obejrzano zdjęcie w galerii',
+      public_listing_catalog_result_clicked: 'Kliknięto ofertę w katalogu',
+      public_listing_abuse_reported: 'Zgłoszono ofertę',
+    };
+
+    return labels[name] ?? name;
+  }
+
+  private formatActivityActorName(
+    actor:
+      | Awaited<
+          ReturnType<ActivityService['findEntityHistory']>
+        >[number]['actor']
+      | null
+      | undefined,
+  ): string | null {
+    if (!actor) {
+      return null;
+    }
+
+    const fullName = [actor.firstName, actor.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    return fullName || actor.email || null;
+  }
+
+  private formatUserName(
+    user: ListingDocumentEvent['actor'] | null | undefined,
+  ): string | null {
+    if (!user) {
+      return null;
+    }
+
+    return user.email || null;
+  }
+
+  private formatClientName(
+    client: Appointment['client'] | Task['client'],
+  ): string {
+    const fullName = [client?.firstName, client?.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    return fullName || client?.email || 'Klient';
+  }
+
+  private toIsoString(value: Date | string): string {
+    return value instanceof Date
+      ? value.toISOString()
+      : new Date(value).toISOString();
   }
 
   private getOrderedImages(listing: Listing): ListingImage[] {
