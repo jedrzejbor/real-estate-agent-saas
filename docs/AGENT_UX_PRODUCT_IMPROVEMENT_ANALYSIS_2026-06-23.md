@@ -994,6 +994,28 @@ Do kolejnej iteracji UX-4:
 3. Rozważyć małe filtry typów aktywności w `ActivityTimeline`, jeśli timeline
    zacznie być zbyt gęsty dla agentów z dużą liczbą leadów i dokumentów.
 
+Status UX-4 / iteracja 5:
+
+Zrobione:
+
+1. Dodano lokalne filtry typów aktywności w komponencie `ActivityTimeline`.
+2. Filtry pokazują tylko typy dostępne w aktualnie załadowanych wpisach oraz
+   licznik wpisów dla każdego typu.
+3. Dodano filtr "Wszystko" z liczbą załadowanych wpisów.
+4. Dodano empty state dla sytuacji, gdy wybrany typ nie ma wpisów w aktualnie
+   załadowanej aktywności.
+5. Dodano ochronę przed pozostaniem na filtrze, który zniknął po odświeżeniu
+   lub zmianie danych.
+
+Do kolejnej iteracji UX-4:
+
+1. Wyciągnąć wspólne mapery timeline po stronie backendu, jeśli dojdą kolejne
+   źródła aktywności lub zacznie rosnąć koszt utrzymania mapowania klient/oferta.
+2. Jeżeli realne dane przekroczą typowe zakresy timeline, zastąpić agregację
+   per-source pełniejszym mechanizmem cursor-based pagination.
+3. Jeżeli lokalne filtry okażą się niewystarczające przy dużych timeline,
+   przenieść filtrowanie typów do endpointów aktywności.
+
 ### Sprint UX-5: Szybkie akcje kontaktu i szablony wiadomości MVP
 
 Cel:

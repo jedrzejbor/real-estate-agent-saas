@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   CalendarCheck,
@@ -39,6 +40,8 @@ const TIMELINE_TYPE_ICONS = {
   document: FileText,
   public_activity: RadioTower,
 } satisfies Record<ActivityTimelineItemType, typeof History>;
+
+type TimelineFilter = ActivityTimelineItemType | 'all';
 
 export function ActivityTimeline({
   items,
@@ -126,6 +129,22 @@ function ActivityTimelineContent({
   onLoadMore?: () => void;
   total?: number;
 }) {
+  const [activeFilter, setActiveFilter] = useState<TimelineFilter>('all');
+  const typeFilters = useMemo(() => buildTypeFilters(items), [items]);
+  const effectiveFilter =
+    activeFilter === 'all' ||
+    typeFilters.some((filter) => filter.type === activeFilter)
+      ? activeFilter
+      : 'all';
+  const filteredItems = useMemo(
+    () =>
+      effectiveFilter === 'all'
+        ? items
+        : items.filter((item) => item.type === effectiveFilter),
+    [effectiveFilter, items],
+  );
+  const shouldShowFilters = typeFilters.length > 1;
+
   if (isLoading && items.length === 0) {
     return (
       <div className="space-y-3">
@@ -153,8 +172,23 @@ function ActivityTimelineContent({
 
   return (
     <div className="space-y-4">
+      {shouldShowFilters ? (
+        <TimelineFilters
+          activeFilter={effectiveFilter}
+          itemsCount={items.length}
+          typeFilters={typeFilters}
+          onChange={setActiveFilter}
+        />
+      ) : null}
+
+      {filteredItems.length === 0 ? (
+        <div className="rounded-xl border border-border/70 bg-muted/10 p-4 text-sm text-muted-foreground">
+          Brak wpisów dla wybranego typu w aktualnie załadowanej aktywności.
+        </div>
+      ) : null}
+
       <ol className="relative space-y-4 before:absolute before:bottom-3 before:left-4 before:top-3 before:w-px before:bg-border">
-        {items.map((item) => (
+        {filteredItems.map((item) => (
           <li key={item.id} className="relative flex gap-3">
             <TimelineIcon type={item.type} />
             <TimelineItemBody item={item} />
@@ -166,7 +200,9 @@ function ActivityTimelineContent({
         <div className="flex flex-col gap-2 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
           {typeof total === 'number' ? (
             <p className="text-xs text-muted-foreground">
-              Pokazano {items.length} z {total} wpisów
+              {effectiveFilter === 'all'
+                ? `Pokazano ${items.length} z ${total} wpisów`
+                : `Pokazano ${filteredItems.length} pasujących z ${items.length} załadowanych wpisów`}
             </p>
           ) : (
             <span />
@@ -187,6 +223,70 @@ function ActivityTimelineContent({
   );
 }
 
+function TimelineFilters({
+  activeFilter,
+  itemsCount,
+  typeFilters,
+  onChange,
+}: {
+  activeFilter: TimelineFilter;
+  itemsCount: number;
+  typeFilters: Array<{ type: ActivityTimelineItemType; count: number }>;
+  onChange: (filter: TimelineFilter) => void;
+}) {
+  return (
+    <div
+      className="flex flex-wrap gap-2"
+      role="group"
+      aria-label="Filtr aktywności"
+    >
+      <TimelineFilterButton
+        label="Wszystko"
+        count={itemsCount}
+        isActive={activeFilter === 'all'}
+        onClick={() => onChange('all')}
+      />
+      {typeFilters.map((filter) => (
+        <TimelineFilterButton
+          key={filter.type}
+          label={TIMELINE_TYPE_LABELS[filter.type]}
+          count={filter.count}
+          isActive={activeFilter === filter.type}
+          onClick={() => onChange(filter.type)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function TimelineFilterButton({
+  label,
+  count,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={isActive}
+      onClick={onClick}
+      className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors ${
+        isActive
+          ? 'border-primary bg-primary/10 text-primary'
+          : 'border-border/80 bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
+      }`}
+    >
+      {label}
+      <span className="ml-1 text-[11px] opacity-75">{count}</span>
+    </button>
+  );
+}
+
 function TimelineIcon({ type }: { type: ActivityTimelineItemType }) {
   const Icon = TIMELINE_TYPE_ICONS[type];
 
@@ -195,6 +295,23 @@ function TimelineIcon({ type }: { type: ActivityTimelineItemType }) {
       <Icon className="h-4 w-4" />
     </span>
   );
+}
+
+function buildTypeFilters(items: ActivityTimelineItem[]) {
+  const counts = new Map<ActivityTimelineItemType, number>();
+
+  for (const item of items) {
+    counts.set(item.type, (counts.get(item.type) ?? 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .map(([type, count]) => ({ type, count }))
+    .sort((a, b) =>
+      TIMELINE_TYPE_LABELS[a.type].localeCompare(
+        TIMELINE_TYPE_LABELS[b.type],
+        'pl',
+      ),
+    );
 }
 
 function TimelineItemBody({ item }: { item: ActivityTimelineItem }) {
