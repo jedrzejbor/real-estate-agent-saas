@@ -972,6 +972,28 @@ Do kolejnej iteracji UX-4:
 3. Jeżeli realne dane przekroczą typowe zakresy timeline, zastąpić agregację
    per-source pełniejszym mechanizmem cursor-based pagination.
 
+Status UX-4 / iteracja 4:
+
+Zrobione:
+
+1. Dodano opcjonalny callback `onActivityChanged` do panelu dokumentów oferty.
+2. Timeline oferty odświeża się automatycznie po akcjach dokumentów:
+   - dodaniu dokumentu,
+   - zmianie statusu dokumentu,
+   - pobraniu dokumentu,
+   - usunięciu dokumentu.
+3. Callback jest podłączony z poziomu profilu oferty bez uzależniania panelu
+   dokumentów od konkretnej implementacji timeline.
+
+Do kolejnej iteracji UX-4:
+
+1. Wyciągnąć wspólne mapery timeline po stronie backendu, jeśli dojdą kolejne
+   źródła aktywności lub zacznie rosnąć koszt utrzymania mapowania klient/oferta.
+2. Jeżeli realne dane przekroczą typowe zakresy timeline, zastąpić agregację
+   per-source pełniejszym mechanizmem cursor-based pagination.
+3. Rozważyć małe filtry typów aktywności w `ActivityTimeline`, jeśli timeline
+   zacznie być zbyt gęsty dla agentów z dużą liczbą leadów i dokumentów.
+
 ### Sprint UX-5: Szybkie akcje kontaktu i szablony wiadomości MVP
 
 Cel:

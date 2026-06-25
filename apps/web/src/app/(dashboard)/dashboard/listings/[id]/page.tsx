@@ -538,7 +538,10 @@ export default function ListingDetailPage() {
           ) : null}
 
           {selectedTab.id === 'documents' ? (
-            <ListingDocumentsPanel listingId={listing.id} />
+            <ListingDocumentsPanel
+              listingId={listing.id}
+              onActivityChanged={refreshActivity}
+            />
           ) : null}
 
           {selectedTab.id === 'history' ? (

@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils';
 
 interface ListingDocumentsPanelProps {
   listingId: string;
+  onActivityChanged?: () => void;
 }
 
 const DOCUMENT_CATEGORIES = Object.values(ListingDocumentCategory);
@@ -39,7 +40,10 @@ const DOCUMENT_STATUSES = Object.values(ListingDocumentStatus).filter(
   (status) => status !== ListingDocumentStatus.MISSING,
 );
 
-export function ListingDocumentsPanel({ listingId }: ListingDocumentsPanelProps) {
+export function ListingDocumentsPanel({
+  listingId,
+  onActivityChanged,
+}: ListingDocumentsPanelProps) {
   const { success, error: showError } = useToast();
   const { confirm } = useConfirm();
   const [data, setData] = useState<ListingDocumentsResponse | null>(null);
@@ -60,9 +64,7 @@ export function ListingDocumentsPanel({ listingId }: ListingDocumentsPanelProps)
       setData(await fetchListingDocuments(listingId));
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : 'Nie udało się pobrać dokumentów',
+        err instanceof Error ? err.message : 'Nie udało się pobrać dokumentów',
       );
     } finally {
       setIsLoading(false);
@@ -97,6 +99,7 @@ export function ListingDocumentsPanel({ listingId }: ListingDocumentsPanelProps)
       setSelectedFile(null);
       setDisplayName('');
       await load();
+      onActivityChanged?.();
       success({
         title: 'Dokument dodany',
         description: 'Plik został zapisany prywatnie przy ofercie.',
@@ -119,6 +122,7 @@ export function ListingDocumentsPanel({ listingId }: ListingDocumentsPanelProps)
     try {
       await updateListingDocument(listingId, document.id, { status });
       await load();
+      onActivityChanged?.();
       success({
         title: 'Status dokumentu zmieniony',
         description: LISTING_DOCUMENT_STATUS_LABELS[status],
@@ -141,9 +145,11 @@ export function ListingDocumentsPanel({ listingId }: ListingDocumentsPanelProps)
       const url = URL.createObjectURL(blob);
       const anchor = window.document.createElement('a');
       anchor.href = url;
-      anchor.download = filename ?? document.originalFilename ?? document.displayName;
+      anchor.download =
+        filename ?? document.originalFilename ?? document.displayName;
       anchor.click();
       URL.revokeObjectURL(url);
+      onActivityChanged?.();
     } catch (err) {
       showError({
         title: 'Nie udało się pobrać dokumentu',
@@ -167,6 +173,7 @@ export function ListingDocumentsPanel({ listingId }: ListingDocumentsPanelProps)
     try {
       await deleteListingDocument(listingId, document.id);
       await load();
+      onActivityChanged?.();
       success({
         title: 'Dokument usunięty',
         description: 'Dokument został usunięty z listy oferty.',
@@ -199,7 +206,9 @@ export function ListingDocumentsPanel({ listingId }: ListingDocumentsPanelProps)
           disabled={isLoading}
           className="w-fit gap-1.5 rounded-xl"
         >
-          <RefreshCw className={cn('h-3.5 w-3.5', isLoading && 'animate-spin')} />
+          <RefreshCw
+            className={cn('h-3.5 w-3.5', isLoading && 'animate-spin')}
+          />
           Odśwież
         </Button>
       </div>
@@ -257,7 +266,9 @@ export function ListingDocumentsPanel({ listingId }: ListingDocumentsPanelProps)
           <Input
             type="file"
             accept="application/pdf,image/jpeg,image/png"
-            onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+            onChange={(event) =>
+              setSelectedFile(event.target.files?.[0] ?? null)
+            }
           />
         </label>
         <div className="flex items-end">
@@ -316,8 +327,8 @@ function ChecklistSummary({
             Kompletność dokumentów
           </p>
           <p className="text-xs text-muted-foreground">
-            {checklist.summary.approved}/{checklist.summary.required}{' '}
-            wymaganych zaakceptowanych
+            {checklist.summary.approved}/{checklist.summary.required} wymaganych
+            zaakceptowanych
           </p>
         </div>
         <div className="flex items-center gap-2">
