@@ -8,6 +8,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { ActivityService } from '../activity';
+import {
+  ActivityTimelineItem,
+  mapActivityHistoryToTimelineItem,
+  toActivityIsoString,
+} from '../activity/activity-timeline';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Client } from './entities/client.entity';
 import { ClientNote } from './entities/client-note.entity';
@@ -49,20 +54,8 @@ export type ClientActivityTimelineItemType =
   | 'task'
   | 'public_lead';
 
-export interface ClientActivityTimelineItem {
-  id: string;
-  type: ClientActivityTimelineItemType;
-  title: string;
-  description: string | null;
-  createdAt: string;
-  actor: {
-    id: string | null;
-    name: string | null;
-    email: string | null;
-  } | null;
-  metadata: Record<string, unknown>;
-  href: string | null;
-}
+export type ClientActivityTimelineItem =
+  ActivityTimelineItem<ClientActivityTimelineItemType>;
 
 export type ClientActivityTimelineResult =
   PaginatedResult<ClientActivityTimelineItem>;
@@ -628,27 +621,7 @@ export class ClientsService {
   private mapHistoryToTimelineItem(
     item: Awaited<ReturnType<ActivityService['findEntityHistory']>>[number],
   ): ClientActivityTimelineItem {
-    return {
-      id: `activity:${item.id}`,
-      type: 'activity',
-      title: item.description || this.formatActivityAction(item.action),
-      description:
-        item.changes.length > 0
-          ? `Zmieniono pól: ${item.changes.length}`
-          : null,
-      createdAt: this.toIsoString(item.createdAt),
-      actor: {
-        id: item.actor?.id ?? null,
-        name: this.formatActorName(item.actor),
-        email: item.actor?.email ?? null,
-      },
-      metadata: {
-        action: item.action,
-        entityType: item.entityType,
-        changes: item.changes,
-      },
-      href: null,
-    };
+    return mapActivityHistoryToTimelineItem(item, 'activity');
   }
 
   private mapNoteToTimelineItem(note: ClientNote): ClientActivityTimelineItem {
@@ -657,7 +630,7 @@ export class ClientsService {
       type: 'note',
       title: 'Notatka',
       description: note.content,
-      createdAt: this.toIsoString(note.createdAt),
+      createdAt: toActivityIsoString(note.createdAt),
       actor: null,
       metadata: { noteId: note.id },
       href: null,
@@ -680,7 +653,7 @@ export class ClientsService {
       ]
         .filter(Boolean)
         .join(' · '),
-      createdAt: this.toIsoString(appointment.startTime),
+      createdAt: toActivityIsoString(appointment.startTime),
       actor: null,
       metadata: {
         appointmentId: appointment.id,
@@ -708,7 +681,7 @@ export class ClientsService {
         ]
           .filter(Boolean)
           .join(' · '),
-      createdAt: this.toIsoString(eventDate),
+      createdAt: toActivityIsoString(eventDate),
       actor: null,
       metadata: {
         taskId: task.id,
@@ -736,7 +709,7 @@ export class ClientsService {
       description:
         lead.message ||
         (lead.listing?.title ? `Oferta: ${lead.listing.title}` : null),
-      createdAt: this.toIsoString(lead.createdAt),
+      createdAt: toActivityIsoString(lead.createdAt),
       actor: null,
       metadata: {
         leadId: lead.id,
@@ -746,50 +719,6 @@ export class ClientsService {
       },
       href: '/dashboard/inquiries',
     };
-  }
-
-  private formatActivityAction(action: ActivityAction): string {
-    const labels: Record<ActivityAction, string> = {
-      [ActivityAction.CREATED]: 'Utworzono',
-      [ActivityAction.UPDATED]: 'Zaktualizowano',
-      [ActivityAction.STATUS_CHANGED]: 'Zmieniono status',
-      [ActivityAction.STATUS_ROLLED_BACK]: 'Cofnięto status',
-      [ActivityAction.DELETED]: 'Usunięto',
-      [ActivityAction.ARCHIVED]: 'Zarchiwizowano',
-      [ActivityAction.PUBLISHED]: 'Opublikowano',
-      [ActivityAction.UNPUBLISHED]: 'Cofnięto publikację',
-      [ActivityAction.CLAIMED]: 'Przejęto',
-      [ActivityAction.NOTE_ADDED]: 'Dodano notatkę',
-      [ActivityAction.NOTE_REMOVED]: 'Usunięto notatkę',
-    };
-
-    return labels[action] ?? String(action);
-  }
-
-  private formatActorName(
-    actor:
-      | Awaited<
-          ReturnType<ActivityService['findEntityHistory']>
-        >[number]['actor']
-      | null
-      | undefined,
-  ): string | null {
-    if (!actor) {
-      return null;
-    }
-
-    const fullName = [actor.firstName, actor.lastName]
-      .filter(Boolean)
-      .join(' ')
-      .trim();
-
-    return fullName || actor.email || null;
-  }
-
-  private toIsoString(value: Date | string): string {
-    return value instanceof Date
-      ? value.toISOString()
-      : new Date(value).toISOString();
   }
 
   /** Apply optional filters to the query builder. */

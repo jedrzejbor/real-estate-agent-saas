@@ -1016,6 +1016,32 @@ Do kolejnej iteracji UX-4:
 3. Jeżeli lokalne filtry okażą się niewystarczające przy dużych timeline,
    przenieść filtrowanie typów do endpointów aktywności.
 
+Status UX-4 / iteracja 6 - zamknięcie MVP:
+
+Zrobione:
+
+1. Wyciągnięto wspólny backendowy kontrakt timeline do
+   `apps/api/src/activity/activity-timeline.ts`.
+2. Ujednolicono mapowanie wpisów audit logu klienta i oferty przez wspólny
+   helper `mapActivityHistoryToTimelineItem`.
+3. Ujednolicono formatowanie akcji aktywności, aktora i dat ISO dla timeline.
+4. Usunięto powtarzające się helpery z `ClientsService` i `ListingsService`,
+   zostawiając w serwisach tylko mapowanie zdarzeń specyficznych dla danej
+   domeny.
+5. Potwierdzono, że UX-4 MVP obejmuje:
+   - timeline klienta,
+   - timeline oferty,
+   - paginację i "Pokaż więcej",
+   - filtry typów aktywności,
+   - odświeżanie po akcjach statusu, notatek, publikacji i dokumentów,
+   - testy backendowe dla timeline klienta i oferty.
+
+Status sprintu:
+
+UX-4 MVP uznajemy za zakończony. Cursor-based pagination oraz filtrowanie po
+stronie endpointu zostają jako przyszła optymalizacja, jeśli realny wolumen
+aktywności przekroczy obecne założenia.
+
 ### Sprint UX-5: Szybkie akcje kontaktu i szablony wiadomości MVP
 
 Cel:

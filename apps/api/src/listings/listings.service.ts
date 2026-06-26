@@ -12,6 +12,11 @@ import { mkdir, unlink, writeFile } from 'fs/promises';
 import { randomUUID } from 'crypto';
 import { extname, join } from 'path';
 import { ActivityService } from '../activity';
+import {
+  ActivityTimelineItem,
+  mapActivityHistoryToTimelineItem,
+  toActivityIsoString,
+} from '../activity/activity-timeline';
 import { MonitoringService } from '../monitoring';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Listing } from './entities/listing.entity';
@@ -124,20 +129,8 @@ export type ListingActivityTimelineItemType =
   | 'document'
   | 'public_activity';
 
-export interface ListingActivityTimelineItem {
-  id: string;
-  type: ListingActivityTimelineItemType;
-  title: string;
-  description: string | null;
-  createdAt: string;
-  actor: {
-    id: string | null;
-    name: string | null;
-    email: string | null;
-  } | null;
-  metadata: Record<string, unknown>;
-  href: string | null;
-}
+export type ListingActivityTimelineItem =
+  ActivityTimelineItem<ListingActivityTimelineItemType>;
 
 export type ListingActivityTimelineResult =
   PaginatedResult<ListingActivityTimelineItem>;
@@ -2370,27 +2363,7 @@ export class ListingsService {
   private mapHistoryToTimelineItem(
     item: Awaited<ReturnType<ActivityService['findEntityHistory']>>[number],
   ): ListingActivityTimelineItem {
-    return {
-      id: `activity:${item.id}`,
-      type: 'activity',
-      title: item.description || this.formatActivityAction(item.action),
-      description:
-        item.changes.length > 0
-          ? `Zmieniono pól: ${item.changes.length}`
-          : null,
-      createdAt: this.toIsoString(item.createdAt),
-      actor: {
-        id: item.actor?.id ?? null,
-        name: this.formatActivityActorName(item.actor),
-        email: item.actor?.email ?? null,
-      },
-      metadata: {
-        action: item.action,
-        entityType: item.entityType,
-        changes: item.changes,
-      },
-      href: null,
-    };
+    return mapActivityHistoryToTimelineItem(item, 'activity');
   }
 
   private mapAppointmentToTimelineItem(
@@ -2409,7 +2382,7 @@ export class ListingsService {
       ]
         .filter(Boolean)
         .join(' · '),
-      createdAt: this.toIsoString(appointment.startTime),
+      createdAt: toActivityIsoString(appointment.startTime),
       actor: null,
       metadata: {
         appointmentId: appointment.id,
@@ -2437,7 +2410,7 @@ export class ListingsService {
         ]
           .filter(Boolean)
           .join(' · '),
-      createdAt: this.toIsoString(eventDate),
+      createdAt: toActivityIsoString(eventDate),
       actor: null,
       metadata: {
         taskId: task.id,
@@ -2463,7 +2436,7 @@ export class ListingsService {
       type: 'public_lead',
       title: `Zapytanie: ${lead.fullName}`,
       description: lead.message ?? null,
-      createdAt: this.toIsoString(lead.createdAt),
+      createdAt: toActivityIsoString(lead.createdAt),
       actor: null,
       metadata: {
         leadId: lead.id,
@@ -2484,7 +2457,7 @@ export class ListingsService {
       type: 'document',
       title: this.formatDocumentEventTitle(event),
       description: event.document?.displayName ?? null,
-      createdAt: this.toIsoString(event.createdAt),
+      createdAt: toActivityIsoString(event.createdAt),
       actor: {
         id: event.actor?.id ?? null,
         name: this.formatUserName(event.actor),
@@ -2510,7 +2483,7 @@ export class ListingsService {
       type: 'public_activity',
       title: this.formatAnalyticsEventTitle(event.name),
       description: event.path ?? null,
-      createdAt: this.toIsoString(event.createdAt),
+      createdAt: toActivityIsoString(event.createdAt),
       actor: null,
       metadata: {
         eventId: event.id,
@@ -2520,24 +2493,6 @@ export class ListingsService {
       },
       href: event.path ?? null,
     };
-  }
-
-  private formatActivityAction(action: ActivityAction): string {
-    const labels: Record<ActivityAction, string> = {
-      [ActivityAction.CREATED]: 'Utworzono',
-      [ActivityAction.UPDATED]: 'Zaktualizowano',
-      [ActivityAction.STATUS_CHANGED]: 'Zmieniono status',
-      [ActivityAction.STATUS_ROLLED_BACK]: 'Cofnięto status',
-      [ActivityAction.DELETED]: 'Usunięto',
-      [ActivityAction.ARCHIVED]: 'Zarchiwizowano',
-      [ActivityAction.PUBLISHED]: 'Opublikowano',
-      [ActivityAction.UNPUBLISHED]: 'Cofnięto publikację',
-      [ActivityAction.CLAIMED]: 'Przejęto',
-      [ActivityAction.NOTE_ADDED]: 'Dodano notatkę',
-      [ActivityAction.NOTE_REMOVED]: 'Usunięto notatkę',
-    };
-
-    return labels[action] ?? String(action);
   }
 
   private formatDocumentEventTitle(event: ListingDocumentEvent): string {
@@ -2567,26 +2522,6 @@ export class ListingsService {
     return labels[name] ?? name;
   }
 
-  private formatActivityActorName(
-    actor:
-      | Awaited<
-          ReturnType<ActivityService['findEntityHistory']>
-        >[number]['actor']
-      | null
-      | undefined,
-  ): string | null {
-    if (!actor) {
-      return null;
-    }
-
-    const fullName = [actor.firstName, actor.lastName]
-      .filter(Boolean)
-      .join(' ')
-      .trim();
-
-    return fullName || actor.email || null;
-  }
-
   private formatUserName(
     user: ListingDocumentEvent['actor'] | null | undefined,
   ): string | null {
@@ -2606,12 +2541,6 @@ export class ListingsService {
       .trim();
 
     return fullName || client?.email || 'Klient';
-  }
-
-  private toIsoString(value: Date | string): string {
-    return value instanceof Date
-      ? value.toISOString()
-      : new Date(value).toISOString();
   }
 
   private getOrderedImages(listing: Listing): ListingImage[] {
