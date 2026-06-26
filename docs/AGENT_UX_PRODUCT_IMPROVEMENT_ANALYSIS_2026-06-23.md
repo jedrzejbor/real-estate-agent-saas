@@ -1091,6 +1091,42 @@ Ryzyka:
 - treści muszą być neutralne prawnie; unikać obietnic, gwarancji i niepewnych
   informacji.
 
+Status UX-5 / iteracja 1:
+
+Zrobione:
+
+1. Dodano backendowy moduł `message-templates`.
+2. Dodano statyczny katalog pięciu szablonów:
+   - odpowiedź na lead,
+   - potwierdzenie spotkania,
+   - follow-up po prezentacji,
+   - prośba o dokumenty,
+   - informacja o zmianie ceny.
+3. Dodano endpoint `GET /api/message-templates`.
+4. Dodano endpoint `POST /api/message-templates/render`.
+5. Render szablonów stosuje kontrolowane fallbacki, aby wiadomość nie zawierała
+   pustych placeholderów.
+6. Dodano testy backendowe dla renderowania szablonu, fallbacków i odrzucenia
+   nieznanego typu.
+7. Dodano frontendowy klient API `message-templates`.
+8. Dodano komponent `MessageTemplateDialog` z:
+   - wyborem szablonu,
+   - podglądem tematu,
+   - podglądem treści,
+   - przyciskiem "Kopiuj wiadomość",
+   - toastem po skopiowaniu.
+9. Podłączono pierwsze użycie na kartach zapytań publicznych przez przycisk
+   "Wiadomość" z kontekstem klienta, oferty i treści leada.
+
+Do kolejnej iteracji UX-5:
+
+1. Podłączyć menu wiadomości na profilu klienta.
+2. Podłączyć menu wiadomości na szczegółach spotkania.
+3. Podłączyć menu wiadomości na profilu oferty, szczególnie dla szablonów
+   dokumentów i zmiany ceny.
+4. Rozważyć dodanie danych agenta do kontekstu renderowania, jeśli będą
+   dostępne w istniejącym endpointzie profilu użytkownika.
+
 ### Sprint UX-6: Matching klient-oferta
 
 Cel:

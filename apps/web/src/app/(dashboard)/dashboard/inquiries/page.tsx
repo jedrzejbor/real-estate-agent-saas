@@ -21,6 +21,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ContactAction, RelationCard } from '@/components/common';
+import { MessageTemplateDialog } from '@/components/messages/message-template-dialog';
 import { InlineSelect } from '@/components/ui/inline-select';
 import { Input } from '@/components/ui/input';
 import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
@@ -42,6 +43,7 @@ import {
   buildNewClientUrl,
 } from '@/lib/dashboard-links';
 import { fetchListings, type Listing } from '@/lib/listings';
+import { MessageTemplateType } from '@/lib/message-templates';
 
 const DEFAULT_FILTERS: PublicInquiryFilters = {
   page: 1,
@@ -249,6 +251,7 @@ function PublicInquiryFiltersBar({
 }
 
 function PublicInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
   const statusVariant = PUBLIC_LEAD_STATUS_BADGE_VARIANT[inquiry.status];
   const primaryImage = inquiry.listing?.primaryImage;
   const convertedClientName = inquiry.convertedClient
@@ -266,6 +269,14 @@ function PublicInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
     listingId: inquiry.listing?.id,
     listingLabel: inquiry.listing?.title,
   });
+  const messageContext = useMemo(
+    () => ({
+      clientName: inquiry.fullName,
+      listingTitle: inquiry.listing?.title,
+      leadMessage: inquiry.message,
+    }),
+    [inquiry.fullName, inquiry.listing?.title, inquiry.message],
+  );
 
   return (
     <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -371,6 +382,17 @@ function PublicInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsMessageDialogOpen(true)}
+            className="gap-2"
+          >
+            <MessageSquareText className="h-4 w-4" />
+            Wiadomość
+          </Button>
+
           {inquiry.convertedClient ? (
             <Link href={appointmentUrl}>
               <Button variant="outline" size="sm" className="gap-2">
@@ -409,6 +431,14 @@ function PublicInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
           ) : null}
         </div>
       </div>
+
+      <MessageTemplateDialog
+        isOpen={isMessageDialogOpen}
+        title={`Wiadomość do: ${inquiry.fullName}`}
+        initialTemplateType={MessageTemplateType.LEAD_RESPONSE}
+        context={messageContext}
+        onClose={() => setIsMessageDialogOpen(false)}
+      />
     </article>
   );
 }
