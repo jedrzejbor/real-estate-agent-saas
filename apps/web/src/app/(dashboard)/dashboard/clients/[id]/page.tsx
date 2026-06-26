@@ -10,6 +10,7 @@ import {
   Mail,
   Phone,
   Calendar,
+  MessageSquareText,
   Wallet,
   Info,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ import {
 } from '@/components/common';
 import { ActivityHistoryCard } from '@/components/activity/activity-history-card';
 import { ActivityTimeline } from '@/components/activity/activity-timeline';
+import { MessageTemplateDialog } from '@/components/messages/message-template-dialog';
 import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
 import { useActivityHistory } from '@/hooks/use-activity-history';
@@ -40,6 +42,7 @@ import {
 import { buildPhoneHref } from '@/lib/contact-links';
 import { buildNewAppointmentUrl } from '@/lib/dashboard-links';
 import {
+  formatDisplayTime,
   formatDisplayDateNumeric,
   formatDisplayTimeRange,
 } from '@/lib/date-format';
@@ -63,6 +66,10 @@ import {
   formatBudgetRange,
   getClientStatusActions,
 } from '@/lib/clients';
+import {
+  MessageTemplateType,
+  type MessageTemplateContext,
+} from '@/lib/message-templates';
 
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>();
@@ -73,6 +80,7 @@ export default function ClientDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRollingBackStatus, setIsRollingBackStatus] = useState(false);
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
   const {
     items: historyItems,
     isLoading: isHistoryLoading,
@@ -256,6 +264,11 @@ export default function ClientDetailPage() {
     clientId: client.id,
     clientLabel: clientFullName(client),
   });
+  const primaryAppointment = relatedAppointments[0] ?? null;
+  const messageContext = buildClientMessageContext(client, primaryAppointment);
+  const initialMessageTemplate = primaryAppointment
+    ? MessageTemplateType.APPOINTMENT_CONFIRMATION
+    : MessageTemplateType.VIEWING_FOLLOW_UP;
 
   return (
     <div className="space-y-6">
@@ -294,6 +307,16 @@ export default function ClientDetailPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsMessageDialogOpen(true)}
+            className="gap-1.5 rounded-xl"
+          >
+            <MessageSquareText className="h-3.5 w-3.5" />
+            Wiadomość
+          </Button>
           <Link href={scheduleAppointmentUrl}>
             <Button variant="outline" size="sm" className="gap-1.5 rounded-xl">
               <Calendar className="h-3.5 w-3.5" />
@@ -497,8 +520,45 @@ export default function ClientDetailPage() {
           />
         </div>
       </div>
+
+      <MessageTemplateDialog
+        isOpen={isMessageDialogOpen}
+        title={`Wiadomość do: ${clientFullName(client)}`}
+        initialTemplateType={initialMessageTemplate}
+        context={messageContext}
+        onClose={() => setIsMessageDialogOpen(false)}
+      />
     </div>
   );
+}
+
+function buildClientMessageContext(
+  client: Client,
+  appointment: Appointment | null,
+): MessageTemplateContext {
+  return {
+    clientName: clientFullName(client),
+    listingTitle: appointment?.listing?.title,
+    listingAddress: appointment?.listing?.address
+      ? formatAppointmentListingAddress(appointment.listing.address)
+      : appointment?.location,
+    appointmentDate: appointment
+      ? formatDisplayDateNumeric(appointment.startTime)
+      : null,
+    appointmentTime: appointment
+      ? formatDisplayTime(appointment.startTime)
+      : null,
+    documentList:
+      '- dokument potwierdzający własność\n- świadectwo energetyczne, jeśli jest dostępne\n- rzut lokalu, jeśli jest dostępny',
+  };
+}
+
+function formatAppointmentListingAddress(
+  address: NonNullable<NonNullable<Appointment['listing']>['address']>,
+): string {
+  return [address.street, address.postalCode, address.city, address.district]
+    .filter(Boolean)
+    .join(', ');
 }
 
 function ClientRelationsContent({
