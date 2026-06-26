@@ -1259,6 +1259,34 @@ Do kolejnej iteracji UX-5:
 3. Rozważyć pokazanie w podglądzie szablonu informacji, które pola zostały
    uzupełnione fallbackiem, ale tylko jeśli nie zwiększy to szumu w UI.
 
+Status UX-5 / iteracja 7:
+
+Zrobione:
+
+1. Szablon `Zmiana ceny` na profilu oferty automatycznie uzupełnia teraz
+   `previousPrice`, jeśli historia oferty zawiera wcześniejszą zmianę pola
+   `price`.
+2. Poprzednia cena jest wyciągana z istniejącej historii aktywności oferty,
+   bez dodawania nowego endpointu i bez duplikowania danych.
+3. Dodano defensywną walidację wartości historycznej ceny:
+   - akceptowane są dodatnie liczby,
+   - akceptowane są stringi możliwe do sparsowania do dodatniej liczby,
+   - puste, zerowe i niepoprawne wartości są ignorowane.
+4. Poprzednia cena jest formatowana tą samą funkcją `formatPrice`, co aktualna
+   cena oferty, więc wiadomość zachowuje spójny format kwoty i waluty.
+5. Jeśli historia ceny nie istnieje, szablon działa jak dotychczas i nie
+   pokazuje linii z poprzednią ceną.
+
+Do kolejnej iteracji UX-5:
+
+1. Jeśli chcemy wskazywać odbiorcę na profilu oferty, rozszerzyć backendowy i
+   frontendowy kontrakt oferty o bezpieczne dane kontaktowe właściciela albo
+   relację do preferowanego klienta.
+2. Rozważyć pokazanie w podglądzie szablonu informacji, które pola zostały
+   uzupełnione fallbackiem, ale tylko jeśli nie zwiększy to szumu w UI.
+3. Rozważyć test komponentowy dla profilu oferty, gdy w projekcie zostanie
+   ustalony standard testów komponentów dla widoków dashboardu.
+
 ### Sprint UX-6: Matching klient-oferta
 
 Cel:

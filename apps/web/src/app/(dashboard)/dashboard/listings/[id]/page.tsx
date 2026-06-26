@@ -44,6 +44,7 @@ import {
   fetchListingHistory,
   getRollbackStatusChange,
   LISTING_HISTORY_FIELD_LABELS,
+  type ActivityHistoryItem,
 } from '@/lib/activity';
 import { buildNewAppointmentUrl } from '@/lib/dashboard-links';
 import {
@@ -170,9 +171,10 @@ export default function ListingDetailPage() {
             listing,
             formatDashboardListingAddress(listing.address),
             agentMessageContext,
+            historyItems,
           )
         : agentMessageContext,
-    [agentMessageContext, listing],
+    [agentMessageContext, historyItems, listing],
   );
 
   useEffect(() => {
@@ -670,12 +672,16 @@ function buildListingMessageContext(
   listing: Listing,
   listingAddress: string | null,
   agentContext: MessageTemplateContext,
+  historyItems: ActivityHistoryItem[],
 ): MessageTemplateContext {
+  const previousPrice = getPreviousListingPrice(historyItems, listing.currency);
+
   return {
     ...agentContext,
     listingTitle: listing.title,
     listingAddress,
     price: formatPrice(listing.price, listing.currency),
+    previousPrice,
     documentList: [
       '- umowa pośrednictwa',
       '- dokument potwierdzający własność',
@@ -683,6 +689,37 @@ function buildListingMessageContext(
       '- rzut lokalu, jeśli jest dostępny',
     ].join('\n'),
   };
+}
+
+function getPreviousListingPrice(
+  historyItems: ActivityHistoryItem[],
+  currency: string,
+): string | null {
+  for (const item of historyItems) {
+    const priceChange = item.changes.find(
+      (change) =>
+        change.field === 'price' && isPriceHistoryValue(change.oldValue),
+    );
+
+    if (priceChange && isPriceHistoryValue(priceChange.oldValue)) {
+      return formatPrice(priceChange.oldValue, currency);
+    }
+  }
+
+  return null;
+}
+
+function isPriceHistoryValue(value: unknown): value is number | string {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0;
+  }
+
+  return false;
 }
 
 function ListingSummaryCard({
