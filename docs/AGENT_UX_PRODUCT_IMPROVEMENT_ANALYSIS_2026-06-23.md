@@ -1153,6 +1153,29 @@ Do kolejnej iteracji UX-5:
 3. Rozważyć dodanie danych agenta do kontekstu renderowania, jeśli będą
    dostępne w istniejącym endpointzie profilu użytkownika.
 
+Status UX-5 / iteracja 3:
+
+Zrobione:
+
+1. Podłączono przycisk `Wiadomość` na szczegółach spotkania.
+2. Przycisk otwiera wspólny `MessageTemplateDialog`.
+3. Kontekst wiadomości spotkania jest wstępnie uzupełniany z danych spotkania:
+   - klient,
+   - tytuł oferty albo tytuł spotkania,
+   - adres oferty albo lokalizacja spotkania,
+   - data spotkania,
+   - godzina spotkania.
+4. Dla spotkań zaplanowanych domyślnym szablonem jest `Potwierdzenie spotkania`.
+5. Dla spotkań po terminie lub w innym statusie domyślnym szablonem jest
+   `Follow-up po prezentacji`.
+
+Do kolejnej iteracji UX-5:
+
+1. Podłączyć menu wiadomości na profilu oferty, szczególnie dla szablonów
+   dokumentów i zmiany ceny.
+2. Rozważyć dodanie danych agenta do kontekstu renderowania, jeśli będą
+   dostępne w istniejącym endpointzie profilu użytkownika.
+
 ### Sprint UX-6: Matching klient-oferta
 
 Cel:

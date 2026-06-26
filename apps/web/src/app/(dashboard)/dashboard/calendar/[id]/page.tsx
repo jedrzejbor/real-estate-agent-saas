@@ -23,9 +23,11 @@ import {
   Phone,
   Tag,
   ClipboardList,
+  MessageSquareText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { MessageTemplateDialog } from '@/components/messages/message-template-dialog';
 import {
   ActionEmptyState,
   AddressLink,
@@ -42,6 +44,7 @@ import {
   fetchAppointment,
   deleteAppointment,
   createAppointmentFollowUp,
+  AppointmentStatus,
   APPOINTMENT_TYPE_LABELS,
   APPOINTMENT_STATUS_LABELS,
   TYPE_COLORS,
@@ -51,8 +54,13 @@ import { CLIENT_STATUS_LABELS } from '@/lib/clients';
 import { buildPhoneHref } from '@/lib/contact-links';
 import {
   formatDisplayDateNumeric,
+  formatDisplayTime,
   formatDisplayTimeRange,
 } from '@/lib/date-format';
+import {
+  MessageTemplateType,
+  type MessageTemplateContext,
+} from '@/lib/message-templates';
 import {
   LISTING_STATUS_LABELS,
   PROPERTY_TYPE_LABELS,
@@ -80,6 +88,7 @@ export default function AppointmentDetailPage({
   const [followUpDescription, setFollowUpDescription] = useState('');
   const [followUpDueAt, setFollowUpDueAt] = useState('');
   const [isCreatingFollowUp, setIsCreatingFollowUp] = useState(false);
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,6 +195,12 @@ export default function AppointmentDetailPage({
     );
   }
 
+  const messageContext = buildAppointmentMessageContext(appointment);
+  const initialMessageTemplate =
+    appointment.status === AppointmentStatus.SCHEDULED
+      ? MessageTemplateType.APPOINTMENT_CONFIRMATION
+      : MessageTemplateType.VIEWING_FOLLOW_UP;
+
   return (
     <div className="space-y-6">
       {/* Back */}
@@ -215,6 +230,16 @@ export default function AppointmentDetailPage({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsMessageDialogOpen(true)}
+            className="gap-1.5 rounded-xl"
+          >
+            <MessageSquareText className="h-3.5 w-3.5" />
+            Wiadomość
+          </Button>
           <Link href={`/dashboard/calendar/${id}/edit`}>
             <Button variant="outline" size="sm" className="gap-1.5 rounded-xl">
               <Pencil className="h-3.5 w-3.5" />
@@ -366,8 +391,35 @@ export default function AppointmentDetailPage({
           </div>
         </DetailCard>
       </div>
+
+      <MessageTemplateDialog
+        isOpen={isMessageDialogOpen}
+        title={`Wiadomość: ${appointment.title}`}
+        initialTemplateType={initialMessageTemplate}
+        context={messageContext}
+        onClose={() => setIsMessageDialogOpen(false)}
+      />
     </div>
   );
+}
+
+function buildAppointmentMessageContext(
+  appointment: Appointment,
+): MessageTemplateContext {
+  const clientName = appointment.client
+    ? `${appointment.client.firstName} ${appointment.client.lastName}`.trim()
+    : null;
+  const listingAddress = formatListingAddress(appointment.listing?.address);
+
+  return {
+    clientName,
+    listingTitle: appointment.listing?.title ?? appointment.title,
+    listingAddress: listingAddress ?? appointment.location,
+    appointmentDate: formatDisplayDateNumeric(appointment.startTime),
+    appointmentTime: formatDisplayTime(appointment.startTime),
+    documentList:
+      '- dokument potwierdzający własność\n- świadectwo energetyczne, jeśli jest dostępne\n- rzut lokalu, jeśli jest dostępny',
+  };
 }
 
 function ClientSummary({ client }: { client: Appointment['client'] }) {
