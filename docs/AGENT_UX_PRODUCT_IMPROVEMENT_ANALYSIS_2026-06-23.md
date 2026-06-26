@@ -1176,6 +1176,32 @@ Do kolejnej iteracji UX-5:
 2. Rozważyć dodanie danych agenta do kontekstu renderowania, jeśli będą
    dostępne w istniejącym endpointzie profilu użytkownika.
 
+Status UX-5 / iteracja 4:
+
+Zrobione:
+
+1. Podłączono przycisk `Wiadomość` na profilu oferty.
+2. Przycisk otwiera wspólny `MessageTemplateDialog`, tak samo jak lead, klient
+   i spotkanie.
+3. Domyślnym szablonem dla oferty jest `Prośba o dokumenty`, bo to najbardziej
+   naturalny kontekst pracy na profilu oferty.
+4. Kontekst wiadomości oferty jest wstępnie uzupełniany danymi oferty:
+   - tytuł oferty,
+   - adres oferty,
+   - aktualna cena,
+   - bezpieczna lista dokumentów do uzupełnienia.
+5. Kontekst przekazywany do dialogu jest memoizowany, żeby uniknąć zbędnego
+   ponownego renderowania szablonu podczas pracy w modalu.
+
+Do kolejnej iteracji UX-5:
+
+1. Rozważyć dodanie danych agenta do kontekstu renderowania, jeśli będą
+   dostępne w istniejącym endpointzie profilu użytkownika.
+2. Rozważyć wskazanie odbiorcy wiadomości na profilu oferty, jeśli oferta ma
+   przypisanego właściciela albo preferowanego klienta kontaktowego.
+3. Rozważyć osobną akcję `Zmiana ceny`, jeśli proces zmiany ceny dostanie
+   dedykowany widok albo historię poprzedniej ceny.
+
 ### Sprint UX-6: Matching klient-oferta
 
 Cel:

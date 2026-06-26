@@ -21,6 +21,7 @@ import {
   WalletCards,
   Handshake,
   RadioTower,
+  MessageSquareText,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ import { ActivityHistoryCard } from '@/components/activity/activity-history-card
 import { ActivityTimeline } from '@/components/activity/activity-timeline';
 import { ListingDocumentsPanel } from '@/components/listings/listing-documents-panel';
 import { ListingPublicationPanel } from '@/components/listings/listing-publication-panel';
+import { MessageTemplateDialog } from '@/components/messages/message-template-dialog';
 import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
 import { useActivityHistory } from '@/hooks/use-activity-history';
@@ -80,6 +82,10 @@ import {
   PUBLIC_LEAD_STATUS_LABELS,
   type PublicInquiry,
 } from '@/lib/public-inquiries';
+import {
+  MessageTemplateType,
+  type MessageTemplateContext,
+} from '@/lib/message-templates';
 
 export default function ListingDetailPage() {
   const params = useParams<{ id: string }>();
@@ -96,6 +102,7 @@ export default function ListingDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRollingBackStatus, setIsRollingBackStatus] = useState(false);
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
   const {
     items: historyItems,
     isLoading: isHistoryLoading,
@@ -147,6 +154,16 @@ export default function ListingDetailPage() {
     isLoading: isListingInquiriesLoading,
     error: listingInquiriesError,
   } = usePublicInquiries(listingInquiriesFilters);
+  const listingMessageContext = useMemo<MessageTemplateContext>(
+    () =>
+      listing
+        ? buildListingMessageContext(
+            listing,
+            formatDashboardListingAddress(listing.address),
+          )
+        : {},
+    [listing],
+  );
 
   useEffect(() => {
     if (!params.id) return;
@@ -351,6 +368,16 @@ export default function ListingDetailPage() {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsMessageDialogOpen(true)}
+            className="gap-1.5 rounded-xl"
+          >
+            <MessageSquareText className="h-3.5 w-3.5" />
+            Wiadomość
+          </Button>
           <Link
             href={buildNewAppointmentUrl({
               listingId: listing.id,
@@ -572,6 +599,14 @@ export default function ListingDetailPage() {
           ) : null}
         </div>
       </section>
+
+      <MessageTemplateDialog
+        isOpen={isMessageDialogOpen}
+        title={`Wiadomość: ${listing.title}`}
+        initialTemplateType={MessageTemplateType.DOCUMENT_REQUEST}
+        context={listingMessageContext}
+        onClose={() => setIsMessageDialogOpen(false)}
+      />
     </div>
   );
 }
@@ -597,6 +632,23 @@ function parseListingDetailTabId(
     value === 'history'
     ? value
     : null;
+}
+
+function buildListingMessageContext(
+  listing: Listing,
+  listingAddress: string | null,
+): MessageTemplateContext {
+  return {
+    listingTitle: listing.title,
+    listingAddress,
+    price: formatPrice(listing.price, listing.currency),
+    documentList: [
+      '- umowa pośrednictwa',
+      '- dokument potwierdzający własność',
+      '- świadectwo energetyczne, jeśli jest dostępne',
+      '- rzut lokalu, jeśli jest dostępny',
+    ].join('\n'),
+  };
 }
 
 function ListingSummaryCard({
