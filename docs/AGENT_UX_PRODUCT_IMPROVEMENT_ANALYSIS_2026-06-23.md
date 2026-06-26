@@ -1230,6 +1230,35 @@ Do kolejnej iteracji UX-5:
 3. Rozważyć pokazanie w podglądzie szablonu informacji, które pola zostały
    uzupełnione fallbackiem, ale tylko jeśli nie zwiększy to szumu w UI.
 
+Status UX-5 / iteracja 6:
+
+Zrobione:
+
+1. Dodano osobną akcję `Zmiana ceny` na profilu oferty.
+2. Akcja otwiera ten sam bezpieczny `MessageTemplateDialog`, ale startuje od
+   szablonu `Informacja o zmianie ceny`.
+3. Główna akcja `Wiadomość` na profilu oferty nadal startuje od szablonu
+   `Prośba o dokumenty`, więc agent ma dwa szybkie wejścia do najczęstszych
+   scenariuszy pracy z ofertą.
+4. Szablon zmiany ceny korzysta z istniejącego kontekstu oferty:
+   - tytuł oferty,
+   - aktualna cena,
+   - dane agenta.
+5. Nie dodano automatycznego odbiorcy na profilu oferty, ponieważ obecny
+   frontendowy kontrakt `Listing` nie zawiera danych kontaktowych właściciela
+   ani preferowanego klienta. To wymaga osobnej decyzji modelowej/API, zamiast
+   zgadywania odbiorcy po stronie UI.
+
+Do kolejnej iteracji UX-5:
+
+1. Jeśli chcemy wskazywać odbiorcę na profilu oferty, rozszerzyć backendowy i
+   frontendowy kontrakt oferty o bezpieczne dane kontaktowe właściciela albo
+   relację do preferowanego klienta.
+2. Rozważyć dodanie historii poprzedniej ceny, żeby szablon `Zmiana ceny`
+   mógł automatycznie uzupełniać również `previousPrice`.
+3. Rozważyć pokazanie w podglądzie szablonu informacji, które pola zostały
+   uzupełnione fallbackiem, ale tylko jeśli nie zwiększy to szumu w UI.
+
 ### Sprint UX-6: Matching klient-oferta
 
 Cel:

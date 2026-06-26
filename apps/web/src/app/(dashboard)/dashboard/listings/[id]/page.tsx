@@ -106,6 +106,8 @@ export default function ListingDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isRollingBackStatus, setIsRollingBackStatus] = useState(false);
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [initialMessageTemplate, setInitialMessageTemplate] =
+    useState<MessageTemplateType>(MessageTemplateType.DOCUMENT_REQUEST);
   const {
     items: historyItems,
     isLoading: isHistoryLoading,
@@ -208,6 +210,14 @@ export default function ListingDetailPage() {
       refreshListingActivity();
     },
     [refreshListingActivity],
+  );
+
+  const openListingMessageDialog = useCallback(
+    (templateType: MessageTemplateType) => {
+      setInitialMessageTemplate(templateType);
+      setIsMessageDialogOpen(true);
+    },
+    [],
   );
 
   const handleDelete = useCallback(async () => {
@@ -380,11 +390,25 @@ export default function ListingDetailPage() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setIsMessageDialogOpen(true)}
+            onClick={() =>
+              openListingMessageDialog(MessageTemplateType.DOCUMENT_REQUEST)
+            }
             className="gap-1.5 rounded-xl"
           >
             <MessageSquareText className="h-3.5 w-3.5" />
             Wiadomość
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              openListingMessageDialog(MessageTemplateType.PRICE_CHANGE)
+            }
+            className="gap-1.5 rounded-xl"
+          >
+            <WalletCards className="h-3.5 w-3.5" />
+            Zmiana ceny
           </Button>
           <Link
             href={buildNewAppointmentUrl({
@@ -611,7 +635,7 @@ export default function ListingDetailPage() {
       <MessageTemplateDialog
         isOpen={isMessageDialogOpen}
         title={`Wiadomość: ${listing.title}`}
-        initialTemplateType={MessageTemplateType.DOCUMENT_REQUEST}
+        initialTemplateType={initialMessageTemplate}
         context={listingMessageContext}
         onClose={() => setIsMessageDialogOpen(false)}
       />
