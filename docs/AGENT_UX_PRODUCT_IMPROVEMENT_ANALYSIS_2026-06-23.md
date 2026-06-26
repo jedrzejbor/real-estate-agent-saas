@@ -1287,6 +1287,96 @@ Do kolejnej iteracji UX-5:
 3. Rozważyć test komponentowy dla profilu oferty, gdy w projekcie zostanie
    ustalony standard testów komponentów dla widoków dashboardu.
 
+Status UX-5 / iteracja 8:
+
+Zrobione:
+
+1. Dodano subtelną informację w `MessageTemplateDialog`, gdy wybrany szablon
+   nie ma wszystkich wymaganych danych kontekstowych.
+2. Dialog pokazuje czytelne etykiety pól zamiast technicznych nazw z kontraktu,
+   np. `Klient`, `Oferta`, `Aktualna cena`, `Lista dokumentów`.
+3. Komunikat pojawia się tylko wtedy, gdy realnie brakuje wymaganego pola dla
+   aktualnie wybranego szablonu.
+4. Brakujące pola nadal są obsługiwane przez istniejące neutralne fallbacki po
+   stronie backendu, więc użytkownik nie jest blokowany.
+5. Rozwiązanie jest wspólne dla wszystkich miejsc użycia dialogu:
+   - zapytania publiczne,
+   - profil klienta,
+   - szczegóły spotkania,
+   - profil oferty.
+
+Ocena przed zamknięciem UX-5:
+
+1. Jeśli chcemy wskazywać odbiorcę na profilu oferty, rozszerzyć backendowy i
+   frontendowy kontrakt oferty o bezpieczne dane kontaktowe właściciela albo
+   relację do preferowanego klienta.
+2. Rozważyć test komponentowy dla profilu oferty i dialogu wiadomości, gdy w
+   projekcie zostanie ustalony standard testów komponentów dla widoków
+   dashboardu.
+3. UX-5 można zamknąć, a powyższe tematy potraktować jako przyszłe rozszerzenia
+   albo osobny zakres techniczny.
+
+Status UX-5 / zamknięcie MVP:
+
+Decyzja:
+UX-5 MVP uznajemy za zakończony. Wszystkie elementy z pierwotnego zakresu MVP
+zostały zrealizowane w wystarczającym zakresie, aby przejść do UX-6.
+
+Zakres MVP pokryty:
+
+1. Backend:
+   - statyczny katalog pięciu szablonów,
+   - endpoint `GET /api/message-templates`,
+   - endpoint `POST /api/message-templates/render`,
+   - walidacja typu szablonu,
+   - render bez pustych placeholderów,
+   - brak automatycznej wysyłki wiadomości.
+2. Frontend:
+   - wspólny `MessageTemplateDialog`,
+   - wybór szablonu,
+   - podgląd tematu i treści,
+   - kopiowanie wiadomości,
+   - toast po skopiowaniu,
+   - informacja o brakujących danych uzupełnianych fallbackiem.
+3. Miejsca użycia:
+   - zapytania publiczne,
+   - profil klienta,
+   - szczegóły spotkania,
+   - profil oferty.
+4. Prefill danych:
+   - klient,
+   - tytuł oferty,
+   - adres oferty albo lokalizacja spotkania,
+   - termin spotkania,
+   - dane agenta,
+   - aktualna cena,
+   - poprzednia cena, jeśli wynika z historii oferty,
+   - lista dokumentów.
+5. Kryteria bezpieczeństwa MVP:
+   - funkcja tylko renderuje i kopiuje treść,
+   - użytkownik sam decyduje, gdzie wklei wiadomość,
+   - brak integracji email/SMS w MVP,
+   - treści są neutralne i bez obietnic sprzedażowych.
+
+Świadomie przeniesione poza UX-5 MVP:
+
+1. Automatyczny odbiorca wiadomości na profilu oferty.
+   Powód: obecny kontrakt `Listing` nie zawiera bezpiecznych danych
+   kontaktowych właściciela ani preferowanego klienta.
+2. Integracja z wysyłką email/SMS.
+   Powód: wymaga osobnego zakresu zgód, logowania wysyłek, statusów doręczeń i
+   obsługi błędów dostawcy.
+3. Edytowalne lub personalizowane szablony przez użytkownika.
+   Powód: wymaga modelu zapisu szablonów, uprawnień, wersjonowania i
+   walidacji treści.
+4. Testy komponentowe dla dialogu i profilu oferty.
+   Powód: warto je dodać, gdy ustalimy standard testów komponentów dla widoków
+   dashboardu.
+
+Rekomendacja:
+Nie rozwijać dalej UX-5 w tej serii iteracji. Następny najbardziej wartościowy
+krok to rozpoczęcie UX-6: matching klient-oferta.
+
 ### Sprint UX-6: Matching klient-oferta
 
 Cel:

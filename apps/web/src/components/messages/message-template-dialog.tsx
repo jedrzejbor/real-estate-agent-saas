@@ -45,6 +45,15 @@ export function MessageTemplateDialog({
     () => templates.find((template) => template.type === selectedType) ?? null,
     [selectedType, templates],
   );
+  const missingRequiredContext = useMemo(
+    () =>
+      selectedTemplate
+        ? selectedTemplate.requiredContext.filter(
+            (field) => !hasMessageContextValue(context[field]),
+          )
+        : [],
+    [context, selectedTemplate],
+  );
 
   const loadTemplates = useCallback(async () => {
     setIsLoadingTemplates(true);
@@ -221,13 +230,27 @@ export function MessageTemplateDialog({
             ) : null}
 
             {selectedTemplate ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{selectedTemplate.label}</Badge>
-                {selectedTemplate.requiredContext.map((field) => (
-                  <Badge key={field} variant="outline">
-                    {field}
-                  </Badge>
-                ))}
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">{selectedTemplate.label}</Badge>
+                  {selectedTemplate.requiredContext.map((field) => (
+                    <Badge key={field} variant="outline">
+                      {MESSAGE_CONTEXT_FIELD_LABELS[field] ?? field}
+                    </Badge>
+                  ))}
+                </div>
+
+                {missingRequiredContext.length > 0 ? (
+                  <p className="rounded-xl border border-status-warning/25 bg-status-warning-bg px-3 py-2 text-xs leading-5 text-status-warning">
+                    Część danych zostanie uzupełniona neutralnym fallbackiem:{' '}
+                    {missingRequiredContext
+                      .map(
+                        (field) => MESSAGE_CONTEXT_FIELD_LABELS[field] ?? field,
+                      )
+                      .join(', ')}
+                    .
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
@@ -277,4 +300,26 @@ export function MessageTemplateDialog({
       </div>
     </div>
   );
+}
+
+const MESSAGE_CONTEXT_FIELD_LABELS: Record<
+  keyof MessageTemplateContext,
+  string
+> = {
+  clientName: 'Klient',
+  listingTitle: 'Oferta',
+  listingAddress: 'Adres',
+  appointmentDate: 'Data spotkania',
+  appointmentTime: 'Godzina spotkania',
+  agentName: 'Agent',
+  agentPhone: 'Telefon agenta',
+  agentEmail: 'Email agenta',
+  price: 'Aktualna cena',
+  previousPrice: 'Poprzednia cena',
+  documentList: 'Lista dokumentów',
+  leadMessage: 'Wiadomość leada',
+};
+
+function hasMessageContextValue(value: unknown): boolean {
+  return typeof value === 'string' ? value.trim().length > 0 : value != null;
 }
