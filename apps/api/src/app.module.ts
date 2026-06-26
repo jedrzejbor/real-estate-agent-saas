@@ -27,6 +27,7 @@ import { PlansModule } from './plans';
 import { BillingModule } from './billing';
 import { TasksModule } from './tasks/tasks.module';
 import { MessageTemplatesModule } from './message-templates';
+import { MatchingModule } from './matching';
 
 function getBooleanConfig(
   configService: ConfigService,
@@ -71,6 +72,7 @@ function getBooleanConfig(
     DashboardModule,
     TasksModule,
     MessageTemplatesModule,
+    MatchingModule,
     ReportsModule,
     SearchModule,
     NotificationsModule,

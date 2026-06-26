@@ -1305,16 +1305,6 @@ Zrobione:
    - szczegóły spotkania,
    - profil oferty.
 
-Ocena przed zamknięciem UX-5:
-
-1. Wskazywanie odbiorcy na profilu oferty zostało wdrożone w pierwszym etapie
-   dla właściciela powiązanego przez istniejące `ownerUserId`.
-2. Rozważyć test komponentowy dla profilu oferty i dialogu wiadomości, gdy w
-   projekcie zostanie ustalony standard testów komponentów dla widoków
-   dashboardu.
-3. Rozszerzenia CRM, wielu odbiorców i wysyłki wiadomości potraktować jako
-   przyszły zakres techniczny poza UX-5 MVP.
-
 Status UX-5 / iteracja 9:
 
 Zrobione:
@@ -1346,6 +1336,17 @@ Zrobione:
 9. Szablony wiadomości z profilu oferty dostają `messageRecipient.name` jako
    `clientName`, więc treść ma poprawnie uzupełnionego adresata, jeśli
    właściciel jest przypisany.
+
+Ocena po iteracji 9:
+
+1. Wskazywanie odbiorcy na profilu oferty zostało wdrożone w pierwszym etapie
+   dla właściciela powiązanego przez istniejące `ownerUserId`.
+2. Testy komponentowe dla profilu oferty i dialogu wiadomości warto dodać
+   dopiero wtedy, gdy projekt będzie miał ustalony standard testów komponentów
+   dla widoków dashboardu.
+3. Rozszerzenia CRM, wielu odbiorców i wysyłki wiadomości traktujemy jako
+   przyszły zakres techniczny poza UX-5 MVP.
+4. UX-5 nie wymaga kolejnej iteracji przed rozpoczęciem UX-6.
 
 Status UX-5 / zamknięcie MVP:
 
@@ -1569,6 +1570,66 @@ Kryteria akceptacji:
 - scoring jest deterministyczny i testowalny,
 - brak preferencji nie psuje widoku,
 - użytkownik rozumie, dlaczego system coś rekomenduje.
+
+Status UX-6 / iteracja 1:
+
+Zrobione:
+
+1. Sprawdzono obecny model preferencji klienta:
+   - `propertyType`,
+   - `minArea`,
+   - `maxPrice`,
+   - `preferredCity`,
+   - `minRooms`.
+2. Potwierdzono, że w modelu preferencji brakuje jeszcze:
+   - preferowanego typu transakcji,
+   - preferowanej dzielnicy,
+   - trwałego oznaczania dopasowań jako ukryte/niedopasowane.
+3. Dodano backendowy moduł `MatchingModule`.
+4. Dodano `MatchingService` z deterministycznym scoringiem klient -> oferta.
+5. Scoring w pierwszym etapie korzysta wyłącznie z istniejących danych:
+   - status oferty,
+   - budżet klienta,
+   - maksymalna cena z preferencji,
+   - typ nieruchomości,
+   - preferowane miasto,
+   - minimalny metraż,
+   - minimalna liczba pokoi.
+6. Dodano twarde wykluczenia:
+   - oferta nieaktywna,
+   - cena oferty powyżej budżetu klienta albo maksymalnej ceny z preferencji.
+7. Dodano powody dopasowania w typach:
+   - pozytywne,
+   - neutralne,
+   - negatywne.
+8. Dodano testy scoringu:
+   - idealne dopasowanie,
+   - częściowe dopasowanie,
+   - budżet poza zakresem,
+   - brak preferencji klienta,
+   - nieaktywna oferta.
+
+Decyzje techniczne:
+
+1. Nie dodano jeszcze migracji pod typ transakcji i preferowaną dzielnicę,
+   ponieważ pierwszy etap ma ustabilizować scoring na istniejącym modelu.
+2. Nie dodano jeszcze endpointów matchingowych, żeby nie wystawiać kontraktu API
+   przed zatwierdzeniem zasad scoringu.
+3. Nie dodano jeszcze UI, bo frontend powinien konsumować gotowy kontrakt
+   endpointów z powodami dopasowania.
+
+Do kolejnej iteracji UX-6:
+
+1. Dodać endpoint `GET /api/clients/:id/matching-listings`.
+2. Pobrać aktywne oferty w scope agenta/agencji.
+3. Zastosować `MatchingService` do kandydatów i zwrócić posortowaną listę.
+4. Ograniczyć payload do danych potrzebnych UI:
+   - oferta,
+   - score,
+   - 2-3 główne powody,
+   - flaga `isExcluded` tylko diagnostycznie albo w ogóle jej nie zwracać dla
+     odrzuconych kandydatów.
+5. Dodać testy endpointu dla scope danych i braku preferencji.
 
 ### Sprint UX-7: Raport właściciela oferty
 
