@@ -13,6 +13,7 @@ const DOCUMENT_KEYS = [
   'reviewedByUserId',
   'uploadedByUserId',
 ];
+const MESSAGE_RECIPIENT_KEYS = ['messageRecipient', 'ownerUser'];
 
 describe('public listing privacy', () => {
   let service: {
@@ -57,6 +58,12 @@ describe('public listing privacy', () => {
     expect(payload).not.toContainDocumentFields();
   });
 
+  it('does not expose message recipient fields in public listing detail', () => {
+    const payload = service.toPublicListingView(buildListingWithCommission());
+
+    expect(payload).not.toContainMessageRecipientFields();
+  });
+
   it('does not expose commission fields in public catalog item', () => {
     const payload = service.toPublicCatalogItem(buildListingWithCommission());
 
@@ -67,6 +74,12 @@ describe('public listing privacy', () => {
     const payload = service.toPublicCatalogItem(buildListingWithCommission());
 
     expect(payload).not.toContainDocumentFields();
+  });
+
+  it('does not expose message recipient fields in public catalog item', () => {
+    const payload = service.toPublicCatalogItem(buildListingWithCommission());
+
+    expect(payload).not.toContainMessageRecipientFields();
   });
 
   it('does not expose commission fields in public catalog map markers', () => {
@@ -85,6 +98,15 @@ describe('public listing privacy', () => {
     );
 
     expect(payload).not.toContainDocumentFields();
+  });
+
+  it('does not expose message recipient fields in public catalog map markers', () => {
+    const payload = service.buildPublicCatalogMapMarkers(
+      [buildListingWithCommission()],
+      10,
+    );
+
+    expect(payload).not.toContainMessageRecipientFields();
   });
 });
 
@@ -111,6 +133,17 @@ expect.extend({
           : 'Expected payload to contain document fields',
     };
   },
+  toContainMessageRecipientFields(received: unknown) {
+    const foundKeys = findKeys(received, MESSAGE_RECIPIENT_KEYS);
+
+    return {
+      pass: foundKeys.length > 0,
+      message: () =>
+        foundKeys.length > 0
+          ? `Expected payload not to contain message recipient fields, found: ${foundKeys.join(', ')}`
+          : 'Expected payload to contain message recipient fields',
+    };
+  },
 });
 
 declare global {
@@ -118,6 +151,7 @@ declare global {
     interface Matchers<R> {
       toContainCommissionFields(): R;
       toContainDocumentFields(): R;
+      toContainMessageRecipientFields(): R;
     }
   }
 }
@@ -186,6 +220,17 @@ function buildListingWithCommission(): Record<string, unknown> {
     showExactAddressOnPublicPage: true,
     showPriceOnPublicPage: true,
     publicViewCount: 7,
+    messageRecipient: {
+      type: 'owner_user',
+      id: 'owner-user-1',
+      name: 'Owner User',
+      email: 'owner@example.com',
+      phone: '+48123123123',
+    },
+    ownerUser: {
+      id: 'owner-user-1',
+      email: 'owner@example.com',
+    },
     documents: [
       {
         id: 'document-1',

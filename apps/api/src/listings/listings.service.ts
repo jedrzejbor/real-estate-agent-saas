@@ -82,6 +82,10 @@ import {
   toValidLatitude,
   toValidLongitude,
 } from './public-listing-map-point';
+import {
+  buildListingMessageRecipient,
+  type ListingWithMessageRecipient,
+} from './listing-message-recipient';
 
 /** Paginated result wrapper. */
 export interface PaginatedResult<T> {
@@ -341,12 +345,15 @@ export class ListingsService {
 
   // ── Read (single) ──
 
-  async findOne(id: string, userId: string): Promise<Listing> {
-    const listing = await this.findOneOrFail(id);
+  async findOne(
+    id: string,
+    userId: string,
+  ): Promise<ListingWithMessageRecipient> {
+    const listing = await this.findOneForDashboardOrFail(id);
     await this.assertOwnership(listing, userId);
     await this.attachPublicViewCounts([listing]);
     this.attachCommissionAmounts([listing]);
-    return listing;
+    return this.toDashboardListingView(listing);
   }
 
   async findHistory(id: string, userId: string) {
@@ -2347,6 +2354,30 @@ export class ListingsService {
     }
     this.attachCommissionAmounts([listing]);
     return listing;
+  }
+
+  private async findOneForDashboardOrFail(id: string): Promise<Listing> {
+    const listing = await this.listingRepo.findOne({
+      where: { id },
+      relations: ['address', 'images', 'agent', 'ownerUser', 'ownerUser.agent'],
+    });
+    if (!listing) {
+      throw new NotFoundException('Oferta nie znaleziona');
+    }
+    this.attachCommissionAmounts([listing]);
+    return listing;
+  }
+
+  private toDashboardListingView(
+    listing: Listing,
+  ): ListingWithMessageRecipient {
+    const messageRecipient = buildListingMessageRecipient(listing);
+    const listingView = listing as ListingWithMessageRecipient;
+
+    listingView.messageRecipient = messageRecipient;
+    listingView.ownerUser = undefined;
+
+    return listingView;
   }
 
   /** Verify the listing belongs to the current user's agent profile. */

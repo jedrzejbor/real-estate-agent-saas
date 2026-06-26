@@ -187,6 +187,14 @@ export interface ListingImage {
   altText?: string;
 }
 
+export interface ListingMessageRecipient {
+  type: 'owner_user';
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
 export interface Listing {
   id: string;
   title: string;
@@ -225,6 +233,7 @@ export interface Listing {
   updatedAt: string;
   address?: Address;
   images?: ListingImage[];
+  messageRecipient?: ListingMessageRecipient | null;
 }
 
 export interface ListingDocument {
@@ -859,9 +868,7 @@ export async function uploadListingImages(
 export async function fetchListingDocuments(
   listingId: string,
 ): Promise<ListingDocumentsResponse> {
-  return apiFetch<ListingDocumentsResponse>(
-    `/listings/${listingId}/documents`,
-  );
+  return apiFetch<ListingDocumentsResponse>(`/listings/${listingId}/documents`);
 }
 
 export async function uploadListingDocument(
@@ -927,7 +934,9 @@ export async function downloadListingDocument(
   listingId: string,
   documentId: string,
 ): Promise<{ blob: Blob; filename: string | null }> {
-  return apiBlobFetch(`/listings/${listingId}/documents/${documentId}/download`);
+  return apiBlobFetch(
+    `/listings/${listingId}/documents/${documentId}/download`,
+  );
 }
 
 export async function updateListingImage(

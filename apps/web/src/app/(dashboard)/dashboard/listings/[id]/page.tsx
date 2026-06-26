@@ -22,6 +22,9 @@ import {
   Handshake,
   RadioTower,
   MessageSquareText,
+  UserRound,
+  Mail,
+  Phone,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -46,6 +49,7 @@ import {
   LISTING_HISTORY_FIELD_LABELS,
   type ActivityHistoryItem,
 } from '@/lib/activity';
+import { buildPhoneHref } from '@/lib/contact-links';
 import { buildNewAppointmentUrl } from '@/lib/dashboard-links';
 import {
   formatDisplayDateNumeric,
@@ -386,6 +390,7 @@ export default function ListingDetailPage() {
               <AddressLink address={listingAddress} />
             </div>
           )}
+          <ListingMessageRecipientSummary listing={listing} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -668,6 +673,49 @@ function parseListingDetailTabId(
     : null;
 }
 
+function ListingMessageRecipientSummary({ listing }: { listing: Listing }) {
+  const recipient = listing.messageRecipient;
+
+  if (!recipient) {
+    return (
+      <div className="flex w-fit items-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground">
+        <UserRound className="h-3.5 w-3.5" />
+        Odbiorca wiadomości nie jest przypisany.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+        <UserRound className="h-3.5 w-3.5 text-primary" />
+        {recipient.name ?? recipient.email ?? 'Właściciel'}
+      </span>
+      <Badge variant="outline" className="rounded-full">
+        Właściciel
+      </Badge>
+      {recipient.email ? (
+        <a
+          href={`mailto:${recipient.email}`}
+          className="inline-flex items-center gap-1 hover:text-foreground"
+        >
+          <Mail className="h-3.5 w-3.5" />
+          {recipient.email}
+        </a>
+      ) : null}
+      {recipient.phone ? (
+        <a
+          href={buildPhoneHref(recipient.phone)}
+          className="inline-flex items-center gap-1 hover:text-foreground"
+        >
+          <Phone className="h-3.5 w-3.5" />
+          {recipient.phone}
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
 function buildListingMessageContext(
   listing: Listing,
   listingAddress: string | null,
@@ -678,6 +726,7 @@ function buildListingMessageContext(
 
   return {
     ...agentContext,
+    clientName: listing.messageRecipient?.name,
     listingTitle: listing.title,
     listingAddress,
     price: formatPrice(listing.price, listing.currency),

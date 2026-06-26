@@ -1307,14 +1307,45 @@ Zrobione:
 
 Ocena przed zamknięciem UX-5:
 
-1. Jeśli chcemy wskazywać odbiorcę na profilu oferty, rozszerzyć backendowy i
-   frontendowy kontrakt oferty o bezpieczne dane kontaktowe właściciela albo
-   relację do preferowanego klienta.
+1. Wskazywanie odbiorcy na profilu oferty zostało wdrożone w pierwszym etapie
+   dla właściciela powiązanego przez istniejące `ownerUserId`.
 2. Rozważyć test komponentowy dla profilu oferty i dialogu wiadomości, gdy w
    projekcie zostanie ustalony standard testów komponentów dla widoków
    dashboardu.
-3. UX-5 można zamknąć, a powyższe tematy potraktować jako przyszłe rozszerzenia
-   albo osobny zakres techniczny.
+3. Rozszerzenia CRM, wielu odbiorców i wysyłki wiadomości potraktować jako
+   przyszły zakres techniczny poza UX-5 MVP.
+
+Status UX-5 / iteracja 9:
+
+Zrobione:
+
+1. Rozszerzono dashboardowy kontrakt `GET /api/listings/:id` o opcjonalne
+   `messageRecipient`.
+2. `messageRecipient` jest budowany wyłącznie z istniejącej relacji
+   `ownerUserId` i zwraca minimalny snapshot:
+   - typ odbiorcy,
+   - id,
+   - nazwę,
+   - email,
+   - telefon.
+3. Backend nie zwraca pełnej relacji `ownerUser` w payloadzie dashboardowym.
+4. Publiczne mapowania ofert nie zwracają `messageRecipient` ani `ownerUser`.
+5. Dodano testy dla:
+   - budowania minimalnego snapshotu odbiorcy,
+   - braku odbiorcy,
+   - ignorowania pustych pól kontaktowych,
+   - braku wycieku odbiorcy w publicznych payloadach.
+6. Frontendowy typ `Listing` obsługuje `messageRecipient`.
+7. Profil oferty pokazuje odbiorcę wiadomości przy akcjach komunikacyjnych:
+   - nazwę,
+   - typ `Właściciel`,
+   - email,
+   - telefon.
+8. Jeśli odbiorca nie jest przypisany, UI pokazuje krótki neutralny komunikat
+   i nie blokuje dialogu wiadomości.
+9. Szablony wiadomości z profilu oferty dostają `messageRecipient.name` jako
+   `clientName`, więc treść ma poprawnie uzupełnionego adresata, jeśli
+   właściciel jest przypisany.
 
 Status UX-5 / zamknięcie MVP:
 
@@ -1360,9 +1391,9 @@ Zakres MVP pokryty:
 
 Świadomie przeniesione poza UX-5 MVP:
 
-1. Automatyczny odbiorca wiadomości na profilu oferty.
-   Powód: obecny kontrakt `Listing` nie zawiera bezpiecznych danych
-   kontaktowych właściciela ani preferowanego klienta.
+1. Odbiorca wiadomości oparty o klienta CRM albo wielu odbiorców na ofercie.
+   Powód: wymaga decyzji domenowej, czy oferta może mieć klienta kontaktowego
+   niezależnie od właściciela użytkownika.
 2. Integracja z wysyłką email/SMS.
    Powód: wymaga osobnego zakresu zgód, logowania wysyłek, statusów doręczeń i
    obsługi błędów dostawcy.
@@ -1372,6 +1403,104 @@ Zakres MVP pokryty:
 4. Testy komponentowe dla dialogu i profilu oferty.
    Powód: warto je dodać, gdy ustalimy standard testów komponentów dla widoków
    dashboardu.
+
+Backlog techniczny: dalszy rozwój odbiorcy wiadomości na profilu oferty:
+
+Cel:
+Agent powinien móc otworzyć wiadomość z profilu oferty i od razu widzieć, do
+kogo jest przygotowywana treść, bez ręcznego szukania właściciela albo klienta
+w innych widokach.
+
+Status:
+Pierwszy etap jest wdrożony dla właściciela powiązanego przez `ownerUserId`.
+Poniższy backlog dotyczy dalszego rozwoju: klient CRM, wielu odbiorców,
+trwały wybór preferowanego odbiorcy i ewentualne kanały wysyłki.
+
+Proponowany model danych:
+
+1. Wariant właścicielski:
+   - wykorzystać istniejące `ownerUserId` w modelu oferty, jeśli właściciel
+     jest użytkownikiem systemu,
+   - expose'ować tylko minimalny bezpieczny snapshot kontaktu właściciela:
+     `name`, `email`, `phone`,
+   - nie zwracać pól administracyjnych użytkownika, ról, planu, flag ani
+     historii konta.
+2. Wariant CRM:
+   - dodać opcjonalne powiązanie oferty z klientem kontaktowym, np.
+     `primaryContactClientId`,
+   - użyć istniejącego modelu klienta jako źródła danych kontaktowych,
+   - pozwolić agentowi wybrać klienta kontaktowego tylko spośród klientów
+     dostępnych w jego scope.
+3. Wariant mieszany:
+   - oferta może mieć właściciela użytkownika albo klienta kontaktowego,
+   - frontend pokazuje jasny typ odbiorcy: `Właściciel` albo `Klient CRM`,
+   - jeśli oba źródła istnieją, UI wymaga jawnego wyboru odbiorcy przed
+     skopiowaniem wiadomości.
+
+Zadania backend:
+
+1. Doprecyzować decyzję domenową:
+   - czy właściciel oferty ma być zawsze użytkownikiem,
+   - czy właściciel może być zwykłym klientem CRM,
+   - czy oferta może mieć kilku odbiorców kontaktowych.
+2. Rozszerzyć odpowiedź `GET /api/listings/:id` o minimalne pole kontaktowe,
+   np.:
+   - `messageRecipient.type`,
+   - `messageRecipient.id`,
+   - `messageRecipient.name`,
+   - `messageRecipient.email`,
+   - `messageRecipient.phone`.
+3. Dodać kontrolę scope:
+   - agent widzi tylko odbiorców z własnej agencji albo własnego profilu,
+   - viewer/prywatny sprzedający nie może dostać danych klienta CRM,
+   - brak relacji nie zwraca żadnych danych kontaktowych.
+4. Dodać walidację przy ustawianiu odbiorcy:
+   - klient musi istnieć,
+   - klient musi należeć do tego samego scope,
+   - nie można przypisać odbiorcy z innej agencji.
+5. Dodać testy:
+   - listing z właścicielem użytkownikiem zwraca tylko minimalny snapshot,
+   - listing z klientem kontaktowym zwraca klienta tylko w tym samym scope,
+   - brak odbiorcy nie psuje widoku,
+   - próba przypisania klienta spoza scope jest odrzucana,
+   - dane w publicznych endpointach ofert nie ujawniają odbiorcy wiadomości.
+
+Zadania frontend:
+
+1. Rozszerzyć typ `Listing` o opcjonalne `messageRecipient`.
+2. Na profilu oferty pokazać mały, czytelny blok przy akcji `Wiadomość`:
+   - nazwa odbiorcy,
+   - typ odbiorcy,
+   - email/telefon, jeśli są dostępne.
+3. Przekazywać `messageRecipient.name` jako `clientName` do
+   `MessageTemplateContext`, ponieważ obecne szablony używają pola
+   `clientName` jako adresata wiadomości.
+4. Jeśli odbiorcy nie ma:
+   - nie blokować dialogu,
+   - zostawić neutralny fallback `Pani/Panie`,
+   - pokazać krótką informację, że odbiorca nie jest przypisany.
+5. Jeśli będzie więcej niż jeden możliwy odbiorca:
+   - dodać wybór odbiorcy przed renderowaniem szablonu,
+   - zapamiętać wybór tylko lokalnie w dialogu, dopóki nie powstanie trwały
+     model preferowanego odbiorcy.
+
+Zasady bezpieczeństwa i prywatności:
+
+1. Dane odbiorcy z profilu oferty są dostępne tylko w dashboardzie.
+2. Publiczne endpointy ofert nie mogą zwracać `messageRecipient`.
+3. Nie logować pełnej treści wiadomości ani danych kontaktowych w analytics.
+4. Nie wysyłać wiadomości automatycznie; użytkownik nadal tylko kopiuje treść.
+5. W razie braku zgód marketingowych unikać automatycznego sugerowania kanałów
+   marketingowych. Samo przygotowanie treści pozostaje neutralne.
+
+Kryteria akceptacji:
+
+1. Na profilu oferty agent widzi, do kogo jest przygotowywana wiadomość.
+2. Szablony z profilu oferty mają poprawnie uzupełnione pole adresata, jeśli
+   odbiorca jest przypisany.
+3. Brak odbiorcy nie powoduje błędu ani pustych placeholderów.
+4. Dane kontaktowe nie wyciekają do publicznych endpointów.
+5. Testy obejmują scope, brak odbiorcy i minimalny payload kontaktowy.
 
 Rekomendacja:
 Nie rozwijać dalej UX-5 w tej serii iteracji. Następny najbardziej wartościowy
