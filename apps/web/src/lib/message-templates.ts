@@ -1,4 +1,5 @@
 import { apiFetch } from './api-client';
+import type { AuthUser } from './auth';
 
 export const MessageTemplateType = {
   LEAD_RESPONSE: 'lead_response',
@@ -56,4 +57,25 @@ export async function renderMessageTemplate(input: {
     method: 'POST',
     body: input,
   });
+}
+
+export function buildAgentMessageTemplateContext(
+  user: Pick<AuthUser, 'agent' | 'email'> | null | undefined,
+): MessageTemplateContext {
+  const agentName =
+    [user?.agent?.firstName, user?.agent?.lastName]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(' ') || null;
+
+  return {
+    agentName,
+    agentEmail: normalizeMessageContextValue(user?.email),
+    agentPhone: normalizeMessageContextValue(user?.agent?.phone),
+  };
+}
+
+function normalizeMessageContextValue(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }

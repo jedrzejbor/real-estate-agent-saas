@@ -26,6 +26,7 @@ import { InlineSelect } from '@/components/ui/inline-select';
 import { Input } from '@/components/ui/input';
 import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { ClientPagination } from '@/components/clients/client-pagination';
+import { useAuth } from '@/contexts/auth-context';
 import { usePublicInquiries } from '@/hooks/use-public-inquiries';
 import { formatRelativeTime } from '@/lib/dashboard';
 import {
@@ -43,7 +44,11 @@ import {
   buildNewClientUrl,
 } from '@/lib/dashboard-links';
 import { fetchListings, type Listing } from '@/lib/listings';
-import { MessageTemplateType } from '@/lib/message-templates';
+import {
+  buildAgentMessageTemplateContext,
+  MessageTemplateType,
+  type MessageTemplateContext,
+} from '@/lib/message-templates';
 
 const DEFAULT_FILTERS: PublicInquiryFilters = {
   page: 1,
@@ -54,6 +59,7 @@ const DEFAULT_FILTERS: PublicInquiryFilters = {
 
 export default function PublicInquiriesPage() {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const initialFilters = useMemo<PublicInquiryFilters>(
     () => ({
       ...DEFAULT_FILTERS,
@@ -97,6 +103,10 @@ export default function PublicInquiriesPage() {
 
   const hasFilters = Boolean(
     filters.search || filters.status || filters.source || filters.listingId,
+  );
+  const agentMessageContext = useMemo(
+    () => buildAgentMessageTemplateContext(user),
+    [user],
   );
 
   return (
@@ -143,7 +153,11 @@ export default function PublicInquiriesPage() {
         <>
           <div className="grid gap-4">
             {inquiries.map((inquiry) => (
-              <PublicInquiryCard key={inquiry.id} inquiry={inquiry} />
+              <PublicInquiryCard
+                key={inquiry.id}
+                inquiry={inquiry}
+                agentMessageContext={agentMessageContext}
+              />
             ))}
           </div>
 
@@ -250,7 +264,13 @@ function PublicInquiryFiltersBar({
   );
 }
 
-function PublicInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
+function PublicInquiryCard({
+  inquiry,
+  agentMessageContext,
+}: {
+  inquiry: PublicInquiry;
+  agentMessageContext: MessageTemplateContext;
+}) {
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
   const statusVariant = PUBLIC_LEAD_STATUS_BADGE_VARIANT[inquiry.status];
   const primaryImage = inquiry.listing?.primaryImage;
@@ -271,11 +291,17 @@ function PublicInquiryCard({ inquiry }: { inquiry: PublicInquiry }) {
   });
   const messageContext = useMemo(
     () => ({
+      ...agentMessageContext,
       clientName: inquiry.fullName,
       listingTitle: inquiry.listing?.title,
       leadMessage: inquiry.message,
     }),
-    [inquiry.fullName, inquiry.listing?.title, inquiry.message],
+    [
+      agentMessageContext,
+      inquiry.fullName,
+      inquiry.listing?.title,
+      inquiry.message,
+    ],
   );
 
   return (

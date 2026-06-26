@@ -32,6 +32,7 @@ import { ListingDocumentsPanel } from '@/components/listings/listing-documents-p
 import { ListingPublicationPanel } from '@/components/listings/listing-publication-panel';
 import { MessageTemplateDialog } from '@/components/messages/message-template-dialog';
 import { useConfirm } from '@/contexts/confirm-context';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { useActivityHistory } from '@/hooks/use-activity-history';
 import { useActivityTimeline } from '@/hooks/use-activity-timeline';
@@ -83,6 +84,7 @@ import {
   type PublicInquiry,
 } from '@/lib/public-inquiries';
 import {
+  buildAgentMessageTemplateContext,
   MessageTemplateType,
   type MessageTemplateContext,
 } from '@/lib/message-templates';
@@ -92,6 +94,7 @@ export default function ListingDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
+  const { user } = useAuth();
   const { confirm } = useConfirm();
   const { error: showErrorToast, success: showSuccessToast } = useToast();
   const [listing, setListing] = useState<Listing | null>(null);
@@ -154,15 +157,20 @@ export default function ListingDetailPage() {
     isLoading: isListingInquiriesLoading,
     error: listingInquiriesError,
   } = usePublicInquiries(listingInquiriesFilters);
+  const agentMessageContext = useMemo(
+    () => buildAgentMessageTemplateContext(user),
+    [user],
+  );
   const listingMessageContext = useMemo<MessageTemplateContext>(
     () =>
       listing
         ? buildListingMessageContext(
             listing,
             formatDashboardListingAddress(listing.address),
+            agentMessageContext,
           )
-        : {},
-    [listing],
+        : agentMessageContext,
+    [agentMessageContext, listing],
   );
 
   useEffect(() => {
@@ -637,8 +645,10 @@ function parseListingDetailTabId(
 function buildListingMessageContext(
   listing: Listing,
   listingAddress: string | null,
+  agentContext: MessageTemplateContext,
 ): MessageTemplateContext {
   return {
+    ...agentContext,
     listingTitle: listing.title,
     listingAddress,
     price: formatPrice(listing.price, listing.currency),

@@ -25,6 +25,7 @@ import {
 import { ActivityHistoryCard } from '@/components/activity/activity-history-card';
 import { ActivityTimeline } from '@/components/activity/activity-timeline';
 import { MessageTemplateDialog } from '@/components/messages/message-template-dialog';
+import { useAuth } from '@/contexts/auth-context';
 import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
 import { useActivityHistory } from '@/hooks/use-activity-history';
@@ -67,6 +68,7 @@ import {
   getClientStatusActions,
 } from '@/lib/clients';
 import {
+  buildAgentMessageTemplateContext,
   MessageTemplateType,
   type MessageTemplateContext,
 } from '@/lib/message-templates';
@@ -74,6 +76,7 @@ import {
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
   const { confirm } = useConfirm();
   const { error: showErrorToast, success: showSuccessToast } = useToast();
   const [client, setClient] = useState<Client | null>(null);
@@ -117,6 +120,21 @@ export default function ClientDetailPage() {
     isLoading: isRelatedAppointmentsLoading,
     error: relatedAppointmentsError,
   } = useAppointments(relatedAppointmentsFilters);
+  const agentMessageContext = useMemo(
+    () => buildAgentMessageTemplateContext(user),
+    [user],
+  );
+  const messageContext = useMemo<MessageTemplateContext>(
+    () =>
+      client
+        ? buildClientMessageContext(
+            client,
+            relatedAppointments[0] ?? null,
+            agentMessageContext,
+          )
+        : agentMessageContext,
+    [agentMessageContext, client, relatedAppointments],
+  );
 
   useEffect(() => {
     if (!params.id) return;
@@ -265,7 +283,6 @@ export default function ClientDetailPage() {
     clientLabel: clientFullName(client),
   });
   const primaryAppointment = relatedAppointments[0] ?? null;
-  const messageContext = buildClientMessageContext(client, primaryAppointment);
   const initialMessageTemplate = primaryAppointment
     ? MessageTemplateType.APPOINTMENT_CONFIRMATION
     : MessageTemplateType.VIEWING_FOLLOW_UP;
@@ -535,8 +552,10 @@ export default function ClientDetailPage() {
 function buildClientMessageContext(
   client: Client,
   appointment: Appointment | null,
+  agentContext: MessageTemplateContext,
 ): MessageTemplateContext {
   return {
+    ...agentContext,
     clientName: clientFullName(client),
     listingTitle: appointment?.listing?.title,
     listingAddress: appointment?.listing?.address

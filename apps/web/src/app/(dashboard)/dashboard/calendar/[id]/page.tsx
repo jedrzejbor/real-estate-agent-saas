@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useMemo,
   useState,
   use,
   type ElementType,
@@ -37,6 +38,7 @@ import {
   RelationCard,
 } from '@/components/common';
 import { useConfirm } from '@/contexts/confirm-context';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import {
   type Appointment,
@@ -58,6 +60,7 @@ import {
   formatDisplayTimeRange,
 } from '@/lib/date-format';
 import {
+  buildAgentMessageTemplateContext,
   MessageTemplateType,
   type MessageTemplateContext,
 } from '@/lib/message-templates';
@@ -78,6 +81,7 @@ export default function AppointmentDetailPage({
 }: AppointmentDetailPageProps) {
   const { id } = use(params);
   const router = useRouter();
+  const { user } = useAuth();
   const { confirm } = useConfirm();
   const { error: showErrorToast, success: showSuccessToast } = useToast();
   const [appointment, setAppointment] = useState<Appointment | null>(null);
@@ -89,6 +93,17 @@ export default function AppointmentDetailPage({
   const [followUpDueAt, setFollowUpDueAt] = useState('');
   const [isCreatingFollowUp, setIsCreatingFollowUp] = useState(false);
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const agentMessageContext = useMemo(
+    () => buildAgentMessageTemplateContext(user),
+    [user],
+  );
+  const messageContext = useMemo<MessageTemplateContext>(
+    () =>
+      appointment
+        ? buildAppointmentMessageContext(appointment, agentMessageContext)
+        : agentMessageContext,
+    [agentMessageContext, appointment],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -195,7 +210,6 @@ export default function AppointmentDetailPage({
     );
   }
 
-  const messageContext = buildAppointmentMessageContext(appointment);
   const initialMessageTemplate =
     appointment.status === AppointmentStatus.SCHEDULED
       ? MessageTemplateType.APPOINTMENT_CONFIRMATION
@@ -405,6 +419,7 @@ export default function AppointmentDetailPage({
 
 function buildAppointmentMessageContext(
   appointment: Appointment,
+  agentContext: MessageTemplateContext,
 ): MessageTemplateContext {
   const clientName = appointment.client
     ? `${appointment.client.firstName} ${appointment.client.lastName}`.trim()
@@ -412,6 +427,7 @@ function buildAppointmentMessageContext(
   const listingAddress = formatListingAddress(appointment.listing?.address);
 
   return {
+    ...agentContext,
     clientName,
     listingTitle: appointment.listing?.title ?? appointment.title,
     listingAddress: listingAddress ?? appointment.location,

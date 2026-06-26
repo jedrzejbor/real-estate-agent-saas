@@ -1202,6 +1202,34 @@ Do kolejnej iteracji UX-5:
 3. Rozważyć osobną akcję `Zmiana ceny`, jeśli proces zmiany ceny dostanie
    dedykowany widok albo historię poprzedniej ceny.
 
+Status UX-5 / iteracja 5:
+
+Zrobione:
+
+1. Dodano wspólny helper `buildAgentMessageTemplateContext` dla danych agenta.
+2. Helper pobiera dane z istniejącego profilu użytkownika:
+   - imię i nazwisko agenta,
+   - email konta,
+   - telefon agenta, jeśli jest uzupełniony.
+3. Podłączono dane agenta do szablonów wiadomości na:
+   - liście zapytań publicznych,
+   - profilu klienta,
+   - szczegółach spotkania,
+   - profilu oferty.
+4. Ujednolicono sposób budowania kontekstu wiadomości, żeby szablony korzystały
+   z jednego kontraktu `MessageTemplateContext`.
+5. Ustabilizowano konteksty wiadomości przez `useMemo` tam, gdzie dialog mógłby
+   niepotrzebnie ponownie renderować szablon przy zmianie stanu modalu.
+
+Do kolejnej iteracji UX-5:
+
+1. Rozważyć wskazanie odbiorcy wiadomości na profilu oferty, jeśli oferta ma
+   przypisanego właściciela albo preferowanego klienta kontaktowego.
+2. Rozważyć osobną akcję `Zmiana ceny`, jeśli proces zmiany ceny dostanie
+   dedykowany widok albo historię poprzedniej ceny.
+3. Rozważyć pokazanie w podglądzie szablonu informacji, które pola zostały
+   uzupełnione fallbackiem, ale tylko jeśli nie zwiększy to szumu w UI.
+
 ### Sprint UX-6: Matching klient-oferta
 
 Cel:
