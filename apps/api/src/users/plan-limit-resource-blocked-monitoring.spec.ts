@@ -173,10 +173,12 @@ describe('plan limit resource blocked monitoring', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
       { getAgencyAccessContext: jest.fn().mockResolvedValue(access) } as never,
       new AgencyLimitEnforcementService(),
       {} as never,
       monitoring as never,
+      {} as never,
     ) as unknown as {
       assertClientUsageWithinPlanLimit: (
         currentAccess: typeof access,
@@ -218,10 +220,12 @@ describe('plan limit resource blocked monitoring', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
       { getAgencyAccessContext: jest.fn().mockResolvedValue(access) } as never,
       new AgencyLimitEnforcementService(),
       { log: jest.fn() } as never,
       monitoring as never,
+      {} as never,
     );
 
     const error = await service

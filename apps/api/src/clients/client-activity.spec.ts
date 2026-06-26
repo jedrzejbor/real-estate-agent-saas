@@ -85,9 +85,11 @@ describe('ClientsService activity timeline', () => {
       publicLeadRepo as never,
       taskRepo as never,
       {} as never,
+      {} as never,
       usersService as never,
       {} as never,
       activityService as never,
+      {} as never,
       {} as never,
     );
 

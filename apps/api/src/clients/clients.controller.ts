@@ -74,6 +74,15 @@ export class ClientsController {
     return this.clientsService.findActivity(id, userId, query);
   }
 
+  /** GET /api/clients/:id/matching-listings — get active listings matched to a client. */
+  @Get(':id/matching-listings')
+  async findMatchingListings(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.clientsService.findMatchingListings(id, userId);
+  }
+
   /** GET /api/clients/:id — get single client with notes & preference. */
   @Get(':id')
   async findOne(

@@ -20,10 +20,16 @@ import { ClientPreference } from './entities/client-preference.entity';
 import { PublicLead } from '../public-leads/entities/public-lead.entity';
 import { Task } from '../tasks/entities';
 import { Agent } from '../users/entities/agent.entity';
+import { Listing } from '../listings/entities/listing.entity';
 import { AgencyLimitEnforcementService, UsersService } from '../users';
-import { ActivityAction, ActivityEntityType } from '../common/enums';
+import {
+  ActivityAction,
+  ActivityEntityType,
+  ListingStatus,
+} from '../common/enums';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { MonitoringService } from '../monitoring';
+import { MatchingService, type MatchingReason } from '../matching';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ClientActivityQueryDto } from './dto/client-activity-query.dto';
@@ -60,6 +66,27 @@ export type ClientActivityTimelineItem =
 export type ClientActivityTimelineResult =
   PaginatedResult<ClientActivityTimelineItem>;
 
+export interface MatchingListingSummary {
+  id: string;
+  title: string;
+  propertyType: string;
+  transactionType: string;
+  price: number | string;
+  currency: string;
+  areaM2: number | string | null;
+  rooms: number | null;
+  address: {
+    city: string | null;
+    district: string | null;
+  } | null;
+}
+
+export interface MatchingListingResult {
+  listing: MatchingListingSummary;
+  score: number;
+  reasons: MatchingReason[];
+}
+
 @Injectable()
 export class ClientsService {
   private readonly logger = new Logger(ClientsService.name);
@@ -79,10 +106,13 @@ export class ClientsService {
     private readonly taskRepo: Repository<Task>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    @InjectRepository(Listing)
+    private readonly listingRepo: Repository<Listing>,
     private readonly usersService: UsersService,
     private readonly agencyLimitEnforcementService: AgencyLimitEnforcementService,
     private readonly activityService: ActivityService,
     private readonly monitoringService: MonitoringService,
+    private readonly matchingService: MatchingService,
   ) {}
 
   // ── Create ──
@@ -238,6 +268,36 @@ export class ClientsService {
     const client = await this.findOneOrFail(id);
     await this.assertOwnership(client, userId);
     return client;
+  }
+
+  async findMatchingListings(
+    id: string,
+    userId: string,
+  ): Promise<MatchingListingResult[]> {
+    const client = await this.findOneOrFail(id);
+    await this.assertOwnership(client, userId);
+
+    const listings = await this.listingRepo.find({
+      where: {
+        agentId: client.agentId,
+        status: ListingStatus.ACTIVE,
+      },
+      relations: ['address'],
+    });
+
+    return listings
+      .map((listing) => ({
+        listing: this.toMatchingListingSummary(listing),
+        match: this.matchingService.scoreClientListingMatch(client, listing),
+      }))
+      .filter((item) => !item.match.isExcluded)
+      .sort((left, right) => right.match.score - left.match.score)
+      .slice(0, 10)
+      .map((item) => ({
+        listing: item.listing,
+        score: item.match.score,
+        reasons: item.match.reasons.slice(0, 3),
+      }));
   }
 
   async findHistory(id: string, userId: string) {
@@ -718,6 +778,25 @@ export class ClientsService {
         listingId: lead.listingId,
       },
       href: '/dashboard/inquiries',
+    };
+  }
+
+  private toMatchingListingSummary(listing: Listing): MatchingListingSummary {
+    return {
+      id: listing.id,
+      title: listing.title,
+      propertyType: listing.propertyType,
+      transactionType: listing.transactionType,
+      price: listing.price,
+      currency: listing.currency,
+      areaM2: listing.areaM2 ?? null,
+      rooms: listing.rooms ?? null,
+      address: listing.address
+        ? {
+            city: listing.address.city ?? null,
+            district: listing.address.district ?? null,
+          }
+        : null,
     };
   }
 

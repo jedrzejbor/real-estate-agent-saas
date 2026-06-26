@@ -1631,6 +1631,53 @@ Do kolejnej iteracji UX-6:
      odrzuconych kandydatów.
 5. Dodać testy endpointu dla scope danych i braku preferencji.
 
+Status UX-6 / iteracja 2:
+
+Zrobione:
+
+1. Dodano endpoint `GET /api/clients/:id/matching-listings`.
+2. Endpoint działa po stronie `ClientsController`, czyli naturalnie startuje z
+   profilu klienta.
+3. `ClientsService.findMatchingListings`:
+   - pobiera klienta z preferencjami,
+   - sprawdza ownership klienta,
+   - pobiera aktywne oferty z tego samego `agentId`,
+   - używa `MatchingService` do wyliczenia score,
+   - odrzuca kandydatów oznaczonych jako `isExcluded`,
+   - sortuje wyniki malejąco po score,
+   - zwraca maksymalnie 10 najlepszych ofert.
+4. Payload endpointu jest ograniczony do danych potrzebnych UI:
+   - podstawowe dane oferty,
+   - adres w zakresie `city` i `district`,
+   - score,
+   - maksymalnie 3 powody dopasowania.
+5. Dodano testy dla:
+   - pobierania tylko aktywnych ofert z właściwego scope,
+   - sortowania po score,
+   - odrzucenia oferty ponad budżetem,
+   - blokady dostępu do klienta spoza scope.
+
+Decyzje techniczne:
+
+1. Endpoint nie zwraca pełnej encji `Listing`, żeby nie mieszać UI matchingu z
+   prywatnymi polami oferty.
+2. Endpoint nie zwraca odrzuconych kandydatów, bo MVP ma pokazywać agentowi
+   użyteczne dopasowania, a nie listę diagnostyczną.
+3. Scope jest na razie zgodny z obecnym modelem klientów i ofert, czyli
+   `agentId`. Rozszerzenie na pełny scope agencji można dodać później razem z
+   decyzją o multi-user workflow.
+
+Do kolejnej iteracji UX-6:
+
+1. Dodać frontendowy klient API dla `matching-listings`.
+2. Dodać sekcję `Pasujące oferty` na profilu klienta.
+3. Pokazać score, 2-3 powody i podstawowe dane oferty.
+4. Dodać akcję `Zaplanuj prezentację` z prefill klienta i oferty.
+5. Dodać empty states:
+   - brak preferencji,
+   - brak aktywnych ofert,
+   - brak dopasowań.
+
 ### Sprint UX-7: Raport właściciela oferty
 
 Cel:
