@@ -162,6 +162,33 @@ export interface ClientFilters {
   sortOrder?: 'ASC' | 'DESC';
 }
 
+export interface MatchingReason {
+  code: string;
+  label: string;
+  type: 'positive' | 'neutral' | 'negative';
+}
+
+export interface MatchingListingSummary {
+  id: string;
+  title: string;
+  propertyType: PropertyType;
+  transactionType: string;
+  price: number | string;
+  currency: string;
+  areaM2: number | string | null;
+  rooms: number | null;
+  address: {
+    city: string | null;
+    district: string | null;
+  } | null;
+}
+
+export interface MatchingListingResult {
+  listing: MatchingListingSummary;
+  score: number;
+  reasons: MatchingReason[];
+}
+
 // ── Zod Schemas (frontend validation, mirrors backend DTOs) ──
 
 export const clientPreferenceSchema = z.object({
@@ -241,6 +268,14 @@ export async function fetchClients(
 
 export async function fetchClient(id: string): Promise<Client> {
   return apiFetch<Client>(`/clients/${id}`);
+}
+
+export async function fetchClientMatchingListings(
+  clientId: string,
+): Promise<MatchingListingResult[]> {
+  return apiFetch<MatchingListingResult[]>(
+    `/clients/${clientId}/matching-listings`,
+  );
 }
 
 export async function createClient(

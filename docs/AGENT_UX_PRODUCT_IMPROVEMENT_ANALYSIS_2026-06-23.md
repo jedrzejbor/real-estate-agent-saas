@@ -1678,6 +1678,61 @@ Do kolejnej iteracji UX-6:
    - brak aktywnych ofert,
    - brak dopasowań.
 
+Status UX-6 / iteracja 3:
+
+Zrobione:
+
+1. Dodano frontendowy kontrakt API dla endpointu
+   `GET /api/clients/:id/matching-listings`.
+2. Dodano typy dla:
+   - podstawowego podsumowania dopasowanej oferty,
+   - score,
+   - powodów dopasowania.
+3. Dodano sekcję `Pasujące oferty` na profilu klienta.
+4. Sekcja pokazuje:
+   - tytuł oferty z linkiem do profilu oferty,
+   - score dopasowania,
+   - cenę,
+   - typ nieruchomości,
+   - typ transakcji,
+   - miasto i dzielnicę,
+   - metraż,
+   - liczbę pokoi,
+   - powody dopasowania.
+5. Dodano akcję `Zaplanuj prezentację`, która otwiera formularz spotkania z
+   prefill klienta i oferty.
+6. Dodano stany UI:
+   - ładowanie dopasowań,
+   - błąd pobierania,
+   - brak preferencji klienta,
+   - brak pasujących aktywnych ofert.
+7. Widok pokazuje maksymalnie 5 najlepszych dopasowań, mimo że backend zwraca do
+   10 wyników. Dzięki temu profil klienta pozostaje czytelny.
+
+Decyzje techniczne:
+
+1. UI nie wyświetla dopasowań, jeśli klient nie ma żadnych preferencji
+   matchingowych. Agent dostaje wtedy jasną akcję uzupełnienia preferencji,
+   zamiast neutralnej listy o niskiej wartości sprzedażowej.
+2. Kontrakt w `lib/clients.ts` pozostaje ograniczony do payloadu endpointu i
+   nie importuje pełnej encji oferty.
+3. Formatowanie ceny i etykiet oferty korzysta z istniejących helperów
+   listingowych, żeby nie duplikować logiki prezentacji.
+4. Pobieranie dopasowań jest niezależne od pobierania profilu klienta, więc
+   chwilowy błąd matchingu nie blokuje całego widoku klienta.
+
+Do kolejnej iteracji UX-6:
+
+1. Dodać backendowy endpoint `GET /api/listings/:id/matching-clients`.
+2. Dodać sekcję `Pasujący klienci` na profilu oferty.
+3. Użyć tego samego `MatchingService`, ale odwrócić perspektywę na oferta ->
+   klienci.
+4. Dodać szybkie akcje z profilu oferty:
+   - `Zaproponuj ofertę`,
+   - `Zaplanuj prezentację`.
+5. Rozważyć trwałe ukrywanie dopasowań dopiero po zdefiniowaniu modelu
+   `dismissed match`, żeby nie mieszać tego z samym MVP scoringu.
+
 ### Sprint UX-7: Raport właściciela oferty
 
 Cel:

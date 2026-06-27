@@ -13,6 +13,11 @@ import {
   MessageSquareText,
   Wallet,
   Info,
+  Sparkles,
+  MapPin,
+  Home,
+  Ruler,
+  BedDouble,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,11 +59,14 @@ import {
 } from '@/lib/appointments';
 import {
   fetchClient,
+  fetchClientMatchingListings,
   deleteClient,
   rollbackClientStatus,
   updateClient,
   type Client,
+  type ClientPreference,
   type ClientStatus,
+  type MatchingListingResult,
   CLIENT_STATUS_LABELS,
   CLIENT_SOURCE_LABELS,
   SOURCE_BADGE_VARIANT,
@@ -72,6 +80,13 @@ import {
   MessageTemplateType,
   type MessageTemplateContext,
 } from '@/lib/message-templates';
+import {
+  formatPrice,
+  PROPERTY_TYPE_LABELS as LISTING_PROPERTY_TYPE_LABELS,
+  TRANSACTION_TYPE_LABELS,
+  type PropertyType as ListingPropertyType,
+  type TransactionType,
+} from '@/lib/listings';
 
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>();
@@ -84,6 +99,14 @@ export default function ClientDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isRollingBackStatus, setIsRollingBackStatus] = useState(false);
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [matchingListings, setMatchingListings] = useState<
+    MatchingListingResult[]
+  >([]);
+  const [isMatchingListingsLoading, setIsMatchingListingsLoading] =
+    useState(true);
+  const [matchingListingsError, setMatchingListingsError] = useState<
+    string | null
+  >(null);
   const {
     items: historyItems,
     isLoading: isHistoryLoading,
@@ -145,6 +168,40 @@ export default function ClientDetailPage() {
         setError(err instanceof Error ? err.message : 'Nie znaleziono klienta'),
       )
       .finally(() => setIsLoading(false));
+  }, [params.id]);
+
+  useEffect(() => {
+    if (!params.id) return;
+
+    let isCancelled = false;
+    setIsMatchingListingsLoading(true);
+    setMatchingListingsError(null);
+
+    fetchClientMatchingListings(params.id)
+      .then((items) => {
+        if (!isCancelled) {
+          setMatchingListings(items);
+        }
+      })
+      .catch((err) => {
+        if (!isCancelled) {
+          setMatchingListings([]);
+          setMatchingListingsError(
+            err instanceof Error
+              ? err.message
+              : 'Nie udało się pobrać dopasowanych ofert',
+          );
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsMatchingListingsLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [params.id]);
 
   const refreshClientActivity = useCallback(() => {
@@ -407,6 +464,13 @@ export default function ClientDetailPage() {
           {/* Preferences */}
           <ClientPreferencesCard preference={client.preference} />
 
+          <MatchingListingsCard
+            client={client}
+            listings={matchingListings}
+            isLoading={isMatchingListingsLoading}
+            error={matchingListingsError}
+          />
+
           {/* Notes timeline */}
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <ClientNotes
@@ -578,6 +642,197 @@ function formatAppointmentListingAddress(
   return [address.street, address.postalCode, address.city, address.district]
     .filter(Boolean)
     .join(', ');
+}
+
+function MatchingListingsCard({
+  client,
+  listings,
+  isLoading,
+  error,
+}: {
+  client: Client;
+  listings: MatchingListingResult[];
+  isLoading: boolean;
+  error: string | null;
+}) {
+  const hasPreferences = hasClientMatchingPreferences(client.preference);
+
+  return (
+    <DetailCard title="Pasujące oferty" icon={Sparkles}>
+      {!hasPreferences ? (
+        <ActionEmptyState
+          action={
+            <Link href={`/dashboard/clients/${client.id}/edit`}>
+              <Button variant="outline" size="sm" className="rounded-xl">
+                Uzupełnij preferencje
+              </Button>
+            </Link>
+          }
+        >
+          Uzupełnij preferencje klienta, żeby dopasowania były trafne i
+          łatwiejsze do obronienia w rozmowie.
+        </ActionEmptyState>
+      ) : isLoading ? (
+        <p className="text-sm text-muted-foreground">
+          Szukam pasujących aktywnych ofert...
+        </p>
+      ) : error ? (
+        <ActionEmptyState>
+          Nie udało się pobrać dopasowanych ofert. Spróbuj odświeżyć widok.
+        </ActionEmptyState>
+      ) : listings.length === 0 ? (
+        <ActionEmptyState>
+          Brak aktywnych ofert spełniających aktualne preferencje klienta.
+        </ActionEmptyState>
+      ) : (
+        <div className="space-y-3">
+          {listings.slice(0, 5).map((item) => (
+            <MatchingListingItem
+              key={item.listing.id}
+              client={client}
+              match={item}
+            />
+          ))}
+          {listings.length > 5 ? (
+            <p className="text-xs text-muted-foreground">
+              Pokazano 5 z {listings.length} najlepszych dopasowań.
+            </p>
+          ) : null}
+        </div>
+      )}
+    </DetailCard>
+  );
+}
+
+function MatchingListingItem({
+  client,
+  match,
+}: {
+  client: Client;
+  match: MatchingListingResult;
+}) {
+  const { listing } = match;
+  const scheduleUrl = buildNewAppointmentUrl({
+    clientId: client.id,
+    clientLabel: clientFullName(client),
+    listingId: listing.id,
+    listingLabel: listing.title,
+  });
+  const address = formatMatchingListingAddress(listing.address);
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/dashboard/listings/${listing.id}`}
+              className="font-medium text-foreground hover:text-primary"
+            >
+              {listing.title}
+            </Link>
+            <Badge variant="success">{Math.round(match.score)}%</Badge>
+          </div>
+
+          <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Home className="h-3.5 w-3.5" />
+              {getListingPropertyLabel(listing.propertyType)}
+            </span>
+            <span>{getTransactionTypeLabel(listing.transactionType)}</span>
+            {address ? (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" />
+                {address}
+              </span>
+            ) : null}
+            {listing.areaM2 ? (
+              <span className="inline-flex items-center gap-1">
+                <Ruler className="h-3.5 w-3.5" />
+                {formatArea(listing.areaM2)}
+              </span>
+            ) : null}
+            {listing.rooms ? (
+              <span className="inline-flex items-center gap-1">
+                <BedDouble className="h-3.5 w-3.5" />
+                {listing.rooms} pok.
+              </span>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {match.reasons.map((reason) => (
+              <Badge
+                key={`${listing.id}-${reason.code}`}
+                variant={getMatchingReasonBadgeVariant(reason.type)}
+              >
+                {reason.label}
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+          <p className="font-heading text-lg font-semibold text-foreground">
+            {formatPrice(listing.price, listing.currency)}
+          </p>
+          <Link href={scheduleUrl}>
+            <Button variant="outline" size="sm" className="rounded-xl">
+              Zaplanuj prezentację
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function hasClientMatchingPreferences(
+  preference: ClientPreference | null | undefined,
+): boolean {
+  if (!preference) return false;
+  return Boolean(
+    preference.propertyType ||
+    preference.minArea ||
+    preference.maxPrice ||
+    preference.preferredCity ||
+    preference.minRooms,
+  );
+}
+
+function formatMatchingListingAddress(
+  address: MatchingListingResult['listing']['address'],
+): string | null {
+  if (!address) return null;
+  const parts = [address.city, address.district].filter(Boolean);
+  return parts.length > 0 ? parts.join(', ') : null;
+}
+
+function formatArea(value: number | string): string {
+  const area = typeof value === 'string' ? Number.parseFloat(value) : value;
+  if (!Number.isFinite(area)) return `${value} m²`;
+  return `${new Intl.NumberFormat('pl-PL', {
+    maximumFractionDigits: 1,
+  }).format(area)} m²`;
+}
+
+function getListingPropertyLabel(value: string): string {
+  return (
+    LISTING_PROPERTY_TYPE_LABELS[value as ListingPropertyType] ??
+    'Typ nieruchomości'
+  );
+}
+
+function getTransactionTypeLabel(value: string): string {
+  return TRANSACTION_TYPE_LABELS[value as TransactionType] ?? 'Transakcja';
+}
+
+function getMatchingReasonBadgeVariant(
+  type: MatchingListingResult['reasons'][number]['type'],
+): 'success' | 'muted' | 'warning' {
+  if (type === 'positive') return 'success';
+  if (type === 'negative') return 'warning';
+  return 'muted';
 }
 
 function ClientRelationsContent({
