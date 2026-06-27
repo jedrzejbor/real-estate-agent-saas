@@ -1733,6 +1733,63 @@ Do kolejnej iteracji UX-6:
 5. Rozważyć trwałe ukrywanie dopasowań dopiero po zdefiniowaniu modelu
    `dismissed match`, żeby nie mieszać tego z samym MVP scoringu.
 
+Status UX-6 / iteracja 4:
+
+Zrobione:
+
+1. Dodano backendowy endpoint `GET /api/listings/:id/matching-clients`.
+2. Endpoint działa z poziomu `ListingsController`, przed generyczną trasą
+   `GET /api/listings/:id`, żeby nie było kolizji routingu.
+3. `ListingsService.findMatchingClients`:
+   - pobiera ofertę z relacją adresu,
+   - sprawdza ownership oferty,
+   - pobiera klientów CRM z tego samego `agentId`,
+   - ogranicza kandydatów do roboczych statusów sprzedażowych,
+   - używa tego samego `MatchingService` co widok klient -> oferty,
+   - odrzuca kandydatów oznaczonych jako `isExcluded`,
+   - sortuje wyniki malejąco po score,
+   - zwraca maksymalnie 10 najlepszych klientów.
+4. Payload endpointu jest ograniczony do danych potrzebnych UI:
+   - podstawowe dane klienta,
+   - minimalne dane kontaktowe,
+   - status i źródło,
+   - budżet,
+   - preferencje klienta,
+   - score,
+   - maksymalnie 3 powody dopasowania.
+5. Dodano testy dla:
+   - pobierania klientów tylko z właściwego scope,
+   - sortowania po score,
+   - odrzucenia klienta z budżetem niższym niż cena oferty,
+   - blokady dostępu do oferty spoza scope.
+
+Decyzje techniczne:
+
+1. Endpoint nie zwraca pełnej encji `Client`, żeby nie wystawiać notatek,
+   historii ani pól niewymaganych w module matchingu.
+2. Kandydaci są ograniczeni do statusów:
+   - `new`,
+   - `contacted`,
+   - `qualified`,
+   - `active`,
+   - `negotiating`.
+3. Klienci `closed_won`, `closed_lost` i `inactive` są pomijani, bo w kontekście
+   propozycji oferty generowaliby niski sygnał sprzedażowy.
+4. `ListingsService` dostał zależności do repozytorium klientów i
+   `MatchingService`, a `ListingsModule` importuje `MatchingModule`.
+5. Nowe zależności w serwisie zostały dopięte bez naruszania publicznych
+   endpointów ofert.
+
+Do kolejnej iteracji UX-6:
+
+1. Dodać frontendowy kontrakt API dla
+   `GET /api/listings/:id/matching-clients`.
+2. Dodać sekcję `Pasujący klienci` na profilu oferty.
+3. Pokazać score, 2-3 powody, status klienta, budżet i podstawowy kontakt.
+4. Dodać akcję `Zaproponuj ofertę`, która otworzy dialog szablonu wiadomości z
+   kontekstem oferty i klienta.
+5. Dodać akcję `Zaplanuj prezentację` z prefill oferty i klienta.
+
 ### Sprint UX-7: Raport właściciela oferty
 
 Cel:

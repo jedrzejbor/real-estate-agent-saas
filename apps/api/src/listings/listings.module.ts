@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Listing } from './entities/listing.entity';
 import { ListingImage } from './entities/listing-image.entity';
 import { Address } from './entities/address.entity';
+import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { Agent } from '../users/entities/agent.entity';
 import { AgencyRetainedListingChoice } from '../users/entities';
@@ -14,6 +15,7 @@ import { Task } from '../tasks/entities';
 import { UsersModule } from '../users';
 import { ActivityModule } from '../activity';
 import { MonitoringModule } from '../monitoring';
+import { MatchingModule } from '../matching';
 import { ListingsService } from './listings.service';
 import { ListingsController } from './listings.controller';
 
@@ -23,6 +25,7 @@ import { ListingsController } from './listings.controller';
       Listing,
       ListingImage,
       Address,
+      Client,
       Appointment,
       Agent,
       Location,
@@ -35,6 +38,7 @@ import { ListingsController } from './listings.controller';
     UsersModule,
     ActivityModule,
     MonitoringModule,
+    MatchingModule,
   ],
   controllers: [ListingsController],
   providers: [ListingsService],

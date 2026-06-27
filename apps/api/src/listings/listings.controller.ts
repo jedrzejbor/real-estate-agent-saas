@@ -158,6 +158,15 @@ export class ListingsController {
     return this.listingsService.findActivity(id, userId, query);
   }
 
+  /** GET /api/listings/:id/matching-clients — get CRM clients matched to a listing. */
+  @Get(':id/matching-clients')
+  async findMatchingClients(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.listingsService.findMatchingClients(id, userId);
+  }
+
   /** GET /api/listings/:id — get single listing. */
   @Get(':id')
   async findOne(

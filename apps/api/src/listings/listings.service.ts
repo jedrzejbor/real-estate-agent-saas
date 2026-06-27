@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ForbiddenException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -22,6 +23,7 @@ import { Appointment } from '../appointments/entities/appointment.entity';
 import { Listing } from './entities/listing.entity';
 import { Address } from './entities/address.entity';
 import { ListingImage } from './entities/listing-image.entity';
+import { Client } from '../clients/entities/client.entity';
 import { AnalyticsEvent } from '../analytics/entities/analytics-event.entity';
 import { ListingDocumentEvent } from '../listing-documents/entities';
 import { PublicLead } from '../public-leads/entities/public-lead.entity';
@@ -33,9 +35,11 @@ import { AgencyLimitEnforcementService, UsersService } from '../users';
 import {
   ActivityAction,
   ActivityEntityType,
+  ClientStatus,
   ListingPublicationStatus,
   ListingStatus,
 } from '../common/enums';
+import { MatchingService, type MatchingReason } from '../matching';
 import {
   calculateListingCommissionAmount,
   normalizeListingCommissionInput,
@@ -138,6 +142,31 @@ export type ListingActivityTimelineItem =
 
 export type ListingActivityTimelineResult =
   PaginatedResult<ListingActivityTimelineItem>;
+
+export interface MatchingClientSummary {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  phone: string | null;
+  source: string;
+  status: ClientStatus;
+  budgetMin: number | string | null;
+  budgetMax: number | string | null;
+  preference: {
+    propertyType: string | null;
+    minArea: number | string | null;
+    maxPrice: number | string | null;
+    preferredCity: string | null;
+    minRooms: number | null;
+  } | null;
+}
+
+export interface MatchingClientResult {
+  client: MatchingClientSummary;
+  score: number;
+  reasons: MatchingReason[];
+}
 
 interface UploadedListingImageFile {
   buffer: Buffer;
@@ -252,6 +281,11 @@ export class ListingsService {
     private readonly activityService: ActivityService,
     private readonly configService: ConfigService,
     private readonly monitoringService: MonitoringService,
+    @Optional()
+    @InjectRepository(Client)
+    private readonly clientRepo?: Repository<Client>,
+    @Optional()
+    private readonly matchingService?: MatchingService,
   ) {}
 
   // ── Create ──
@@ -354,6 +388,44 @@ export class ListingsService {
     await this.attachPublicViewCounts([listing]);
     this.attachCommissionAmounts([listing]);
     return this.toDashboardListingView(listing);
+  }
+
+  async findMatchingClients(
+    id: string,
+    userId: string,
+  ): Promise<MatchingClientResult[]> {
+    const listing = await this.findOneOrFail(id);
+    await this.assertOwnership(listing, userId);
+
+    const clientRepo = this.requireClientRepository();
+    const matchingService = this.requireMatchingService();
+    const clients = await clientRepo.find({
+      where: {
+        agentId: listing.agentId,
+        status: In([
+          ClientStatus.NEW,
+          ClientStatus.CONTACTED,
+          ClientStatus.QUALIFIED,
+          ClientStatus.ACTIVE,
+          ClientStatus.NEGOTIATING,
+        ]),
+      },
+      relations: ['preference'],
+    });
+
+    return clients
+      .map((client) => ({
+        client: this.toMatchingClientSummary(client),
+        match: matchingService.scoreClientListingMatch(client, listing),
+      }))
+      .filter((item) => !item.match.isExcluded)
+      .sort((left, right) => right.match.score - left.match.score)
+      .slice(0, 10)
+      .map((item) => ({
+        client: item.client,
+        score: item.match.score,
+        reasons: item.match.reasons.slice(0, 3),
+      }));
   }
 
   async findHistory(id: string, userId: string) {
@@ -2378,6 +2450,45 @@ export class ListingsService {
     listingView.ownerUser = undefined;
 
     return listingView;
+  }
+
+  private toMatchingClientSummary(client: Client): MatchingClientSummary {
+    return {
+      id: client.id,
+      firstName: client.firstName,
+      lastName: client.lastName,
+      email: client.email ?? null,
+      phone: client.phone ?? null,
+      source: client.source,
+      status: client.status,
+      budgetMin: client.budgetMin ?? null,
+      budgetMax: client.budgetMax ?? null,
+      preference: client.preference
+        ? {
+            propertyType: client.preference.propertyType ?? null,
+            minArea: client.preference.minArea ?? null,
+            maxPrice: client.preference.maxPrice ?? null,
+            preferredCity: client.preference.preferredCity ?? null,
+            minRooms: client.preference.minRooms ?? null,
+          }
+        : null,
+    };
+  }
+
+  private requireClientRepository(): Repository<Client> {
+    if (!this.clientRepo) {
+      throw new Error('Client repository is not configured for listings');
+    }
+
+    return this.clientRepo;
+  }
+
+  private requireMatchingService(): MatchingService {
+    if (!this.matchingService) {
+      throw new Error('Matching service is not configured for listings');
+    }
+
+    return this.matchingService;
   }
 
   /** Verify the listing belongs to the current user's agent profile. */
