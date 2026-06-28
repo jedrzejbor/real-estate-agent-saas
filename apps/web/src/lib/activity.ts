@@ -131,9 +131,11 @@ export const CLIENT_HISTORY_FIELD_LABELS: Record<string, string> = {
   budgetMax: 'Budżet max.',
   notes: 'Notatki',
   'preference.propertyType': 'Preferowany typ',
+  'preference.transactionType': 'Preferowany typ transakcji',
   'preference.minArea': 'Min. powierzchnia',
   'preference.maxPrice': 'Max. cena',
   'preference.preferredCity': 'Preferowane miasto',
+  'preference.preferredDistrict': 'Preferowana dzielnica',
   'preference.minRooms': 'Min. pokoje',
 };
 
@@ -267,6 +269,13 @@ export function formatActivityValue(
       CLIENT_PROPERTY_TYPE_LABELS[
         value as keyof typeof CLIENT_PROPERTY_TYPE_LABELS
       ] ?? value
+    );
+  }
+
+  if (field === 'preference.transactionType' && typeof value === 'string') {
+    return (
+      TRANSACTION_TYPE_LABELS[value as keyof typeof TRANSACTION_TYPE_LABELS] ??
+      value
     );
   }
 

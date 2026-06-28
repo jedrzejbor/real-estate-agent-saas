@@ -12,6 +12,7 @@ import {
   type CreateClientFormData,
   type Client,
   CLIENT_SOURCE_LABELS,
+  CLIENT_PREFERENCE_TRANSACTION_TYPE_LABELS,
   PROPERTY_TYPE_LABELS,
   createClient,
   updateClient,
@@ -227,6 +228,21 @@ export function ClientForm({ client, initialValues }: ClientFormProps) {
           </FormField>
 
           <FormField
+            label="Typ transakcji"
+            name="preference.transactionType"
+            error={getFieldError('preference.transactionType')}
+          >
+            <FormSelect
+              name="preference.transactionType"
+              defaultValue={client?.preference?.transactionType}
+              placeholder="Wybierz transakcję"
+              options={Object.entries(
+                CLIENT_PREFERENCE_TRANSACTION_TYPE_LABELS,
+              ).map(([value, label]) => ({ value, label }))}
+            />
+          </FormField>
+
+          <FormField
             label="Min. powierzchnia (m²)"
             name="preference.minArea"
             error={getFieldError('preference.minArea')}
@@ -275,6 +291,19 @@ export function ClientForm({ client, initialValues }: ClientFormProps) {
               name="preference.preferredCity"
               defaultValue={client?.preference?.preferredCity ?? ''}
               placeholder="np. Warszawa"
+              className="h-10 rounded-xl"
+            />
+          </FormField>
+
+          <FormField
+            label="Preferowana dzielnica"
+            name="preference.preferredDistrict"
+            error={getFieldError('preference.preferredDistrict')}
+          >
+            <Input
+              name="preference.preferredDistrict"
+              defaultValue={client?.preference?.preferredDistrict ?? ''}
+              placeholder="np. Mokotów"
               className="h-10 rounded-xl"
             />
           </FormField>

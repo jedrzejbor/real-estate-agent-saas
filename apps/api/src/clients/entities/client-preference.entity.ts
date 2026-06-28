@@ -5,7 +5,7 @@ import {
   OneToOne,
   JoinColumn,
 } from 'typeorm';
-import { PropertyType } from '../../common/enums';
+import { PropertyType, TransactionType } from '../../common/enums';
 import { Client } from './client.entity';
 
 @Entity('client_preferences')
@@ -16,6 +16,9 @@ export class ClientPreference {
   @Column({ type: 'enum', enum: PropertyType, nullable: true })
   propertyType: PropertyType;
 
+  @Column({ type: 'enum', enum: TransactionType, nullable: true })
+  transactionType: TransactionType;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   minArea: number;
 
@@ -24,6 +27,9 @@ export class ClientPreference {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   preferredCity: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  preferredDistrict: string;
 
   @Column({ type: 'smallint', nullable: true })
   minRooms: number;

@@ -1,4 +1,8 @@
-import type { ListingStatus, PropertyType } from '../common/enums';
+import type {
+  ListingStatus,
+  PropertyType,
+  TransactionType,
+} from '../common/enums';
 
 export type MatchingReasonType = 'positive' | 'neutral' | 'negative';
 
@@ -10,9 +14,11 @@ export interface MatchingReason {
 
 export interface MatchingClientPreferenceInput {
   propertyType?: PropertyType | null;
+  transactionType?: TransactionType | null;
   minArea?: number | string | null;
   maxPrice?: number | string | null;
   preferredCity?: string | null;
+  preferredDistrict?: string | null;
   minRooms?: number | null;
 }
 
@@ -27,6 +33,7 @@ export interface MatchingListingInput {
   id: string;
   status: ListingStatus;
   propertyType: PropertyType;
+  transactionType?: TransactionType | null;
   price?: number | string | null;
   areaM2?: number | string | null;
   rooms?: number | null;

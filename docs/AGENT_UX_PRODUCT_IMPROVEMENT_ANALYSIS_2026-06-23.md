@@ -1974,6 +1974,63 @@ Zakres MVP pokryty:
 Następny krok:
 Przejść do UX-7: raport właściciela oferty.
 
+Status UX-6 / iteracja 8 - rozszerzenie po MVP:
+
+Zrobione:
+
+1. Rozszerzono model `ClientPreference` o:
+   - `transactionType`,
+   - `preferredDistrict`.
+2. Rozszerzono DTO tworzenia i edycji klienta o walidację nowych pól.
+3. Rozszerzono `MatchingService` o dodatkowe sygnały score:
+   - dopasowanie typu transakcji,
+   - dopasowanie dzielnicy.
+4. Zmieniono wagi score tak, aby wynik nadal mieścił się w zakresie 0-100:
+   - budżet,
+   - typ nieruchomości,
+   - typ transakcji,
+   - miasto,
+   - dzielnica,
+   - metraż,
+   - pokoje.
+5. Brak typu transakcji albo dzielnicy w preferencjach klienta daje powód
+   neutralny, a nie błąd ani twarde odrzucenie.
+6. Rozszerzono formularz klienta o pola:
+   - `Typ transakcji`,
+   - `Preferowana dzielnica`.
+7. Rozszerzono kartę preferencji klienta, aby pokazywała nowe pola.
+8. Rozszerzono import CSV klientów o mapowanie nowych kolumn:
+   - `transactiontype`,
+   - `transaction_type`,
+   - `typtransakcji`,
+   - `preferreddistrict`,
+   - `preferred_district`,
+   - `preferowanadzielnica`.
+9. Rozszerzono etykiety historii aktywności klienta o nowe pola preferencji.
+10. Zaktualizowano testy scoringu i endpointów matchingowych.
+
+Decyzje techniczne:
+
+1. Typ transakcji i dzielnica nie są twardymi wykluczeniami. Na tym etapie są
+   sygnałami rankingowymi, bo część agentów może chcieć świadomie pokazać
+   klientowi ofertę bliską, ale nie idealną.
+2. `preferredDistrict` jest zwykłym polem tekstowym, spójnym z obecnym
+   `preferredCity`. Nie wprowadzamy jeszcze słownika dzielnic, żeby nie mieszać
+   UX-6 z większym modułem lokalizacji.
+3. Pola są opcjonalne i kompatybilne wstecz z klientami utworzonymi przed tą
+   iteracją.
+4. Rozszerzenie zostało wykonane po zamknięciu MVP, bo zwiększa jakość
+   rekomendacji, ale nie blokowało podstawowego przepływu matchingu.
+
+Do przyszłego backlogu:
+
+1. Dodać słownik dzielnic zależny od miasta, jeśli formularz preferencji zacznie
+   generować zbyt dużo wariantów tekstowych.
+2. Rozważyć osobne wagi dla sprzedaży i najmu, jeśli dane z użytkowania pokażą,
+   że typ transakcji powinien być sygnałem krytycznym.
+3. Rozważyć testy komponentowe formularza klienta i kart matchingowych, gdy
+   standard testów komponentów dashboardu zostanie ustalony.
+
 ### Sprint UX-7: Raport właściciela oferty
 
 Cel:

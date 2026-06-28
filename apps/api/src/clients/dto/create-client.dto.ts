@@ -10,13 +10,21 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ClientSource, PropertyType } from '../../common/enums';
+import {
+  ClientSource,
+  PropertyType,
+  TransactionType,
+} from '../../common/enums';
 
 /** Nested DTO for client preference (optional on create). */
 export class CreateClientPreferenceDto {
   @IsOptional()
   @IsEnum(PropertyType, { message: 'Nieprawidłowy typ nieruchomości' })
   propertyType?: PropertyType;
+
+  @IsOptional()
+  @IsEnum(TransactionType, { message: 'Nieprawidłowy typ transakcji' })
+  transactionType?: TransactionType;
 
   @IsOptional()
   @IsNumber()
@@ -32,6 +40,11 @@ export class CreateClientPreferenceDto {
   @IsString()
   @MaxLength(255)
   preferredCity?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  preferredDistrict?: string;
 
   @IsOptional()
   @IsNumber()

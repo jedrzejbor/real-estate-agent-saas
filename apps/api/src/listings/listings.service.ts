@@ -159,9 +159,11 @@ export interface MatchingClientSummary {
   budgetMax: number | string | null;
   preference: {
     propertyType: string | null;
+    transactionType: string | null;
     minArea: number | string | null;
     maxPrice: number | string | null;
     preferredCity: string | null;
+    preferredDistrict: string | null;
     minRooms: number | null;
   } | null;
 }
@@ -2500,9 +2502,11 @@ export class ListingsService {
       preference: client.preference
         ? {
             propertyType: client.preference.propertyType ?? null,
+            transactionType: client.preference.transactionType ?? null,
             minArea: client.preference.minArea ?? null,
             maxPrice: client.preference.maxPrice ?? null,
             preferredCity: client.preference.preferredCity ?? null,
+            preferredDistrict: client.preference.preferredDistrict ?? null,
             minRooms: client.preference.minRooms ?? null,
           }
         : null,

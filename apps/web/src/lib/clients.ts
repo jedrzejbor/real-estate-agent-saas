@@ -40,6 +40,14 @@ export const PropertyType = {
 
 export type PropertyType = (typeof PropertyType)[keyof typeof PropertyType];
 
+export const ClientPreferenceTransactionType = {
+  SALE: 'sale',
+  RENT: 'rent',
+} as const;
+
+export type ClientPreferenceTransactionType =
+  (typeof ClientPreferenceTransactionType)[keyof typeof ClientPreferenceTransactionType];
+
 // ── Labels (Polish) ──
 
 export const CLIENT_SOURCE_LABELS: Record<ClientSource, string> = {
@@ -70,6 +78,14 @@ export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   commercial: 'Lokal użytkowy',
   office: 'Biuro',
   garage: 'Garaż',
+};
+
+export const CLIENT_PREFERENCE_TRANSACTION_TYPE_LABELS: Record<
+  ClientPreferenceTransactionType,
+  string
+> = {
+  sale: 'Kupno',
+  rent: 'Najem',
 };
 
 export const STATUS_BADGE_VARIANT: Record<
@@ -104,9 +120,11 @@ export const SOURCE_BADGE_VARIANT: Record<
 export interface ClientPreference {
   id: string;
   propertyType?: PropertyType;
+  transactionType?: ClientPreferenceTransactionType;
   minArea?: number | string;
   maxPrice?: number | string;
   preferredCity?: string;
+  preferredDistrict?: string;
   minRooms?: number;
 }
 
@@ -196,9 +214,11 @@ export const clientPreferenceSchema = z.object({
     .enum(['apartment', 'house', 'land', 'commercial', 'office', 'garage'])
     .optional()
     .or(z.literal('')),
+  transactionType: z.enum(['sale', 'rent']).optional().or(z.literal('')),
   minArea: z.coerce.number().min(0).optional().or(z.literal('')),
   maxPrice: z.coerce.number().min(0).optional().or(z.literal('')),
   preferredCity: z.string().max(255).optional().or(z.literal('')),
+  preferredDistrict: z.string().max(255).optional().or(z.literal('')),
   minRooms: z.coerce.number().int().min(1).optional().or(z.literal('')),
 });
 

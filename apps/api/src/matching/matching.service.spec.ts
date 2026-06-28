@@ -1,4 +1,4 @@
-import { ListingStatus, PropertyType } from '../common/enums';
+import { ListingStatus, PropertyType, TransactionType } from '../common/enums';
 import { MatchingService } from './matching.service';
 import type {
   MatchingClientInput,
@@ -24,7 +24,9 @@ describe('MatchingService', () => {
       expect.arrayContaining([
         'price_within_budget',
         'property_type_match',
+        'transaction_type_match',
         'city_match',
+        'district_match',
         'area_match',
         'rooms_match',
       ]),
@@ -36,7 +38,9 @@ describe('MatchingService', () => {
       buildClient({
         preference: {
           propertyType: PropertyType.APARTMENT,
+          transactionType: TransactionType.SALE,
           preferredCity: 'Kraków',
+          preferredDistrict: 'Kazimierz',
           minArea: 70,
           maxPrice: 900000,
           minRooms: 3,
@@ -55,6 +59,7 @@ describe('MatchingService', () => {
     expect(result.reasons.map((reason) => reason.code)).toEqual(
       expect.arrayContaining([
         'city_mismatch',
+        'district_mismatch',
         'area_too_small',
         'rooms_too_low',
       ]),
@@ -118,7 +123,9 @@ function buildClient(
     budgetMax: 900000,
     preference: {
       propertyType: PropertyType.APARTMENT,
+      transactionType: TransactionType.SALE,
       preferredCity: 'Warszawa',
+      preferredDistrict: 'Mokotów',
       minArea: 55,
       maxPrice: 900000,
       minRooms: 2,
@@ -134,6 +141,7 @@ function buildListing(
     id: 'listing-1',
     status: ListingStatus.ACTIVE,
     propertyType: PropertyType.APARTMENT,
+    transactionType: TransactionType.SALE,
     price: 820000,
     areaM2: 62,
     rooms: 3,

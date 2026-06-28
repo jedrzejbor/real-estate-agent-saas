@@ -26,7 +26,9 @@ describe('ListingsService matching clients', () => {
           id: 'client-low',
           preference: {
             propertyType: PropertyType.HOUSE,
+            transactionType: TransactionType.SALE,
             preferredCity: 'Kraków',
+            preferredDistrict: 'Kazimierz',
             minArea: 80,
             maxPrice: 950000,
             minRooms: 4,
@@ -36,7 +38,9 @@ describe('ListingsService matching clients', () => {
           id: 'client-best',
           preference: {
             propertyType: PropertyType.APARTMENT,
+            transactionType: TransactionType.SALE,
             preferredCity: 'Warszawa',
+            preferredDistrict: 'Mokotów',
             minArea: 50,
             maxPrice: 900000,
             minRooms: 2,
@@ -47,7 +51,9 @@ describe('ListingsService matching clients', () => {
           budgetMax: 700000,
           preference: {
             propertyType: PropertyType.APARTMENT,
+            transactionType: TransactionType.SALE,
             preferredCity: 'Warszawa',
+            preferredDistrict: 'Mokotów',
             minArea: 50,
             maxPrice: 700000,
             minRooms: 2,
@@ -224,7 +230,9 @@ function buildClient(overrides: Record<string, unknown> = {}) {
     budgetMax: 900000,
     preference: {
       propertyType: PropertyType.APARTMENT,
+      transactionType: TransactionType.SALE,
       preferredCity: 'Warszawa',
+      preferredDistrict: 'Mokotów',
       minArea: 50,
       maxPrice: 900000,
       minRooms: 2,

@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/contexts/toast-context';
 import {
   CLIENT_SOURCE_LABELS,
+  CLIENT_PREFERENCE_TRANSACTION_TYPE_LABELS,
+  ClientPreferenceTransactionType,
   ClientSource,
   PROPERTY_TYPE_LABELS,
   PropertyType,
@@ -67,9 +69,15 @@ const HEADER_ALIASES: Record<string, string> = {
   propertytype: 'preference.propertyType',
   property_type: 'preference.propertyType',
   typnieruchomosci: 'preference.propertyType',
+  transactiontype: 'preference.transactionType',
+  transaction_type: 'preference.transactionType',
+  typtransakcji: 'preference.transactionType',
   preferredcity: 'preference.preferredCity',
   preferred_city: 'preference.preferredCity',
   preferowanemiasto: 'preference.preferredCity',
+  preferreddistrict: 'preference.preferredDistrict',
+  preferred_district: 'preference.preferredDistrict',
+  preferowanadzielnica: 'preference.preferredDistrict',
   minarea: 'preference.minArea',
   min_area: 'preference.minArea',
   minpowierzchnia: 'preference.minArea',
@@ -91,7 +99,9 @@ const FIELD_LABELS: Record<string, string> = {
   budgetMax: 'budżet do',
   notes: 'notatki',
   'preference.propertyType': 'typ nieruchomości',
+  'preference.transactionType': 'typ transakcji',
   'preference.preferredCity': 'preferowane miasto',
+  'preference.preferredDistrict': 'preferowana dzielnica',
   'preference.minArea': 'minimalna powierzchnia',
   'preference.maxPrice': 'maksymalna cena',
   'preference.minRooms': 'minimalna liczba pokoi',
@@ -119,6 +129,17 @@ const PROPERTY_TYPE_ALIASES = createEnumAliasMap(PROPERTY_TYPE_LABELS, {
   biuro: PropertyType.OFFICE,
   garaz: PropertyType.GARAGE,
 });
+
+const TRANSACTION_TYPE_ALIASES = createEnumAliasMap(
+  CLIENT_PREFERENCE_TRANSACTION_TYPE_LABELS,
+  {
+    kupno: ClientPreferenceTransactionType.SALE,
+    zakup: ClientPreferenceTransactionType.SALE,
+    sprzedaz: ClientPreferenceTransactionType.SALE,
+    najem: ClientPreferenceTransactionType.RENT,
+    wynajem: ClientPreferenceTransactionType.RENT,
+  },
+);
 
 export function ClientCsvImport({ onImported }: ClientCsvImportProps) {
   const toast = useToast();
@@ -408,6 +429,10 @@ function normalizeFieldValue(field: string, value: string): string | number {
 
   if (field === 'preference.propertyType') {
     return PROPERTY_TYPE_ALIASES[normalizeToken(value)] ?? value;
+  }
+
+  if (field === 'preference.transactionType') {
+    return TRANSACTION_TYPE_ALIASES[normalizeToken(value)] ?? value;
   }
 
   if (

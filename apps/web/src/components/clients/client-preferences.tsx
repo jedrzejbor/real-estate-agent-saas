@@ -1,8 +1,16 @@
 'use client';
 
-import { Home, Maximize, Wallet, MapPin, BedDouble } from 'lucide-react';
+import {
+  Home,
+  Maximize,
+  Wallet,
+  MapPin,
+  BedDouble,
+  Handshake,
+} from 'lucide-react';
 import {
   type ClientPreference,
+  CLIENT_PREFERENCE_TRANSACTION_TYPE_LABELS,
   PROPERTY_TYPE_LABELS,
   formatBudget,
 } from '@/lib/clients';
@@ -34,14 +42,27 @@ export function ClientPreferencesCard({
     items.push({
       icon: <Home className="h-4 w-4" />,
       label: 'Typ nieruchomości',
-      value: PROPERTY_TYPE_LABELS[preference.propertyType] ?? preference.propertyType,
+      value:
+        PROPERTY_TYPE_LABELS[preference.propertyType] ??
+        preference.propertyType,
+    });
+  }
+
+  if (preference.transactionType) {
+    items.push({
+      icon: <Handshake className="h-4 w-4" />,
+      label: 'Typ transakcji',
+      value:
+        CLIENT_PREFERENCE_TRANSACTION_TYPE_LABELS[preference.transactionType] ??
+        preference.transactionType,
     });
   }
 
   if (preference.minArea) {
-    const area = typeof preference.minArea === 'string'
-      ? parseFloat(preference.minArea)
-      : preference.minArea;
+    const area =
+      typeof preference.minArea === 'string'
+        ? parseFloat(preference.minArea)
+        : preference.minArea;
     items.push({
       icon: <Maximize className="h-4 w-4" />,
       label: 'Min. powierzchnia',
@@ -62,6 +83,14 @@ export function ClientPreferencesCard({
       icon: <MapPin className="h-4 w-4" />,
       label: 'Preferowane miasto',
       value: preference.preferredCity,
+    });
+  }
+
+  if (preference.preferredDistrict) {
+    items.push({
+      icon: <MapPin className="h-4 w-4" />,
+      label: 'Preferowana dzielnica',
+      value: preference.preferredDistrict,
     });
   }
 

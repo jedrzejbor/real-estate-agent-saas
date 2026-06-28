@@ -857,9 +857,11 @@ function hasClientMatchingPreferences(
   if (!preference) return false;
   return Boolean(
     preference.propertyType ||
+    preference.transactionType ||
     preference.minArea ||
     preference.maxPrice ||
     preference.preferredCity ||
+    preference.preferredDistrict ||
     preference.minRooms,
   );
 }

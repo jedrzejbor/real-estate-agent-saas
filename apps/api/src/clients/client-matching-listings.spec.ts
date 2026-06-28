@@ -12,7 +12,9 @@ describe('ClientsService matching listings', () => {
         budgetMax: 900000,
         preference: {
           propertyType: PropertyType.APARTMENT,
+          transactionType: TransactionType.SALE,
           preferredCity: 'Warszawa',
+          preferredDistrict: 'Mokotów',
           minArea: 50,
           maxPrice: 900000,
           minRooms: 2,
@@ -137,7 +139,9 @@ function buildService({
       budgetMax: 900000,
       preference: {
         propertyType: PropertyType.APARTMENT,
+        transactionType: TransactionType.SALE,
         preferredCity: 'Warszawa',
+        preferredDistrict: 'Mokotów',
         minArea: 50,
         maxPrice: 900000,
         minRooms: 2,

@@ -9,12 +9,21 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ClientSource, ClientStatus, PropertyType } from '../../common/enums';
+import {
+  ClientSource,
+  ClientStatus,
+  PropertyType,
+  TransactionType,
+} from '../../common/enums';
 
 export class UpdateClientPreferenceDto {
   @IsOptional()
   @IsEnum(PropertyType)
   propertyType?: PropertyType;
+
+  @IsOptional()
+  @IsEnum(TransactionType)
+  transactionType?: TransactionType;
 
   @IsOptional()
   @IsNumber()
@@ -30,6 +39,11 @@ export class UpdateClientPreferenceDto {
   @IsString()
   @MaxLength(255)
   preferredCity?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  preferredDistrict?: string;
 
   @IsOptional()
   @IsNumber()

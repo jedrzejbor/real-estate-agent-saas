@@ -8,11 +8,13 @@ import {
 } from './matching.types';
 
 const SCORE_WEIGHTS = {
-  budget: 30,
-  propertyType: 20,
-  location: 20,
-  area: 15,
-  rooms: 15,
+  budget: 25,
+  propertyType: 15,
+  transactionType: 15,
+  city: 15,
+  district: 10,
+  area: 10,
+  rooms: 10,
 } as const;
 
 @Injectable()
@@ -40,13 +42,21 @@ export class MatchingService {
     let score = 0;
     const budgetScore = this.scoreBudget(client, price, reasons);
     const propertyTypeScore = this.scorePropertyType(client, listing, reasons);
-    const locationScore = this.scoreLocation(client, listing, reasons);
+    const transactionTypeScore = this.scoreTransactionType(
+      client,
+      listing,
+      reasons,
+    );
+    const cityScore = this.scoreCity(client, listing, reasons);
+    const districtScore = this.scoreDistrict(client, listing, reasons);
     const areaScore = this.scoreArea(client, listing, reasons);
     const roomsScore = this.scoreRooms(client, listing, reasons);
 
     score += budgetScore;
     score += propertyTypeScore;
-    score += locationScore;
+    score += transactionTypeScore;
+    score += cityScore;
+    score += districtScore;
     score += areaScore;
     score += roomsScore;
 
@@ -138,7 +148,43 @@ export class MatchingService {
     return 0;
   }
 
-  private scoreLocation(
+  private scoreTransactionType(
+    client: MatchingClientInput,
+    listing: MatchingListingInput,
+    reasons: MatchingReason[],
+  ): number {
+    const preferredType = client.preference?.transactionType ?? null;
+
+    if (!preferredType) {
+      reasons.push(
+        neutral(
+          'transaction_type_missing',
+          'Klient nie ma preferowanego typu transakcji',
+        ),
+      );
+      return SCORE_WEIGHTS.transactionType * 0.5;
+    }
+
+    if (preferredType === listing.transactionType) {
+      reasons.push(
+        positive(
+          'transaction_type_match',
+          'Typ transakcji pasuje do preferencji',
+        ),
+      );
+      return SCORE_WEIGHTS.transactionType;
+    }
+
+    reasons.push(
+      negative(
+        'transaction_type_mismatch',
+        'Typ transakcji różni się od preferencji',
+      ),
+    );
+    return 0;
+  }
+
+  private scoreCity(
     client: MatchingClientInput,
     listing: MatchingListingInput,
     reasons: MatchingReason[],
@@ -150,15 +196,48 @@ export class MatchingService {
       reasons.push(
         neutral('preferred_city_missing', 'Klient nie ma preferowanego miasta'),
       );
-      return SCORE_WEIGHTS.location * 0.5;
+      return SCORE_WEIGHTS.city * 0.5;
     }
 
     if (listingCity && listingCity === preferredCity) {
       reasons.push(positive('city_match', 'Miasto pasuje do preferencji'));
-      return SCORE_WEIGHTS.location;
+      return SCORE_WEIGHTS.city;
     }
 
     reasons.push(negative('city_mismatch', 'Miasto różni się od preferencji'));
+    return 0;
+  }
+
+  private scoreDistrict(
+    client: MatchingClientInput,
+    listing: MatchingListingInput,
+    reasons: MatchingReason[],
+  ): number {
+    const preferredDistrict = normalizeText(
+      client.preference?.preferredDistrict,
+    );
+    const listingDistrict = normalizeText(listing.address?.district);
+
+    if (!preferredDistrict) {
+      reasons.push(
+        neutral(
+          'preferred_district_missing',
+          'Klient nie ma preferowanej dzielnicy',
+        ),
+      );
+      return SCORE_WEIGHTS.district * 0.5;
+    }
+
+    if (listingDistrict && listingDistrict === preferredDistrict) {
+      reasons.push(
+        positive('district_match', 'Dzielnica pasuje do preferencji'),
+      );
+      return SCORE_WEIGHTS.district;
+    }
+
+    reasons.push(
+      negative('district_mismatch', 'Dzielnica różni się od preferencji'),
+    );
     return 0;
   }
 

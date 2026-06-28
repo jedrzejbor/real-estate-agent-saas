@@ -532,9 +532,11 @@ export interface ListingMatchingClientSummary {
   budgetMax: number | string | null;
   preference: {
     propertyType: string | null;
+    transactionType: string | null;
     minArea: number | string | null;
     maxPrice: number | string | null;
     preferredCity: string | null;
+    preferredDistrict: string | null;
     minRooms: number | null;
   } | null;
 }
