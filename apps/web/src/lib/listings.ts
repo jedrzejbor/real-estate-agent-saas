@@ -514,6 +514,37 @@ export interface RetentionChoicesResponse {
   listings: RetentionChoiceListing[];
 }
 
+export interface ListingMatchingReason {
+  code: string;
+  label: string;
+  type: 'positive' | 'neutral' | 'negative';
+}
+
+export interface ListingMatchingClientSummary {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  phone: string | null;
+  source: string;
+  status: string;
+  budgetMin: number | string | null;
+  budgetMax: number | string | null;
+  preference: {
+    propertyType: string | null;
+    minArea: number | string | null;
+    maxPrice: number | string | null;
+    preferredCity: string | null;
+    minRooms: number | null;
+  } | null;
+}
+
+export interface ListingMatchingClientResult {
+  client: ListingMatchingClientSummary;
+  score: number;
+  reasons: ListingMatchingReason[];
+}
+
 export interface ListingFilters {
   propertyType?: PropertyType;
   status?: ListingStatus;
@@ -729,6 +760,14 @@ export async function fetchListings(
 
 export async function fetchListing(id: string): Promise<Listing> {
   return apiFetch<Listing>(`/listings/${id}`);
+}
+
+export async function fetchListingMatchingClients(
+  listingId: string,
+): Promise<ListingMatchingClientResult[]> {
+  return apiFetch<ListingMatchingClientResult[]>(
+    `/listings/${listingId}/matching-clients`,
+  );
 }
 
 export async function fetchRetentionChoices(): Promise<RetentionChoicesResponse> {

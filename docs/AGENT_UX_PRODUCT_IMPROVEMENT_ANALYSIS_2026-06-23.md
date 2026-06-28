@@ -1790,6 +1790,62 @@ Do kolejnej iteracji UX-6:
    kontekstem oferty i klienta.
 5. Dodać akcję `Zaplanuj prezentację` z prefill oferty i klienta.
 
+Status UX-6 / iteracja 5:
+
+Zrobione:
+
+1. Dodano frontendowy kontrakt API dla endpointu
+   `GET /api/listings/:id/matching-clients`.
+2. Dodano typy dla:
+   - podsumowania klienta z matchingu,
+   - score,
+   - powodów dopasowania.
+3. Dodano pobieranie pasujących klientów na profilu oferty.
+4. Dodano sekcję `Pasujący klienci` w zakładce `Przegląd` profilu oferty.
+5. Sekcja pokazuje:
+   - imię i nazwisko klienta z linkiem do profilu klienta,
+   - score dopasowania,
+   - status klienta,
+   - źródło klienta,
+   - budżet,
+   - email i telefon, jeśli są dostępne,
+   - powody dopasowania.
+6. Dodano akcję `Zaproponuj ofertę`, która otwiera dialog szablonu wiadomości z
+   kontekstem wybranego klienta i oferty.
+7. Dodano akcję `Zaplanuj prezentację`, która otwiera formularz spotkania z
+   prefill oferty, klienta i lokalizacji.
+8. Dodano stany UI:
+   - oferta nieaktywna,
+   - ładowanie dopasowań,
+   - błąd pobierania,
+   - brak pasujących klientów.
+
+Decyzje techniczne:
+
+1. Dialog wiadomości dla pasującego klienta jest oddzielony od głównego dialogu
+   wiadomości oferty, który nadal używa odbiorcy właścicielskiego.
+2. `Zaproponuj ofertę` korzysta z istniejącego `MessageTemplateDialog`, żeby nie
+   tworzyć drugiego mechanizmu renderowania treści.
+3. UI pokazuje maksymalnie 5 najlepszych klientów, mimo że backend zwraca do 10
+   wyników, aby prawa kolumna profilu oferty pozostała skanowalna.
+4. Karta ukrywa właściwe dopasowania dla nieaktywnej oferty i pokazuje jasny
+   komunikat, że matching ma sens po aktywacji oferty.
+5. Dane kontaktowe klienta są używane tylko w dashboardzie i pochodzą z
+   ograniczonego payloadu endpointu matchingowego.
+
+Do kolejnej iteracji UX-6:
+
+1. Zweryfikować kompletność MVP UX-6 po obu kierunkach:
+   - klient -> oferty,
+   - oferta -> klienci.
+2. Rozważyć model `dismissed match` dla akcji `Ukryj dopasowanie`.
+3. Rozważyć rozszerzenie `ClientPreference` o:
+   - typ transakcji,
+   - preferowaną dzielnicę.
+4. Dodać test komponentowy dla sekcji matchingowych, jeśli utrzymamy standard
+   testów komponentów dla dashboardu.
+5. Jeśli MVP UX-6 jest wystarczające, zamknąć sprint i przejść do UX-7.
+
 ### Sprint UX-7: Raport właściciela oferty
 
 Cel:

@@ -25,6 +25,8 @@ import {
   UserRound,
   Mail,
   Phone,
+  Sparkles,
+  Send,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,10 +64,12 @@ import {
 } from '@/lib/appointments';
 import {
   fetchListing,
+  fetchListingMatchingClients,
   deleteListing,
   rollbackListingStatus,
   updateListing,
   type Listing,
+  type ListingMatchingClientResult,
   type ListingStatus,
   ListingStatus as LS,
   ListingPublicationStatus,
@@ -78,6 +82,13 @@ import {
   formatArea,
   formatListingCommission,
 } from '@/lib/listings';
+import {
+  CLIENT_SOURCE_LABELS,
+  CLIENT_STATUS_LABELS,
+  formatBudgetRange,
+  type ClientSource,
+  type ClientStatus,
+} from '@/lib/clients';
 import {
   fetchTransactions,
   formatTransactionMoney,
@@ -111,6 +122,16 @@ export default function ListingDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isRollingBackStatus, setIsRollingBackStatus] = useState(false);
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [matchingClients, setMatchingClients] = useState<
+    ListingMatchingClientResult[]
+  >([]);
+  const [isMatchingClientsLoading, setIsMatchingClientsLoading] =
+    useState(true);
+  const [matchingClientsError, setMatchingClientsError] = useState<
+    string | null
+  >(null);
+  const [matchingClientMessageTarget, setMatchingClientMessageTarget] =
+    useState<ListingMatchingClientResult | null>(null);
   const [initialMessageTemplate, setInitialMessageTemplate] =
     useState<MessageTemplateType>(MessageTemplateType.DOCUMENT_REQUEST);
   const {
@@ -180,6 +201,19 @@ export default function ListingDetailPage() {
         : agentMessageContext,
     [agentMessageContext, historyItems, listing],
   );
+  const matchingClientMessageContext = useMemo<MessageTemplateContext>(
+    () =>
+      listing && matchingClientMessageTarget
+        ? buildMatchingClientMessageContext(
+            listing,
+            matchingClientMessageTarget,
+            formatDashboardListingAddress(listing.address),
+            agentMessageContext,
+            historyItems,
+          )
+        : agentMessageContext,
+    [agentMessageContext, historyItems, listing, matchingClientMessageTarget],
+  );
 
   useEffect(() => {
     if (!params.id) return;
@@ -196,6 +230,40 @@ export default function ListingDetailPage() {
         setError(err instanceof Error ? err.message : 'Nie znaleziono oferty'),
       )
       .finally(() => setIsLoading(false));
+  }, [params.id]);
+
+  useEffect(() => {
+    if (!params.id) return;
+
+    let isCancelled = false;
+    setIsMatchingClientsLoading(true);
+    setMatchingClientsError(null);
+
+    fetchListingMatchingClients(params.id)
+      .then((items) => {
+        if (!isCancelled) {
+          setMatchingClients(items);
+        }
+      })
+      .catch((err) => {
+        if (!isCancelled) {
+          setMatchingClients([]);
+          setMatchingClientsError(
+            err instanceof Error
+              ? err.message
+              : 'Nie udało się pobrać pasujących klientów',
+          );
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsMatchingClientsLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [params.id]);
 
   useEffect(() => {
@@ -591,8 +659,12 @@ export default function ListingDetailPage() {
               inquiries={listingInquiries}
               isInquiriesLoading={isListingInquiriesLoading}
               inquiriesError={listingInquiriesError}
+              matchingClients={matchingClients}
+              isMatchingClientsLoading={isMatchingClientsLoading}
+              matchingClientsError={matchingClientsError}
               onStatusChange={handleStatusChange}
               onStatusRollback={handleStatusRollback}
+              onProposeListing={setMatchingClientMessageTarget}
             />
           ) : null}
 
@@ -645,6 +717,18 @@ export default function ListingDetailPage() {
         initialTemplateType={initialMessageTemplate}
         context={listingMessageContext}
         onClose={() => setIsMessageDialogOpen(false)}
+      />
+
+      <MessageTemplateDialog
+        isOpen={Boolean(matchingClientMessageTarget)}
+        title={`Propozycja oferty: ${
+          matchingClientMessageTarget
+            ? formatMatchingClientName(matchingClientMessageTarget.client)
+            : ''
+        }`}
+        initialTemplateType={MessageTemplateType.LEAD_RESPONSE}
+        context={matchingClientMessageContext}
+        onClose={() => setMatchingClientMessageTarget(null)}
       />
     </div>
   );
@@ -740,6 +824,48 @@ function buildListingMessageContext(
   };
 }
 
+function buildMatchingClientMessageContext(
+  listing: Listing,
+  match: ListingMatchingClientResult,
+  listingAddress: string | null,
+  agentContext: MessageTemplateContext,
+  historyItems: ActivityHistoryItem[],
+): MessageTemplateContext {
+  return {
+    ...buildListingMessageContext(
+      listing,
+      listingAddress,
+      agentContext,
+      historyItems,
+    ),
+    clientName: formatMatchingClientName(match.client),
+    leadMessage:
+      'Propozycja przygotowana na podstawie preferencji klienta w CRM.',
+  };
+}
+
+function formatMatchingClientName(
+  client: ListingMatchingClientResult['client'],
+): string {
+  return [client.firstName, client.lastName].filter(Boolean).join(' ').trim();
+}
+
+function getClientStatusLabel(status: string): string {
+  return CLIENT_STATUS_LABELS[status as ClientStatus] ?? status;
+}
+
+function getClientSourceLabel(source: string): string {
+  return CLIENT_SOURCE_LABELS[source as ClientSource] ?? source;
+}
+
+function getMatchingReasonBadgeVariant(
+  type: ListingMatchingClientResult['reasons'][number]['type'],
+): 'success' | 'muted' | 'warning' {
+  if (type === 'positive') return 'success';
+  if (type === 'negative') return 'warning';
+  return 'muted';
+}
+
 function getPreviousListingPrice(
   historyItems: ActivityHistoryItem[],
   currency: string,
@@ -833,8 +959,12 @@ function ListingOverviewContent({
   inquiries,
   isInquiriesLoading,
   inquiriesError,
+  matchingClients,
+  isMatchingClientsLoading,
+  matchingClientsError,
   onStatusChange,
   onStatusRollback,
+  onProposeListing,
 }: {
   listing: Listing;
   statusActions: StatusAction[];
@@ -847,8 +977,12 @@ function ListingOverviewContent({
   inquiries: PublicInquiry[];
   isInquiriesLoading: boolean;
   inquiriesError: string | null;
+  matchingClients: ListingMatchingClientResult[];
+  isMatchingClientsLoading: boolean;
+  matchingClientsError: string | null;
   onStatusChange: (status: ListingStatus) => void;
   onStatusRollback: () => void;
+  onProposeListing: (match: ListingMatchingClientResult) => void;
 }) {
   const listingAddress = formatDashboardListingAddress(listing.address);
 
@@ -865,6 +999,14 @@ function ListingOverviewContent({
           isRollingBackStatus={isRollingBackStatus}
           onStatusChange={onStatusChange}
           onStatusRollback={onStatusRollback}
+        />
+        <ListingMatchingClientsCard
+          listing={listing}
+          listingAddress={listingAddress}
+          matches={matchingClients}
+          isLoading={isMatchingClientsLoading}
+          error={matchingClientsError}
+          onProposeListing={onProposeListing}
         />
         <ListingTransactionsCard transactions={transactions} />
         <ListingAppointmentsCard
@@ -1081,6 +1223,184 @@ function ListingTransactionsCard({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function ListingMatchingClientsCard({
+  listing,
+  listingAddress,
+  matches,
+  isLoading,
+  error,
+  onProposeListing,
+}: {
+  listing: Listing;
+  listingAddress: string | null;
+  matches: ListingMatchingClientResult[];
+  isLoading: boolean;
+  error: string | null;
+  onProposeListing: (match: ListingMatchingClientResult) => void;
+}) {
+  if (listing.status !== LS.ACTIVE) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="font-heading text-base font-semibold text-foreground">
+            Pasujący klienci
+          </h3>
+          <Sparkles className="h-4 w-4 text-primary" />
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Dopasowania klientów będą dostępne po ustawieniu oferty jako aktywnej.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-heading text-base font-semibold text-foreground">
+          Pasujący klienci
+        </h3>
+        <Badge variant="secondary" className="rounded-full">
+          {matches.length}
+        </Badge>
+      </div>
+
+      {isLoading ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Szukam klientów pasujących do oferty...
+        </p>
+      ) : error ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Nie udało się pobrać pasujących klientów.
+        </p>
+      ) : matches.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Brak klientów spełniających obecne parametry oferty.
+        </p>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {matches.slice(0, 5).map((match) => (
+            <ListingMatchingClientItem
+              key={match.client.id}
+              listing={listing}
+              listingAddress={listingAddress}
+              match={match}
+              onProposeListing={onProposeListing}
+            />
+          ))}
+          {matches.length > 5 ? (
+            <p className="text-xs text-muted-foreground">
+              Pokazano 5 z {matches.length} najlepszych dopasowań.
+            </p>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ListingMatchingClientItem({
+  listing,
+  listingAddress,
+  match,
+  onProposeListing,
+}: {
+  listing: Listing;
+  listingAddress: string | null;
+  match: ListingMatchingClientResult;
+  onProposeListing: (match: ListingMatchingClientResult) => void;
+}) {
+  const { client } = match;
+  const clientName = formatMatchingClientName(client);
+  const scheduleUrl = buildNewAppointmentUrl({
+    clientId: client.id,
+    clientLabel: clientName,
+    listingId: listing.id,
+    listingLabel: listing.title,
+    location: listingAddress,
+  });
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-muted/10 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/dashboard/clients/${client.id}`}
+              className="truncate text-sm font-medium text-foreground hover:text-primary"
+            >
+              {clientName}
+            </Link>
+            <Badge variant="success">{Math.round(match.score)}%</Badge>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {getClientStatusLabel(client.status)} ·{' '}
+            {getClientSourceLabel(client.source)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Budżet: {formatBudgetRange(client.budgetMin, client.budgetMax)}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {match.reasons.map((reason) => (
+          <Badge
+            key={`${client.id}-${reason.code}`}
+            variant={getMatchingReasonBadgeVariant(reason.type)}
+          >
+            {reason.label}
+          </Badge>
+        ))}
+      </div>
+
+      <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
+        {client.email ? (
+          <a
+            href={`mailto:${client.email}`}
+            className="inline-flex items-center gap-1.5 hover:text-foreground"
+          >
+            <Mail className="h-3.5 w-3.5" />
+            {client.email}
+          </a>
+        ) : null}
+        {client.phone ? (
+          <a
+            href={buildPhoneHref(client.phone)}
+            className="inline-flex items-center gap-1.5 hover:text-foreground"
+          >
+            <Phone className="h-3.5 w-3.5" />
+            {client.phone}
+          </a>
+        ) : null}
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="justify-start gap-1.5 rounded-xl"
+          onClick={() => onProposeListing(match)}
+        >
+          <Send className="h-3.5 w-3.5" />
+          Zaproponuj ofertę
+        </Button>
+        <Link href={scheduleUrl}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start gap-1.5 rounded-xl"
+          >
+            <Calendar className="h-3.5 w-3.5" />
+            Zaplanuj prezentację
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 }
