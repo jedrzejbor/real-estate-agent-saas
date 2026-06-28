@@ -27,6 +27,7 @@ import {
   Phone,
   Sparkles,
   Send,
+  EyeOff,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -65,6 +66,7 @@ import {
 import {
   fetchListing,
   fetchListingMatchingClients,
+  dismissListingMatchingClient,
   deleteListing,
   rollbackListingStatus,
   updateListing,
@@ -130,6 +132,8 @@ export default function ListingDetailPage() {
   const [matchingClientsError, setMatchingClientsError] = useState<
     string | null
   >(null);
+  const [dismissingMatchingClientIds, setDismissingMatchingClientIds] =
+    useState<Set<string>>(() => new Set());
   const [matchingClientMessageTarget, setMatchingClientMessageTarget] =
     useState<ListingMatchingClientResult | null>(null);
   const [initialMessageTemplate, setInitialMessageTemplate] =
@@ -284,6 +288,42 @@ export default function ListingDetailPage() {
       refreshListingActivity();
     },
     [refreshListingActivity],
+  );
+
+  const handleDismissMatchingClient = useCallback(
+    async (clientId: string) => {
+      if (!listing) return;
+
+      setDismissingMatchingClientIds((current) => {
+        const next = new Set(current);
+        next.add(clientId);
+        return next;
+      });
+
+      try {
+        await dismissListingMatchingClient(listing.id, clientId);
+        setMatchingClients((items) =>
+          items.filter((item) => item.client.id !== clientId),
+        );
+        showSuccessToast({
+          title: 'Dopasowanie ukryte',
+          description: 'Klient nie będzie już widoczny w dopasowaniach oferty.',
+        });
+      } catch (err) {
+        showErrorToast({
+          title: 'Nie udało się ukryć dopasowania',
+          description:
+            err instanceof Error ? err.message : 'Spróbuj ponownie za chwilę.',
+        });
+      } finally {
+        setDismissingMatchingClientIds((current) => {
+          const next = new Set(current);
+          next.delete(clientId);
+          return next;
+        });
+      }
+    },
+    [listing, showErrorToast, showSuccessToast],
   );
 
   const openListingMessageDialog = useCallback(
@@ -662,9 +702,11 @@ export default function ListingDetailPage() {
               matchingClients={matchingClients}
               isMatchingClientsLoading={isMatchingClientsLoading}
               matchingClientsError={matchingClientsError}
+              dismissingMatchingClientIds={dismissingMatchingClientIds}
               onStatusChange={handleStatusChange}
               onStatusRollback={handleStatusRollback}
               onProposeListing={setMatchingClientMessageTarget}
+              onDismissMatchingClient={handleDismissMatchingClient}
             />
           ) : null}
 
@@ -962,9 +1004,11 @@ function ListingOverviewContent({
   matchingClients,
   isMatchingClientsLoading,
   matchingClientsError,
+  dismissingMatchingClientIds,
   onStatusChange,
   onStatusRollback,
   onProposeListing,
+  onDismissMatchingClient,
 }: {
   listing: Listing;
   statusActions: StatusAction[];
@@ -980,9 +1024,11 @@ function ListingOverviewContent({
   matchingClients: ListingMatchingClientResult[];
   isMatchingClientsLoading: boolean;
   matchingClientsError: string | null;
+  dismissingMatchingClientIds: Set<string>;
   onStatusChange: (status: ListingStatus) => void;
   onStatusRollback: () => void;
   onProposeListing: (match: ListingMatchingClientResult) => void;
+  onDismissMatchingClient: (clientId: string) => void;
 }) {
   const listingAddress = formatDashboardListingAddress(listing.address);
 
@@ -1006,7 +1052,9 @@ function ListingOverviewContent({
           matches={matchingClients}
           isLoading={isMatchingClientsLoading}
           error={matchingClientsError}
+          dismissingClientIds={dismissingMatchingClientIds}
           onProposeListing={onProposeListing}
+          onDismissClient={onDismissMatchingClient}
         />
         <ListingTransactionsCard transactions={transactions} />
         <ListingAppointmentsCard
@@ -1233,14 +1281,18 @@ function ListingMatchingClientsCard({
   matches,
   isLoading,
   error,
+  dismissingClientIds,
   onProposeListing,
+  onDismissClient,
 }: {
   listing: Listing;
   listingAddress: string | null;
   matches: ListingMatchingClientResult[];
   isLoading: boolean;
   error: string | null;
+  dismissingClientIds: Set<string>;
   onProposeListing: (match: ListingMatchingClientResult) => void;
+  onDismissClient: (clientId: string) => void;
 }) {
   if (listing.status !== LS.ACTIVE) {
     return (
@@ -1289,7 +1341,9 @@ function ListingMatchingClientsCard({
               listing={listing}
               listingAddress={listingAddress}
               match={match}
+              isDismissing={dismissingClientIds.has(match.client.id)}
               onProposeListing={onProposeListing}
+              onDismiss={() => onDismissClient(match.client.id)}
             />
           ))}
           {matches.length > 5 ? (
@@ -1307,12 +1361,16 @@ function ListingMatchingClientItem({
   listing,
   listingAddress,
   match,
+  isDismissing,
   onProposeListing,
+  onDismiss,
 }: {
   listing: Listing;
   listingAddress: string | null;
   match: ListingMatchingClientResult;
+  isDismissing: boolean;
   onProposeListing: (match: ListingMatchingClientResult) => void;
+  onDismiss: () => void;
 }) {
   const { client } = match;
   const clientName = formatMatchingClientName(client);
@@ -1400,6 +1458,17 @@ function ListingMatchingClientItem({
             Zaplanuj prezentację
           </Button>
         </Link>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="justify-start gap-1.5 rounded-xl text-muted-foreground hover:text-foreground"
+          onClick={onDismiss}
+          disabled={isDismissing}
+        >
+          <EyeOff className="h-3.5 w-3.5" />
+          {isDismissing ? 'Ukrywanie...' : 'Ukryj'}
+        </Button>
       </div>
     </div>
   );

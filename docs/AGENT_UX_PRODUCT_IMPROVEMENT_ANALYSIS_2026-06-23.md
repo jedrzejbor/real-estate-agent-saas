@@ -1901,6 +1901,79 @@ Do kolejnej iteracji UX-6:
    będzie wspierał akcje. Trwałe przywracanie można zrobić osobnym endpointem,
    jeśli agent będzie tego realnie potrzebował.
 
+Status UX-6 / iteracja 7:
+
+Zrobione:
+
+1. Dodano przycisk `Ukryj` w sekcji `Pasujące oferty` na profilu klienta.
+2. Dodano przycisk `Ukryj` w sekcji `Pasujący klienci` na profilu oferty.
+3. Obie akcje korzystają z endpointów dodanych w iteracji 6:
+   - `POST /api/clients/:id/matching-listings/:listingId/dismiss`,
+   - `POST /api/listings/:id/matching-clients/:clientId/dismiss`.
+4. Po udanym ukryciu element jest usuwany lokalnie z listy bez przeładowania
+   całego profilu.
+5. Dodano stan blokady przycisku dla aktualnie ukrywanego dopasowania, żeby
+   uniknąć podwójnych kliknięć.
+6. Dodano toast sukcesu po ukryciu dopasowania.
+7. Dodano toast błędu, jeśli zapis ukrycia się nie powiedzie.
+
+Decyzje techniczne:
+
+1. Nie dodano confirm-dialogu dla `Ukryj`, bo akcja porządkuje listę
+   rekomendacji i nie usuwa klienta ani oferty.
+2. UI nie wykonuje pełnego refetch profilu po ukryciu. Lokalna aktualizacja
+   listy jest wystarczająca, bo backend zapisuje trwałe ukrycie, a kolejne
+   wejście na profil pobierze już przefiltrowane wyniki.
+3. Nie dodano jeszcze `Cofnij`, ponieważ obecny system toastów nie ma
+   ustandaryzowanej akcji inline. Przywracanie ukrytego dopasowania powinno być
+   osobnym zakresem, jeśli pojawi się realna potrzeba użytkowników.
+
+Status UX-6 / zamknięcie MVP:
+
+Decyzja:
+UX-6 MVP można uznać za zakończony.
+
+Zakres MVP pokryty:
+
+1. Matching klient -> oferty:
+   - backend,
+   - frontend,
+   - score,
+   - powody dopasowania,
+   - akcja `Zaplanuj prezentację`,
+   - akcja `Ukryj`.
+2. Matching oferta -> klienci:
+   - backend,
+   - frontend,
+   - score,
+   - powody dopasowania,
+   - akcja `Zaproponuj ofertę`,
+   - akcja `Zaplanuj prezentację`,
+   - akcja `Ukryj`.
+3. Scoring:
+   - deterministyczny,
+   - testowany,
+   - oparty o istniejące preferencje klienta,
+   - odporny na brak części danych.
+4. Bezpieczeństwo:
+   - endpointy sprawdzają scope po `agentId`,
+   - payloady są ograniczone do danych potrzebnych UI,
+   - ukrycie dopasowania nie pozwala operować na kliencie albo ofercie spoza
+     scope agenta.
+
+Świadomie przeniesione poza UX-6 MVP:
+
+1. Preferowany typ transakcji w `ClientPreference`.
+2. Preferowana dzielnica w `ClientPreference`.
+3. Cofanie ukrytego dopasowania.
+4. Testy komponentowe sekcji matchingowych.
+5. Rozszerzenie scope z pojedynczego `agentId` na pełny model multi-agent
+   agencji, jeśli produktowo zdecydujemy się na współdzielenie klientów i ofert
+   w zespole.
+
+Następny krok:
+Przejść do UX-7: raport właściciela oferty.
+
 ### Sprint UX-7: Raport właściciela oferty
 
 Cel:

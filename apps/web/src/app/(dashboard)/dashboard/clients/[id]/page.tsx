@@ -18,6 +18,7 @@ import {
   Home,
   Ruler,
   BedDouble,
+  EyeOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +61,7 @@ import {
 import {
   fetchClient,
   fetchClientMatchingListings,
+  dismissClientMatchingListing,
   deleteClient,
   rollbackClientStatus,
   updateClient,
@@ -107,6 +109,8 @@ export default function ClientDetailPage() {
   const [matchingListingsError, setMatchingListingsError] = useState<
     string | null
   >(null);
+  const [dismissingMatchingListingIds, setDismissingMatchingListingIds] =
+    useState<Set<string>>(() => new Set());
   const {
     items: historyItems,
     isLoading: isHistoryLoading,
@@ -208,6 +212,43 @@ export default function ClientDetailPage() {
     void refreshHistory();
     void refreshActivity();
   }, [refreshActivity, refreshHistory]);
+
+  const handleDismissMatchingListing = useCallback(
+    async (listingId: string) => {
+      if (!client) return;
+
+      setDismissingMatchingListingIds((current) => {
+        const next = new Set(current);
+        next.add(listingId);
+        return next;
+      });
+
+      try {
+        await dismissClientMatchingListing(client.id, listingId);
+        setMatchingListings((items) =>
+          items.filter((item) => item.listing.id !== listingId),
+        );
+        showSuccessToast({
+          title: 'Dopasowanie ukryte',
+          description:
+            'Oferta nie będzie już widoczna w dopasowaniach klienta.',
+        });
+      } catch (err) {
+        showErrorToast({
+          title: 'Nie udało się ukryć dopasowania',
+          description:
+            err instanceof Error ? err.message : 'Spróbuj ponownie za chwilę.',
+        });
+      } finally {
+        setDismissingMatchingListingIds((current) => {
+          const next = new Set(current);
+          next.delete(listingId);
+          return next;
+        });
+      }
+    },
+    [client, showErrorToast, showSuccessToast],
+  );
 
   const handleDelete = useCallback(async () => {
     if (!client) return;
@@ -469,6 +510,8 @@ export default function ClientDetailPage() {
             listings={matchingListings}
             isLoading={isMatchingListingsLoading}
             error={matchingListingsError}
+            dismissingListingIds={dismissingMatchingListingIds}
+            onDismissListing={handleDismissMatchingListing}
           />
 
           {/* Notes timeline */}
@@ -649,11 +692,15 @@ function MatchingListingsCard({
   listings,
   isLoading,
   error,
+  dismissingListingIds,
+  onDismissListing,
 }: {
   client: Client;
   listings: MatchingListingResult[];
   isLoading: boolean;
   error: string | null;
+  dismissingListingIds: Set<string>;
+  onDismissListing: (listingId: string) => void;
 }) {
   const hasPreferences = hasClientMatchingPreferences(client.preference);
 
@@ -691,6 +738,8 @@ function MatchingListingsCard({
               key={item.listing.id}
               client={client}
               match={item}
+              isDismissing={dismissingListingIds.has(item.listing.id)}
+              onDismiss={() => onDismissListing(item.listing.id)}
             />
           ))}
           {listings.length > 5 ? (
@@ -707,9 +756,13 @@ function MatchingListingsCard({
 function MatchingListingItem({
   client,
   match,
+  isDismissing,
+  onDismiss,
 }: {
   client: Client;
   match: MatchingListingResult;
+  isDismissing: boolean;
+  onDismiss: () => void;
 }) {
   const { listing } = match;
   const scheduleUrl = buildNewAppointmentUrl({
@@ -781,6 +834,17 @@ function MatchingListingItem({
               Zaplanuj prezentację
             </Button>
           </Link>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="justify-start gap-1.5 rounded-xl text-muted-foreground hover:text-foreground"
+            onClick={onDismiss}
+            disabled={isDismissing}
+          >
+            <EyeOff className="h-3.5 w-3.5" />
+            {isDismissing ? 'Ukrywanie...' : 'Ukryj'}
+          </Button>
         </div>
       </div>
     </div>
