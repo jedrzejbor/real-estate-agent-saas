@@ -2031,6 +2031,54 @@ Do przyszłego backlogu:
 3. Rozważyć testy komponentowe formularza klienta i kart matchingowych, gdy
    standard testów komponentów dashboardu zostanie ustalony.
 
+Status UX-6 / iteracja 9 - migracja schematu:
+
+Zrobione:
+
+1. Dodano ręczną migrację SQL:
+   `apps/api/migrations/20260628_matching_preferences_and_dismissals.sql`.
+2. Migracja dodaje typ enum:
+   - `client_preference_transaction_type`.
+3. Migracja dodaje kolumny w `client_preferences`:
+   - `transaction_type`,
+   - `preferred_district`.
+4. Migracja tworzy tabelę `matching_dismissals` dla trwałego ukrywania
+   dopasowań klient-oferta.
+5. Migracja dodaje unikalność:
+   - `agent_id`,
+   - `client_id`,
+   - `listing_id`.
+6. Migracja dodaje indeksy pod odczyt ukryć:
+   - po agencie,
+   - po kliencie,
+   - po ofercie,
+   - po parach `agent + client`,
+   - po parach `agent + listing`.
+7. Migracja zawiera kompatybilność dla lokalnych środowisk, w których
+   `TYPEORM_SYNCHRONIZE=true` mogło wcześniej utworzyć kolumny camelCase:
+   - `transactionType`,
+   - `preferredDistrict`.
+8. Dopasowano encje backendowe do docelowych nazw kolumn snake_case:
+   - `ClientPreference.transactionType -> transaction_type`,
+   - `ClientPreference.preferredDistrict -> preferred_district`,
+   - `MatchingDismissal.agentId -> agent_id`,
+   - `MatchingDismissal.clientId -> client_id`,
+   - `MatchingDismissal.listingId -> listing_id`.
+
+Decyzje techniczne:
+
+1. Dla nowych pól preferencji używamy snake_case w bazie, zgodnie z ręcznymi
+   migracjami projektu.
+2. Migracja jest idempotentna i może być uruchomiona ponownie bez niszczenia
+   danych.
+3. `matching_dismissals` ma osobną tabelę zamiast pola JSON przy kliencie albo
+   ofercie, ponieważ ukrycie jest relacją pary klient-oferta i wymaga szybkiego
+   filtrowania z obu kierunków.
+
+Status:
+UX-6 pozostaje zamknięty funkcjonalnie. Iteracja 9 domyka ryzyko wdrożenia
+schematu bazy danych po rozszerzeniach z iteracji 6 i 8.
+
 ### Sprint UX-7: Raport właściciela oferty
 
 Cel:

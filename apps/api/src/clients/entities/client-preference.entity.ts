@@ -16,7 +16,13 @@ export class ClientPreference {
   @Column({ type: 'enum', enum: PropertyType, nullable: true })
   propertyType: PropertyType;
 
-  @Column({ type: 'enum', enum: TransactionType, nullable: true })
+  @Column({
+    type: 'enum',
+    enum: TransactionType,
+    enumName: 'client_preference_transaction_type',
+    name: 'transaction_type',
+    nullable: true,
+  })
   transactionType: TransactionType;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
@@ -28,7 +34,12 @@ export class ClientPreference {
   @Column({ type: 'varchar', length: 255, nullable: true })
   preferredCity: string;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'preferred_district',
+    nullable: true,
+  })
   preferredDistrict: string;
 
   @Column({ type: 'smallint', nullable: true })

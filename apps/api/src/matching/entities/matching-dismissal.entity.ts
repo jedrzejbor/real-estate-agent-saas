@@ -23,7 +23,7 @@ export class MatchingDismissal {
   agent: Agent;
 
   @Index()
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', name: 'agent_id' })
   agentId: string;
 
   @ManyToOne(() => Client, { onDelete: 'CASCADE' })
@@ -31,7 +31,7 @@ export class MatchingDismissal {
   client: Client;
 
   @Index()
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', name: 'client_id' })
   clientId: string;
 
   @ManyToOne(() => Listing, { onDelete: 'CASCADE' })
@@ -39,7 +39,7 @@ export class MatchingDismissal {
   listing: Listing;
 
   @Index()
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', name: 'listing_id' })
   listingId: string;
 
   @Column({ type: 'text', nullable: true })
