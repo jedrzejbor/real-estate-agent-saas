@@ -39,7 +39,11 @@ import {
   ListingPublicationStatus,
   ListingStatus,
 } from '../common/enums';
-import { MatchingService, type MatchingReason } from '../matching';
+import {
+  MatchingDismissal,
+  MatchingService,
+  type MatchingReason,
+} from '../matching';
 import {
   calculateListingCommissionAmount,
   normalizeListingCommissionInput,
@@ -286,6 +290,9 @@ export class ListingsService {
     private readonly clientRepo?: Repository<Client>,
     @Optional()
     private readonly matchingService?: MatchingService,
+    @Optional()
+    @InjectRepository(MatchingDismissal)
+    private readonly matchingDismissalRepo?: Repository<MatchingDismissal>,
   ) {}
 
   // ── Create ──
@@ -399,6 +406,10 @@ export class ListingsService {
 
     const clientRepo = this.requireClientRepository();
     const matchingService = this.requireMatchingService();
+    const dismissedClientIds = await this.findDismissedClientIds(
+      listing.agentId,
+      listing.id,
+    );
     const clients = await clientRepo.find({
       where: {
         agentId: listing.agentId,
@@ -414,6 +425,7 @@ export class ListingsService {
     });
 
     return clients
+      .filter((client) => !dismissedClientIds.has(client.id))
       .map((client) => ({
         client: this.toMatchingClientSummary(client),
         match: matchingService.scoreClientListingMatch(client, listing),
@@ -426,6 +438,28 @@ export class ListingsService {
         score: item.match.score,
         reasons: item.match.reasons.slice(0, 3),
       }));
+  }
+
+  async dismissMatchingClient(
+    id: string,
+    clientId: string,
+    userId: string,
+  ): Promise<void> {
+    const listing = await this.findOneOrFail(id);
+    await this.assertOwnership(listing, userId);
+
+    const clientRepo = this.requireClientRepository();
+    const client = await clientRepo.findOne({
+      where: { id: clientId },
+    });
+    if (!client) {
+      throw new NotFoundException('Klient nie znaleziony');
+    }
+    if (client.agentId !== listing.agentId) {
+      throw new ForbiddenException('Brak dostępu do tego klienta');
+    }
+
+    await this.upsertMatchingDismissal(listing.agentId, client.id, listing.id);
   }
 
   async findHistory(id: string, userId: string) {
@@ -2489,6 +2523,43 @@ export class ListingsService {
     }
 
     return this.matchingService;
+  }
+
+  private async findDismissedClientIds(
+    agentId: string,
+    listingId: string,
+  ): Promise<Set<string>> {
+    if (!this.matchingDismissalRepo) return new Set();
+
+    const dismissals = await this.matchingDismissalRepo.find({
+      where: { agentId, listingId },
+      select: ['clientId'],
+    });
+
+    return new Set(dismissals.map((dismissal) => dismissal.clientId));
+  }
+
+  private async upsertMatchingDismissal(
+    agentId: string,
+    clientId: string,
+    listingId: string,
+  ): Promise<void> {
+    if (!this.matchingDismissalRepo) {
+      throw new Error('Matching dismissal repository is not configured');
+    }
+
+    const existing = await this.matchingDismissalRepo.findOne({
+      where: { agentId, clientId, listingId },
+    });
+    if (existing) return;
+
+    await this.matchingDismissalRepo.save(
+      this.matchingDismissalRepo.create({
+        agentId,
+        clientId,
+        listingId,
+      }),
+    );
   }
 
   /** Verify the listing belongs to the current user's agent profile. */

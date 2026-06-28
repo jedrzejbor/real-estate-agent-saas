@@ -97,14 +97,72 @@ describe('ListingsService matching clients', () => {
     ).rejects.toThrow('Brak dostępu do tej oferty');
     expect(clientRepo.find).not.toHaveBeenCalled();
   });
+
+  it('filters dismissed client matches', async () => {
+    const clientRepo = {
+      find: jest
+        .fn()
+        .mockResolvedValue([
+          buildClient({ id: 'client-visible' }),
+          buildClient({ id: 'client-dismissed' }),
+        ]),
+    };
+    const matchingDismissalRepo = {
+      find: jest.fn().mockResolvedValue([{ clientId: 'client-dismissed' }]),
+    };
+    const service = buildService({ clientRepo, matchingDismissalRepo });
+
+    const result = await service.findMatchingClients('listing-1', 'user-1');
+
+    expect(matchingDismissalRepo.find).toHaveBeenCalledWith({
+      where: { agentId: 'agent-1', listingId: 'listing-1' },
+      select: ['clientId'],
+    });
+    expect(result.map((item) => item.client.id)).toEqual(['client-visible']);
+  });
+
+  it('dismisses a client match only inside the listing scope', async () => {
+    const matchingDismissalRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn((input) => input),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+    const service = buildService({
+      clientRepo: {
+        find: jest.fn(),
+        findOne: jest.fn().mockResolvedValue(buildClient({ id: 'client-1' })),
+      },
+      matchingDismissalRepo,
+    });
+
+    await service.dismissMatchingClient('listing-1', 'client-1', 'user-1');
+
+    expect(matchingDismissalRepo.save).toHaveBeenCalledWith({
+      agentId: 'agent-1',
+      clientId: 'client-1',
+      listingId: 'listing-1',
+    });
+  });
 });
 
 function buildService({
-  listingRepo,
-  clientRepo,
+  listingRepo = {
+    findOne: jest.fn().mockResolvedValue(buildListing()),
+  },
+  clientRepo = {
+    find: jest.fn().mockResolvedValue([]),
+    findOne: jest.fn(),
+  },
+  matchingDismissalRepo,
 }: {
-  listingRepo: { findOne: jest.Mock };
-  clientRepo: { find: jest.Mock };
+  listingRepo?: { findOne: jest.Mock };
+  clientRepo?: { find?: jest.Mock; findOne?: jest.Mock };
+  matchingDismissalRepo?: {
+    find?: jest.Mock;
+    findOne?: jest.Mock;
+    create?: jest.Mock;
+    save?: jest.Mock;
+  };
 }) {
   return new ListingsService(
     listingRepo as never,
@@ -127,6 +185,7 @@ function buildService({
     {} as never,
     clientRepo as never,
     new MatchingService(),
+    matchingDismissalRepo as never,
   );
 }
 

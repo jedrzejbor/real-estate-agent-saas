@@ -83,6 +83,17 @@ export class ClientsController {
     return this.clientsService.findMatchingListings(id, userId);
   }
 
+  /** POST /api/clients/:id/matching-listings/:listingId/dismiss — hide one listing match for this client. */
+  @Post(':id/matching-listings/:listingId/dismiss')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async dismissMatchingListing(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('listingId', ParseUUIDPipe) listingId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    await this.clientsService.dismissMatchingListing(id, listingId, userId);
+  }
+
   /** GET /api/clients/:id — get single client with notes & preference. */
   @Get(':id')
   async findOne(

@@ -16,6 +16,7 @@ import { UsersModule } from '../users';
 import { ActivityModule } from '../activity';
 import { MonitoringModule } from '../monitoring';
 import { MatchingModule } from '../matching';
+import { MatchingDismissal } from '../matching/entities';
 import { ListingsService } from './listings.service';
 import { ListingsController } from './listings.controller';
 
@@ -34,6 +35,7 @@ import { ListingsController } from './listings.controller';
       PublicLead,
       Task,
       AgencyRetainedListingChoice,
+      MatchingDismissal,
     ]),
     UsersModule,
     ActivityModule,

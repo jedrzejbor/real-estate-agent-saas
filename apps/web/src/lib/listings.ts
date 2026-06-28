@@ -770,6 +770,16 @@ export async function fetchListingMatchingClients(
   );
 }
 
+export async function dismissListingMatchingClient(
+  listingId: string,
+  clientId: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/listings/${listingId}/matching-clients/${clientId}/dismiss`,
+    { method: 'POST' },
+  );
+}
+
 export async function fetchRetentionChoices(): Promise<RetentionChoicesResponse> {
   return apiFetch<RetentionChoicesResponse>('/listings/retention-choices');
 }

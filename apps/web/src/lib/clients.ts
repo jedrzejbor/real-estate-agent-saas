@@ -278,6 +278,16 @@ export async function fetchClientMatchingListings(
   );
 }
 
+export async function dismissClientMatchingListing(
+  clientId: string,
+  listingId: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/clients/${clientId}/matching-listings/${listingId}/dismiss`,
+    { method: 'POST' },
+  );
+}
+
 export async function createClient(
   data: CreateClientFormData,
 ): Promise<Client> {

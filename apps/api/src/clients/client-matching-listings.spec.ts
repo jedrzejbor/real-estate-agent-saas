@@ -81,14 +81,83 @@ describe('ClientsService matching listings', () => {
       service.findMatchingListings('client-1', 'user-1'),
     ).rejects.toThrow('Brak dostępu do tego klienta');
   });
+
+  it('filters dismissed listing matches', async () => {
+    const listingRepo = {
+      find: jest
+        .fn()
+        .mockResolvedValue([
+          buildListing({ id: 'listing-visible' }),
+          buildListing({ id: 'listing-dismissed' }),
+        ]),
+    };
+    const matchingDismissalRepo = {
+      find: jest.fn().mockResolvedValue([{ listingId: 'listing-dismissed' }]),
+    };
+    const service = buildService({ listingRepo, matchingDismissalRepo });
+
+    const result = await service.findMatchingListings('client-1', 'user-1');
+
+    expect(matchingDismissalRepo.find).toHaveBeenCalledWith({
+      where: { agentId: 'agent-1', clientId: 'client-1' },
+      select: ['listingId'],
+    });
+    expect(result.map((item) => item.listing.id)).toEqual(['listing-visible']);
+  });
+
+  it('dismisses a listing match only inside the client scope', async () => {
+    const matchingDismissalRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn((input) => input),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+    const service = buildService({
+      listingRepo: {
+        find: jest.fn(),
+        findOne: jest.fn().mockResolvedValue(buildListing({ id: 'listing-1' })),
+      },
+      matchingDismissalRepo,
+    });
+
+    await service.dismissMatchingListing('client-1', 'listing-1', 'user-1');
+
+    expect(matchingDismissalRepo.save).toHaveBeenCalledWith({
+      agentId: 'agent-1',
+      clientId: 'client-1',
+      listingId: 'listing-1',
+    });
+  });
 });
 
 function buildService({
-  clientRepo,
-  listingRepo,
+  clientRepo = {
+    findOne: jest.fn().mockResolvedValue({
+      id: 'client-1',
+      agentId: 'agent-1',
+      budgetMax: 900000,
+      preference: {
+        propertyType: PropertyType.APARTMENT,
+        preferredCity: 'Warszawa',
+        minArea: 50,
+        maxPrice: 900000,
+        minRooms: 2,
+      },
+    }),
+  },
+  listingRepo = {
+    find: jest.fn().mockResolvedValue([]),
+    findOne: jest.fn(),
+  },
+  matchingDismissalRepo,
 }: {
-  clientRepo: { findOne: jest.Mock };
-  listingRepo: { find: jest.Mock };
+  clientRepo?: { findOne: jest.Mock };
+  listingRepo?: { find?: jest.Mock; findOne?: jest.Mock };
+  matchingDismissalRepo?: {
+    find?: jest.Mock;
+    findOne?: jest.Mock;
+    create?: jest.Mock;
+    save?: jest.Mock;
+  };
 }) {
   return new ClientsService(
     clientRepo as never,
@@ -106,6 +175,7 @@ function buildService({
     {} as never,
     {} as never,
     new MatchingService(),
+    matchingDismissalRepo as never,
   );
 }
 

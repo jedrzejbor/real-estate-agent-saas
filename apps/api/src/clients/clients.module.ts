@@ -12,6 +12,7 @@ import { UsersModule } from '../users';
 import { ActivityModule } from '../activity';
 import { MonitoringModule } from '../monitoring';
 import { MatchingModule } from '../matching';
+import { MatchingDismissal } from '../matching/entities';
 import { ClientsService } from './clients.service';
 import { ClientsController } from './clients.controller';
 
@@ -26,6 +27,7 @@ import { ClientsController } from './clients.controller';
       Task,
       Agent,
       Listing,
+      MatchingDismissal,
     ]),
     UsersModule,
     ActivityModule,

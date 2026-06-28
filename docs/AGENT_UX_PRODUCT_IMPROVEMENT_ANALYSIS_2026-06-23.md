@@ -1846,6 +1846,61 @@ Do kolejnej iteracji UX-6:
    testów komponentów dla dashboardu.
 5. Jeśli MVP UX-6 jest wystarczające, zamknąć sprint i przejść do UX-7.
 
+Status UX-6 / iteracja 6:
+
+Zrobione:
+
+1. Dodano backendowy model `MatchingDismissal` dla trwałego ukrywania pary
+   klient-oferta.
+2. Model zapisuje:
+   - `agentId`,
+   - `clientId`,
+   - `listingId`,
+   - opcjonalny `reason`,
+   - datę utworzenia.
+3. Dodano unikalność na parze `agentId + clientId + listingId`, żeby ukrycie
+   było idempotentne i odporne na wieloklik.
+4. Dodano endpoint:
+   `POST /api/clients/:id/matching-listings/:listingId/dismiss`.
+5. Dodano endpoint:
+   `POST /api/listings/:id/matching-clients/:clientId/dismiss`.
+6. `ClientsService.findMatchingListings` filtruje ukryte oferty dla danego
+   klienta.
+7. `ListingsService.findMatchingClients` filtruje ukrytych klientów dla danej
+   oferty.
+8. Dodano frontendowe funkcje API:
+   - `dismissClientMatchingListing`,
+   - `dismissListingMatchingClient`.
+9. Dodano testy dla:
+   - filtrowania ukrytych ofert na profilu klienta,
+   - filtrowania ukrytych klientów na profilu oferty,
+   - zapisu ukrycia z kontrolą scope klienta,
+   - zapisu ukrycia z kontrolą scope oferty.
+
+Decyzje techniczne:
+
+1. Ukrycie dotyczy pary klient-oferta, a nie osobnego kierunku widoku. Jeśli
+   agent ukryje dopasowanie na profilu klienta, ta sama para nie pojawi się też
+   jako pasujący klient na profilu oferty.
+2. Endpointy zapisu nie zwracają payloadu i używają `204 No Content`.
+3. Zapis ukrycia sprawdza scope po `agentId`, żeby nie dało się ukryć relacji
+   klienta albo oferty z innego konta agenta.
+4. Odczyt ukryć jest wykonywany przed scoringiem, żeby nie liczyć punktów dla
+   kandydatów, których agent już odrzucił.
+5. W tej iteracji nie dodano jeszcze przycisków `Ukryj` w UI. Najpierw
+   ustabilizowano backend, endpointy, filtrowanie i kontrakty frontendowe.
+
+Do kolejnej iteracji UX-6:
+
+1. Dodać przycisk `Ukryj` w sekcji `Pasujące oferty` na profilu klienta.
+2. Dodać przycisk `Ukryj` w sekcji `Pasujący klienci` na profilu oferty.
+3. Po udanym ukryciu usuwać pozycję lokalnie z listy bez pełnego przeładowania
+   profilu.
+4. Dodać toast potwierdzający ukrycie.
+5. Rozważyć małą akcję `Cofnij` tylko lokalnie w toaście, jeśli system toastów
+   będzie wspierał akcje. Trwałe przywracanie można zrobić osobnym endpointem,
+   jeśli agent będzie tego realnie potrzebował.
+
 ### Sprint UX-7: Raport właściciela oferty
 
 Cel:
