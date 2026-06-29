@@ -2366,6 +2366,45 @@ Do kolejnej iteracji UX-7:
 2. Rozważyć automatyczne logowanie wysłania raportu jako aktywności oferty,
    jeśli wprowadzimy docelową wysyłkę email/SMS.
 
+Status UX-7 / iteracja 6 - print polish i nota prywatności:
+
+Zrobione:
+
+1. Doprecyzowano widok drukowalny raportu bez dokładania eksportu PDF.
+2. Sekcje raportu dostały `break-inside-avoid`, żeby ograniczyć nieczytelne
+   rozcinanie kart między stronami podczas drukowania.
+3. Dodano stopkę raportu z krótką notą:
+   - raport bazuje na danych operacyjnych z EstateFlow,
+   - liczby mają charakter informacyjny,
+   - raport wspiera rozmowę o dalszych działaniach sprzedażowych.
+4. Dodano jasną notę prywatności:
+   - raport nie zawiera danych osobowych leadów,
+   - raport nie pokazuje technicznych danych analitycznych,
+   - szczegółowe dane kontaktowe pozostają w prywatnym CRM agenta.
+
+Decyzje techniczne:
+
+1. Nie dodajemy PDF w tej iteracji. Aktualny zakres daje agentowi działający
+   raport do pokazania, wydrukowania, skopiowania i omówienia z właścicielem.
+2. Print polish jest rozwiązany w UI, bez osobnego silnika renderowania
+   dokumentów i bez dodatkowych zależności.
+3. Nota prywatności jest częścią raportu, ponieważ raport może być pokazany
+   osobie spoza CRM i powinien jasno komunikować zakres danych.
+
+Status UX-7:
+
+UX-7 można uznać za funkcjonalnie zamknięty w zakresie MVP. Pozostałe tematy,
+takie jak automatyczny PDF, logowanie wysyłki raportu lub wysyłka email/SMS,
+powinny zostać potraktowane jako osobny zakres techniczny albo przyszła
+iteracja po decyzji o infrastrukturze dokumentów i komunikacji.
+
+Do przyszłego backlogu:
+
+1. Eksport PDF po wyborze silnika renderowania dokumentów.
+2. Automatyczne logowanie wysłania raportu jako aktywności oferty.
+3. Opcjonalna wysyłka email/SMS z obsługą zgód, statusów doręczeń i błędów
+   dostawcy.
+
 ### Sprint UX-8: Insighty i rekomendacje działań
 
 Cel:

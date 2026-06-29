@@ -301,7 +301,7 @@ export default function ListingOwnerReportPage() {
           </div>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-4">
+        <section className="grid break-inside-avoid gap-4 md:grid-cols-4">
           <ReportMetric
             label="Wyświetlenia"
             value={report.metrics.publicViews}
@@ -327,7 +327,7 @@ export default function ListingOwnerReportPage() {
           />
         </section>
 
-        <section className="rounded-xl border border-border p-5 print:border-black/20">
+        <section className="break-inside-avoid rounded-xl border border-border p-5 print:border-black/20">
           <h2 className="font-heading text-lg font-semibold text-foreground print:text-black">
             Porównanie z poprzednim okresem
           </h2>
@@ -355,7 +355,7 @@ export default function ListingOwnerReportPage() {
           </div>
         </section>
 
-        <section className="rounded-xl border border-border p-5 print:border-black/20">
+        <section className="break-inside-avoid rounded-xl border border-border p-5 print:border-black/20">
           <div className="flex items-center justify-between gap-4">
             <h2 className="font-heading text-lg font-semibold text-foreground print:text-black">
               Insight agenta
@@ -378,7 +378,7 @@ export default function ListingOwnerReportPage() {
           )}
         </section>
 
-        <section className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+        <section className="grid break-inside-avoid gap-5 lg:grid-cols-[1fr_1fr]">
           <div className="rounded-xl border border-border p-5 print:border-black/20">
             <h2 className="font-heading text-lg font-semibold text-foreground print:text-black">
               Oferta
@@ -422,7 +422,7 @@ export default function ListingOwnerReportPage() {
           </div>
         </section>
 
-        <section className="rounded-xl border border-border p-5 print:border-black/20">
+        <section className="break-inside-avoid rounded-xl border border-border p-5 print:border-black/20">
           <div className="flex items-center justify-between gap-4">
             <h2 className="font-heading text-lg font-semibold text-foreground print:text-black">
               Ostatnie działania
@@ -461,6 +461,20 @@ export default function ListingOwnerReportPage() {
             </p>
           )}
         </section>
+
+        <footer className="break-inside-avoid border-t border-border pt-5 text-xs leading-5 text-muted-foreground print:border-black/20 print:text-black/60">
+          <p>
+            Raport przygotowano na podstawie danych operacyjnych zapisanych w
+            EstateFlow dla wybranej oferty i okresu. Liczby mają charakter
+            informacyjny i wspierają rozmowę o dalszych działaniach
+            sprzedażowych.
+          </p>
+          <p className="mt-2">
+            Raport nie zawiera danych osobowych leadów ani technicznych danych
+            analitycznych. Szczegółowe dane kontaktowe pozostają dostępne tylko
+            w prywatnym widoku CRM agenta.
+          </p>
+        </footer>
       </article>
     </div>
   );
