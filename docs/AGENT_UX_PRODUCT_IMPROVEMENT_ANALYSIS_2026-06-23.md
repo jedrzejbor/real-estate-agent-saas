@@ -2242,10 +2242,54 @@ Decyzje techniczne:
 Do kolejnej iteracji UX-7:
 
 1. Rozważyć eksport PDF, jeśli ustalimy infrastrukturę generowania dokumentów.
-2. Dodać branding agencji, gdy potwierdzimy stabilny kontrakt danych agencji w
-   raporcie.
-3. Rozważyć krótkie komentarze tekstowe do porównania, np. `zapytań mniej niż w
-poprzednim okresie`.
+2. Rozważyć rozszerzenie komentarzy tekstowych o bardziej domenowe insighty,
+   np. osobny komentarz dla wysokiego ruchu bez zapytań.
+
+Status UX-7 / iteracja 3 - branding i komentarze:
+
+Zrobione:
+
+1. Rozszerzono payload raportu o sekcję `brand`.
+2. Backend zwraca minimalny bezpieczny snapshot:
+   - nazwa agencji,
+   - logo agencji,
+   - adres agencji,
+   - imię i nazwisko agenta,
+   - telefon agenta.
+3. Backend nie zwraca pól administracyjnych agencji:
+   - planu,
+   - danych billingowych,
+   - statusu subskrypcji,
+   - konfiguracji limitów.
+4. Widok raportu pokazuje branding agencji w nagłówku:
+   - logo, jeśli jest dostępne,
+   - inicjały nazwy agencji jako fallback,
+   - nazwę agencji,
+   - dane agenta i adres agencji.
+5. Logo jest renderowane przez `next/image` z `unoptimized`, żeby wspierać
+   dowolny URL logo bez dokładania konfiguracji domen i bez nowych ostrzeżeń
+   lint dla zwykłego `<img>`.
+6. Sekcja porównania dostała krótkie komentarze tekstowe, np. czy wynik jest
+   lepszy, słabszy albo bez zmian względem poprzedniego okresu.
+7. Test raportu właścicielskiego sprawdza, że branding zwraca tylko minimalny
+   payload i nie ujawnia pól planu ani billingowych.
+
+Decyzje techniczne:
+
+1. Branding jest częścią prywatnego raportu dashboardowego, nie publicznego
+   endpointu oferty.
+2. Snapshot brandingu jest jawnie mapowany w serwisie, zamiast zwracać encję
+   `Agency`, żeby ograniczyć ryzyko wycieku pól administracyjnych.
+3. Komentarze porównawcze są na razie proste i deterministyczne. Bardziej
+   domenowe insighty zostają na kolejną iterację albo sprint UX-8.
+
+Do kolejnej iteracji UX-7:
+
+1. Rozważyć eksport PDF, jeśli ustalimy infrastrukturę generowania dokumentów.
+2. Rozważyć bardziej domenowe komentarze do raportu:
+   - dużo wyświetleń bez zapytań,
+   - zapytania bez spotkań,
+   - spadek aktywności względem poprzedniego okresu.
 
 ### Sprint UX-8: Insighty i rekomendacje działań
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ArrowLeft,
   Calendar,
@@ -138,6 +139,10 @@ export default function ListingOwnerReportPage() {
 
   const listing = report.listing;
   const address = formatReportAddress(listing.address);
+  const agencyName = report.brand.agency?.name ?? 'EstateFlow';
+  const agentLine = [report.brand.agent?.name, report.brand.agent?.phone]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 print:max-w-none print:bg-white print:text-black">
@@ -196,9 +201,30 @@ export default function ListingOwnerReportPage() {
       <article className="space-y-6 rounded-2xl border border-border bg-card p-6 shadow-sm print:border-0 print:bg-white print:p-0 print:shadow-none">
         <header className="grid gap-6 border-b border-border pb-6 print:border-black/20 md:grid-cols-[1fr_auto]">
           <div>
-            <p className="text-sm font-medium uppercase text-muted-foreground print:text-black/60">
-              Raport właściciela oferty
-            </p>
+            <div className="flex items-center gap-3">
+              {report.brand.agency?.logoUrl ? (
+                <Image
+                  src={report.brand.agency.logoUrl}
+                  alt=""
+                  width={44}
+                  height={44}
+                  unoptimized
+                  className="h-11 w-11 rounded-lg border border-border object-contain print:border-black/20"
+                />
+              ) : (
+                <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-muted text-sm font-semibold text-foreground print:border-black/20 print:bg-white print:text-black">
+                  {getBrandInitials(agencyName)}
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-semibold text-foreground print:text-black">
+                  {agencyName}
+                </p>
+                <p className="text-xs text-muted-foreground print:text-black/60">
+                  Raport właściciela oferty
+                </p>
+              </div>
+            </div>
             <h1 className="mt-2 font-heading text-3xl font-bold text-foreground print:text-black">
               {listing.title}
             </h1>
@@ -207,6 +233,13 @@ export default function ListingOwnerReportPage() {
               {PROPERTY_TYPE_LABELS[listing.propertyType]} ·{' '}
               {TRANSACTION_TYPE_LABELS[listing.transactionType]}
             </p>
+            {agentLine || report.brand.agency?.address ? (
+              <p className="mt-2 text-xs text-muted-foreground print:text-black/60">
+                {[agentLine, report.brand.agency?.address]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            ) : null}
           </div>
           <div className="text-left md:text-right">
             <p className="text-sm text-muted-foreground print:text-black/60">
@@ -414,6 +447,9 @@ function ComparisonItem({
       <p className={`mt-1 text-xs ${getDeltaTextColor(delta.direction)}`}>
         {formatMetricDelta(delta)}
       </p>
+      <p className="mt-2 text-xs leading-5 text-muted-foreground print:text-black/60">
+        {getComparisonComment(label, delta)}
+      </p>
     </div>
   );
 }
@@ -437,6 +473,17 @@ function formatReportAddress(
   return [address.street, address.district, address.city]
     .filter(Boolean)
     .join(', ');
+}
+
+function getBrandInitials(name: string): string {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+
+  return initials || 'EF';
 }
 
 function buildReportRequestKey(
@@ -477,4 +524,19 @@ function getDeltaTextColor(
   if (direction === 'up') return 'text-status-success print:text-black';
   if (direction === 'down') return 'text-status-warning print:text-black';
   return 'text-muted-foreground print:text-black/60';
+}
+
+function getComparisonComment(
+  label: string,
+  delta: ListingOwnerReportMetricDelta,
+): string {
+  if (delta.direction === 'flat') {
+    return `${label}: wynik bez zmian względem poprzedniego okresu.`;
+  }
+
+  if (delta.direction === 'up') {
+    return `${label}: lepszy wynik niż w poprzednim okresie.`;
+  }
+
+  return `${label}: słabszy wynik niż w poprzednim okresie.`;
 }

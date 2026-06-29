@@ -199,6 +199,17 @@ export interface ListingOwnerReportResponse {
     from: string;
     to: string;
   };
+  brand: {
+    agency: {
+      name: string | null;
+      logoUrl: string | null;
+      address: string | null;
+    } | null;
+    agent: {
+      name: string | null;
+      phone: string | null;
+    } | null;
+  };
   metrics: {
     publicViews: number;
     inquiries: number;
@@ -704,6 +715,7 @@ export class ListingsService {
         from: period.from.toISOString(),
         to: period.to.toISOString(),
       },
+      brand: this.toOwnerReportBrand(listing),
       metrics,
       comparison,
       activity,
@@ -2589,7 +2601,7 @@ export class ListingsService {
   private async findOneOrFail(id: string): Promise<Listing> {
     const listing = await this.listingRepo.findOne({
       where: { id },
-      relations: ['address', 'images', 'agent'],
+      relations: ['address', 'images', 'agent', 'agent.agency'],
     });
     if (!listing) {
       throw new NotFoundException('Oferta nie znaleziona');
@@ -2663,6 +2675,31 @@ export class ListingsService {
             city: listing.address.city ?? null,
             district: listing.address.district ?? null,
             street: listing.address.street ?? null,
+          }
+        : null,
+    };
+  }
+
+  private toOwnerReportBrand(
+    listing: Listing,
+  ): ListingOwnerReportResponse['brand'] {
+    const agentName = [listing.agent?.firstName, listing.agent?.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    return {
+      agency: listing.agent?.agency
+        ? {
+            name: listing.agent.agency.name ?? null,
+            logoUrl: listing.agent.agency.logoUrl ?? null,
+            address: listing.agent.agency.address ?? null,
+          }
+        : null,
+      agent: listing.agent
+        ? {
+            name: agentName || null,
+            phone: listing.agent.phone ?? null,
           }
         : null,
     };

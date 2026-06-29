@@ -570,6 +570,17 @@ export interface ListingOwnerReport {
     from: string;
     to: string;
   };
+  brand: {
+    agency: {
+      name: string | null;
+      logoUrl: string | null;
+      address: string | null;
+    } | null;
+    agent: {
+      name: string | null;
+      phone: string | null;
+    } | null;
+  };
   metrics: {
     publicViews: number;
     inquiries: number;

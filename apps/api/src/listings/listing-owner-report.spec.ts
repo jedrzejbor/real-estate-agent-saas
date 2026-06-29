@@ -57,6 +57,17 @@ describe('ListingsService owner report', () => {
         agent: {
           id: agentId,
           userId,
+          firstName: 'Adam',
+          lastName: 'Kowal',
+          phone: '600700800',
+          agency: {
+            id: 'agency-1',
+            name: 'EstateFlow Premium',
+            address: 'Warszawa, Prosta 10',
+            logoUrl: 'https://example.com/logo.png',
+            plan: 'professional',
+            billingCustomerId: 'cus_secret',
+          },
         },
       }),
     };
@@ -181,6 +192,19 @@ describe('ListingsService owner report', () => {
       completedAppointments: 1,
       upcomingAppointments: 1,
     });
+    expect(report.brand).toEqual({
+      agency: {
+        name: 'EstateFlow Premium',
+        address: 'Warszawa, Prosta 10',
+        logoUrl: 'https://example.com/logo.png',
+      },
+      agent: {
+        name: 'Adam Kowal',
+        phone: '600700800',
+      },
+    });
+    expect(JSON.stringify(report)).not.toContain('professional');
+    expect(JSON.stringify(report)).not.toContain('cus_secret');
     expect(report.comparison.deltas.publicViews).toEqual({
       current: 12,
       previous: 8,
