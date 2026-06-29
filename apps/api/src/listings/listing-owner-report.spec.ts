@@ -34,7 +34,25 @@ describe('ListingsService owner report', () => {
 
   function createService({
     resolvedAgentId = agentId,
-  }: { resolvedAgentId?: string } = {}) {
+    listingAgent = {
+      id: agentId,
+      userId,
+      firstName: 'Adam',
+      lastName: 'Kowal',
+      phone: '600700800',
+      agency: {
+        id: 'agency-1',
+        name: 'EstateFlow Premium',
+        address: 'Warszawa, Prosta 10',
+        logoUrl: 'https://example.com/logo.png',
+        plan: 'professional',
+        billingCustomerId: 'cus_secret',
+      },
+    },
+  }: {
+    resolvedAgentId?: string;
+    listingAgent?: unknown;
+  } = {}) {
     const listingRepo = {
       findOne: jest.fn().mockResolvedValue({
         id: listingId,
@@ -54,21 +72,7 @@ describe('ListingsService owner report', () => {
           street: 'Prosta 10',
         },
         images: [],
-        agent: {
-          id: agentId,
-          userId,
-          firstName: 'Adam',
-          lastName: 'Kowal',
-          phone: '600700800',
-          agency: {
-            id: 'agency-1',
-            name: 'EstateFlow Premium',
-            address: 'Warszawa, Prosta 10',
-            logoUrl: 'https://example.com/logo.png',
-            plan: 'professional',
-            billingCustomerId: 'cus_secret',
-          },
-        },
+        agent: listingAgent,
       }),
     };
     const analyticsViewsCountQb = createCountQueryBuilder(12);
@@ -169,6 +173,7 @@ describe('ListingsService owner report', () => {
       appointmentCountQb,
       completedAppointmentCountQb,
       publicLeadCountQb,
+      activityService,
     };
   }
 
@@ -257,5 +262,22 @@ describe('ListingsService owner report', () => {
     await expect(
       service.findOwnerReport(listingId, userId, {}),
     ).rejects.toThrow('Brak dostępu do tej oferty');
+  });
+
+  it('uses request user id for report activity history when listing agent relation is missing', async () => {
+    const { service, activityService } = createService({
+      listingAgent: null,
+    });
+
+    await service.findOwnerReport(listingId, userId, {
+      from: '2026-06-20T00:00:00.000Z',
+      to: '2026-06-30T00:00:00.000Z',
+    });
+
+    expect(activityService.findEntityHistory).toHaveBeenCalledWith(
+      userId,
+      ActivityEntityType.LISTING,
+      listingId,
+    );
   });
 });

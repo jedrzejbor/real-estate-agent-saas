@@ -1296,13 +1296,12 @@ export class ReportsService {
       filters,
       scope,
     )
-      .select(':closedWonStatus', 'key')
+      .select(`'${TransactionStatus.CLOSED_WON}'`, 'key')
       .addSelect('COUNT(*)::int', 'count')
       .addSelect(
         buildTransactionCommissionSumSql('transaction'),
         'commissionValue',
       )
-      .setParameter('closedWonStatus', TransactionStatus.CLOSED_WON)
       .andWhere('transaction.closedAt BETWEEN :dateFrom AND :dateTo', {
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo,

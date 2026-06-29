@@ -2405,6 +2405,29 @@ Do przyszłego backlogu:
 3. Opcjonalna wysyłka email/SMS z obsługą zgód, statusów doręczeń i błędów
    dostawcy.
 
+Status UX-7 / stabilizacja lokalnego generowania raportów:
+
+Zrobione:
+
+1. Sprawdzono lokalny schemat bazy w Dockerze przed odpalaniem migracji.
+   Wymagane tabele i kolumny dla raportu właściciela były dostępne, więc
+   problem nie wynikał z brakującej migracji.
+2. Naprawiono generowanie aktywności raportu właściciela:
+   - historia aktywności używa teraz `userId` z requestu,
+   - raport nie zakłada już, że relacja `listing.agent` zawsze jest wczytana,
+   - brak relacji agenta przy ofercie nie powinien kończyć się błędem 500.
+3. Naprawiono raport przychodów:
+   - status `closed_won` w breakdownie przychodów jest wybierany jako stały
+     literał SQL,
+   - unikamy konfliktu parametrów Postgresa, w którym ten sam parametr był
+     interpretowany jednocześnie jako tekstowy klucz i status transakcji.
+4. Dodano test regresyjny dla raportu właściciela bez relacji `agent`.
+
+Decyzja:
+
+Nie uruchamiano migracji, ponieważ lokalny schemat zawierał wymagane elementy.
+Poprawka dotyczyła błędów runtime w zapytaniach i defensywności raportu.
+
 ### Sprint UX-8: Insighty i rekomendacje działań
 
 Cel:

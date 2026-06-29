@@ -708,7 +708,11 @@ export class ListingsService {
       },
     });
 
-    const activity = await this.buildOwnerReportActivity(listing, period);
+    const activity = await this.buildOwnerReportActivity(
+      listing,
+      period,
+      userId,
+    );
     const metrics = {
       publicViews,
       inquiries,
@@ -2774,6 +2778,7 @@ export class ListingsService {
   private async buildOwnerReportActivity(
     listing: Listing,
     period: { from: Date; to: Date },
+    userId: string,
   ): Promise<ListingOwnerReportResponse['activity']> {
     const [publicActivity, leads, appointments, history] = await Promise.all([
       this.analyticsEventRepo
@@ -2807,7 +2812,7 @@ export class ListingsService {
         .take(5)
         .getMany(),
       this.activityService.findEntityHistory(
-        listing.agent.userId,
+        userId,
         ActivityEntityType.LISTING,
         listing.id,
       ),
