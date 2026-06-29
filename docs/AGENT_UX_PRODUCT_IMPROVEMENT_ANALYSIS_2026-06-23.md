@@ -2326,8 +2326,45 @@ Decyzje techniczne:
 Do kolejnej iteracji UX-7:
 
 1. Rozważyć eksport PDF, jeśli ustalimy infrastrukturę generowania dokumentów.
-2. Rozważyć bardziej rozbudowany eksport/share flow raportu, jeśli raport ma
-   być przekazywany właścicielowi poza spotkaniem.
+2. Rozważyć automatyczne logowanie wysłania raportu jako aktywności oferty,
+   jeśli wprowadzimy docelową wysyłkę email/SMS.
+
+Status UX-7 / iteracja 5 - share flow bez PDF:
+
+Zrobione:
+
+1. Usprawniono akcję `Kopiuj link`.
+2. Kopiowany link zawiera teraz wybrany zakres dat:
+   - `from`,
+   - `to`.
+3. Widok raportu potrafi odczytać zakres dat z URL, więc link odtwarza ten sam
+   okres raportu po otwarciu.
+4. Dodano akcję `Kopiuj podsumowanie`.
+5. Kopiowane podsumowanie zawiera:
+   - tytuł oferty,
+   - okres raportu,
+   - najważniejsze KPI,
+   - rekomendację,
+   - maksymalnie dwa najważniejsze insighty,
+   - link do raportu z wybranym zakresem dat.
+6. Podsumowanie nie zawiera danych osobowych leadów ani danych technicznych
+   analityki.
+
+Decyzje techniczne:
+
+1. Nie dodajemy jeszcze eksportu PDF, ponieważ obecny raport jest drukowalny, a
+   wygenerowanie PDF wymaga osobnej decyzji o silniku renderowania dokumentów.
+2. Share flow opiera się na schowku i linku wewnętrznym, bez automatycznej
+   wysyłki. Dzięki temu nie wchodzimy jeszcze w zgody, statusy doręczeń,
+   logowanie wysyłek ani błędy dostawców.
+3. Zakres dat w URL używa prostych parametrów `YYYY-MM-DD`, które są walidowane
+   po stronie UI przed użyciem.
+
+Do kolejnej iteracji UX-7:
+
+1. Rozważyć eksport PDF, jeśli ustalimy infrastrukturę generowania dokumentów.
+2. Rozważyć automatyczne logowanie wysłania raportu jako aktywności oferty,
+   jeśli wprowadzimy docelową wysyłkę email/SMS.
 
 ### Sprint UX-8: Insighty i rekomendacje działań
 

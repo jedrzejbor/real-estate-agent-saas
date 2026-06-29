@@ -1,13 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
   ArrowLeft,
   Calendar,
   Clipboard,
+  ClipboardCheck,
   Eye,
   FileText,
   MessageSquare,
@@ -32,9 +33,15 @@ import { formatDisplayDateNumeric } from '@/lib/date-format';
 export default function ListingOwnerReportPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { success: showSuccessToast, error: showErrorToast } = useToast();
-  const [dateFrom, setDateFrom] = useState(() => getDateInputValue(-30));
-  const [dateTo, setDateTo] = useState(() => getDateInputValue(0));
+  const [dateFrom, setDateFrom] = useState(
+    () =>
+      normalizeDateInput(searchParams.get('from')) ?? getDateInputValue(-30),
+  );
+  const [dateTo, setDateTo] = useState(
+    () => normalizeDateInput(searchParams.get('to')) ?? getDateInputValue(0),
+  );
   const [requestState, setRequestState] = useState<{
     requestKey: string | null;
     report: ListingOwnerReport | null;
@@ -88,11 +95,15 @@ export default function ListingOwnerReportPage() {
   }, []);
 
   const handleCopyLink = useCallback(async () => {
+    if (!params.id) return;
+
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(
+        buildOwnerReportUrl(params.id, dateFrom, dateTo),
+      );
       showSuccessToast({
         title: 'Link skopiowany',
-        description: 'Wewnętrzny link do raportu jest w schowku.',
+        description: 'Link do raportu z wybranym okresem jest w schowku.',
       });
     } catch {
       showErrorToast({
@@ -100,7 +111,31 @@ export default function ListingOwnerReportPage() {
         description: 'Skopiuj adres z paska przeglądarki.',
       });
     }
-  }, [showErrorToast, showSuccessToast]);
+  }, [dateFrom, dateTo, params.id, showErrorToast, showSuccessToast]);
+
+  const handleCopySummary = useCallback(async () => {
+    const currentReport = requestState.report;
+    if (!currentReport) return;
+
+    try {
+      await navigator.clipboard.writeText(
+        buildOwnerReportShareSummary(
+          currentReport,
+          buildOwnerReportUrl(currentReport.listing.id, dateFrom, dateTo),
+        ),
+      );
+      showSuccessToast({
+        title: 'Podsumowanie skopiowane',
+        description: 'Gotowa treść dla właściciela jest w schowku.',
+      });
+    } catch {
+      showErrorToast({
+        title: 'Nie udało się skopiować podsumowania',
+        description:
+          'Spróbuj ponownie albo skopiuj najważniejsze dane ręcznie.',
+      });
+    }
+  }, [dateFrom, dateTo, requestState.report, showErrorToast, showSuccessToast]);
 
   const currentRequestKey =
     params.id && dateFrom && dateTo
@@ -185,6 +220,16 @@ export default function ListingOwnerReportPage() {
           >
             <Clipboard className="h-3.5 w-3.5" />
             Kopiuj link
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleCopySummary}
+            className="gap-1.5 rounded-xl"
+          >
+            <ClipboardCheck className="h-3.5 w-3.5" />
+            Kopiuj podsumowanie
           </Button>
           <Button
             type="button"
@@ -551,12 +596,58 @@ function getDateInputValue(dayOffset: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+function normalizeDateInput(value: string | null): string | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+
+  const parsed = new Date(`${value}T00:00:00.000`);
+  return Number.isFinite(parsed.getTime()) ? value : null;
+}
+
 function toStartOfDayIso(value: string): string {
   return new Date(`${value}T00:00:00.000`).toISOString();
 }
 
 function toEndOfDayIso(value: string): string {
   return new Date(`${value}T23:59:59.999`).toISOString();
+}
+
+function buildOwnerReportUrl(
+  listingId: string,
+  dateFrom: string,
+  dateTo: string,
+): string {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const params = new URLSearchParams({ from: dateFrom, to: dateTo });
+  return `${origin}/dashboard/listings/${listingId}/owner-report?${params.toString()}`;
+}
+
+function buildOwnerReportShareSummary(
+  report: ListingOwnerReport,
+  reportUrl: string,
+): string {
+  const topInsights = report.insights
+    .slice(0, 2)
+    .map((insight) => `- ${insight.title}: ${insight.actionLabel}`)
+    .join('\n');
+
+  return [
+    `Raport oferty: ${report.listing.title}`,
+    `Okres: ${formatDisplayDateNumeric(report.period.from)} - ${formatDisplayDateNumeric(report.period.to)}`,
+    '',
+    'Najważniejsze liczby:',
+    `- Wyświetlenia: ${report.metrics.publicViews.toLocaleString('pl-PL')}`,
+    `- Zapytania: ${report.metrics.inquiries.toLocaleString('pl-PL')}`,
+    `- Spotkania: ${report.metrics.appointments.toLocaleString('pl-PL')}`,
+    `- Zaplanowane spotkania: ${report.metrics.upcomingAppointments.toLocaleString('pl-PL')}`,
+    '',
+    `Rekomendacja: ${report.recommendation.title}`,
+    report.recommendation.description,
+    topInsights ? `\nInsight:\n${topInsights}` : null,
+    '',
+    `Link do raportu: ${reportUrl}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 function formatMetricDelta(delta: ListingOwnerReportMetricDelta): string {
