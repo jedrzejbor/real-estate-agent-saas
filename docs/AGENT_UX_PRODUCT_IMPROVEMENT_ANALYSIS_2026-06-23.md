@@ -2064,6 +2064,11 @@ Zrobione:
    - `MatchingDismissal.agentId -> agent_id`,
    - `MatchingDismissal.clientId -> client_id`,
    - `MatchingDismissal.listingId -> listing_id`.
+9. Po uruchomieniu migracji lokalnie poprawiono mapowanie daty utworzenia
+   ukrycia dopasowania:
+   - `MatchingDismissal.createdAt -> created_at`.
+     Bez tego endpoint `dismiss` odpytywał nieistniejącą kolumnę `"createdAt"`
+     i zwracał błąd 500.
 
 Decyzje techniczne:
 
@@ -2077,7 +2082,8 @@ Decyzje techniczne:
 
 Status:
 UX-6 pozostaje zamknięty funkcjonalnie. Iteracja 9 domyka ryzyko wdrożenia
-schematu bazy danych po rozszerzeniach z iteracji 6 i 8.
+schematu bazy danych po rozszerzeniach z iteracji 6 i 8 oraz naprawia
+regresję endpointu `dismiss` po przejściu tabeli ukryć na snake_case.
 
 ### Sprint UX-7: Raport właściciela oferty
 

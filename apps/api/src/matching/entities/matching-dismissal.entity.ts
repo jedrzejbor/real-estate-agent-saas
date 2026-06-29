@@ -45,6 +45,6 @@ export class MatchingDismissal {
   @Column({ type: 'text', nullable: true })
   reason: string | null;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
 }
