@@ -61,6 +61,7 @@ describe('ListingsService owner report', () => {
       }),
     };
     const analyticsViewsCountQb = createCountQueryBuilder(12);
+    const previousAnalyticsViewsCountQb = createCountQueryBuilder(8);
     const analyticsActivityQb = createEventsQueryBuilder([
       {
         id: 'analytics-1',
@@ -73,9 +74,11 @@ describe('ListingsService owner report', () => {
       createQueryBuilder: jest
         .fn()
         .mockReturnValueOnce(analyticsViewsCountQb)
-        .mockReturnValueOnce(analyticsActivityQb),
+        .mockReturnValueOnce(analyticsActivityQb)
+        .mockReturnValueOnce(previousAnalyticsViewsCountQb),
     };
     const publicLeadCountQb = createCountQueryBuilder(2);
+    const previousPublicLeadCountQb = createCountQueryBuilder(4);
     const publicLeadActivityQb = createEventsQueryBuilder([
       {
         id: 'lead-1',
@@ -90,10 +93,13 @@ describe('ListingsService owner report', () => {
       createQueryBuilder: jest
         .fn()
         .mockReturnValueOnce(publicLeadCountQb)
-        .mockReturnValueOnce(publicLeadActivityQb),
+        .mockReturnValueOnce(publicLeadActivityQb)
+        .mockReturnValueOnce(previousPublicLeadCountQb),
     };
     const appointmentCountQb = createCountQueryBuilder(3);
     const completedAppointmentCountQb = createCountQueryBuilder(1);
+    const previousAppointmentCountQb = createCountQueryBuilder(2);
+    const previousCompletedAppointmentCountQb = createCountQueryBuilder(0);
     const appointmentActivityQb = createEventsQueryBuilder([
       {
         id: 'appointment-1',
@@ -107,7 +113,9 @@ describe('ListingsService owner report', () => {
         .fn()
         .mockReturnValueOnce(appointmentCountQb)
         .mockReturnValueOnce(completedAppointmentCountQb)
-        .mockReturnValueOnce(appointmentActivityQb),
+        .mockReturnValueOnce(appointmentActivityQb)
+        .mockReturnValueOnce(previousAppointmentCountQb)
+        .mockReturnValueOnce(previousCompletedAppointmentCountQb),
       count: jest.fn().mockResolvedValue(1),
     };
     const usersService = {
@@ -172,6 +180,27 @@ describe('ListingsService owner report', () => {
       appointments: 3,
       completedAppointments: 1,
       upcomingAppointments: 1,
+    });
+    expect(report.comparison.deltas.publicViews).toEqual({
+      current: 12,
+      previous: 8,
+      change: 4,
+      changePct: 50,
+      direction: 'up',
+    });
+    expect(report.comparison.deltas.inquiries).toEqual({
+      current: 2,
+      previous: 4,
+      change: -2,
+      changePct: -50,
+      direction: 'down',
+    });
+    expect(report.comparison.deltas.completedAppointments).toEqual({
+      current: 1,
+      previous: 0,
+      change: 1,
+      changePct: null,
+      direction: 'up',
     });
     expect(publicLeadCountQb.where).toHaveBeenCalledWith(
       'lead.agentId = :agentId',

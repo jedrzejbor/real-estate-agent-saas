@@ -577,6 +577,18 @@ export interface ListingOwnerReport {
     completedAppointments: number;
     upcomingAppointments: number;
   };
+  comparison: {
+    previousPeriod: {
+      from: string;
+      to: string;
+    };
+    deltas: {
+      publicViews: ListingOwnerReportMetricDelta;
+      inquiries: ListingOwnerReportMetricDelta;
+      appointments: ListingOwnerReportMetricDelta;
+      completedAppointments: ListingOwnerReportMetricDelta;
+    };
+  };
   activity: Array<{
     id: string;
     type: 'public_view' | 'public_lead' | 'appointment' | 'activity';
@@ -588,6 +600,14 @@ export interface ListingOwnerReport {
     title: string;
     description: string;
   };
+}
+
+export interface ListingOwnerReportMetricDelta {
+  current: number;
+  previous: number;
+  change: number;
+  changePct: number | null;
+  direction: 'up' | 'down' | 'flat';
 }
 
 export interface ListingOwnerReportFilters {

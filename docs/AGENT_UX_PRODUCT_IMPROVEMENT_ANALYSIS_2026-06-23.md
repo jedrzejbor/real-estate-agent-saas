@@ -2199,11 +2199,53 @@ Decyzje techniczne:
 
 Do kolejnej iteracji UX-7:
 
-1. Dodać wybór zakresu dat z poziomu UI raportu.
-2. Rozważyć sekcję porównania z poprzednim okresem.
-3. Rozważyć eksport PDF, jeśli ustalimy infrastrukturę generowania dokumentów.
-4. Dodać branding agencji, gdy potwierdzimy stabilny kontrakt danych agencji w
+1. Rozważyć eksport PDF, jeśli ustalimy infrastrukturę generowania dokumentów.
+2. Dodać branding agencji, gdy potwierdzimy stabilny kontrakt danych agencji w
    raporcie.
+
+Status UX-7 / iteracja 2 - zakres dat i porównanie:
+
+Zrobione:
+
+1. Rozszerzono endpoint `GET /api/listings/:id/owner-report` o sekcję
+   `comparison`.
+2. Backend wylicza poprzedni okres tej samej długości co aktualny raport.
+3. Dodano delty dla metryk:
+   - wyświetlenia publiczne,
+   - zapytania,
+   - spotkania,
+   - zakończone spotkania.
+4. Każda delta zawiera:
+   - wartość aktualną,
+   - wartość poprzednią,
+   - zmianę liczbową,
+   - zmianę procentową, jeśli poprzedni okres ma bazę do porównania,
+   - kierunek `up`, `down` albo `flat`.
+5. Widok raportu dostał wybór zakresu dat:
+   - pole `Od`,
+   - pole `Do`,
+   - automatyczne odświeżenie raportu po zmianie zakresu.
+6. KPI pokazują krótką informację o zmianie względem poprzedniego okresu.
+7. Dodano osobną sekcję `Porównanie z poprzednim okresem`.
+8. Test raportu właścicielskiego sprawdza delty oraz przypadek zmiany
+   procentowej przy poprzedniej wartości równej zero.
+
+Decyzje techniczne:
+
+1. Porównanie jest liczone po stronie backendu, żeby frontend nie musiał znać
+   reguł okresów ani powielać logiki metryk.
+2. Dla poprzedniej wartości `0` zwracamy `changePct: null`, bo procentowa
+   zmiana z zera byłaby myląca.
+3. Widok używa natywnych pól `date`, bez dodatkowej biblioteki kalendarza, żeby
+   nie zwiększać zależności i utrzymać prosty, testowalny zakres.
+
+Do kolejnej iteracji UX-7:
+
+1. Rozważyć eksport PDF, jeśli ustalimy infrastrukturę generowania dokumentów.
+2. Dodać branding agencji, gdy potwierdzimy stabilny kontrakt danych agencji w
+   raporcie.
+3. Rozważyć krótkie komentarze tekstowe do porównania, np. `zapytań mniej niż w
+poprzednim okresie`.
 
 ### Sprint UX-8: Insighty i rekomendacje działań
 

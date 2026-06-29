@@ -22,6 +22,7 @@ import {
   LISTING_STATUS_LABELS,
   PROPERTY_TYPE_LABELS,
   TRANSACTION_TYPE_LABELS,
+  type ListingOwnerReportMetricDelta,
   type ListingOwnerReport,
 } from '@/lib/listings';
 import { formatDisplayDateNumeric } from '@/lib/date-format';
@@ -30,26 +31,33 @@ export default function ListingOwnerReportPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { success: showSuccessToast, error: showErrorToast } = useToast();
+  const [dateFrom, setDateFrom] = useState(() => getDateInputValue(-30));
+  const [dateTo, setDateTo] = useState(() => getDateInputValue(0));
   const [requestState, setRequestState] = useState<{
-    listingId: string | null;
+    requestKey: string | null;
     report: ListingOwnerReport | null;
     error: string | null;
   }>({
-    listingId: null,
+    requestKey: null,
     report: null,
     error: null,
   });
 
   useEffect(() => {
     if (!params.id) return;
+    if (!dateFrom || !dateTo) return;
 
     let isCancelled = false;
+    const requestKey = buildReportRequestKey(params.id, dateFrom, dateTo);
 
-    fetchListingOwnerReport(params.id)
+    fetchListingOwnerReport(params.id, {
+      from: toStartOfDayIso(dateFrom),
+      to: toEndOfDayIso(dateTo),
+    })
       .then((response) => {
         if (!isCancelled) {
           setRequestState({
-            listingId: params.id,
+            requestKey,
             report: response,
             error: null,
           });
@@ -58,7 +66,7 @@ export default function ListingOwnerReportPage() {
       .catch((err) => {
         if (!isCancelled) {
           setRequestState({
-            listingId: params.id,
+            requestKey,
             report: null,
             error:
               err instanceof Error
@@ -71,7 +79,7 @@ export default function ListingOwnerReportPage() {
     return () => {
       isCancelled = true;
     };
-  }, [params.id]);
+  }, [dateFrom, dateTo, params.id]);
 
   const handlePrint = useCallback(() => {
     window.print();
@@ -92,7 +100,11 @@ export default function ListingOwnerReportPage() {
     }
   }, [showErrorToast, showSuccessToast]);
 
-  const isCurrentReport = requestState.listingId === params.id;
+  const currentRequestKey =
+    params.id && dateFrom && dateTo
+      ? buildReportRequestKey(params.id, dateFrom, dateTo)
+      : null;
+  const isCurrentReport = requestState.requestKey === currentRequestKey;
   const report = isCurrentReport ? requestState.report : null;
   const error = isCurrentReport ? requestState.error : null;
 
@@ -138,6 +150,26 @@ export default function ListingOwnerReportPage() {
           Wróć do oferty
         </Link>
         <div className="flex flex-wrap gap-2">
+          <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+            Od
+            <input
+              type="date"
+              value={dateFrom}
+              max={dateTo}
+              onChange={(event) => setDateFrom(event.target.value)}
+              className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
+            />
+          </label>
+          <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+            Do
+            <input
+              type="date"
+              value={dateTo}
+              min={dateFrom}
+              onChange={(event) => setDateTo(event.target.value)}
+              className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
+            />
+          </label>
           <Button
             type="button"
             variant="outline"
@@ -194,16 +226,19 @@ export default function ListingOwnerReportPage() {
           <ReportMetric
             label="Wyświetlenia"
             value={report.metrics.publicViews}
+            delta={report.comparison.deltas.publicViews}
             icon={Eye}
           />
           <ReportMetric
             label="Zapytania"
             value={report.metrics.inquiries}
+            delta={report.comparison.deltas.inquiries}
             icon={MessageSquare}
           />
           <ReportMetric
             label="Spotkania"
             value={report.metrics.appointments}
+            delta={report.comparison.deltas.appointments}
             icon={Calendar}
           />
           <ReportMetric
@@ -211,6 +246,34 @@ export default function ListingOwnerReportPage() {
             value={report.metrics.upcomingAppointments}
             icon={FileText}
           />
+        </section>
+
+        <section className="rounded-xl border border-border p-5 print:border-black/20">
+          <h2 className="font-heading text-lg font-semibold text-foreground print:text-black">
+            Porównanie z poprzednim okresem
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground print:text-black/60">
+            {formatDisplayDateNumeric(report.comparison.previousPeriod.from)} -{' '}
+            {formatDisplayDateNumeric(report.comparison.previousPeriod.to)}
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <ComparisonItem
+              label="Wyświetlenia"
+              delta={report.comparison.deltas.publicViews}
+            />
+            <ComparisonItem
+              label="Zapytania"
+              delta={report.comparison.deltas.inquiries}
+            />
+            <ComparisonItem
+              label="Spotkania"
+              delta={report.comparison.deltas.appointments}
+            />
+            <ComparisonItem
+              label="Zakończone"
+              delta={report.comparison.deltas.completedAppointments}
+            />
+          </div>
         </section>
 
         <section className="grid gap-5 lg:grid-cols-[1fr_1fr]">
@@ -304,10 +367,12 @@ export default function ListingOwnerReportPage() {
 function ReportMetric({
   label,
   value,
+  delta,
   icon: Icon,
 }: {
   label: string;
   value: number;
+  delta?: ListingOwnerReportMetricDelta;
   icon: typeof Eye;
 }) {
   return (
@@ -320,6 +385,34 @@ function ReportMetric({
       </div>
       <p className="mt-3 text-3xl font-semibold text-foreground print:text-black">
         {value.toLocaleString('pl-PL')}
+      </p>
+      {delta ? (
+        <p className={`mt-2 text-xs ${getDeltaTextColor(delta.direction)}`}>
+          {formatMetricDelta(delta)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function ComparisonItem({
+  label,
+  delta,
+}: {
+  label: string;
+  delta: ListingOwnerReportMetricDelta;
+}) {
+  return (
+    <div className="rounded-lg bg-muted/30 p-3 print:bg-white">
+      <p className="text-xs text-muted-foreground print:text-black/60">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-foreground print:text-black">
+        {delta.current.toLocaleString('pl-PL')} vs{' '}
+        {delta.previous.toLocaleString('pl-PL')}
+      </p>
+      <p className={`mt-1 text-xs ${getDeltaTextColor(delta.direction)}`}>
+        {formatMetricDelta(delta)}
       </p>
     </div>
   );
@@ -344,4 +437,44 @@ function formatReportAddress(
   return [address.street, address.district, address.city]
     .filter(Boolean)
     .join(', ');
+}
+
+function buildReportRequestKey(
+  listingId: string,
+  dateFrom: string,
+  dateTo: string,
+): string {
+  return `${listingId}:${dateFrom}:${dateTo}`;
+}
+
+function getDateInputValue(dayOffset: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + dayOffset);
+  return date.toISOString().slice(0, 10);
+}
+
+function toStartOfDayIso(value: string): string {
+  return new Date(`${value}T00:00:00.000`).toISOString();
+}
+
+function toEndOfDayIso(value: string): string {
+  return new Date(`${value}T23:59:59.999`).toISOString();
+}
+
+function formatMetricDelta(delta: ListingOwnerReportMetricDelta): string {
+  if (delta.direction === 'flat') return 'bez zmian';
+
+  const sign = delta.change > 0 ? '+' : '';
+  const absolute = `${sign}${delta.change.toLocaleString('pl-PL')}`;
+  if (delta.changePct === null) return `${absolute} vs poprzednio`;
+
+  return `${absolute} (${sign}${delta.changePct.toLocaleString('pl-PL')}%)`;
+}
+
+function getDeltaTextColor(
+  direction: ListingOwnerReportMetricDelta['direction'],
+): string {
+  if (direction === 'up') return 'text-status-success print:text-black';
+  if (direction === 'down') return 'text-status-warning print:text-black';
+  return 'text-muted-foreground print:text-black/60';
 }

@@ -206,6 +206,18 @@ export interface ListingOwnerReportResponse {
     completedAppointments: number;
     upcomingAppointments: number;
   };
+  comparison: {
+    previousPeriod: {
+      from: string;
+      to: string;
+    };
+    deltas: {
+      publicViews: ListingOwnerReportMetricDelta;
+      inquiries: ListingOwnerReportMetricDelta;
+      appointments: ListingOwnerReportMetricDelta;
+      completedAppointments: ListingOwnerReportMetricDelta;
+    };
+  };
   activity: Array<{
     id: string;
     type: 'public_view' | 'public_lead' | 'appointment' | 'activity';
@@ -217,6 +229,14 @@ export interface ListingOwnerReportResponse {
     title: string;
     description: string;
   };
+}
+
+export interface ListingOwnerReportMetricDelta {
+  current: number;
+  previous: number;
+  change: number;
+  changePct: number | null;
+  direction: 'up' | 'down' | 'flat';
 }
 
 interface UploadedListingImageFile {
@@ -671,6 +691,11 @@ export class ListingsService {
       completedAppointments,
       upcomingAppointments,
     };
+    const comparison = await this.buildOwnerReportComparison(
+      listing,
+      period,
+      metrics,
+    );
 
     return {
       generatedAt: new Date().toISOString(),
@@ -680,6 +705,7 @@ export class ListingsService {
         to: period.to.toISOString(),
       },
       metrics,
+      comparison,
       activity,
       recommendation: this.buildOwnerReportRecommendation(metrics),
     };
@@ -2779,6 +2805,72 @@ export class ListingsService {
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       )
       .slice(0, 10);
+  }
+
+  private async buildOwnerReportComparison(
+    listing: Listing,
+    period: { from: Date; to: Date },
+    current: ListingOwnerReportResponse['metrics'],
+  ): Promise<ListingOwnerReportResponse['comparison']> {
+    const durationMs = period.to.getTime() - period.from.getTime();
+    const previousTo = new Date(period.from.getTime() - 1);
+    const previousFrom = new Date(previousTo.getTime() - durationMs);
+
+    const [publicViews, inquiries, appointments, completedAppointments] =
+      await Promise.all([
+        this.countListingPublicViews(listing.id, previousFrom, previousTo),
+        this.countListingInquiries(
+          listing.agentId,
+          listing.id,
+          previousFrom,
+          previousTo,
+        ),
+        this.countListingAppointments(
+          listing.agentId,
+          listing.id,
+          previousFrom,
+          previousTo,
+        ),
+        this.countListingAppointments(
+          listing.agentId,
+          listing.id,
+          previousFrom,
+          previousTo,
+          AppointmentStatus.COMPLETED,
+        ),
+      ]);
+
+    return {
+      previousPeriod: {
+        from: previousFrom.toISOString(),
+        to: previousTo.toISOString(),
+      },
+      deltas: {
+        publicViews: this.buildMetricDelta(current.publicViews, publicViews),
+        inquiries: this.buildMetricDelta(current.inquiries, inquiries),
+        appointments: this.buildMetricDelta(current.appointments, appointments),
+        completedAppointments: this.buildMetricDelta(
+          current.completedAppointments,
+          completedAppointments,
+        ),
+      },
+    };
+  }
+
+  private buildMetricDelta(
+    current: number,
+    previous: number,
+  ): ListingOwnerReportMetricDelta {
+    const change = current - previous;
+
+    return {
+      current,
+      previous,
+      change,
+      changePct:
+        previous === 0 ? null : Math.round((change / previous) * 1000) / 10,
+      direction: change > 0 ? 'up' : change < 0 ? 'down' : 'flat',
+    };
   }
 
   private isDateInRange(
