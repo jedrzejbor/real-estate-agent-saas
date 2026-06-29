@@ -2286,10 +2286,48 @@ Decyzje techniczne:
 Do kolejnej iteracji UX-7:
 
 1. Rozważyć eksport PDF, jeśli ustalimy infrastrukturę generowania dokumentów.
-2. Rozważyć bardziej domenowe komentarze do raportu:
+2. Rozważyć bardziej rozbudowany eksport/share flow raportu, jeśli raport ma
+   być przekazywany właścicielowi poza spotkaniem.
+
+Status UX-7 / iteracja 4 - insighty raportu:
+
+Zrobione:
+
+1. Rozszerzono payload raportu o tablicę `insights`.
+2. Insighty są generowane deterministycznie po stronie backendu na podstawie
+   metryk i porównania z poprzednim okresem.
+3. Dodano reguły:
+   - brak aktywności w okresie raportu,
    - dużo wyświetleń bez zapytań,
    - zapytania bez spotkań,
-   - spadek aktywności względem poprzedniego okresu.
+   - spadek wyświetleń względem poprzedniego okresu,
+   - zdrowy rytm oferty, gdy są wyświetlenia, zapytania i spotkania.
+4. Każdy insight zawiera:
+   - kod,
+   - poziom `info`, `warning` albo `success`,
+   - tytuł,
+   - opis,
+   - sugerowaną akcję.
+5. Widok raportu dostał sekcję `Insight agenta`.
+6. Insighty są neutralne i nie pokazują danych osobowych leadów.
+7. Test raportu właścicielskiego sprawdza generowanie insightu oraz nadal
+   pilnuje braku wycieku danych kontaktowych i administracyjnych.
+
+Decyzje techniczne:
+
+1. Insighty raportowe pozostają w domenie raportu UX-7, bez tworzenia jeszcze
+   osobnego `InsightsService`. Wydzielenie serwisu ma sens dopiero przy UX-8,
+   gdy insighty będą współdzielone przez dashboard, raporty i powiadomienia.
+2. Reguły są deterministyczne, krótkie i testowalne. Nie używamy AI ani
+   promptów do generowania treści raportu.
+3. Backend zwraca maksymalnie trzy insighty, żeby raport pozostał czytelny dla
+   właściciela.
+
+Do kolejnej iteracji UX-7:
+
+1. Rozważyć eksport PDF, jeśli ustalimy infrastrukturę generowania dokumentów.
+2. Rozważyć bardziej rozbudowany eksport/share flow raportu, jeśli raport ma
+   być przekazywany właścicielowi poza spotkaniem.
 
 ### Sprint UX-8: Insighty i rekomendacje działań
 

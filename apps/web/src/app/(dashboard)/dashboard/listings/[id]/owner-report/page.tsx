@@ -23,6 +23,7 @@ import {
   LISTING_STATUS_LABELS,
   PROPERTY_TYPE_LABELS,
   TRANSACTION_TYPE_LABELS,
+  type ListingOwnerReportInsight,
   type ListingOwnerReportMetricDelta,
   type ListingOwnerReport,
 } from '@/lib/listings';
@@ -309,6 +310,29 @@ export default function ListingOwnerReportPage() {
           </div>
         </section>
 
+        <section className="rounded-xl border border-border p-5 print:border-black/20">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="font-heading text-lg font-semibold text-foreground print:text-black">
+              Insight agenta
+            </h2>
+            <p className="text-sm text-muted-foreground print:text-black/60">
+              {report.insights.length} wnioski
+            </p>
+          </div>
+
+          {report.insights.length > 0 ? (
+            <div className="mt-4 grid gap-3 lg:grid-cols-3">
+              {report.insights.map((insight) => (
+                <ReportInsightCard key={insight.code} insight={insight} />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground print:text-black/70">
+              Brak automatycznych insightów dla tego okresu.
+            </p>
+          )}
+        </section>
+
         <section className="grid gap-5 lg:grid-cols-[1fr_1fr]">
           <div className="rounded-xl border border-border p-5 print:border-black/20">
             <h2 className="font-heading text-lg font-semibold text-foreground print:text-black">
@@ -454,6 +478,33 @@ function ComparisonItem({
   );
 }
 
+function ReportInsightCard({
+  insight,
+}: {
+  insight: ListingOwnerReportInsight;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-4 print:border-black/20 print:bg-white">
+      <p
+        className={`text-xs font-semibold uppercase ${getInsightTextColor(
+          insight.severity,
+        )}`}
+      >
+        {getInsightSeverityLabel(insight.severity)}
+      </p>
+      <h3 className="mt-2 text-sm font-semibold text-foreground print:text-black">
+        {insight.title}
+      </h3>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground print:text-black/70">
+        {insight.description}
+      </p>
+      <p className="mt-3 text-xs font-medium text-foreground print:text-black">
+        {insight.actionLabel}
+      </p>
+    </div>
+  );
+}
+
 function ReportDetail({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-4">
@@ -524,6 +575,22 @@ function getDeltaTextColor(
   if (direction === 'up') return 'text-status-success print:text-black';
   if (direction === 'down') return 'text-status-warning print:text-black';
   return 'text-muted-foreground print:text-black/60';
+}
+
+function getInsightTextColor(
+  severity: ListingOwnerReportInsight['severity'],
+): string {
+  if (severity === 'success') return 'text-status-success print:text-black';
+  if (severity === 'warning') return 'text-status-warning print:text-black';
+  return 'text-primary print:text-black';
+}
+
+function getInsightSeverityLabel(
+  severity: ListingOwnerReportInsight['severity'],
+): string {
+  if (severity === 'success') return 'Dobry sygnał';
+  if (severity === 'warning') return 'Wymaga uwagi';
+  return 'Warto zrobić';
 }
 
 function getComparisonComment(

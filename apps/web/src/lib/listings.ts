@@ -607,6 +607,7 @@ export interface ListingOwnerReport {
     description: string | null;
     createdAt: string;
   }>;
+  insights: ListingOwnerReportInsight[];
   recommendation: {
     title: string;
     description: string;
@@ -619,6 +620,19 @@ export interface ListingOwnerReportMetricDelta {
   change: number;
   changePct: number | null;
   direction: 'up' | 'down' | 'flat';
+}
+
+export interface ListingOwnerReportInsight {
+  code:
+    | 'no_public_activity'
+    | 'views_without_inquiries'
+    | 'inquiries_without_appointments'
+    | 'activity_drop'
+    | 'healthy_progress';
+  severity: 'info' | 'warning' | 'success';
+  title: string;
+  description: string;
+  actionLabel: string;
 }
 
 export interface ListingOwnerReportFilters {

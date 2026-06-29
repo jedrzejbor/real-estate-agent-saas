@@ -226,6 +226,14 @@ describe('ListingsService owner report', () => {
       changePct: null,
       direction: 'up',
     });
+    expect(report.insights).toContainEqual({
+      code: 'healthy_progress',
+      severity: 'success',
+      title: 'Oferta pracuje w zdrowym rytmie',
+      description:
+        'Raport pokazuje ruch, zapytania i spotkania. Najważniejsze jest teraz zbieranie feedbacku po prezentacjach.',
+      actionLabel: 'Kontynuować follow-up po spotkaniach',
+    });
     expect(publicLeadCountQb.where).toHaveBeenCalledWith(
       'lead.agentId = :agentId',
       { agentId },

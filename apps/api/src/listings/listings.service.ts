@@ -236,6 +236,7 @@ export interface ListingOwnerReportResponse {
     description: string | null;
     createdAt: string;
   }>;
+  insights: ListingOwnerReportInsight[];
   recommendation: {
     title: string;
     description: string;
@@ -248,6 +249,19 @@ export interface ListingOwnerReportMetricDelta {
   change: number;
   changePct: number | null;
   direction: 'up' | 'down' | 'flat';
+}
+
+export interface ListingOwnerReportInsight {
+  code:
+    | 'no_public_activity'
+    | 'views_without_inquiries'
+    | 'inquiries_without_appointments'
+    | 'activity_drop'
+    | 'healthy_progress';
+  severity: 'info' | 'warning' | 'success';
+  title: string;
+  description: string;
+  actionLabel: string;
 }
 
 interface UploadedListingImageFile {
@@ -719,6 +733,7 @@ export class ListingsService {
       metrics,
       comparison,
       activity,
+      insights: this.buildOwnerReportInsights(metrics, comparison),
       recommendation: this.buildOwnerReportRecommendation(metrics),
     };
   }
@@ -2908,6 +2923,83 @@ export class ListingsService {
         previous === 0 ? null : Math.round((change / previous) * 1000) / 10,
       direction: change > 0 ? 'up' : change < 0 ? 'down' : 'flat',
     };
+  }
+
+  private buildOwnerReportInsights(
+    metrics: ListingOwnerReportResponse['metrics'],
+    comparison: ListingOwnerReportResponse['comparison'],
+  ): ListingOwnerReportInsight[] {
+    const insights: ListingOwnerReportInsight[] = [];
+
+    if (
+      metrics.publicViews === 0 &&
+      metrics.inquiries === 0 &&
+      metrics.appointments === 0
+    ) {
+      insights.push({
+        code: 'no_public_activity',
+        severity: 'warning',
+        title: 'Brak aktywności w okresie raportu',
+        description:
+          'Oferta nie zebrała wyświetleń, zapytań ani spotkań. Warto sprawdzić publikację i kanały dystrybucji linku.',
+        actionLabel: 'Zweryfikować publikację i promocję oferty',
+      });
+    }
+
+    if (metrics.publicViews >= 20 && metrics.inquiries === 0) {
+      insights.push({
+        code: 'views_without_inquiries',
+        severity: 'warning',
+        title: 'Ruch nie zamienia się w zapytania',
+        description:
+          'Oferta ma zauważalne wyświetlenia, ale nie generuje kontaktów. Najpierw sprawdź cenę, pierwsze zdjęcie i treść formularza.',
+        actionLabel: 'Przejrzeć cenę, zdjęcia i opis oferty',
+      });
+    }
+
+    if (metrics.inquiries > 0 && metrics.appointments === 0) {
+      insights.push({
+        code: 'inquiries_without_appointments',
+        severity: 'info',
+        title: 'Zapytania nie przechodzą w prezentacje',
+        description:
+          'W raporcie są zapytania, ale nie ma spotkań. To sygnał do szybkiego follow-upu i zaproponowania konkretnych terminów.',
+        actionLabel: 'Zaproponować terminy prezentacji',
+      });
+    }
+
+    if (
+      comparison.deltas.publicViews.direction === 'down' &&
+      comparison.deltas.publicViews.changePct !== null &&
+      comparison.deltas.publicViews.changePct <= -30
+    ) {
+      insights.push({
+        code: 'activity_drop',
+        severity: 'warning',
+        title: 'Widoczny spadek zainteresowania',
+        description:
+          'Wyświetlenia są wyraźnie niższe niż w poprzednim okresie. Warto odświeżyć ekspozycję oferty albo zmienić komunikację.',
+        actionLabel: 'Odświeżyć promocję oferty',
+      });
+    }
+
+    if (
+      insights.length === 0 &&
+      metrics.publicViews > 0 &&
+      metrics.inquiries > 0 &&
+      metrics.appointments > 0
+    ) {
+      insights.push({
+        code: 'healthy_progress',
+        severity: 'success',
+        title: 'Oferta pracuje w zdrowym rytmie',
+        description:
+          'Raport pokazuje ruch, zapytania i spotkania. Najważniejsze jest teraz zbieranie feedbacku po prezentacjach.',
+        actionLabel: 'Kontynuować follow-up po spotkaniach',
+      });
+    }
+
+    return insights.slice(0, 3);
   }
 
   private isDateInRange(
