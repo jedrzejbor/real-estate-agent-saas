@@ -19,6 +19,7 @@ import { ListingsService } from './listings.service';
 import {
   CreateListingDto,
   ListingActivityQueryDto,
+  ListingOwnerReportQueryDto,
   ListingQueryDto,
   PublicListingCatalogQueryDto,
   ReorderListingImagesDto,
@@ -156,6 +157,16 @@ export class ListingsController {
     @Query() query: ListingActivityQueryDto,
   ) {
     return this.listingsService.findActivity(id, userId, query);
+  }
+
+  /** GET /api/listings/:id/owner-report — get a printable owner-facing report for one listing. */
+  @Get(':id/owner-report')
+  async findOwnerReport(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @Query() query: ListingOwnerReportQueryDto,
+  ) {
+    return this.listingsService.findOwnerReport(id, userId, query);
   }
 
   /** GET /api/listings/:id/matching-clients — get CRM clients matched to a listing. */

@@ -513,6 +513,12 @@ export default function ListingDetailPage() {
             <MessageSquareText className="h-3.5 w-3.5" />
             Wiadomość
           </Button>
+          <Link href={`/dashboard/listings/${listing.id}/owner-report`}>
+            <Button variant="outline" size="sm" className="gap-1.5 rounded-xl">
+              <FileText className="h-3.5 w-3.5" />
+              Raport właściciela
+            </Button>
+          </Link>
           <Button
             type="button"
             variant="outline"

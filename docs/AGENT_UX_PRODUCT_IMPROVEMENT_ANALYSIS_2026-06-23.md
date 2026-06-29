@@ -2145,6 +2145,66 @@ Kryteria akceptacji:
 - nie pokazuje danych osobowych leadów bez potrzeby,
 - metryki są opisane zrozumiałym językiem.
 
+Status UX-7 / iteracja 1 - MVP raportu właściciela:
+
+Zrobione:
+
+1. Dodano prywatny endpoint:
+   - `GET /api/listings/:id/owner-report`.
+2. Endpoint zwraca raport dla jednej oferty w scope zalogowanego agenta:
+   - dane oferty,
+   - okres raportu,
+   - metryki,
+   - ostatnią aktywność,
+   - rekomendację agenta.
+3. Dodano filtrowanie zakresu dat:
+   - `from`,
+   - `to`,
+   - domyślnie ostatnie 30 dni.
+4. Dodano agregowane metryki:
+   - wyświetlenia publicznej oferty,
+   - zapytania publiczne,
+   - spotkania w okresie,
+   - zakończone spotkania,
+   - przyszłe zaplanowane spotkania.
+5. Aktywność raportu jest ograniczona do danych bezpiecznych dla właściciela:
+   - nie pokazujemy imion, emaili ani telefonów leadów,
+   - zapytania są opisane neutralnie jako aktywność,
+   - publiczne wyświetlenia są agregowane i pokazywane bez danych technicznych.
+6. Dodano widok:
+   - `/dashboard/listings/:id/owner-report`.
+7. Widok zawiera:
+   - nagłówek raportu,
+   - dane oferty,
+   - KPI,
+   - rekomendację,
+   - ostatnie działania,
+   - akcje `Drukuj`, `Kopiuj link`, `Wróć do oferty`.
+8. Dodano przycisk `Raport właściciela` na profilu oferty.
+9. Dodano testy backendowe:
+   - raport działa tylko w scope agenta,
+   - metryki są agregowane poprawnie,
+   - raport nie ujawnia danych osobowych leadów.
+
+Decyzje techniczne:
+
+1. PDF zostaje poza MVP tej iteracji. Widok jest przygotowany do drukowania z
+   przeglądarki, bez dokładania infrastruktury renderowania PDF po stronie
+   serwera.
+2. Endpoint znajduje się pod domeną ofert, ponieważ raport dotyczy jednej
+   oferty i korzysta z istniejących repozytoriów `Listing`, `PublicLead`,
+   `Appointment`, `AnalyticsEvent` oraz historii aktywności.
+3. Rekomendacja jest deterministyczna i bazuje na metrykach, bez generowania AI,
+   aby MVP było szybkie, testowalne i przewidywalne.
+
+Do kolejnej iteracji UX-7:
+
+1. Dodać wybór zakresu dat z poziomu UI raportu.
+2. Rozważyć sekcję porównania z poprzednim okresem.
+3. Rozważyć eksport PDF, jeśli ustalimy infrastrukturę generowania dokumentów.
+4. Dodać branding agencji, gdy potwierdzimy stabilny kontrakt danych agencji w
+   raporcie.
+
 ### Sprint UX-8: Insighty i rekomendacje działań
 
 Cel:

@@ -547,6 +547,54 @@ export interface ListingMatchingClientResult {
   reasons: ListingMatchingReason[];
 }
 
+export interface ListingOwnerReport {
+  generatedAt: string;
+  listing: {
+    id: string;
+    title: string;
+    status: ListingStatus;
+    publicationStatus: ListingPublicationStatus;
+    propertyType: PropertyType;
+    transactionType: TransactionType;
+    price: number | string;
+    currency: string;
+    areaM2: number | string | null;
+    rooms: number | null;
+    address: {
+      city: string | null;
+      district: string | null;
+      street: string | null;
+    } | null;
+  };
+  period: {
+    from: string;
+    to: string;
+  };
+  metrics: {
+    publicViews: number;
+    inquiries: number;
+    appointments: number;
+    completedAppointments: number;
+    upcomingAppointments: number;
+  };
+  activity: Array<{
+    id: string;
+    type: 'public_view' | 'public_lead' | 'appointment' | 'activity';
+    title: string;
+    description: string | null;
+    createdAt: string;
+  }>;
+  recommendation: {
+    title: string;
+    description: string;
+  };
+}
+
+export interface ListingOwnerReportFilters {
+  from?: string;
+  to?: string;
+}
+
 export interface ListingFilters {
   propertyType?: PropertyType;
   status?: ListingStatus;
@@ -741,9 +789,7 @@ export type PublicListingSettingsFormData = z.infer<
 
 // ── API Functions ──
 
-function buildQueryString(
-  filters: ListingFilters | PublicListingCatalogFilters,
-): string {
+function buildQueryString<T extends object>(filters: T): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
     if (value !== undefined && value !== '' && value !== null) {
@@ -779,6 +825,15 @@ export async function dismissListingMatchingClient(
   return apiFetch<void>(
     `/listings/${listingId}/matching-clients/${clientId}/dismiss`,
     { method: 'POST' },
+  );
+}
+
+export async function fetchListingOwnerReport(
+  listingId: string,
+  filters: ListingOwnerReportFilters = {},
+): Promise<ListingOwnerReport> {
+  return apiFetch<ListingOwnerReport>(
+    `/listings/${listingId}/owner-report${buildQueryString(filters)}`,
   );
 }
 

@@ -35,6 +35,7 @@ import { AgencyLimitEnforcementService, UsersService } from '../users';
 import {
   ActivityAction,
   ActivityEntityType,
+  AppointmentStatus,
   ClientStatus,
   ListingPublicationStatus,
   ListingStatus,
@@ -59,6 +60,7 @@ import {
 import { assertPublicListingModerationPassed } from '../common/public-listing-moderation';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { ListingActivityQueryDto } from './dto/listing-activity-query.dto';
+import { ListingOwnerReportQueryDto } from './dto/listing-owner-report-query.dto';
 import { UpdateListingImageDto } from './dto/listing-image.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ListingQueryDto } from './dto/listing-query.dto';
@@ -172,6 +174,49 @@ export interface MatchingClientResult {
   client: MatchingClientSummary;
   score: number;
   reasons: MatchingReason[];
+}
+
+export interface ListingOwnerReportResponse {
+  generatedAt: string;
+  listing: {
+    id: string;
+    title: string;
+    status: ListingStatus;
+    publicationStatus: ListingPublicationStatus;
+    propertyType: string;
+    transactionType: string;
+    price: string | number;
+    currency: string;
+    areaM2: string | number | null;
+    rooms: number | null;
+    address: {
+      city: string | null;
+      district: string | null;
+      street: string | null;
+    } | null;
+  };
+  period: {
+    from: string;
+    to: string;
+  };
+  metrics: {
+    publicViews: number;
+    inquiries: number;
+    appointments: number;
+    completedAppointments: number;
+    upcomingAppointments: number;
+  };
+  activity: Array<{
+    id: string;
+    type: 'public_view' | 'public_lead' | 'appointment' | 'activity';
+    title: string;
+    description: string | null;
+    createdAt: string;
+  }>;
+  recommendation: {
+    title: string;
+    description: string;
+  };
 }
 
 interface UploadedListingImageFile {
@@ -574,6 +619,69 @@ export class ListingsService {
         limit,
         totalPages: Math.ceil(total / limit),
       },
+    };
+  }
+
+  async findOwnerReport(
+    id: string,
+    userId: string,
+    query: ListingOwnerReportQueryDto,
+  ): Promise<ListingOwnerReportResponse> {
+    const listing = await this.findOneOrFail(id);
+    await this.assertOwnership(listing, userId);
+
+    const period = this.resolveOwnerReportPeriod(query);
+    const [publicViews, inquiries, appointments, completedAppointments] =
+      await Promise.all([
+        this.countListingPublicViews(listing.id, period.from, period.to),
+        this.countListingInquiries(
+          listing.agentId,
+          listing.id,
+          period.from,
+          period.to,
+        ),
+        this.countListingAppointments(
+          listing.agentId,
+          listing.id,
+          period.from,
+          period.to,
+        ),
+        this.countListingAppointments(
+          listing.agentId,
+          listing.id,
+          period.from,
+          period.to,
+          AppointmentStatus.COMPLETED,
+        ),
+      ]);
+
+    const upcomingAppointments = await this.appointmentRepo.count({
+      where: {
+        agentId: listing.agentId,
+        listingId: listing.id,
+        status: AppointmentStatus.SCHEDULED,
+      },
+    });
+
+    const activity = await this.buildOwnerReportActivity(listing, period);
+    const metrics = {
+      publicViews,
+      inquiries,
+      appointments,
+      completedAppointments,
+      upcomingAppointments,
+    };
+
+    return {
+      generatedAt: new Date().toISOString(),
+      listing: this.toOwnerReportListingSummary(listing),
+      period: {
+        from: period.from.toISOString(),
+        to: period.to.toISOString(),
+      },
+      metrics,
+      activity,
+      recommendation: this.buildOwnerReportRecommendation(metrics),
     };
   }
 
@@ -2486,6 +2594,235 @@ export class ListingsService {
     listingView.ownerUser = undefined;
 
     return listingView;
+  }
+
+  private resolveOwnerReportPeriod(query: ListingOwnerReportQueryDto): {
+    from: Date;
+    to: Date;
+  } {
+    const to = query.to ? new Date(query.to) : new Date();
+    const from = query.from
+      ? new Date(query.from)
+      : new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) {
+      throw new BadRequestException('Nieprawidłowy zakres dat raportu');
+    }
+
+    if (from > to) {
+      throw new BadRequestException(
+        'Data początku raportu nie może być późniejsza niż data końca',
+      );
+    }
+
+    return { from, to };
+  }
+
+  private toOwnerReportListingSummary(
+    listing: Listing,
+  ): ListingOwnerReportResponse['listing'] {
+    return {
+      id: listing.id,
+      title: listing.title,
+      status: listing.status,
+      publicationStatus: listing.publicationStatus,
+      propertyType: listing.propertyType,
+      transactionType: listing.transactionType,
+      price: listing.price,
+      currency: listing.currency,
+      areaM2: listing.areaM2 ?? null,
+      rooms: listing.rooms ?? null,
+      address: listing.address
+        ? {
+            city: listing.address.city ?? null,
+            district: listing.address.district ?? null,
+            street: listing.address.street ?? null,
+          }
+        : null,
+    };
+  }
+
+  private countListingPublicViews(
+    listingId: string,
+    from: Date,
+    to: Date,
+  ): Promise<number> {
+    return this.analyticsEventRepo
+      .createQueryBuilder('event')
+      .where('event.name = :eventName', {
+        eventName: 'public_listing_viewed',
+      })
+      .andWhere("event.properties ->> 'listingId' = :listingId", {
+        listingId,
+      })
+      .andWhere('event.createdAt BETWEEN :from AND :to', { from, to })
+      .getCount();
+  }
+
+  private countListingInquiries(
+    agentId: string,
+    listingId: string,
+    from: Date,
+    to: Date,
+  ): Promise<number> {
+    return this.publicLeadRepo
+      .createQueryBuilder('lead')
+      .where('lead.agentId = :agentId', { agentId })
+      .andWhere('lead.listingId = :listingId', { listingId })
+      .andWhere('lead.createdAt BETWEEN :from AND :to', { from, to })
+      .getCount();
+  }
+
+  private countListingAppointments(
+    agentId: string,
+    listingId: string,
+    from: Date,
+    to: Date,
+    status?: AppointmentStatus,
+  ): Promise<number> {
+    const qb = this.appointmentRepo
+      .createQueryBuilder('appointment')
+      .where('appointment.agentId = :agentId', { agentId })
+      .andWhere('appointment.listingId = :listingId', { listingId })
+      .andWhere('appointment.startTime BETWEEN :from AND :to', { from, to });
+
+    if (status) {
+      qb.andWhere('appointment.status = :status', { status });
+    }
+
+    return qb.getCount();
+  }
+
+  private async buildOwnerReportActivity(
+    listing: Listing,
+    period: { from: Date; to: Date },
+  ): Promise<ListingOwnerReportResponse['activity']> {
+    const [publicActivity, leads, appointments, history] = await Promise.all([
+      this.analyticsEventRepo
+        .createQueryBuilder('event')
+        .where('event.name = :eventName', {
+          eventName: 'public_listing_viewed',
+        })
+        .andWhere("event.properties ->> 'listingId' = :listingId", {
+          listingId: listing.id,
+        })
+        .andWhere('event.createdAt BETWEEN :from AND :to', period)
+        .orderBy('event.createdAt', 'DESC')
+        .take(5)
+        .getMany(),
+      this.publicLeadRepo
+        .createQueryBuilder('lead')
+        .where('lead.agentId = :agentId', { agentId: listing.agentId })
+        .andWhere('lead.listingId = :listingId', { listingId: listing.id })
+        .andWhere('lead.createdAt BETWEEN :from AND :to', period)
+        .orderBy('lead.createdAt', 'DESC')
+        .take(5)
+        .getMany(),
+      this.appointmentRepo
+        .createQueryBuilder('appointment')
+        .where('appointment.agentId = :agentId', { agentId: listing.agentId })
+        .andWhere('appointment.listingId = :listingId', {
+          listingId: listing.id,
+        })
+        .andWhere('appointment.startTime BETWEEN :from AND :to', period)
+        .orderBy('appointment.startTime', 'DESC')
+        .take(5)
+        .getMany(),
+      this.activityService.findEntityHistory(
+        listing.agent.userId,
+        ActivityEntityType.LISTING,
+        listing.id,
+      ),
+    ]);
+
+    return [
+      ...publicActivity.map((event) => ({
+        id: `public-view:${event.id}`,
+        type: 'public_view' as const,
+        title: 'Wyświetlenie publicznej oferty',
+        description: null,
+        createdAt: toActivityIsoString(event.createdAt),
+      })),
+      ...leads
+        .filter((lead) => this.isDateInRange(lead.createdAt, period))
+        .map((lead) => ({
+          id: `lead:${lead.id}`,
+          type: 'public_lead' as const,
+          title: 'Nowe zapytanie z publicznej oferty',
+          description: lead.message ? 'Zapytanie zawiera wiadomość.' : null,
+          createdAt: toActivityIsoString(lead.createdAt),
+        })),
+      ...appointments
+        .filter((appointment) =>
+          this.isDateInRange(appointment.startTime, period),
+        )
+        .map((appointment) => ({
+          id: `appointment:${appointment.id}`,
+          type: 'appointment' as const,
+          title: `Spotkanie: ${appointment.title}`,
+          description: appointment.status,
+          createdAt: toActivityIsoString(appointment.startTime),
+        })),
+      ...history
+        .filter((item) => this.isDateInRange(item.createdAt, period))
+        .slice(0, 5)
+        .map((item) => ({
+          id: `activity:${item.id}`,
+          type: 'activity' as const,
+          title: item.description ?? 'Aktywność oferty',
+          description: item.action,
+          createdAt: toActivityIsoString(item.createdAt),
+        })),
+    ]
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+      .slice(0, 10);
+  }
+
+  private isDateInRange(
+    value: Date,
+    period: { from: Date; to: Date },
+  ): boolean {
+    const timestamp = value.getTime();
+    return (
+      timestamp >= period.from.getTime() && timestamp <= period.to.getTime()
+    );
+  }
+
+  private buildOwnerReportRecommendation(
+    metrics: ListingOwnerReportResponse['metrics'],
+  ): ListingOwnerReportResponse['recommendation'] {
+    if (metrics.publicViews === 0) {
+      return {
+        title: 'Zwiększyć ekspozycję oferty',
+        description:
+          'W analizowanym okresie oferta nie zebrała publicznych wyświetleń. Warto sprawdzić publikację, jakość zdjęć i kanały udostępniania.',
+      };
+    }
+
+    if (metrics.inquiries === 0) {
+      return {
+        title: 'Poprawić konwersję z wyświetleń na zapytania',
+        description:
+          'Oferta generuje ruch, ale nie ma zapytań. Warto przejrzeć cenę, opis, pierwsze zdjęcie i widoczność formularza kontaktowego.',
+      };
+    }
+
+    if (metrics.appointments === 0) {
+      return {
+        title: 'Przekuć zapytania w prezentacje',
+        description:
+          'Oferta ma zapytania, ale bez spotkań w okresie raportu. Rekomendowany jest szybki follow-up i propozycja konkretnych terminów prezentacji.',
+      };
+    }
+
+    return {
+      title: 'Kontynuować aktywną obsługę',
+      description:
+        'Oferta ma ruch, zapytania i spotkania. W kolejnym kroku warto zebrać feedback po prezentacjach i zdecydować, czy potrzebna jest korekta ceny albo opisu.',
+    };
   }
 
   private toMatchingClientSummary(client: Client): MatchingClientSummary {
