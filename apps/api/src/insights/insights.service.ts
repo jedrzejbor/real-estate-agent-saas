@@ -12,9 +12,12 @@ import {
 } from '../common/enums';
 import { UsersService } from '../users';
 
-const MAX_DASHBOARD_INSIGHTS = 4;
+const MAX_DASHBOARD_INSIGHTS = 5;
 const STALE_LISTING_DAYS = 14;
 const UNHANDLED_LEAD_HOURS = 24;
+const LEAD_DROP_PERIOD_DAYS = 7;
+const LEAD_DROP_MIN_PREVIOUS_PERIOD_LEADS = 5;
+const LEAD_DROP_RATIO = 0.4;
 const CANCELLED_APPOINTMENT_WINDOW_DAYS = 30;
 const CANCELLED_APPOINTMENT_MIN_TOTAL = 3;
 const CANCELLED_APPOINTMENT_RATIO = 0.3;
@@ -63,11 +66,13 @@ export class InsightsService {
 
     const [
       unhandledLead,
+      leadDrop,
       staleListing,
       cancelledAppointments,
       highCommissionListing,
     ] = await Promise.all([
       this.findUnhandledLeadInsight(agentIds, now),
+      this.findLeadDropInsight(agentIds, now),
       this.findStaleListingInsight(agentIds, now),
       this.findCancelledAppointmentsInsight(agentIds, now),
       this.findHighCommissionListingInsight(agentIds, now),
@@ -75,6 +80,7 @@ export class InsightsService {
 
     const insights = [
       unhandledLead,
+      leadDrop,
       staleListing,
       cancelledAppointments,
       highCommissionListing,
@@ -151,6 +157,57 @@ export class InsightsService {
       entityId: listing.id,
       actionLabel: 'Otwórz ofertę',
       actionHref: `/dashboard/listings/${listing.id}`,
+      createdAt: now.toISOString(),
+    };
+  }
+
+  private async findLeadDropInsight(
+    agentIds: string[],
+    now: Date,
+  ): Promise<Insight | null> {
+    const currentPeriodStart = new Date(
+      now.getTime() - LEAD_DROP_PERIOD_DAYS * 24 * 60 * 60 * 1000,
+    );
+    const previousPeriodStart = new Date(
+      currentPeriodStart.getTime() -
+        LEAD_DROP_PERIOD_DAYS * 24 * 60 * 60 * 1000,
+    );
+
+    const [currentLeads, previousLeads] = await Promise.all([
+      this.publicLeadRepo.count({
+        where: {
+          agentId: In(agentIds),
+          createdAt: Between(currentPeriodStart, now),
+        },
+      }),
+      this.publicLeadRepo.count({
+        where: {
+          agentId: In(agentIds),
+          createdAt: Between(previousPeriodStart, currentPeriodStart),
+        },
+      }),
+    ]);
+
+    if (previousLeads < LEAD_DROP_MIN_PREVIOUS_PERIOD_LEADS) {
+      return null;
+    }
+
+    const dropRatio = (previousLeads - currentLeads) / previousLeads;
+    if (dropRatio < LEAD_DROP_RATIO) {
+      return null;
+    }
+
+    const dropPercent = Math.round(dropRatio * 100);
+
+    return {
+      id: `public-leads-drop:${LEAD_DROP_PERIOD_DAYS}d`,
+      severity: 'warning',
+      title: 'Spadek liczby leadów',
+      description: `W ostatnich ${LEAD_DROP_PERIOD_DAYS} dniach przyszło ${currentLeads} leadów, poprzednio ${previousLeads}. Spadek o ${dropPercent}% warto sprawdzić w źródłach zapytań i ekspozycji ofert.`,
+      entityType: 'public_lead',
+      entityId: null,
+      actionLabel: 'Zobacz zapytania',
+      actionHref: '/dashboard/inquiries',
       createdAt: now.toISOString(),
     };
   }

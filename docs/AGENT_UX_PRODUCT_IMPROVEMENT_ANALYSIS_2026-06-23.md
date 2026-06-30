@@ -2581,9 +2581,44 @@ Decyzje techniczne:
 Do kolejnej iteracji UX-8:
 
 1. Dodać linki do danych źródłowych w raportach właściciela.
-2. Rozszerzyć insighty o zaległe zadania i spadek leadów okres do okresu.
+2. Rozszerzyć insighty o zaległe zadania.
 3. Rozważyć dedykowany `InsightsService` dla raportów, jeśli reguły zaczną być
    współdzielone między dashboardem i raportem właściciela.
+
+Status UX-8 / iteracja 2 - spadek leadów okres do okresu:
+
+Zrobione:
+
+1. Rozszerzono backendowy `InsightsService` o deterministyczną regułę spadku
+   leadów tydzień do tygodnia.
+2. Reguła porównuje:
+   - liczbę leadów z ostatnich 7 dni,
+   - liczbę leadów z poprzednich 7 dni.
+3. Insight pojawia się tylko wtedy, gdy:
+   - poprzedni okres miał co najmniej 5 leadów,
+   - spadek wynosi co najmniej 40%.
+4. Zwiększono limit dashboardowych insightów z 4 do 5, żeby cały zakres MVP
+   mógł być pokazany bez ucinania jednego z typów sygnałów.
+5. Dodano CTA `Zobacz zapytania`, prowadzące do prywatnego widoku zapytań.
+6. Rozszerzono testy `InsightsService` o:
+   - generowanie insightu spadku leadów,
+   - brak insightu, gdy próg spadku nie jest spełniony.
+
+Decyzje techniczne:
+
+1. Reguła liczy wszystkie leady publiczne w scope agencji, niezależnie od
+   statusu, ponieważ celem jest pomiar popytu i skuteczności ekspozycji, a nie
+   tylko operacyjna obsługa zapytań.
+2. Endpoint nadal nie zwraca danych osobowych leadów.
+3. Nie dodano migracji ani trwałości ukrywania insightów; to nadal osobny temat
+   na późniejszą iterację.
+
+Do kolejnej iteracji UX-8:
+
+1. Dodać linki do danych źródłowych w raportach właściciela.
+2. Rozszerzyć insighty o zaległe zadania.
+3. Rozważyć trwałe ukrywanie/odkładanie insightów po decyzji, czy ma działać
+   per agent, per workspace, czy per encja.
 
 ### Sprint UX-9: Automatyzacje i powiadomienia operacyjne
 

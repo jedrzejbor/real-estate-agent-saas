@@ -22,11 +22,13 @@ describe('InsightsService', () => {
   function createService({
     unhandledLead = null,
     staleListing = null,
+    leadCounts = [0, 0],
     appointmentCounts = [0, 0],
     commissionListings = [],
   }: {
     unhandledLead?: unknown;
     staleListing?: unknown;
+    leadCounts?: number[];
     appointmentCounts?: number[];
     commissionListings?: unknown[];
   } = {}) {
@@ -36,6 +38,10 @@ describe('InsightsService', () => {
     };
     const publicLeadRepo = {
       findOne: jest.fn().mockResolvedValue(unhandledLead),
+      count: jest
+        .fn()
+        .mockResolvedValueOnce(leadCounts[0])
+        .mockResolvedValueOnce(leadCounts[1]),
     };
     const appointmentRepo = {
       count: jest
@@ -81,6 +87,7 @@ describe('InsightsService', () => {
         title: 'Dom bez aktywności',
         status: ListingStatus.ACTIVE,
       },
+      leadCounts: [3, 7],
       appointmentCounts: [4, 2],
       commissionListings: [
         {
@@ -98,9 +105,10 @@ describe('InsightsService', () => {
 
     expect(usersService.getAgencyAccessContext).toHaveBeenCalledWith(userId);
     expect(result.generatedAt).toBe(now.toISOString());
-    expect(result.insights).toHaveLength(4);
+    expect(result.insights).toHaveLength(5);
     expect(result.insights.map((insight) => insight.id)).toEqual([
       'public-lead-unhandled:lead-1',
+      'public-leads-drop:7d',
       'listing-stale:listing-2',
       'appointments-cancelled-ratio',
       'pipeline-high-commission:listing-3',
@@ -118,6 +126,7 @@ describe('InsightsService', () => {
 
   it('does not return noisy insights when thresholds are not met', async () => {
     const { service, appointmentRepo } = createService({
+      leadCounts: [4, 5],
       appointmentCounts: [2, 2],
       commissionListings: [
         {
