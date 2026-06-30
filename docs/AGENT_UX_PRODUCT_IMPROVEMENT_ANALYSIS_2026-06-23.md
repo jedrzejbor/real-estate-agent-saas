@@ -2764,8 +2764,47 @@ Decyzje techniczne:
 
 Do kolejnej iteracji UX-8 albo osobnego sprintu:
 
-1. Dodać widok/listę ukrytych insightów w ustawieniach.
-2. Rozważyć personalizację progów insightów.
+1. Rozważyć personalizację progów insightów.
+
+Status UX-8 / iteracja 7 - lista ukrytych insightów w ustawieniach:
+
+Zrobione:
+
+1. Dodano backendowy endpoint:
+   - `GET /api/insights/dismissed`.
+2. Endpoint zwraca ukryte insighty aktualnego użytkownika wraz z:
+   - `insightId`,
+   - `dismissedAt`,
+   - aktualnymi danymi insightu, jeśli reguła nadal jest aktywna.
+3. Jeśli insight nie jest już aktywny, endpoint zwraca wpis z `insight: null`,
+   dzięki czemu użytkownik nadal może usunąć blokadę na przyszłość.
+4. Dodano frontendowy kontrakt:
+   - `DismissedDashboardInsight`,
+   - `DismissedDashboardInsightsResponse`,
+   - `fetchDismissedDashboardInsights`.
+5. W ustawieniach dodano sekcję `Ukryte insighty`:
+   - loading state,
+   - error state,
+   - empty state,
+   - status `Aktywny` / `Nieaktywny`,
+   - datę ukrycia,
+   - akcję `Przywróć`.
+6. Przywrócenie w ustawieniach używa istniejącego endpointu:
+   - `DELETE /api/insights/:id/dismiss`.
+7. Rozszerzono testy `InsightsService` o listowanie ukrytych insightów z
+   aktywnymi danymi oraz fallbackiem dla insightu nieaktywnego.
+
+Decyzje techniczne:
+
+1. Nie dodano kolejnych kolumn do `insight_dismissals`; lista opiera się na
+   zapisanym `insightId` i bieżącym przeliczeniu reguł.
+2. Nieaktywne insighty są nadal widoczne w ustawieniach, bo użytkownik może
+   chcieć odblokować regułę na przyszłość.
+3. Widok jest w ustawieniach konta, ponieważ ukrycie działa per użytkownik.
+
+Do kolejnej iteracji UX-8 albo osobnego sprintu:
+
+1. Rozważyć personalizację progów insightów.
 
 ### Sprint UX-9: Automatyzacje i powiadomienia operacyjne
 

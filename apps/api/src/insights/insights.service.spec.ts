@@ -64,6 +64,7 @@ describe('InsightsService', () => {
       find: jest.fn().mockResolvedValue(
         dismissedInsightIds.map((insightId) => ({
           insightId,
+          createdAt: now,
         })),
       ),
       upsert: jest.fn().mockResolvedValue({}),
@@ -198,6 +199,39 @@ describe('InsightsService', () => {
     expect(result.insights.map((insight) => insight.id)).not.toContain(
       'tasks-overdue',
     );
+  });
+
+  it('lists dismissed insights with active insight details when still applicable', async () => {
+    const { service, insightDismissalRepo } = createService({
+      overdueTask: {
+        id: 'task-1',
+        title: 'Oddzwonić do klienta',
+        status: TaskStatus.TODO,
+      },
+      overdueTaskCount: 1,
+      dismissedInsightIds: ['tasks-overdue', 'listing-stale:missing'],
+    });
+
+    const result = await service.getDismissedDashboardInsights(userId);
+
+    expect(insightDismissalRepo.find).toHaveBeenCalledWith({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+    expect(result.dismissedInsights).toHaveLength(2);
+    expect(result.dismissedInsights[0]).toMatchObject({
+      insightId: 'tasks-overdue',
+      dismissedAt: now.toISOString(),
+      insight: {
+        id: 'tasks-overdue',
+        title: 'Zaległe zadania wymagają reakcji',
+      },
+    });
+    expect(result.dismissedInsights[1]).toEqual({
+      insightId: 'listing-stale:missing',
+      dismissedAt: now.toISOString(),
+      insight: null,
+    });
   });
 
   it('persists dismissed insight ids idempotently', async () => {

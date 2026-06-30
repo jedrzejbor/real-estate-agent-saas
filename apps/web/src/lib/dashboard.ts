@@ -155,6 +155,17 @@ export interface DashboardInsightsResponse {
   generatedAt: string;
 }
 
+export interface DismissedDashboardInsight {
+  insightId: string;
+  dismissedAt: string;
+  insight: DashboardInsight | null;
+}
+
+export interface DismissedDashboardInsightsResponse {
+  dismissedInsights: DismissedDashboardInsight[];
+  generatedAt: string;
+}
+
 // ── API ──
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {
@@ -167,6 +178,10 @@ export async function fetchDashboardToday(): Promise<DashboardTodayResponse> {
 
 export async function fetchDashboardInsights(): Promise<DashboardInsightsResponse> {
   return apiFetch<DashboardInsightsResponse>('/insights');
+}
+
+export async function fetchDismissedDashboardInsights(): Promise<DismissedDashboardInsightsResponse> {
+  return apiFetch<DismissedDashboardInsightsResponse>('/insights/dismissed');
 }
 
 export async function dismissDashboardInsight(id: string): Promise<void> {

@@ -52,6 +52,17 @@ export interface InsightsResponse {
   generatedAt: string;
 }
 
+export interface DismissedInsight {
+  insightId: string;
+  dismissedAt: string;
+  insight: Insight | null;
+}
+
+export interface DismissedInsightsResponse {
+  dismissedInsights: DismissedInsight[];
+  generatedAt: string;
+}
+
 @Injectable()
 export class InsightsService {
   constructor(
@@ -72,38 +83,48 @@ export class InsightsService {
     const access = await this.usersService.getAgencyAccessContext(userId);
     const agentIds = access.agencyAgentIds;
     const now = new Date();
-
-    const [
-      unhandledLead,
-      leadDrop,
-      overdueTasks,
-      staleListing,
-      cancelledAppointments,
-      highCommissionListing,
-    ] = await Promise.all([
-      this.findUnhandledLeadInsight(agentIds, now),
-      this.findLeadDropInsight(agentIds, now),
-      this.findOverdueTasksInsight(agentIds, now),
-      this.findStaleListingInsight(agentIds, now),
-      this.findCancelledAppointmentsInsight(agentIds, now),
-      this.findHighCommissionListingInsight(agentIds, now),
-    ]);
+    const candidates = await this.buildDashboardInsightCandidates(
+      agentIds,
+      now,
+    );
 
     const dismissedIds = await this.findDismissedInsightIds(userId);
-    const insights = [
-      unhandledLead,
-      leadDrop,
-      overdueTasks,
-      staleListing,
-      cancelledAppointments,
-      highCommissionListing,
-    ].filter((insight): insight is Insight => {
+    const insights = candidates.filter((insight): insight is Insight => {
       if (!insight) return false;
       return !dismissedIds.has(insight.id);
     });
 
     return {
       insights: insights.slice(0, MAX_DASHBOARD_INSIGHTS),
+      generatedAt: now.toISOString(),
+    };
+  }
+
+  async getDismissedDashboardInsights(
+    userId: string,
+  ): Promise<DismissedInsightsResponse> {
+    const access = await this.usersService.getAgencyAccessContext(userId);
+    const agentIds = access.agencyAgentIds;
+    const now = new Date();
+    const [dismissals, candidates] = await Promise.all([
+      this.insightDismissalRepo.find({
+        where: { userId },
+        order: { createdAt: 'DESC' },
+      }),
+      this.buildDashboardInsightCandidates(agentIds, now),
+    ]);
+    const activeInsights = new Map(
+      candidates
+        .filter((insight): insight is Insight => Boolean(insight))
+        .map((insight) => [insight.id, insight]),
+    );
+
+    return {
+      dismissedInsights: dismissals.map((dismissal) => ({
+        insightId: dismissal.insightId,
+        dismissedAt: dismissal.createdAt.toISOString(),
+        insight: activeInsights.get(dismissal.insightId) ?? null,
+      })),
       generatedAt: now.toISOString(),
     };
   }
@@ -175,6 +196,36 @@ export class InsightsService {
         : `/dashboard/inquiries?status=${PublicLeadStatus.NEW}`,
       createdAt: now.toISOString(),
     };
+  }
+
+  private async buildDashboardInsightCandidates(
+    agentIds: string[],
+    now: Date,
+  ): Promise<Array<Insight | null>> {
+    const [
+      unhandledLead,
+      leadDrop,
+      overdueTasks,
+      staleListing,
+      cancelledAppointments,
+      highCommissionListing,
+    ] = await Promise.all([
+      this.findUnhandledLeadInsight(agentIds, now),
+      this.findLeadDropInsight(agentIds, now),
+      this.findOverdueTasksInsight(agentIds, now),
+      this.findStaleListingInsight(agentIds, now),
+      this.findCancelledAppointmentsInsight(agentIds, now),
+      this.findHighCommissionListingInsight(agentIds, now),
+    ]);
+
+    return [
+      unhandledLead,
+      leadDrop,
+      overdueTasks,
+      staleListing,
+      cancelledAppointments,
+      highCommissionListing,
+    ];
   }
 
   private async findStaleListingInsight(

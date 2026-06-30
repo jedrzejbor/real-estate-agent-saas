@@ -1,11 +1,15 @@
 'use client';
 
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
+  AlertCircle,
   ArrowRight,
   CheckCircle2,
   Crown,
+  EyeOff,
   LockKeyhole,
+  RotateCcw,
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
@@ -19,7 +23,14 @@ import {
   AccountSecuritySection,
 } from '@/components/settings/account-settings-forms';
 import { useAuth } from '@/contexts/auth-context';
+import { useToast } from '@/contexts/toast-context';
+import { getApiErrorMessage } from '@/lib/api-client';
 import { isUsageExceeded, isUsageWarning } from '@/lib/auth';
+import {
+  fetchDismissedDashboardInsights,
+  restoreDashboardInsight,
+  type DismissedDashboardInsight,
+} from '@/lib/dashboard';
 import {
   getGrowthUpsells,
   getUpgradeHref,
@@ -85,6 +96,7 @@ export default function AccountSettingsPage() {
 
       <AccountProfileSection />
       <AccountSecuritySection />
+      <HiddenInsightsSettingsSection />
 
       <section
         id="plan"
@@ -331,4 +343,182 @@ export default function AccountSettingsPage() {
       <AccountDangerZoneSection />
     </div>
   );
+}
+
+function HiddenInsightsSettingsSection() {
+  const toast = useToast();
+  const [items, setItems] = useState<DismissedDashboardInsight[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+
+  const loadDismissedInsights = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await fetchDismissedDashboardInsights();
+      setItems(result.dismissedInsights);
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadDismissedInsights();
+  }, [loadDismissedInsights]);
+
+  async function handleRestore(item: DismissedDashboardInsight) {
+    if (restoringId) return;
+
+    setRestoringId(item.insightId);
+    try {
+      await restoreDashboardInsight(item.insightId);
+      setItems((current) =>
+        current.filter((insight) => insight.insightId !== item.insightId),
+      );
+      toast.success({
+        title: 'Insight przywrócony',
+        description:
+          'Pojawi się ponownie na dashboardzie, jeśli nadal spełnia warunki.',
+      });
+    } catch (err) {
+      toast.error({
+        title: 'Nie udało się przywrócić insightu',
+        description: getApiErrorMessage(err),
+      });
+    } finally {
+      setRestoringId(null);
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="rounded-xl bg-muted p-2 text-primary">
+            <EyeOff className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-xl font-semibold text-foreground">
+              Ukryte insighty
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Zarządzaj rekomendacjami ukrytymi na dashboardzie. Przywrócony
+              insight wróci do widoku, jeśli jego warunek nadal jest aktualny.
+            </p>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            void loadDismissedInsights();
+          }}
+          disabled={isLoading}
+        >
+          Odśwież
+        </Button>
+      </div>
+
+      <div className="mt-5">
+        {isLoading ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <div
+                key={index}
+                className="min-h-28 animate-pulse rounded-xl border border-border bg-muted/30"
+              />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">Nie udało się pobrać listy.</p>
+              <p className="mt-1 opacity-90">{error}</p>
+            </div>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+            Nie masz ukrytych insightów.
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {items.map((item) => (
+              <HiddenInsightCard
+                key={item.insightId}
+                item={item}
+                isRestoring={restoringId === item.insightId}
+                onRestore={handleRestore}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function HiddenInsightCard({
+  item,
+  isRestoring,
+  onRestore,
+}: {
+  item: DismissedDashboardInsight;
+  isRestoring: boolean;
+  onRestore: (item: DismissedDashboardInsight) => Promise<void>;
+}) {
+  const title = item.insight?.title ?? 'Insight nie jest już aktywny';
+  const description =
+    item.insight?.description ??
+    'Warunek, który wygenerował ten insight, nie jest obecnie spełniony. Możesz go usunąć z ukrytych, aby reguła mogła zadziałać ponownie w przyszłości.';
+
+  return (
+    <article className="rounded-xl border border-border bg-muted/20 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">
+            {description}
+          </p>
+        </div>
+        <Badge variant={item.insight ? 'info' : 'muted'} className="shrink-0">
+          {item.insight ? 'Aktywny' : 'Nieaktywny'}
+        </Badge>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-muted-foreground">
+          Ukryto: {formatSettingsDate(item.dismissedAt)}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={isRestoring}
+          onClick={() => {
+            void onRestore(item);
+          }}
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          {isRestoring ? 'Przywracanie...' : 'Przywróć'}
+        </Button>
+      </div>
+    </article>
+  );
+}
+
+function formatSettingsDate(value: string): string {
+  return new Intl.DateTimeFormat('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
 }

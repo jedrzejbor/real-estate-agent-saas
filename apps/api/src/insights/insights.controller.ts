@@ -12,6 +12,12 @@ export class InsightsController {
     return this.insightsService.getDashboardInsights(userId);
   }
 
+  /** GET /api/insights/dismissed — list dashboard insights hidden by the current user. */
+  @Get('dismissed')
+  async findDismissedDashboardInsights(@CurrentUser('id') userId: string) {
+    return this.insightsService.getDismissedDashboardInsights(userId);
+  }
+
   /** POST /api/insights/:id/dismiss — hide one dashboard insight for the current user. */
   @Post(':id/dismiss')
   async dismissDashboardInsight(
