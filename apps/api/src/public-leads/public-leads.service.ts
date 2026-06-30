@@ -445,6 +445,7 @@ export class PublicLeadsService {
       const savedLead = await manager.save(PublicLead, lead);
       const clientMatch = await this.findMatchingClient(manager, {
         agentId: agent.id,
+        fullName: savedLead.fullName,
         email,
         phone,
       });
@@ -631,6 +632,7 @@ export class PublicLeadsService {
       const savedLead = await manager.save(PublicLead, lead);
       const clientMatch = await this.findMatchingClient(manager, {
         agentId: agent.id,
+        fullName: savedLead.fullName,
         email,
         phone,
       });
@@ -708,7 +710,12 @@ export class PublicLeadsService {
 
   private async findMatchingClient(
     manager: EntityManager,
-    input: { agentId: string; email: string | null; phone: string | null },
+    input: {
+      agentId: string;
+      fullName: string;
+      email: string | null;
+      phone: string | null;
+    },
   ): Promise<Client | null> {
     const qb = manager
       .getRepository(Client)
@@ -724,12 +731,24 @@ export class PublicLeadsService {
     }
 
     const phoneSuffix = normalizeComparablePhoneSuffix(input.phone);
+    const phoneName = splitFullName(input.fullName);
     if (phoneSuffix && phoneSuffix.length >= PHONE_DEDUP_MIN_DIGITS) {
-      matchers.push(
-        "RIGHT(regexp_replace(client.phone, '\\D', '', 'g'), :phoneLength) = :phone",
-      );
-      params.phone = phoneSuffix;
-      params.phoneLength = phoneSuffix.length;
+      const firstName = normalizeComparableNamePart(phoneName.firstName);
+      const lastName = normalizeComparableNamePart(phoneName.lastName);
+
+      if (firstName && lastName) {
+        matchers.push(
+          [
+            "RIGHT(regexp_replace(client.phone, '\\D', '', 'g'), :phoneLength) = :phone",
+            'LOWER(client.firstName) = :phoneFirstName',
+            'LOWER(client.lastName) = :phoneLastName',
+          ].join(' AND '),
+        );
+        params.phone = phoneSuffix;
+        params.phoneLength = phoneSuffix.length;
+        params.phoneFirstName = firstName;
+        params.phoneLastName = lastName;
+      }
     }
 
     if (matchers.length === 0) {
@@ -1055,7 +1074,7 @@ function mapPublicLeadListItem(lead: PublicLead): PublicLeadListItem {
           primaryImage: getPrimaryLeadListingImage(lead.listing),
         }
       : null,
-    convertedClient: lead.convertedClient
+    convertedClient: isReliableConvertedClientLink(lead)
       ? {
           id: lead.convertedClient.id,
           firstName: lead.convertedClient.firstName,
@@ -1070,6 +1089,46 @@ function normalizeComparablePhoneSuffix(
 ): string | null {
   const digits = value?.replace(/\D/g, '');
   return digits ? digits.slice(-PHONE_DEDUP_MAX_SUFFIX_DIGITS) : null;
+}
+
+function isReliableConvertedClientLink(
+  lead: PublicLead,
+): lead is PublicLead & { convertedClient: Client } {
+  if (!lead.convertedClient) return false;
+
+  const leadEmail = lead.email?.trim().toLowerCase();
+  const clientEmail = lead.convertedClient.email?.trim().toLowerCase();
+  if (leadEmail && clientEmail && leadEmail === clientEmail) {
+    return true;
+  }
+
+  const leadName = splitFullName(lead.fullName);
+  const leadFirstName = normalizeComparableNamePart(leadName.firstName);
+  const leadLastName = normalizeComparableNamePart(leadName.lastName);
+  const clientFirstName = normalizeComparableNamePart(
+    lead.convertedClient.firstName,
+  );
+  const clientLastName = normalizeComparableNamePart(
+    lead.convertedClient.lastName,
+  );
+  const leadPhone = normalizeComparablePhoneSuffix(lead.phone);
+  const clientPhone = normalizeComparablePhoneSuffix(
+    lead.convertedClient.phone,
+  );
+
+  return Boolean(
+    leadFirstName &&
+    leadLastName &&
+    leadFirstName === clientFirstName &&
+    leadLastName === clientLastName &&
+    leadPhone &&
+    clientPhone &&
+    leadPhone === clientPhone,
+  );
+}
+
+function normalizeComparableNamePart(value: string | undefined | null): string {
+  return value?.trim().toLowerCase() ?? '';
 }
 
 function splitFullName(fullName: string): {
@@ -1093,15 +1152,13 @@ function splitFullName(fullName: string): {
 }
 
 function getPrimaryLeadListingImage(listing: Listing): PublicLeadListingImage {
-  const primaryImage = (listing.images ?? [])
-    .slice()
-    .sort((a, b) => {
-      if (a.isPrimary !== b.isPrimary) {
-        return a.isPrimary ? -1 : 1;
-      }
+  const primaryImage = (listing.images ?? []).slice().sort((a, b) => {
+    if (a.isPrimary !== b.isPrimary) {
+      return a.isPrimary ? -1 : 1;
+    }
 
-      return a.order - b.order;
-    })[0];
+    return a.order - b.order;
+  })[0];
 
   return primaryImage
     ? {

@@ -2956,6 +2956,29 @@ Do kolejnej iteracji UX-9:
 
 1. Dodać podstawowe ustawienia typów powiadomień w settings.
 
+Poprawka UX/dane - publiczne zapytania i błędny klient CRM:
+
+Problem:
+W widoku zapytań publicznych lead od osoby bez właściwego klienta CRM mógł
+pokazywać przycisk `Klient CRM` prowadzący do innej osoby. Przyczyną było zbyt
+luźne automatyczne dopasowanie publicznego leada do istniejącego klienta po
+samej końcówce numeru telefonu.
+
+Zrobione:
+
+1. Zaostrzono backendową regułę `findMatchingClient` w `PublicLeadsService`.
+2. Exact match po emailu nadal działa samodzielnie.
+3. Match po telefonie wymaga teraz dodatkowo zgodności imienia i nazwiska.
+4. Jeśli lead ma telefon, ale imię/nazwisko nie pasuje do klienta CRM, backend
+   nie podłączy go do tego klienta.
+5. Dodano test `public-leads-matching.spec.ts`, który pilnuje, że telefon sam w
+   sobie nie tworzy powiązania z CRM.
+
+Decyzja:
+Przycisk `Klient CRM` w UI pozostaje poprawny, ale powinien pojawiać się tylko
+wtedy, gdy backend zwraca rzeczywiście powiązanego klienta. Poprawka jest więc
+po stronie reguły dopasowania, a nie przez ukrywanie przycisku w frontendzie.
+
 ### Sprint UX-10: Polishing, mierzenie efektu i rollout
 
 Cel:
