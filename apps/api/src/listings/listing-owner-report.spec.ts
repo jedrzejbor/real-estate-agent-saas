@@ -238,6 +238,8 @@ describe('ListingsService owner report', () => {
       description:
         'Raport pokazuje ruch, zapytania i spotkania. Najważniejsze jest teraz zbieranie feedbacku po prezentacjach.',
       actionLabel: 'Kontynuować follow-up po spotkaniach',
+      sourceLabel: 'Otwórz ofertę',
+      sourceHref: `/dashboard/listings/${listingId}`,
     });
     expect(publicLeadCountQb.where).toHaveBeenCalledWith(
       'lead.agentId = :agentId',

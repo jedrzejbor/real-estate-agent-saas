@@ -2620,6 +2620,39 @@ Do kolejnej iteracji UX-8:
 3. Rozważyć trwałe ukrywanie/odkładanie insightów po decyzji, czy ma działać
    per agent, per workspace, czy per encja.
 
+Status UX-8 / iteracja 3 - linki źródłowe w raportach właściciela:
+
+Zrobione:
+
+1. Rozszerzono backendowy kontrakt insightów raportu właściciela o pola:
+   - `sourceLabel`,
+   - `sourceHref`.
+2. Każdy insight raportu ma teraz link do miejsca, w którym agent może
+   zweryfikować dane źródłowe albo przejść do działania:
+   - profil oferty,
+   - lista zapytań przefiltrowana po ofercie,
+   - raport właściciela.
+3. Zaktualizowano frontendowy typ `ListingOwnerReportInsight`.
+4. Na karcie insightu w raporcie właściciela dodano osobny link źródłowy pod
+   rekomendowaną akcją.
+5. Rozszerzono test raportu właściciela o sprawdzenie `sourceLabel` i
+   `sourceHref`.
+
+Decyzje techniczne:
+
+1. Link źródłowy jest częścią prywatnego dashboardu, nie publicznego raportu.
+2. Nie dodano danych osobowych leadów do payloadu raportu.
+3. Nie zmieniano modelu bazy; rozszerzenie jest kontraktowe i bazuje na
+   istniejących widokach dashboardu.
+
+Do kolejnej iteracji UX-8:
+
+1. Rozszerzyć insighty o zaległe zadania.
+2. Rozważyć trwałe ukrywanie/odkładanie insightów po decyzji, czy ma działać
+   per agent, per workspace, czy per encja.
+3. Jeśli raport właściciela będzie udostępniany publicznie, rozdzielić linki
+   źródłowe dashboardu od wersji publicznej raportu.
+
 ### Sprint UX-9: Automatyzacje i powiadomienia operacyjne
 
 Cel:

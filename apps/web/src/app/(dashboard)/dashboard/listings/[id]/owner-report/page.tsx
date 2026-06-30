@@ -560,6 +560,12 @@ function ReportInsightCard({
       <p className="mt-3 text-xs font-medium text-foreground print:text-black">
         {insight.actionLabel}
       </p>
+      <Link
+        href={insight.sourceHref}
+        className="mt-3 inline-flex text-xs font-medium text-primary hover:underline print:text-black"
+      >
+        {insight.sourceLabel}
+      </Link>
     </div>
   );
 }

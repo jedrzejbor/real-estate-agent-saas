@@ -262,6 +262,8 @@ export interface ListingOwnerReportInsight {
   title: string;
   description: string;
   actionLabel: string;
+  sourceLabel: string;
+  sourceHref: string;
 }
 
 interface UploadedListingImageFile {
@@ -737,7 +739,7 @@ export class ListingsService {
       metrics,
       comparison,
       activity,
-      insights: this.buildOwnerReportInsights(metrics, comparison),
+      insights: this.buildOwnerReportInsights(listing.id, metrics, comparison),
       recommendation: this.buildOwnerReportRecommendation(metrics),
     };
   }
@@ -2931,10 +2933,14 @@ export class ListingsService {
   }
 
   private buildOwnerReportInsights(
+    listingId: string,
     metrics: ListingOwnerReportResponse['metrics'],
     comparison: ListingOwnerReportResponse['comparison'],
   ): ListingOwnerReportInsight[] {
     const insights: ListingOwnerReportInsight[] = [];
+    const listingHref = `/dashboard/listings/${listingId}`;
+    const inquiriesHref = `/dashboard/inquiries?listingId=${listingId}`;
+    const reportHref = `/dashboard/listings/${listingId}/owner-report`;
 
     if (
       metrics.publicViews === 0 &&
@@ -2948,6 +2954,8 @@ export class ListingsService {
         description:
           'Oferta nie zebrała wyświetleń, zapytań ani spotkań. Warto sprawdzić publikację i kanały dystrybucji linku.',
         actionLabel: 'Zweryfikować publikację i promocję oferty',
+        sourceLabel: 'Otwórz ofertę',
+        sourceHref: listingHref,
       });
     }
 
@@ -2959,6 +2967,8 @@ export class ListingsService {
         description:
           'Oferta ma zauważalne wyświetlenia, ale nie generuje kontaktów. Najpierw sprawdź cenę, pierwsze zdjęcie i treść formularza.',
         actionLabel: 'Przejrzeć cenę, zdjęcia i opis oferty',
+        sourceLabel: 'Otwórz ofertę',
+        sourceHref: listingHref,
       });
     }
 
@@ -2970,6 +2980,8 @@ export class ListingsService {
         description:
           'W raporcie są zapytania, ale nie ma spotkań. To sygnał do szybkiego follow-upu i zaproponowania konkretnych terminów.',
         actionLabel: 'Zaproponować terminy prezentacji',
+        sourceLabel: 'Zobacz zapytania',
+        sourceHref: inquiriesHref,
       });
     }
 
@@ -2985,6 +2997,8 @@ export class ListingsService {
         description:
           'Wyświetlenia są wyraźnie niższe niż w poprzednim okresie. Warto odświeżyć ekspozycję oferty albo zmienić komunikację.',
         actionLabel: 'Odświeżyć promocję oferty',
+        sourceLabel: 'Zobacz raport',
+        sourceHref: reportHref,
       });
     }
 
@@ -3001,6 +3015,8 @@ export class ListingsService {
         description:
           'Raport pokazuje ruch, zapytania i spotkania. Najważniejsze jest teraz zbieranie feedbacku po prezentacjach.',
         actionLabel: 'Kontynuować follow-up po spotkaniach',
+        sourceLabel: 'Otwórz ofertę',
+        sourceHref: listingHref,
       });
     }
 

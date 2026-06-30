@@ -633,6 +633,8 @@ export interface ListingOwnerReportInsight {
   title: string;
   description: string;
   actionLabel: string;
+  sourceLabel: string;
+  sourceHref: string;
 }
 
 export interface ListingOwnerReportFilters {
