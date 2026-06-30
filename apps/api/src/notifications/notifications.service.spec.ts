@@ -1,4 +1,9 @@
-import { ClientStatus, TaskStatus, TaskType } from '../common/enums';
+import {
+  ClientStatus,
+  ListingStatus,
+  TaskStatus,
+  TaskType,
+} from '../common/enums';
 import { NotificationsService } from './notifications.service';
 
 describe('NotificationsService', () => {
@@ -17,9 +22,11 @@ describe('NotificationsService', () => {
 
   function createService({
     overdueFollowUps = [],
+    staleActiveListings = [],
     readIds = [],
   }: {
     overdueFollowUps?: unknown[];
+    staleActiveListings?: unknown[];
     readIds?: string[];
   } = {}) {
     const appointmentRepo = {
@@ -27,7 +34,7 @@ describe('NotificationsService', () => {
     };
     const listingRepo = {
       count: jest.fn().mockResolvedValue(0),
-      find: jest.fn().mockResolvedValue([]),
+      find: jest.fn().mockResolvedValue(staleActiveListings),
     };
     const clientRepo = {
       find: jest.fn().mockResolvedValue([]),
@@ -125,5 +132,32 @@ describe('NotificationsService', () => {
       }),
     );
     expect(result.unreadCount).toBe(0);
+  });
+
+  it('returns stale active listing notifications with stable ids and listing links', async () => {
+    const { service } = createService({
+      staleActiveListings: [
+        {
+          id: 'listing-1',
+          agentId,
+          title: 'Mieszkanie po kampanii',
+          status: ListingStatus.ACTIVE,
+          updatedAt: new Date('2026-06-01T09:00:00.000Z'),
+        },
+      ],
+    });
+
+    const result = await service.findAll(userId, { limit: 8 });
+
+    expect(result.items).toContainEqual(
+      expect.objectContaining({
+        id: 'listing-stale-active-listing-1',
+        category: 'listing',
+        variant: 'warning',
+        title: 'Aktywna oferta wymaga odświeżenia',
+        href: '/dashboard/listings/listing-1',
+        isRead: false,
+      }),
+    );
   });
 });

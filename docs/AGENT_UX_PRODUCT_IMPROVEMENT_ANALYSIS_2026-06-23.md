@@ -2890,9 +2890,42 @@ Decyzje techniczne:
 
 Do kolejnej iteracji UX-9:
 
-1. Dodać powiadomienie o aktywnej ofercie bez aktywności.
-2. Uporządkować centrum powiadomień przez grupowanie operacyjne.
-3. Dodać podstawowe ustawienia typów powiadomień w settings.
+1. Uporządkować centrum powiadomień przez grupowanie operacyjne.
+2. Dodać podstawowe ustawienia typów powiadomień w settings.
+
+Status UX-9 / iteracja 2 - aktywne oferty bez świeżej aktywności:
+
+Zrobione:
+
+1. Rozszerzono `NotificationsService` o regułę aktywnych ofert bez świeżej
+   aktualizacji.
+2. Reguła wykrywa oferty:
+   - w statusie `active`,
+   - z `updatedAt` starszym niż 14 dni,
+   - należące do aktualnego agenta.
+3. Powiadomienie ma stabilne id:
+   - `listing-stale-active-{listingId}`.
+4. Powiadomienie prowadzi bezpośrednio do profilu oferty.
+5. Ustalono priorytet niższy niż zaległe spotkania i follow-upy, ale wyższy niż
+   stare szkice ofert.
+6. Dodano test `NotificationsService` sprawdzający:
+   - generowanie powiadomienia,
+   - stabilne id,
+   - link do profilu oferty,
+   - status nieprzeczytany, gdy nie ma wpisu w `notification_reads`.
+
+Decyzje techniczne:
+
+1. Wykorzystano `updatedAt`, ponieważ jest dostępne bez migracji i odzwierciedla
+   ostatnią zmianę oferty.
+2. Nie dodano powiadomienia dla każdej nieaktywnej oferty bez limitu; reguła
+   pobiera maksymalnie trzy najstarsze aktywne oferty, żeby nie generować szumu.
+3. Stabilne id zachowuje idempotencję oznaczania jako przeczytane.
+
+Do kolejnej iteracji UX-9:
+
+1. Uporządkować centrum powiadomień przez grupowanie operacyjne.
+2. Dodać podstawowe ustawienia typów powiadomień w settings.
 
 ### Sprint UX-10: Polishing, mierzenie efektu i rollout
 

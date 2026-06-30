@@ -83,6 +83,7 @@ export class NotificationsService {
     const now = new Date();
     const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
 
     const [
@@ -91,6 +92,7 @@ export class NotificationsService {
       newClients,
       recentPublicLeads,
       overdueFollowUps,
+      staleActiveListings,
       staleDrafts,
       documentAttention,
     ] = await Promise.all([
@@ -142,6 +144,15 @@ export class NotificationsService {
         order: { dueAt: 'ASC' },
         take: 5,
         relations: ['client', 'listing', 'appointment'],
+      }),
+      this.listingRepo.find({
+        where: {
+          agentId: agent.id,
+          status: ListingStatus.ACTIVE,
+          updatedAt: LessThan(fourteenDaysAgo),
+        },
+        order: { updatedAt: 'ASC' },
+        take: 3,
       }),
       this.listingRepo.count({
         where: {
@@ -203,6 +214,10 @@ export class NotificationsService {
 
     for (const task of overdueFollowUps) {
       ranked.push(this.buildOverdueFollowUpNotification(task, now));
+    }
+
+    for (const listing of staleActiveListings) {
+      ranked.push(this.buildStaleActiveListingNotification(listing));
     }
 
     const publicLeadClientIds = new Set(
@@ -383,6 +398,22 @@ export class NotificationsService {
       createdAt: dueAt.toISOString(),
       priority: 280,
       sortTimestamp: dueAt.getTime(),
+    };
+  }
+
+  private buildStaleActiveListingNotification(
+    listing: Listing,
+  ): RankedNotification {
+    return {
+      id: `listing-stale-active-${listing.id}`,
+      category: 'listing',
+      variant: 'warning',
+      title: 'Aktywna oferta wymaga odświeżenia',
+      description: `"${listing.title}" nie była aktualizowana od ${listing.updatedAt.toLocaleDateString('pl-PL')}. Warto sprawdzić cenę, opis i ekspozycję.`,
+      href: `/dashboard/listings/${listing.id}`,
+      createdAt: listing.updatedAt.toISOString(),
+      priority: 190,
+      sortTimestamp: listing.updatedAt.getTime(),
     };
   }
 
