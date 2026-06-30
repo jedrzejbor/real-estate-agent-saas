@@ -2850,6 +2850,50 @@ Kryteria akceptacji:
 - scheduler nie generuje duplikatów,
 - testy obejmują idempotencję.
 
+Status UX-9 / iteracja 1 - zaległe follow-upy w centrum powiadomień:
+
+Zrobione:
+
+1. Rozszerzono istniejący `NotificationsService`, zamiast tworzyć nowy system
+   powiadomień.
+2. Dodano regułę powiadomień dla zadań:
+   - `type = follow_up`,
+   - `status = todo`,
+   - `dueAt` wcześniejsze niż aktualny czas,
+   - w scope aktualnego agenta.
+3. Powiadomienie ma stabilne id:
+   - `task-overdue-follow-up-{taskId}`.
+4. Stabilne id pozwala zachować idempotencję istniejącego mechanizmu
+   `notification_reads`.
+5. Powiadomienie prowadzi bezpośrednio do najlepszego kontekstu zadania:
+   - spotkanie,
+   - klient,
+   - oferta,
+   - lista zadań jako fallback.
+6. Rozszerzono kategorię powiadomień o `task` po stronie backendu i frontendu.
+7. Dropdown powiadomień dostał ikonę dla kategorii `task`.
+8. Dodano test `NotificationsService` sprawdzający:
+   - generowanie powiadomienia follow-up po terminie,
+   - stabilne id,
+   - bezpośredni link do klienta,
+   - respektowanie statusu przeczytania.
+
+Decyzje techniczne:
+
+1. Nie dodano migracji, ponieważ wykorzystano istniejące tabele `tasks` i
+   `notification_reads`.
+2. Nie dodano schedulerów w tej iteracji. Obecny moduł generuje powiadomienia
+   deterministycznie przy odczycie, a idempotencja wynika ze stabilnych id i
+   tabeli przeczytanych powiadomień.
+3. Reguła obejmuje tylko follow-upy, nie wszystkie zadania, żeby nie tworzyć
+   szumu operacyjnego w centrum powiadomień.
+
+Do kolejnej iteracji UX-9:
+
+1. Dodać powiadomienie o aktywnej ofercie bez aktywności.
+2. Uporządkować centrum powiadomień przez grupowanie operacyjne.
+3. Dodać podstawowe ustawienia typów powiadomień w settings.
+
 ### Sprint UX-10: Polishing, mierzenie efektu i rollout
 
 Cel:

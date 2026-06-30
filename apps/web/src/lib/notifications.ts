@@ -5,7 +5,8 @@ export type NotificationCategory =
   | 'client'
   | 'document'
   | 'listing'
-  | 'public_lead';
+  | 'public_lead'
+  | 'task';
 export type NotificationVariant = 'info' | 'warning' | 'success';
 
 export interface NotificationItem {

@@ -6,10 +6,13 @@ import {
   AppointmentStatus,
   ListingStatus,
   ClientStatus,
+  TaskStatus,
+  TaskType,
 } from '../common/enums';
 import { Client } from '../clients/entities/client.entity';
 import { Listing } from '../listings/entities/listing.entity';
 import { PublicLead } from '../public-leads/entities';
+import { Task } from '../tasks/entities';
 import { Agent } from '../users/entities/agent.entity';
 import { UsersService } from '../users';
 import {
@@ -25,7 +28,8 @@ export type NotificationCategory =
   | 'client'
   | 'document'
   | 'listing'
-  | 'public_lead';
+  | 'public_lead'
+  | 'task';
 
 export interface NotificationItem {
   id: string;
@@ -62,6 +66,8 @@ export class NotificationsService {
     private readonly clientRepo: Repository<Client>,
     @InjectRepository(PublicLead)
     private readonly publicLeadRepo: Repository<PublicLead>,
+    @InjectRepository(Task)
+    private readonly taskRepo: Repository<Task>,
     @InjectRepository(NotificationRead)
     private readonly notificationReadRepo: Repository<NotificationRead>,
     private readonly usersService: UsersService,
@@ -84,6 +90,7 @@ export class NotificationsService {
       upcomingAppointments,
       newClients,
       recentPublicLeads,
+      overdueFollowUps,
       staleDrafts,
       documentAttention,
     ] = await Promise.all([
@@ -124,6 +131,17 @@ export class NotificationsService {
         order: { createdAt: 'DESC' },
         take: 5,
         relations: ['listing', 'convertedClient'],
+      }),
+      this.taskRepo.find({
+        where: {
+          agentId: agent.id,
+          status: TaskStatus.TODO,
+          type: TaskType.FOLLOW_UP,
+          dueAt: LessThan(now),
+        },
+        order: { dueAt: 'ASC' },
+        take: 5,
+        relations: ['client', 'listing', 'appointment'],
       }),
       this.listingRepo.count({
         where: {
@@ -181,6 +199,10 @@ export class NotificationsService {
         priority: 220,
         sortTimestamp: lead.createdAt.getTime(),
       });
+    }
+
+    for (const task of overdueFollowUps) {
+      ranked.push(this.buildOverdueFollowUpNotification(task, now));
     }
 
     const publicLeadClientIds = new Set(
@@ -337,6 +359,62 @@ export class NotificationsService {
       createdAt: item.createdAt,
       priority: getDocumentNotificationPriority(item.kind),
       sortTimestamp: new Date(item.createdAt).getTime(),
+    };
+  }
+
+  private buildOverdueFollowUpNotification(
+    task: Task,
+    now: Date,
+  ): RankedNotification {
+    const context = this.getTaskContext(task);
+    const dueAt = task.dueAt ?? task.createdAt;
+    const overdueDays = Math.max(
+      1,
+      Math.ceil((now.getTime() - dueAt.getTime()) / (24 * 60 * 60 * 1000)),
+    );
+
+    return {
+      id: `task-overdue-follow-up-${task.id}`,
+      category: 'task',
+      variant: 'warning',
+      title: 'Follow-up jest po terminie',
+      description: `${task.title}${context.label ? ` (${context.label})` : ''} czeka ${overdueDays} ${this.pluralize(overdueDays, 'dzień', 'dni', 'dni')}.`,
+      href: context.href,
+      createdAt: dueAt.toISOString(),
+      priority: 280,
+      sortTimestamp: dueAt.getTime(),
+    };
+  }
+
+  private getTaskContext(task: Task): { label: string | null; href: string } {
+    if (task.appointmentId) {
+      return {
+        label: task.appointment?.title ?? null,
+        href: `/dashboard/calendar/${task.appointmentId}`,
+      };
+    }
+
+    if (task.clientId) {
+      const clientName = task.client
+        ? `${task.client.firstName} ${task.client.lastName}`.trim()
+        : null;
+
+      return {
+        label: clientName || null,
+        href: `/dashboard/clients/${task.clientId}`,
+      };
+    }
+
+    if (task.listingId) {
+      return {
+        label: task.listing?.title ?? null,
+        href: `/dashboard/listings/${task.listingId}`,
+      };
+    }
+
+    return {
+      label: null,
+      href: '/dashboard/tasks',
     };
   }
 

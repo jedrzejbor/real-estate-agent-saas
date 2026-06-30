@@ -11,6 +11,7 @@ import {
   CircleAlert,
   FileText,
   MessageSquareText,
+  ListTodo,
   UserRoundPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ const CATEGORY_ICON: Record<NotificationCategory, typeof CalendarClock> = {
   document: FileText,
   listing: Building2,
   public_lead: MessageSquareText,
+  task: ListTodo,
 };
 
 const VARIANT_STYLES = {
