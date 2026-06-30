@@ -2532,6 +2532,59 @@ Kryteria akceptacji:
 - użytkownik może przejść bezpośrednio do działania,
 - reguły są testowalne.
 
+Status UX-8 / iteracja 1 - fundament insightów dashboardowych:
+
+Zrobione:
+
+1. Dodano backendowy moduł `InsightsModule`.
+2. Dodano `InsightsService` z deterministycznymi regułami bez AI.
+3. Dodano endpoint:
+   - `GET /api/insights`.
+4. Endpoint zwraca maksymalnie cztery insighty dla aktualnego workspace:
+   - lead publiczny nieobsłużony ponad 24 godziny,
+   - aktywna oferta bez świeżej aktualizacji ponad 14 dni,
+   - wysoki odsetek anulowanych spotkań z ostatnich 30 dni,
+   - aktywna oferta z wysokim potencjałem prowizji.
+5. Każdy insight zawiera:
+   - `id`,
+   - `severity`,
+   - `title`,
+   - `description`,
+   - `entityType`,
+   - `entityId`,
+   - `actionLabel`,
+   - `actionHref`,
+   - `createdAt`.
+6. Dodano testy backendowe reguł:
+   - generowanie insightów,
+   - ograniczenie szumu, gdy progi nie są spełnione,
+   - brak danych osobowych leada w payloadzie insightu.
+7. Dodano frontendowy kontrakt i hook:
+   - `fetchDashboardInsights`,
+   - `useDashboardInsights`.
+8. Dodano sekcję `Insight dnia` na głównym przeglądzie dashboardu:
+   - loading state,
+   - error state,
+   - empty state,
+   - karty insightów z CTA.
+
+Decyzje techniczne:
+
+1. Nie dodano jeszcze zapisu ukrywania insightów. To wymaga osobnego modelu
+   trwałości i decyzji, czy ukrycie jest per agent, per workspace, czy per
+   encja.
+2. Reguły są progowe i deterministyczne, żeby były testowalne i przewidywalne.
+3. Payload insightów nie zawiera danych osobowych leadów; CTA prowadzi do
+   prywatnego widoku zapytań.
+4. Pierwsza iteracja używa istniejących danych i nie wymaga migracji bazy.
+
+Do kolejnej iteracji UX-8:
+
+1. Dodać linki do danych źródłowych w raportach właściciela.
+2. Rozszerzyć insighty o zaległe zadania i spadek leadów okres do okresu.
+3. Rozważyć dedykowany `InsightsService` dla raportów, jeśli reguły zaczną być
+   współdzielone między dashboardem i raportem właściciela.
+
 ### Sprint UX-9: Automatyzacje i powiadomienia operacyjne
 
 Cel:

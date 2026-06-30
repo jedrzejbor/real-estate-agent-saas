@@ -130,6 +130,30 @@ export interface DashboardTodayResponse {
   generatedAt: string;
 }
 
+export type DashboardInsightSeverity = 'info' | 'warning' | 'success';
+export type DashboardInsightEntityType =
+  | 'listing'
+  | 'public_lead'
+  | 'appointment'
+  | 'pipeline';
+
+export interface DashboardInsight {
+  id: string;
+  severity: DashboardInsightSeverity;
+  title: string;
+  description: string;
+  entityType: DashboardInsightEntityType;
+  entityId: string | null;
+  actionLabel: string;
+  actionHref: string;
+  createdAt: string;
+}
+
+export interface DashboardInsightsResponse {
+  insights: DashboardInsight[];
+  generatedAt: string;
+}
+
 // ── API ──
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {
@@ -138,6 +162,10 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
 export async function fetchDashboardToday(): Promise<DashboardTodayResponse> {
   return apiFetch<DashboardTodayResponse>('/dashboard/today');
+}
+
+export async function fetchDashboardInsights(): Promise<DashboardInsightsResponse> {
+  return apiFetch<DashboardInsightsResponse>('/insights');
 }
 
 export async function markTodayTaskDone(taskId: string): Promise<void> {

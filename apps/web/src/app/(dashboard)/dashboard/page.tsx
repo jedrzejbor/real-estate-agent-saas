@@ -24,6 +24,7 @@ import {
   Percent,
   AlertCircle,
   CheckCircle2,
+  Lightbulb,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +35,7 @@ import { PlanUsageCard } from '@/components/dashboard/plan-usage-card';
 import { FeatureSurveyList } from '@/components/feedback/feature-survey-list';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '@/hooks/use-dashboard';
+import { useDashboardInsights } from '@/hooks/use-dashboard-insights';
 import { useDashboardToday } from '@/hooks/use-dashboard-today';
 import { isUsageWarning } from '@/lib/auth';
 import { getPlanUsageMetrics } from '@/lib/plan';
@@ -43,6 +45,9 @@ import {
   type RecentActivity,
   type UpcomingAppointment,
   type DashboardTodayResponse,
+  type DashboardInsightsResponse,
+  type DashboardInsight,
+  type DashboardInsightSeverity,
   type TodayItem,
   type TodayItemPriority,
   type TodayItemType,
@@ -62,6 +67,12 @@ export default function DashboardPage() {
     refresh: refreshToday,
     completeTask,
   } = useDashboardToday();
+  const {
+    insights,
+    isLoading: isInsightsLoading,
+    error: insightsError,
+    refresh: refreshInsights,
+  } = useDashboardInsights();
   const [activeTab, setActiveTab] = useState<DashboardTabId>('overview');
 
   const firstName = user?.agent?.firstName?.trim() ?? '';
@@ -103,13 +114,16 @@ export default function DashboardPage() {
           onClick={() => {
             refresh();
             refreshToday();
+            refreshInsights();
           }}
-          disabled={isLoading || isTodayLoading}
+          disabled={isLoading || isTodayLoading || isInsightsLoading}
           className="gap-1.5 rounded-xl"
         >
           <RefreshCw
             className={`h-3.5 w-3.5 ${
-              isLoading || isTodayLoading ? 'animate-spin' : ''
+              isLoading || isTodayLoading || isInsightsLoading
+                ? 'animate-spin'
+                : ''
             }`}
           />
           Odśwież
@@ -213,6 +227,10 @@ export default function DashboardPage() {
                 todayError={todayError}
                 onRefreshToday={refreshToday}
                 onCompleteTask={completeTask}
+                insights={insights}
+                isInsightsLoading={isInsightsLoading}
+                insightsError={insightsError}
+                onRefreshInsights={refreshInsights}
               />
             ) : null}
 
@@ -341,6 +359,10 @@ function DashboardOverviewContent({
   todayError,
   onRefreshToday,
   onCompleteTask,
+  insights,
+  isInsightsLoading,
+  insightsError,
+  onRefreshInsights,
 }: {
   stats: DashboardStats;
   today: DashboardTodayResponse | null;
@@ -348,6 +370,10 @@ function DashboardOverviewContent({
   todayError: string | null;
   onRefreshToday: () => void;
   onCompleteTask: (taskId: string) => Promise<void>;
+  insights: DashboardInsightsResponse | null;
+  isInsightsLoading: boolean;
+  insightsError: string | null;
+  onRefreshInsights: () => void;
 }) {
   return (
     <div className="space-y-4">
@@ -357,6 +383,13 @@ function DashboardOverviewContent({
         error={todayError}
         onRefresh={onRefreshToday}
         onCompleteTask={onCompleteTask}
+      />
+
+      <DashboardInsightsPanel
+        insights={insights}
+        isLoading={isInsightsLoading}
+        error={insightsError}
+        onRefresh={onRefreshInsights}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -508,6 +541,120 @@ function TodayPanel({
   );
 }
 
+function DashboardInsightsPanel({
+  insights,
+  isLoading,
+  error,
+  onRefresh,
+}: {
+  insights: DashboardInsightsResponse | null;
+  isLoading: boolean;
+  error: string | null;
+  onRefresh: () => void;
+}) {
+  const items = insights?.insights ?? [];
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-heading text-lg font-semibold text-foreground">
+              Insight dnia
+            </h2>
+            <Badge variant={items.length > 0 ? 'info' : 'success'}>
+              {items.length > 0 ? `${items.length} wnioski` : 'Brak ryzyk'}
+            </Badge>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Automatyczne rekomendacje działań na podstawie ofert, leadów,
+            spotkań i potencjału prowizji.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onRefresh}
+          disabled={isLoading}
+          className="gap-1 text-xs"
+        >
+          <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+          Odśwież
+        </Button>
+      </div>
+
+      {isLoading && !insights ? (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, index) => (
+            <div
+              key={index}
+              className="min-h-32 animate-pulse rounded-xl border border-border bg-muted/30"
+            />
+          ))}
+        </div>
+      ) : error ? (
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">Nie udało się pobrać insightów.</p>
+            <p className="mt-1 opacity-90">{error}</p>
+          </div>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+          Brak nowych rekomendacji. System pokaże tutaj tylko konkretne sygnały,
+          które wymagają decyzji lub szybkiej akcji.
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {items.map((insight) => (
+            <DashboardInsightCard key={insight.id} insight={insight} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function DashboardInsightCard({ insight }: { insight: DashboardInsight }) {
+  const config = DASHBOARD_INSIGHT_SEVERITY_CONFIG[insight.severity];
+  const Icon = config.icon;
+
+  return (
+    <article className="flex min-h-36 flex-col justify-between rounded-xl border border-border bg-muted/10 p-4">
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className={`rounded-lg p-2 ${config.bg}`}>
+              <Icon className={`h-4 w-4 ${config.color}`} />
+            </div>
+            <Badge variant={config.badgeVariant} className="rounded-full">
+              {config.label}
+            </Badge>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            {insight.title}
+          </h3>
+          <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">
+            {insight.description}
+          </p>
+        </div>
+      </div>
+
+      <Link href={insight.actionHref} className="mt-4">
+        <Button variant="outline" size="sm" className="w-full justify-between">
+          {insight.actionLabel}
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Button>
+      </Link>
+    </article>
+  );
+}
+
 function TodayItemCard({
   item,
   onCompleteTask,
@@ -605,6 +752,39 @@ const TODAY_PRIORITY_BADGE_VARIANT: Record<
   high: 'destructive',
   medium: 'warning',
   low: 'secondary',
+};
+
+const DASHBOARD_INSIGHT_SEVERITY_CONFIG: Record<
+  DashboardInsightSeverity,
+  {
+    label: string;
+    icon: ElementType;
+    color: string;
+    bg: string;
+    badgeVariant: React.ComponentProps<typeof Badge>['variant'];
+  }
+> = {
+  warning: {
+    label: 'Wymaga reakcji',
+    icon: AlertCircle,
+    color: 'text-status-warning',
+    bg: 'bg-status-warning-bg',
+    badgeVariant: 'warning',
+  },
+  info: {
+    label: 'Do sprawdzenia',
+    icon: Lightbulb,
+    color: 'text-status-info',
+    bg: 'bg-status-info-bg',
+    badgeVariant: 'info',
+  },
+  success: {
+    label: 'Szansa',
+    icon: TrendingUp,
+    color: 'text-brand-emerald',
+    bg: 'bg-brand-emerald-light',
+    badgeVariant: 'success',
+  },
 };
 
 const TODAY_ITEM_TYPE_CONFIG: Record<

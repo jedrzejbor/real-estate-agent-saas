@@ -1,0 +1,138 @@
+import {
+  ListingCommissionType,
+  ListingStatus,
+  PublicLeadStatus,
+} from '../common/enums';
+import { InsightsService } from './insights.service';
+
+describe('InsightsService', () => {
+  const userId = 'user-1';
+  const agentIds = ['agent-1'];
+  const now = new Date('2026-06-30T10:00:00.000Z');
+
+  beforeAll(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(now);
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
+  function createService({
+    unhandledLead = null,
+    staleListing = null,
+    appointmentCounts = [0, 0],
+    commissionListings = [],
+  }: {
+    unhandledLead?: unknown;
+    staleListing?: unknown;
+    appointmentCounts?: number[];
+    commissionListings?: unknown[];
+  } = {}) {
+    const listingRepo = {
+      findOne: jest.fn().mockResolvedValue(staleListing),
+      find: jest.fn().mockResolvedValue(commissionListings),
+    };
+    const publicLeadRepo = {
+      findOne: jest.fn().mockResolvedValue(unhandledLead),
+    };
+    const appointmentRepo = {
+      count: jest
+        .fn()
+        .mockResolvedValueOnce(appointmentCounts[0])
+        .mockResolvedValueOnce(appointmentCounts[1]),
+    };
+    const usersService = {
+      getAgencyAccessContext: jest.fn().mockResolvedValue({
+        agencyAgentIds: agentIds,
+      }),
+    };
+
+    const service = new InsightsService(
+      listingRepo as never,
+      publicLeadRepo as never,
+      appointmentRepo as never,
+      usersService as never,
+    );
+
+    return {
+      service,
+      listingRepo,
+      publicLeadRepo,
+      appointmentRepo,
+      usersService,
+    };
+  }
+
+  it('returns actionable dashboard insights without exposing lead personal data', async () => {
+    const { service, usersService } = createService({
+      unhandledLead: {
+        id: 'lead-1',
+        fullName: 'Jan Kowalski',
+        email: 'jan@example.com',
+        phone: '500500500',
+        status: PublicLeadStatus.NEW,
+        listingId: 'listing-1',
+        listing: { title: 'Mieszkanie testowe' },
+      },
+      staleListing: {
+        id: 'listing-2',
+        title: 'Dom bez aktywności',
+        status: ListingStatus.ACTIVE,
+      },
+      appointmentCounts: [4, 2],
+      commissionListings: [
+        {
+          id: 'listing-3',
+          title: 'Oferta premium',
+          status: ListingStatus.ACTIVE,
+          price: 1_000_000,
+          commissionType: ListingCommissionType.PERCENTAGE,
+          commissionValue: 3,
+        },
+      ],
+    });
+
+    const result = await service.getDashboardInsights(userId);
+
+    expect(usersService.getAgencyAccessContext).toHaveBeenCalledWith(userId);
+    expect(result.generatedAt).toBe(now.toISOString());
+    expect(result.insights).toHaveLength(4);
+    expect(result.insights.map((insight) => insight.id)).toEqual([
+      'public-lead-unhandled:lead-1',
+      'listing-stale:listing-2',
+      'appointments-cancelled-ratio',
+      'pipeline-high-commission:listing-3',
+    ]);
+    expect(result.insights[0]).toMatchObject({
+      severity: 'warning',
+      entityType: 'public_lead',
+      entityId: 'lead-1',
+      actionHref: '/dashboard/inquiries?status=new&listingId=listing-1',
+    });
+    expect(JSON.stringify(result)).not.toContain('Jan Kowalski');
+    expect(JSON.stringify(result)).not.toContain('jan@example.com');
+    expect(JSON.stringify(result)).not.toContain('500500500');
+  });
+
+  it('does not return noisy insights when thresholds are not met', async () => {
+    const { service, appointmentRepo } = createService({
+      appointmentCounts: [2, 2],
+      commissionListings: [
+        {
+          id: 'listing-1',
+          title: 'Mała oferta',
+          price: 300_000,
+          commissionType: ListingCommissionType.PERCENTAGE,
+          commissionValue: 2,
+        },
+      ],
+    });
+
+    const result = await service.getDashboardInsights(userId);
+
+    expect(result.insights).toEqual([]);
+    expect(appointmentRepo.count).toHaveBeenCalledTimes(2);
+  });
+});
