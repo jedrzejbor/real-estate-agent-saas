@@ -74,6 +74,7 @@ export default function DashboardPage() {
     error: insightsError,
     refresh: refreshInsights,
     dismissInsight,
+    restoreInsight,
   } = useDashboardInsights();
   const [activeTab, setActiveTab] = useState<DashboardTabId>('overview');
 
@@ -234,6 +235,7 @@ export default function DashboardPage() {
                 insightsError={insightsError}
                 onRefreshInsights={refreshInsights}
                 onDismissInsight={dismissInsight}
+                onRestoreInsight={restoreInsight}
               />
             ) : null}
 
@@ -367,6 +369,7 @@ function DashboardOverviewContent({
   insightsError,
   onRefreshInsights,
   onDismissInsight,
+  onRestoreInsight,
 }: {
   stats: DashboardStats;
   today: DashboardTodayResponse | null;
@@ -379,6 +382,7 @@ function DashboardOverviewContent({
   insightsError: string | null;
   onRefreshInsights: () => void;
   onDismissInsight: (id: string) => Promise<void>;
+  onRestoreInsight: (insight: DashboardInsight) => Promise<void>;
 }) {
   return (
     <div className="space-y-4">
@@ -396,6 +400,7 @@ function DashboardOverviewContent({
         error={insightsError}
         onRefresh={onRefreshInsights}
         onDismiss={onDismissInsight}
+        onRestore={onRestoreInsight}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -553,14 +558,36 @@ function DashboardInsightsPanel({
   error,
   onRefresh,
   onDismiss,
+  onRestore,
 }: {
   insights: DashboardInsightsResponse | null;
   isLoading: boolean;
   error: string | null;
   onRefresh: () => void;
   onDismiss: (id: string) => Promise<void>;
+  onRestore: (insight: DashboardInsight) => Promise<void>;
 }) {
   const items = insights?.insights ?? [];
+  const [lastDismissedInsight, setLastDismissedInsight] =
+    useState<DashboardInsight | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  async function handleDismiss(insight: DashboardInsight) {
+    await onDismiss(insight.id);
+    setLastDismissedInsight(insight);
+  }
+
+  async function handleRestore() {
+    if (!lastDismissedInsight || isRestoring) return;
+
+    setIsRestoring(true);
+    try {
+      await onRestore(lastDismissedInsight);
+      setLastDismissedInsight(null);
+    } finally {
+      setIsRestoring(false);
+    }
+  }
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -592,6 +619,23 @@ function DashboardInsightsPanel({
         </Button>
       </div>
 
+      {lastDismissedInsight ? (
+        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>Ukryto insight: {lastDismissedInsight.title}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={isRestoring}
+            onClick={() => {
+              void handleRestore();
+            }}
+          >
+            {isRestoring ? 'Przywracanie...' : 'Cofnij'}
+          </Button>
+        </div>
+      ) : null}
+
       {isLoading && !insights ? (
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           {Array.from({ length: 2 }).map((_, index) => (
@@ -620,7 +664,7 @@ function DashboardInsightsPanel({
             <DashboardInsightCard
               key={insight.id}
               insight={insight}
-              onDismiss={onDismiss}
+              onDismiss={handleDismiss}
             />
           ))}
         </div>
@@ -634,7 +678,7 @@ function DashboardInsightCard({
   onDismiss,
 }: {
   insight: DashboardInsight;
-  onDismiss: (id: string) => Promise<void>;
+  onDismiss: (insight: DashboardInsight) => Promise<void>;
 }) {
   const config = DASHBOARD_INSIGHT_SEVERITY_CONFIG[insight.severity];
   const Icon = config.icon;
@@ -645,7 +689,7 @@ function DashboardInsightCard({
 
     setIsDismissing(true);
     try {
-      await onDismiss(insight.id);
+      await onDismiss(insight);
     } finally {
       setIsDismissing(false);
     }

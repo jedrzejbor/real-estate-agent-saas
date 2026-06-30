@@ -112,14 +112,7 @@ export class InsightsService {
     userId: string,
     insightId: string,
   ): Promise<{ dismissed: true }> {
-    const normalizedInsightId = insightId.trim();
-
-    if (
-      !normalizedInsightId ||
-      normalizedInsightId.length > MAX_INSIGHT_ID_LENGTH
-    ) {
-      throw new BadRequestException('Invalid insight id');
-    }
+    const normalizedInsightId = this.normalizeInsightId(insightId);
 
     await this.insightDismissalRepo.upsert(
       {
@@ -130,6 +123,20 @@ export class InsightsService {
     );
 
     return { dismissed: true };
+  }
+
+  async restoreDashboardInsight(
+    userId: string,
+    insightId: string,
+  ): Promise<{ restored: true }> {
+    const normalizedInsightId = this.normalizeInsightId(insightId);
+
+    await this.insightDismissalRepo.delete({
+      userId,
+      insightId: normalizedInsightId,
+    });
+
+    return { restored: true };
   }
 
   private async findUnhandledLeadInsight(
@@ -383,6 +390,19 @@ export class InsightsService {
     });
 
     return new Set(dismissals.map((dismissal) => dismissal.insightId));
+  }
+
+  private normalizeInsightId(insightId: string): string {
+    const normalizedInsightId = insightId.trim();
+
+    if (
+      !normalizedInsightId ||
+      normalizedInsightId.length > MAX_INSIGHT_ID_LENGTH
+    ) {
+      throw new BadRequestException('Invalid insight id');
+    }
+
+    return normalizedInsightId;
   }
 }
 

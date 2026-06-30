@@ -175,6 +175,12 @@ export async function dismissDashboardInsight(id: string): Promise<void> {
   });
 }
 
+export async function restoreDashboardInsight(id: string): Promise<void> {
+  await apiFetch(`/insights/${encodeURIComponent(id)}/dismiss`, {
+    method: 'DELETE',
+  });
+}
+
 export async function markTodayTaskDone(taskId: string): Promise<void> {
   await apiFetch(`/tasks/${taskId}`, {
     method: 'PATCH',

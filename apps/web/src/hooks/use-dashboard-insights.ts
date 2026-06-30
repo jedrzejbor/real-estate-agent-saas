@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   dismissDashboardInsight,
   fetchDashboardInsights,
+  restoreDashboardInsight,
+  type DashboardInsight,
   type DashboardInsightsResponse,
 } from '@/lib/dashboard';
 
@@ -13,6 +15,7 @@ interface UseDashboardInsightsReturn {
   error: string | null;
   refresh: () => void;
   dismissInsight: (id: string) => Promise<void>;
+  restoreInsight: (insight: DashboardInsight) => Promise<void>;
 }
 
 export function useDashboardInsights(): UseDashboardInsightsReturn {
@@ -72,10 +75,39 @@ export function useDashboardInsights(): UseDashboardInsightsReturn {
     [insights],
   );
 
+  const restoreInsight = useCallback(async (insight: DashboardInsight) => {
+    await restoreDashboardInsight(insight.id);
+
+    setInsights((current) => {
+      if (!current) {
+        return {
+          generatedAt: new Date().toISOString(),
+          insights: [insight],
+        };
+      }
+
+      if (current.insights.some((item) => item.id === insight.id)) {
+        return current;
+      }
+
+      return {
+        ...current,
+        insights: [insight, ...current.insights],
+      };
+    });
+  }, []);
+
   useEffect(() => {
     load();
     return () => abortRef.current?.abort();
   }, [load]);
 
-  return { insights, isLoading, error, refresh: load, dismissInsight };
+  return {
+    insights,
+    isLoading,
+    error,
+    refresh: load,
+    dismissInsight,
+    restoreInsight,
+  };
 }

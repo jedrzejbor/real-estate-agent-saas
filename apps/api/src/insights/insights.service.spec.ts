@@ -67,6 +67,7 @@ describe('InsightsService', () => {
         })),
       ),
       upsert: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({ affected: 1 }),
     };
     const usersService = {
       getAgencyAccessContext: jest.fn().mockResolvedValue({
@@ -213,5 +214,18 @@ describe('InsightsService', () => {
       },
       ['userId', 'insightId'],
     );
+  });
+
+  it('restores dismissed insight ids for the current user', async () => {
+    const { service, insightDismissalRepo } = createService();
+
+    await expect(
+      service.restoreDashboardInsight(userId, ' tasks-overdue '),
+    ).resolves.toEqual({ restored: true });
+
+    expect(insightDismissalRepo.delete).toHaveBeenCalledWith({
+      userId,
+      insightId: 'tasks-overdue',
+    });
   });
 });

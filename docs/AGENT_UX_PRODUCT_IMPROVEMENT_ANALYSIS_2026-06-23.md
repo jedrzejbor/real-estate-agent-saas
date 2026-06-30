@@ -2735,9 +2735,37 @@ Decyzje techniczne:
 
 Do kolejnej iteracji UX-8 albo osobnego sprintu:
 
-1. Dodać cofanie ukrycia insightu.
-2. Dodać widok/listę ukrytych insightów w ustawieniach.
-3. Rozważyć personalizację progów insightów.
+1. Dodać widok/listę ukrytych insightów w ustawieniach.
+2. Rozważyć personalizację progów insightów.
+
+Status UX-8 / iteracja 6 - cofanie ukrycia insightu:
+
+Zrobione:
+
+1. Dodano backendowy endpoint:
+   - `DELETE /api/insights/:id/dismiss`.
+2. Dodano metodę `restoreDashboardInsight` w `InsightsService`.
+3. Ujednolicono walidację `insightId` dla ukrywania i przywracania.
+4. Rozszerzono testy `InsightsService` o przywracanie ukrytego insightu.
+5. Dodano frontendową funkcję:
+   - `restoreDashboardInsight`.
+6. Rozszerzono hook `useDashboardInsights` o `restoreInsight`.
+7. Panel insightów pokazuje teraz po ukryciu krótki banner z przyciskiem
+   `Cofnij`.
+8. Cofnięcie usuwa wpis z `insight_dismissals` i przywraca kartę insightu w UI.
+
+Decyzje techniczne:
+
+1. Cofnięcie działa bez globalnego systemu akcji w toastach, żeby nie rozszerzać
+   komponentu powiadomień tylko dla jednego workflow.
+2. Przywrócony insight jest dodawany lokalnie na początek listy; pełne
+   odświeżenie nadal pobierze kanoniczny porządek z backendu.
+3. Nie dodano jeszcze stałego widoku ukrytych insightów.
+
+Do kolejnej iteracji UX-8 albo osobnego sprintu:
+
+1. Dodać widok/listę ukrytych insightów w ustawieniach.
+2. Rozważyć personalizację progów insightów.
 
 ### Sprint UX-9: Automatyzacje i powiadomienia operacyjne
 

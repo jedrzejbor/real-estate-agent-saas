@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { InsightsService } from './insights.service';
 
@@ -19,5 +19,14 @@ export class InsightsController {
     @Param('id') insightId: string,
   ) {
     return this.insightsService.dismissDashboardInsight(userId, insightId);
+  }
+
+  /** DELETE /api/insights/:id/dismiss — restore one hidden dashboard insight for the current user. */
+  @Delete(':id/dismiss')
+  async restoreDashboardInsight(
+    @CurrentUser('id') userId: string,
+    @Param('id') insightId: string,
+  ) {
+    return this.insightsService.restoreDashboardInsight(userId, insightId);
   }
 }
