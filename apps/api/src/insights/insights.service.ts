@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, IsNull, LessThanOrEqual, Not, Repository } from 'typeorm';
 import { Appointment } from '../appointments/entities/appointment.entity';
@@ -6,6 +6,7 @@ import { Listing } from '../listings/entities/listing.entity';
 import { calculateListingCommissionAmount } from '../listings/listing-commission';
 import { PublicLead } from '../public-leads/entities/public-lead.entity';
 import { Task } from '../tasks/entities';
+import { InsightDismissal } from './entities';
 import {
   AppointmentStatus,
   ListingStatus,
@@ -24,6 +25,7 @@ const CANCELLED_APPOINTMENT_WINDOW_DAYS = 30;
 const CANCELLED_APPOINTMENT_MIN_TOTAL = 3;
 const CANCELLED_APPOINTMENT_RATIO = 0.3;
 const HIGH_COMMISSION_THRESHOLD_PLN = 20_000;
+const MAX_INSIGHT_ID_LENGTH = 160;
 
 export type InsightSeverity = 'info' | 'warning' | 'success';
 export type InsightEntityType =
@@ -61,6 +63,8 @@ export class InsightsService {
     private readonly appointmentRepo: Repository<Appointment>,
     @InjectRepository(Task)
     private readonly taskRepo: Repository<Task>,
+    @InjectRepository(InsightDismissal)
+    private readonly insightDismissalRepo: Repository<InsightDismissal>,
     private readonly usersService: UsersService,
   ) {}
 
@@ -85,6 +89,7 @@ export class InsightsService {
       this.findHighCommissionListingInsight(agentIds, now),
     ]);
 
+    const dismissedIds = await this.findDismissedInsightIds(userId);
     const insights = [
       unhandledLead,
       leadDrop,
@@ -92,12 +97,39 @@ export class InsightsService {
       staleListing,
       cancelledAppointments,
       highCommissionListing,
-    ].filter((insight): insight is Insight => Boolean(insight));
+    ].filter((insight): insight is Insight => {
+      if (!insight) return false;
+      return !dismissedIds.has(insight.id);
+    });
 
     return {
       insights: insights.slice(0, MAX_DASHBOARD_INSIGHTS),
       generatedAt: now.toISOString(),
     };
+  }
+
+  async dismissDashboardInsight(
+    userId: string,
+    insightId: string,
+  ): Promise<{ dismissed: true }> {
+    const normalizedInsightId = insightId.trim();
+
+    if (
+      !normalizedInsightId ||
+      normalizedInsightId.length > MAX_INSIGHT_ID_LENGTH
+    ) {
+      throw new BadRequestException('Invalid insight id');
+    }
+
+    await this.insightDismissalRepo.upsert(
+      {
+        userId,
+        insightId: normalizedInsightId,
+      },
+      ['userId', 'insightId'],
+    );
+
+    return { dismissed: true };
   }
 
   private async findUnhandledLeadInsight(
@@ -342,6 +374,15 @@ export class InsightsService {
       actionHref: `/dashboard/listings/${topListing.listing.id}`,
       createdAt: now.toISOString(),
     };
+  }
+
+  private async findDismissedInsightIds(userId: string): Promise<Set<string>> {
+    const dismissals = await this.insightDismissalRepo.find({
+      where: { userId },
+      select: { insightId: true },
+    });
+
+    return new Set(dismissals.map((dismissal) => dismissal.insightId));
   }
 }
 

@@ -25,6 +25,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Lightbulb,
+  EyeOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -72,6 +73,7 @@ export default function DashboardPage() {
     isLoading: isInsightsLoading,
     error: insightsError,
     refresh: refreshInsights,
+    dismissInsight,
   } = useDashboardInsights();
   const [activeTab, setActiveTab] = useState<DashboardTabId>('overview');
 
@@ -231,6 +233,7 @@ export default function DashboardPage() {
                 isInsightsLoading={isInsightsLoading}
                 insightsError={insightsError}
                 onRefreshInsights={refreshInsights}
+                onDismissInsight={dismissInsight}
               />
             ) : null}
 
@@ -363,6 +366,7 @@ function DashboardOverviewContent({
   isInsightsLoading,
   insightsError,
   onRefreshInsights,
+  onDismissInsight,
 }: {
   stats: DashboardStats;
   today: DashboardTodayResponse | null;
@@ -374,6 +378,7 @@ function DashboardOverviewContent({
   isInsightsLoading: boolean;
   insightsError: string | null;
   onRefreshInsights: () => void;
+  onDismissInsight: (id: string) => Promise<void>;
 }) {
   return (
     <div className="space-y-4">
@@ -390,6 +395,7 @@ function DashboardOverviewContent({
         isLoading={isInsightsLoading}
         error={insightsError}
         onRefresh={onRefreshInsights}
+        onDismiss={onDismissInsight}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -546,11 +552,13 @@ function DashboardInsightsPanel({
   isLoading,
   error,
   onRefresh,
+  onDismiss,
 }: {
   insights: DashboardInsightsResponse | null;
   isLoading: boolean;
   error: string | null;
   onRefresh: () => void;
+  onDismiss: (id: string) => Promise<void>;
 }) {
   const items = insights?.insights ?? [];
 
@@ -609,7 +617,11 @@ function DashboardInsightsPanel({
       ) : (
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           {items.map((insight) => (
-            <DashboardInsightCard key={insight.id} insight={insight} />
+            <DashboardInsightCard
+              key={insight.id}
+              insight={insight}
+              onDismiss={onDismiss}
+            />
           ))}
         </div>
       )}
@@ -617,9 +629,27 @@ function DashboardInsightsPanel({
   );
 }
 
-function DashboardInsightCard({ insight }: { insight: DashboardInsight }) {
+function DashboardInsightCard({
+  insight,
+  onDismiss,
+}: {
+  insight: DashboardInsight;
+  onDismiss: (id: string) => Promise<void>;
+}) {
   const config = DASHBOARD_INSIGHT_SEVERITY_CONFIG[insight.severity];
   const Icon = config.icon;
+  const [isDismissing, setIsDismissing] = useState(false);
+
+  async function handleDismiss() {
+    if (isDismissing) return;
+
+    setIsDismissing(true);
+    try {
+      await onDismiss(insight.id);
+    } finally {
+      setIsDismissing(false);
+    }
+  }
 
   return (
     <article className="flex min-h-36 flex-col justify-between rounded-xl border border-border bg-muted/10 p-4">
@@ -633,6 +663,20 @@ function DashboardInsightCard({ insight }: { insight: DashboardInsight }) {
               {config.label}
             </Badge>
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            disabled={isDismissing}
+            title="Ukryj insight"
+            aria-label="Ukryj insight"
+            onClick={() => {
+              void handleDismiss();
+            }}
+          >
+            <EyeOff className="h-3.5 w-3.5" />
+          </Button>
         </div>
 
         <div>

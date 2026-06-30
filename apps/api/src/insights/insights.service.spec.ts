@@ -28,6 +28,7 @@ describe('InsightsService', () => {
     overdueTaskCount = 0,
     appointmentCounts = [0, 0],
     commissionListings = [],
+    dismissedInsightIds = [],
   }: {
     unhandledLead?: unknown;
     staleListing?: unknown;
@@ -36,6 +37,7 @@ describe('InsightsService', () => {
     overdueTaskCount?: number;
     appointmentCounts?: number[];
     commissionListings?: unknown[];
+    dismissedInsightIds?: string[];
   } = {}) {
     const listingRepo = {
       findOne: jest.fn().mockResolvedValue(staleListing),
@@ -58,6 +60,14 @@ describe('InsightsService', () => {
       findOne: jest.fn().mockResolvedValue(overdueTask),
       count: jest.fn().mockResolvedValue(overdueTaskCount),
     };
+    const insightDismissalRepo = {
+      find: jest.fn().mockResolvedValue(
+        dismissedInsightIds.map((insightId) => ({
+          insightId,
+        })),
+      ),
+      upsert: jest.fn().mockResolvedValue({}),
+    };
     const usersService = {
       getAgencyAccessContext: jest.fn().mockResolvedValue({
         agencyAgentIds: agentIds,
@@ -69,6 +79,7 @@ describe('InsightsService', () => {
       publicLeadRepo as never,
       appointmentRepo as never,
       taskRepo as never,
+      insightDismissalRepo as never,
       usersService as never,
     );
 
@@ -78,6 +89,7 @@ describe('InsightsService', () => {
       publicLeadRepo,
       appointmentRepo,
       taskRepo,
+      insightDismissalRepo,
       usersService,
     };
   }
@@ -167,5 +179,39 @@ describe('InsightsService', () => {
 
     expect(result.insights).toEqual([]);
     expect(appointmentRepo.count).toHaveBeenCalledTimes(2);
+  });
+
+  it('filters insights dismissed by the current user', async () => {
+    const { service } = createService({
+      overdueTask: {
+        id: 'task-1',
+        title: 'Oddzwonić do klienta',
+        status: TaskStatus.TODO,
+      },
+      overdueTaskCount: 1,
+      dismissedInsightIds: ['tasks-overdue'],
+    });
+
+    const result = await service.getDashboardInsights(userId);
+
+    expect(result.insights.map((insight) => insight.id)).not.toContain(
+      'tasks-overdue',
+    );
+  });
+
+  it('persists dismissed insight ids idempotently', async () => {
+    const { service, insightDismissalRepo } = createService();
+
+    await expect(
+      service.dismissDashboardInsight(userId, ' tasks-overdue '),
+    ).resolves.toEqual({ dismissed: true });
+
+    expect(insightDismissalRepo.upsert).toHaveBeenCalledWith(
+      {
+        userId,
+        insightId: 'tasks-overdue',
+      },
+      ['userId', 'insightId'],
+    );
   });
 });

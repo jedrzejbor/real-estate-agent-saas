@@ -2696,10 +2696,48 @@ UX-8 MVP można uznać za domknięty funkcjonalnie:
 
 Poza UX-8 MVP zostają:
 
-1. Trwałe ukrywanie/odkładanie insightów.
-2. Personalizacja progów insightów.
-3. Oddzielna publiczna wersja raportu właściciela, jeśli raport będzie
+1. Personalizacja progów insightów.
+2. Oddzielna publiczna wersja raportu właściciela, jeśli raport będzie
    udostępniany poza dashboardem.
+
+Status UX-8 / iteracja 5 - trwałe ukrywanie insightów:
+
+Zrobione:
+
+1. Dodano model `InsightDismissal` dla trwałego ukrywania insightów.
+2. Dodano migrację:
+   - `apps/api/migrations/20260630_insight_dismissals.sql`.
+3. Migracja tworzy tabelę `insight_dismissals` z:
+   - `user_id`,
+   - `insight_id`,
+   - `created_at`,
+   - unikalnością `(user_id, insight_id)`.
+4. Dodano endpoint:
+   - `POST /api/insights/:id/dismiss`.
+5. `GET /api/insights` filtruje insighty ukryte przez aktualnego użytkownika.
+6. Ukrywanie jest idempotentne dzięki `upsert`.
+7. Frontend dostał:
+   - `dismissDashboardInsight`,
+   - `dismissInsight` w `useDashboardInsights`,
+   - przycisk `Ukryj insight` na karcie insightu.
+8. Ukrycie działa optymistycznie w UI, a przy błędzie przywraca poprzedni stan.
+9. Rozszerzono testy `InsightsService` o:
+   - filtrowanie ukrytych insightów,
+   - idempotentny zapis ukrycia.
+
+Decyzje techniczne:
+
+1. Ukrycie działa per użytkownik, nie globalnie dla całej agencji.
+2. Id insightu ma limit 160 znaków i jest walidowany przed zapisem.
+3. Nie dodano jeszcze cofania ukrycia z UI. To warto dodać dopiero razem z
+   widokiem zarządzania ukrytymi insightami albo krótkim toastem `Cofnij`.
+4. Nie dodano personalizacji progów; to nadal osobny zakres.
+
+Do kolejnej iteracji UX-8 albo osobnego sprintu:
+
+1. Dodać cofanie ukrycia insightu.
+2. Dodać widok/listę ukrytych insightów w ustawieniach.
+3. Rozważyć personalizację progów insightów.
 
 ### Sprint UX-9: Automatyzacje i powiadomienia operacyjne
 

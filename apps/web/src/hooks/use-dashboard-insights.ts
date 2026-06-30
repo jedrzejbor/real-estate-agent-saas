@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  dismissDashboardInsight,
   fetchDashboardInsights,
   type DashboardInsightsResponse,
 } from '@/lib/dashboard';
@@ -11,6 +12,7 @@ interface UseDashboardInsightsReturn {
   isLoading: boolean;
   error: string | null;
   refresh: () => void;
+  dismissInsight: (id: string) => Promise<void>;
 }
 
 export function useDashboardInsights(): UseDashboardInsightsReturn {
@@ -47,10 +49,33 @@ export function useDashboardInsights(): UseDashboardInsightsReturn {
     }
   }, []);
 
+  const dismissInsight = useCallback(
+    async (id: string) => {
+      const previousInsights = insights;
+
+      setInsights((current) =>
+        current
+          ? {
+              ...current,
+              insights: current.insights.filter((insight) => insight.id !== id),
+            }
+          : current,
+      );
+
+      try {
+        await dismissDashboardInsight(id);
+      } catch (err) {
+        setInsights(previousInsights);
+        throw err;
+      }
+    },
+    [insights],
+  );
+
   useEffect(() => {
     load();
     return () => abortRef.current?.abort();
   }, [load]);
 
-  return { insights, isLoading, error, refresh: load };
+  return { insights, isLoading, error, refresh: load, dismissInsight };
 }
