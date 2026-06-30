@@ -5,14 +5,16 @@ import { Appointment } from '../appointments/entities/appointment.entity';
 import { Listing } from '../listings/entities/listing.entity';
 import { calculateListingCommissionAmount } from '../listings/listing-commission';
 import { PublicLead } from '../public-leads/entities/public-lead.entity';
+import { Task } from '../tasks/entities';
 import {
   AppointmentStatus,
   ListingStatus,
   PublicLeadStatus,
+  TaskStatus,
 } from '../common/enums';
 import { UsersService } from '../users';
 
-const MAX_DASHBOARD_INSIGHTS = 5;
+const MAX_DASHBOARD_INSIGHTS = 6;
 const STALE_LISTING_DAYS = 14;
 const UNHANDLED_LEAD_HOURS = 24;
 const LEAD_DROP_PERIOD_DAYS = 7;
@@ -28,7 +30,8 @@ export type InsightEntityType =
   | 'listing'
   | 'public_lead'
   | 'appointment'
-  | 'pipeline';
+  | 'pipeline'
+  | 'task';
 
 export interface Insight {
   id: string;
@@ -56,6 +59,8 @@ export class InsightsService {
     private readonly publicLeadRepo: Repository<PublicLead>,
     @InjectRepository(Appointment)
     private readonly appointmentRepo: Repository<Appointment>,
+    @InjectRepository(Task)
+    private readonly taskRepo: Repository<Task>,
     private readonly usersService: UsersService,
   ) {}
 
@@ -67,12 +72,14 @@ export class InsightsService {
     const [
       unhandledLead,
       leadDrop,
+      overdueTasks,
       staleListing,
       cancelledAppointments,
       highCommissionListing,
     ] = await Promise.all([
       this.findUnhandledLeadInsight(agentIds, now),
       this.findLeadDropInsight(agentIds, now),
+      this.findOverdueTasksInsight(agentIds, now),
       this.findStaleListingInsight(agentIds, now),
       this.findCancelledAppointmentsInsight(agentIds, now),
       this.findHighCommissionListingInsight(agentIds, now),
@@ -81,6 +88,7 @@ export class InsightsService {
     const insights = [
       unhandledLead,
       leadDrop,
+      overdueTasks,
       staleListing,
       cancelledAppointments,
       highCommissionListing,
@@ -157,6 +165,48 @@ export class InsightsService {
       entityId: listing.id,
       actionLabel: 'Otwórz ofertę',
       actionHref: `/dashboard/listings/${listing.id}`,
+      createdAt: now.toISOString(),
+    };
+  }
+
+  private async findOverdueTasksInsight(
+    agentIds: string[],
+    now: Date,
+  ): Promise<Insight | null> {
+    const [oldestTask, overdueCount] = await Promise.all([
+      this.taskRepo.findOne({
+        where: {
+          agentId: In(agentIds),
+          status: TaskStatus.TODO,
+          dueAt: LessThanOrEqual(now),
+        },
+        order: { dueAt: 'ASC' },
+      }),
+      this.taskRepo.count({
+        where: {
+          agentId: In(agentIds),
+          status: TaskStatus.TODO,
+          dueAt: LessThanOrEqual(now),
+        },
+      }),
+    ]);
+
+    if (!oldestTask || overdueCount === 0) return null;
+
+    const suffix =
+      overdueCount === 1
+        ? `Najpilniejsze: "${oldestTask.title}".`
+        : `Najpilniejsze: "${oldestTask.title}" oraz ${overdueCount - 1} inne.`;
+
+    return {
+      id: 'tasks-overdue',
+      severity: 'warning',
+      title: 'Zaległe zadania wymagają reakcji',
+      description: `${overdueCount} zadań CRM jest po terminie. ${suffix}`,
+      entityType: 'task',
+      entityId: oldestTask.id,
+      actionLabel: 'Otwórz zadania',
+      actionHref: `/dashboard/tasks?status=${TaskStatus.TODO}`,
       createdAt: now.toISOString(),
     };
   }

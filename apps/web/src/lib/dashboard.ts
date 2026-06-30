@@ -135,7 +135,8 @@ export type DashboardInsightEntityType =
   | 'listing'
   | 'public_lead'
   | 'appointment'
-  | 'pipeline';
+  | 'pipeline'
+  | 'task';
 
 export interface DashboardInsight {
   id: string;

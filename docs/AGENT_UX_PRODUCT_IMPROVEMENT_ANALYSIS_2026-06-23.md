@@ -2647,11 +2647,59 @@ Decyzje techniczne:
 
 Do kolejnej iteracji UX-8:
 
-1. Rozszerzyć insighty o zaległe zadania.
-2. Rozważyć trwałe ukrywanie/odkładanie insightów po decyzji, czy ma działać
+1. Rozważyć trwałe ukrywanie/odkładanie insightów po decyzji, czy ma działać
    per agent, per workspace, czy per encja.
-3. Jeśli raport właściciela będzie udostępniany publicznie, rozdzielić linki
+2. Jeśli raport właściciela będzie udostępniany publicznie, rozdzielić linki
    źródłowe dashboardu od wersji publicznej raportu.
+
+Status UX-8 / iteracja 4 - zaległe zadania jako insight:
+
+Zrobione:
+
+1. Rozszerzono backendowy `InsightsService` o regułę zaległych zadań CRM.
+2. Reguła wykrywa zadania:
+   - w statusie `todo`,
+   - z terminem `dueAt` wcześniejszym albo równym aktualnej dacie,
+   - należące do scope aktualnej agencji.
+3. Insight pokazuje:
+   - liczbę zaległych zadań,
+   - najstarsze zadanie po terminie,
+   - CTA `Otwórz zadania`.
+4. Rozszerzono model `InsightEntityType` o `task`.
+5. Zwiększono limit dashboardowych insightów z 5 do 6, żeby zachować pełny
+   zestaw sygnałów MVP.
+6. Zsynchronizowano frontendowy kontrakt `DashboardInsightEntityType`.
+7. Rozszerzono testy `InsightsService` o generowanie insightu zaległych zadań.
+
+Decyzje techniczne:
+
+1. Wykorzystano istniejący moduł zadań i widok `/dashboard/tasks`; nie dodano
+   równoległego mechanizmu follow-upów.
+2. Reguła nie tworzy nowych zadań ani powiadomień, tylko interpretuje obecny
+   stan pracy agenta.
+3. Nie dodano migracji bazy.
+
+Status UX-8 / zamknięcie zakresu MVP:
+
+UX-8 MVP można uznać za domknięty funkcjonalnie:
+
+1. Dashboard ma deterministyczne insighty:
+   - lead bez obsługi,
+   - spadek liczby leadów,
+   - zaległe zadania,
+   - oferta bez świeżej aktywności,
+   - wysoki odsetek anulowanych spotkań,
+   - wysoki potencjał prowizji.
+2. Raport właściciela ma insighty i linki źródłowe.
+3. Reguły są testowalne, progowe i bez AI.
+4. Endpointy nie wymagają dodatkowej migracji.
+
+Poza UX-8 MVP zostają:
+
+1. Trwałe ukrywanie/odkładanie insightów.
+2. Personalizacja progów insightów.
+3. Oddzielna publiczna wersja raportu właściciela, jeśli raport będzie
+   udostępniany poza dashboardem.
 
 ### Sprint UX-9: Automatyzacje i powiadomienia operacyjne
 

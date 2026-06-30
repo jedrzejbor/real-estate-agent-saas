@@ -2,6 +2,7 @@ import {
   ListingCommissionType,
   ListingStatus,
   PublicLeadStatus,
+  TaskStatus,
 } from '../common/enums';
 import { InsightsService } from './insights.service';
 
@@ -23,12 +24,16 @@ describe('InsightsService', () => {
     unhandledLead = null,
     staleListing = null,
     leadCounts = [0, 0],
+    overdueTask = null,
+    overdueTaskCount = 0,
     appointmentCounts = [0, 0],
     commissionListings = [],
   }: {
     unhandledLead?: unknown;
     staleListing?: unknown;
     leadCounts?: number[];
+    overdueTask?: unknown;
+    overdueTaskCount?: number;
     appointmentCounts?: number[];
     commissionListings?: unknown[];
   } = {}) {
@@ -49,6 +54,10 @@ describe('InsightsService', () => {
         .mockResolvedValueOnce(appointmentCounts[0])
         .mockResolvedValueOnce(appointmentCounts[1]),
     };
+    const taskRepo = {
+      findOne: jest.fn().mockResolvedValue(overdueTask),
+      count: jest.fn().mockResolvedValue(overdueTaskCount),
+    };
     const usersService = {
       getAgencyAccessContext: jest.fn().mockResolvedValue({
         agencyAgentIds: agentIds,
@@ -59,6 +68,7 @@ describe('InsightsService', () => {
       listingRepo as never,
       publicLeadRepo as never,
       appointmentRepo as never,
+      taskRepo as never,
       usersService as never,
     );
 
@@ -67,6 +77,7 @@ describe('InsightsService', () => {
       listingRepo,
       publicLeadRepo,
       appointmentRepo,
+      taskRepo,
       usersService,
     };
   }
@@ -88,6 +99,12 @@ describe('InsightsService', () => {
         status: ListingStatus.ACTIVE,
       },
       leadCounts: [3, 7],
+      overdueTask: {
+        id: 'task-1',
+        title: 'Oddzwonić do klienta',
+        status: TaskStatus.TODO,
+      },
+      overdueTaskCount: 2,
       appointmentCounts: [4, 2],
       commissionListings: [
         {
@@ -105,10 +122,11 @@ describe('InsightsService', () => {
 
     expect(usersService.getAgencyAccessContext).toHaveBeenCalledWith(userId);
     expect(result.generatedAt).toBe(now.toISOString());
-    expect(result.insights).toHaveLength(5);
+    expect(result.insights).toHaveLength(6);
     expect(result.insights.map((insight) => insight.id)).toEqual([
       'public-lead-unhandled:lead-1',
       'public-leads-drop:7d',
+      'tasks-overdue',
       'listing-stale:listing-2',
       'appointments-cancelled-ratio',
       'pipeline-high-commission:listing-3',
@@ -118,6 +136,12 @@ describe('InsightsService', () => {
       entityType: 'public_lead',
       entityId: 'lead-1',
       actionHref: '/dashboard/inquiries?status=new&listingId=listing-1',
+    });
+    expect(result.insights[2]).toMatchObject({
+      severity: 'warning',
+      entityType: 'task',
+      entityId: 'task-1',
+      actionHref: '/dashboard/tasks?status=todo',
     });
     expect(JSON.stringify(result)).not.toContain('Jan Kowalski');
     expect(JSON.stringify(result)).not.toContain('jan@example.com');
