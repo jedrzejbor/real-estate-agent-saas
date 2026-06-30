@@ -2428,6 +2428,28 @@ Decyzja:
 Nie uruchamiano migracji, ponieważ lokalny schemat zawierał wymagane elementy.
 Poprawka dotyczyła błędów runtime w zapytaniach i defensywności raportu.
 
+Status UX-7 / polish akcji na profilu oferty:
+
+Zrobione:
+
+1. Uporządkowano akcje w nagłówku profilu oferty, żeby nie układały się w
+   przypadkowy zawijany ciąg przy dłuższym tytule.
+2. Podzielono działania na dwa czytelne rzędy:
+   - komunikacja i raportowanie: `Wiadomość`, `Raport właściciela`,
+     `Zmiana ceny`,
+   - działania operacyjne i administracyjne: `Spotkanie`,
+     `Utwórz transakcję`, `Edytuj`, `Usuń`.
+3. Na mobile akcje układają się w przewidywalną siatkę dwóch kolumn.
+4. Główna akcja `Wiadomość` dostała większy priorytet wizualny, a destrukcyjne
+   `Usuń` pozostaje odseparowane w drugim rzędzie.
+5. Tytuł i badge statusów zawijają się spokojniej, bez wypychania akcji poza
+   czytelny obszar.
+
+Decyzja:
+
+Nie dodawano dropdown menu ani nowej zależności UI. Obecny zakres poprawia
+dostępność i skanowalność akcji, zachowując prosty, jawny zestaw przycisków.
+
 ### Sprint UX-8: Insighty i rekomendacje działań
 
 Cel:

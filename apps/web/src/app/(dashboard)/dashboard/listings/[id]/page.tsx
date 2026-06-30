@@ -470,6 +470,9 @@ export default function ListingDetailPage() {
   const isActiveButUnpublished =
     listing.status === LS.ACTIVE &&
     listing.publicationStatus !== ListingPublicationStatus.PUBLISHED;
+  const listingActionButtonClass =
+    'w-full justify-start gap-1.5 rounded-xl sm:w-auto sm:justify-center';
+  const listingActionLinkClass = 'w-full sm:w-auto';
 
   return (
     <div className="space-y-6">
@@ -483,10 +486,10 @@ export default function ListingDetailPage() {
       </Link>
 
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <h1 className="font-heading text-2xl font-bold text-foreground">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="min-w-0 basis-full font-heading text-2xl font-bold text-foreground sm:basis-auto">
               {listing.title}
             </h1>
             <ListingStatusBadge status={listing.status} />
@@ -500,70 +503,101 @@ export default function ListingDetailPage() {
           )}
           <ListingMessageRecipientSummary listing={listing} />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              openListingMessageDialog(MessageTemplateType.DOCUMENT_REQUEST)
-            }
-            className="gap-1.5 rounded-xl"
-          >
-            <MessageSquareText className="h-3.5 w-3.5" />
-            Wiadomość
-          </Button>
-          <Link href={`/dashboard/listings/${listing.id}/owner-report`}>
-            <Button variant="outline" size="sm" className="gap-1.5 rounded-xl">
-              <FileText className="h-3.5 w-3.5" />
-              Raport właściciela
+
+        <div className="flex w-full flex-col gap-2 lg:w-auto lg:max-w-[760px] lg:items-end">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() =>
+                openListingMessageDialog(MessageTemplateType.DOCUMENT_REQUEST)
+              }
+              className={listingActionButtonClass}
+            >
+              <MessageSquareText className="h-3.5 w-3.5" />
+              Wiadomość
             </Button>
-          </Link>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              openListingMessageDialog(MessageTemplateType.PRICE_CHANGE)
-            }
-            className="gap-1.5 rounded-xl"
-          >
-            <WalletCards className="h-3.5 w-3.5" />
-            Zmiana ceny
-          </Button>
-          <Link
-            href={buildNewAppointmentUrl({
-              listingId: listing.id,
-              listingLabel: listing.title,
-              location: listingAddress,
-            })}
-          >
-            <Button variant="outline" size="sm" className="gap-1.5 rounded-xl">
-              <Calendar className="h-3.5 w-3.5" />
-              Spotkanie
+            <Link
+              href={`/dashboard/listings/${listing.id}/owner-report`}
+              className={listingActionLinkClass}
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                className={listingActionButtonClass}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Raport właściciela
+              </Button>
+            </Link>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                openListingMessageDialog(MessageTemplateType.PRICE_CHANGE)
+              }
+              className={listingActionButtonClass}
+            >
+              <WalletCards className="h-3.5 w-3.5" />
+              Zmiana ceny
             </Button>
-          </Link>
-          <Link href={`/dashboard/transactions?listingId=${listing.id}`}>
-            <Button variant="outline" size="sm" className="gap-1.5 rounded-xl">
-              <Handshake className="h-3.5 w-3.5" />
-              Utwórz transakcję
+          </div>
+
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <Link
+              href={buildNewAppointmentUrl({
+                listingId: listing.id,
+                listingLabel: listing.title,
+                location: listingAddress,
+              })}
+              className={listingActionLinkClass}
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                className={listingActionButtonClass}
+              >
+                <Calendar className="h-3.5 w-3.5" />
+                Spotkanie
+              </Button>
+            </Link>
+            <Link
+              href={`/dashboard/transactions?listingId=${listing.id}`}
+              className={listingActionLinkClass}
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                className={listingActionButtonClass}
+              >
+                <Handshake className="h-3.5 w-3.5" />
+                Utwórz transakcję
+              </Button>
+            </Link>
+            <Link
+              href={`/dashboard/listings/${listing.id}/edit`}
+              className={listingActionLinkClass}
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                className={listingActionButtonClass}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edytuj
+              </Button>
+            </Link>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDelete}
+              className={listingActionButtonClass}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Usuń
             </Button>
-          </Link>
-          <Link href={`/dashboard/listings/${listing.id}/edit`}>
-            <Button variant="outline" size="sm" className="gap-1.5 rounded-xl">
-              <Pencil className="h-3.5 w-3.5" />
-              Edytuj
-            </Button>
-          </Link>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleDelete}
-            className="gap-1.5 rounded-xl"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Usuń
-          </Button>
+          </div>
         </div>
       </div>
 
