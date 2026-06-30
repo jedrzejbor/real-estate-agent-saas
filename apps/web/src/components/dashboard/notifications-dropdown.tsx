@@ -23,6 +23,8 @@ import {
 import { formatRelativeTime } from '@/lib/dashboard';
 import { cn } from '@/lib/utils';
 
+type NotificationGroupId = 'urgent' | 'leads' | 'portfolio';
+
 const CATEGORY_ICON: Record<NotificationCategory, typeof CalendarClock> = {
   appointment: CalendarClock,
   client: UserRoundPlus,
@@ -37,6 +39,35 @@ const VARIANT_STYLES = {
   warning: 'bg-status-warning-bg text-status-warning',
   success: 'bg-status-success-bg text-status-success',
 } as const;
+
+const NOTIFICATION_GROUPS: Array<{
+  id: NotificationGroupId;
+  label: string;
+  description: string;
+  matches: (item: NotificationItem) => boolean;
+}> = [
+  {
+    id: 'urgent',
+    label: 'Pilne działania',
+    description: 'Spotkania i follow-upy wymagające szybkiej reakcji.',
+    matches: (item) =>
+      item.category === 'appointment' || item.category === 'task',
+  },
+  {
+    id: 'leads',
+    label: 'Leady i klienci',
+    description: 'Nowe kontakty oraz zapytania z publicznych ofert.',
+    matches: (item) =>
+      item.category === 'public_lead' || item.category === 'client',
+  },
+  {
+    id: 'portfolio',
+    label: 'Oferty i dokumenty',
+    description: 'Ekspozycja ofert, szkice i dokumenty wymagające uwagi.',
+    matches: (item) =>
+      item.category === 'listing' || item.category === 'document',
+  },
+];
 
 export function NotificationsDropdown() {
   const router = useRouter();
@@ -143,43 +174,61 @@ export function NotificationsDropdown() {
             </div>
           ) : (
             <div className="max-h-[28rem] overflow-y-auto p-2">
-              {notifications.items.map((item) => (
-                <NotificationRow
-                  key={item.id}
-                  item={item}
-                  isAnimating={animatingIds.includes(item.id)}
-                  isBusy={isMarkingRead}
-                  onMarkAsRead={async (id) => {
-                    setIsMarkingRead(true);
-                    try {
-                      await startReadAnimation(id);
-                      await markAsRead([id]);
-                    } finally {
-                      stopReadAnimation(id);
-                      setIsMarkingRead(false);
-                    }
-                  }}
-                  onNavigate={async (href, id) => {
-                    if (!href) {
-                      setIsOpen(false);
-                      return;
-                    }
+              {groupNotifications(notifications.items).map((group) => (
+                <section key={group.id} className="py-1">
+                  <div className="px-3 py-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">
+                        {group.label}
+                      </p>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        {group.items.length}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                      {group.description}
+                    </p>
+                  </div>
 
-                    if (!item.isRead) {
-                      setIsMarkingRead(true);
-                      try {
-                        await startReadAnimation(id);
-                        await markAsRead([id]);
-                      } finally {
-                        stopReadAnimation(id);
-                        setIsMarkingRead(false);
-                      }
-                    }
+                  {group.items.map((item) => (
+                    <NotificationRow
+                      key={item.id}
+                      item={item}
+                      isAnimating={animatingIds.includes(item.id)}
+                      isBusy={isMarkingRead}
+                      onMarkAsRead={async (id) => {
+                        setIsMarkingRead(true);
+                        try {
+                          await startReadAnimation(id);
+                          await markAsRead([id]);
+                        } finally {
+                          stopReadAnimation(id);
+                          setIsMarkingRead(false);
+                        }
+                      }}
+                      onNavigate={async (href, id) => {
+                        if (!href) {
+                          setIsOpen(false);
+                          return;
+                        }
 
-                    setIsOpen(false);
-                    router.push(href);
-                  }}
-                />
+                        if (!item.isRead) {
+                          setIsMarkingRead(true);
+                          try {
+                            await startReadAnimation(id);
+                            await markAsRead([id]);
+                          } finally {
+                            stopReadAnimation(id);
+                            setIsMarkingRead(false);
+                          }
+                        }
+
+                        setIsOpen(false);
+                        router.push(href);
+                      }}
+                    />
+                  ))}
+                </section>
               ))}
             </div>
           )}
@@ -187,6 +236,13 @@ export function NotificationsDropdown() {
       ) : null}
     </div>
   );
+}
+
+function groupNotifications(items: NotificationItem[]) {
+  return NOTIFICATION_GROUPS.map((group) => ({
+    ...group,
+    items: items.filter(group.matches),
+  })).filter((group) => group.items.length > 0);
 }
 
 function NotificationRow({

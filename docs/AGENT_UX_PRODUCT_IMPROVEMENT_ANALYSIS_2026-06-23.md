@@ -2890,8 +2890,7 @@ Decyzje techniczne:
 
 Do kolejnej iteracji UX-9:
 
-1. Uporządkować centrum powiadomień przez grupowanie operacyjne.
-2. Dodać podstawowe ustawienia typów powiadomień w settings.
+1. Dodać podstawowe ustawienia typów powiadomień w settings.
 
 Status UX-9 / iteracja 2 - aktywne oferty bez świeżej aktywności:
 
@@ -2924,8 +2923,38 @@ Decyzje techniczne:
 
 Do kolejnej iteracji UX-9:
 
-1. Uporządkować centrum powiadomień przez grupowanie operacyjne.
-2. Dodać podstawowe ustawienia typów powiadomień w settings.
+1. Dodać podstawowe ustawienia typów powiadomień w settings.
+
+Status UX-9 / iteracja 3 - grupowanie centrum powiadomień:
+
+Zrobione:
+
+1. Uporządkowano dropdown powiadomień po stronie frontendu.
+2. Dodano grupy operacyjne:
+   - `Pilne działania` dla spotkań i zadań,
+   - `Leady i klienci` dla leadów publicznych i klientów,
+   - `Oferty i dokumenty` dla ofert i dokumentów.
+3. Każda grupa pokazuje:
+   - nazwę,
+   - krótki opis,
+   - liczbę elementów w grupie.
+4. Zachowano istniejące akcje:
+   - przejście do szczegółów,
+   - oznaczenie pojedynczego powiadomienia jako przeczytane,
+   - oznaczenie wszystkich jako przeczytane.
+5. Nie zmieniano backendowego kontraktu `NotificationItem`.
+
+Decyzje techniczne:
+
+1. Grupowanie wykonano w UI na podstawie `category`, ponieważ obecny kontrakt ma
+   wystarczające dane i nie wymaga migracji ani nowych endpointów.
+2. Nie pokazujemy pustych grup, żeby nie zwiększać szumu w małym dropdownie.
+3. Kolejność grup jest stała i operacyjna: najpierw pilne działania, potem
+   leady, na końcu portfolio i dokumenty.
+
+Do kolejnej iteracji UX-9:
+
+1. Dodać podstawowe ustawienia typów powiadomień w settings.
 
 ### Sprint UX-10: Polishing, mierzenie efektu i rollout
 
