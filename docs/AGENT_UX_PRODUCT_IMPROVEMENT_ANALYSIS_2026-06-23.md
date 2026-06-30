@@ -2450,6 +2450,32 @@ Decyzja:
 Nie dodawano dropdown menu ani nowej zależności UI. Obecny zakres poprawia
 dostępność i skanowalność akcji, zachowując prosty, jawny zestaw przycisków.
 
+Status UX-7 / stabilizacja tworzenia spotkania z profilu oferty:
+
+Zrobione:
+
+1. Zdiagnozowano błąd 500 przy zapisie spotkania.
+2. Przyczyną była niespójność lokalnego schematu `appointments` po migracji na
+   kolumny relacyjne snake_case:
+   - aktualny kod zapisuje `Appointment.agentId` do kolumny `agent_id`,
+   - w bazie pozostała legacy kolumna `agentId` z ograniczeniem `NOT NULL`,
+   - nowy insert miał poprawne `agent_id`, ale padał na pustym legacy
+     `agentId`.
+3. Dodano migrację:
+   `apps/api/migrations/20260629_appointment_agent_relation_cleanup.sql`.
+4. Migracja:
+   - dodaje `agent_id`, jeśli go brakuje,
+   - kopiuje wartości z legacy `agentId` do `agent_id`,
+   - zdejmuje `NOT NULL` ze starego `agentId`,
+   - zakłada FK `agent_id -> agents(id)`,
+   - ustawia `agent_id NOT NULL`,
+   - dodaje indeks `idx_appointments_agent_id`.
+
+Decyzja:
+
+Nie zmieniano formularza spotkania, ponieważ payload był poprawny. Problem był
+po stronie schematu bazy i został rozwiązany migracją naprawczą.
+
 ### Sprint UX-8: Insighty i rekomendacje działań
 
 Cel:
