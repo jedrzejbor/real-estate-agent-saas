@@ -2956,6 +2956,48 @@ Do kolejnej iteracji UX-9:
 
 1. Dodać podstawowe ustawienia typów powiadomień w settings.
 
+Status UX-9 / iteracja 4 - preferencje typów powiadomień:
+
+Zrobione:
+
+1. Dodano trwały model preferencji powiadomień agenta:
+   - tabela `notification_preferences`,
+   - unikalność `agent_id + category`,
+   - domyślnie wszystkie kategorie są włączone.
+2. Dodano kontrakt API:
+   - `GET /api/notifications/preferences`,
+   - `PATCH /api/notifications/preferences`.
+3. Generator powiadomień filtruje teraz elementy po preferencjach przed:
+   - ucięciem listy limitem,
+   - pobraniem statusów przeczytania,
+   - policzeniem `unreadCount`.
+4. W ustawieniach konta dodano sekcję `Powiadomienia` z kategoriami:
+   - spotkania,
+   - follow-upy,
+   - leady publiczne,
+   - klienci CRM,
+   - oferty,
+   - dokumenty.
+5. Dodano testy backendowe dla:
+   - filtrowania wyłączonej kategorii,
+   - zapisu preferencji przez upsert scoped do agenta.
+
+Decyzje techniczne:
+
+1. Preferencje są przechowywane po stronie backendu, a nie w `localStorage`, bo
+   muszą wpływać również na licznik nieprzeczytanych i payload dropdownu.
+2. Wyłączone kategorie nie są traktowane jako ukryte/przeczytane; po ponownym
+   włączeniu mogą znowu pojawić się, jeśli reguła nadal jest aktualna.
+3. Publiczne endpointy nie korzystają z preferencji i nie otrzymują żadnych
+   dodatkowych danych.
+
+Do kolejnej iteracji UX-9:
+
+1. Doprecyzować, czy potrzebujemy osobnych kanałów powiadomień, np. dashboard,
+   email, SMS, push.
+2. Rozważyć harmonogram ciszy i priorytety krytyczne, jeśli liczba reguł
+   powiadomień zacznie rosnąć.
+
 Poprawka UX/dane - publiczne zapytania i błędny klient CRM:
 
 Problem:

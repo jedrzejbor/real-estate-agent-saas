@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   AlertCircle,
   ArrowRight,
+  Bell,
   CheckCircle2,
   Crown,
   EyeOff,
@@ -36,8 +37,51 @@ import {
   getUpgradeHref,
   SETTINGS_GROWTH_UPSELL_IDS,
 } from '@/lib/growth-upsells';
+import {
+  fetchNotificationPreferences,
+  updateNotificationPreferences,
+  type NotificationCategory,
+  type NotificationPreference,
+} from '@/lib/notifications';
 import { getPlanFeatureItems, getPlanUsageMetrics } from '@/lib/plan';
 import { getResolvedReleaseFlags } from '@/lib/release-flags';
+
+const NOTIFICATION_PREFERENCE_OPTIONS: Array<{
+  category: NotificationCategory;
+  label: string;
+  description: string;
+}> = [
+  {
+    category: 'appointment',
+    label: 'Spotkania',
+    description: 'Terminy wymagające uwagi oraz nadchodzące prezentacje.',
+  },
+  {
+    category: 'task',
+    label: 'Follow-upy',
+    description: 'Zaległe zadania kontaktu po spotkaniach i leadach.',
+  },
+  {
+    category: 'public_lead',
+    label: 'Leady publiczne',
+    description: 'Nowe zapytania z publicznych ofert i profilu agenta.',
+  },
+  {
+    category: 'client',
+    label: 'Klienci CRM',
+    description: 'Nowi klienci oczekujący pierwszej obsługi.',
+  },
+  {
+    category: 'listing',
+    label: 'Oferty',
+    description: 'Szkice, aktywne oferty bez świeżej pracy i inne alerty.',
+  },
+  {
+    category: 'document',
+    label: 'Dokumenty',
+    description: 'Braki i wygasające dokumenty powiązane z ofertami.',
+  },
+];
 
 export default function AccountSettingsPage() {
   const { user } = useAuth();
@@ -96,6 +140,7 @@ export default function AccountSettingsPage() {
 
       <AccountProfileSection />
       <AccountSecuritySection />
+      <NotificationPreferencesSection />
       <HiddenInsightsSettingsSection />
 
       <section
@@ -343,6 +388,185 @@ export default function AccountSettingsPage() {
       <AccountDangerZoneSection />
     </div>
   );
+}
+
+function NotificationPreferencesSection() {
+  const toast = useToast();
+  const [preferences, setPreferences] = useState<NotificationPreference[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadPreferences = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await fetchNotificationPreferences();
+      setPreferences(normalizeNotificationPreferences(result.preferences));
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadPreferences();
+  }, [loadPreferences]);
+
+  function handleToggle(category: NotificationCategory) {
+    setPreferences((current) =>
+      normalizeNotificationPreferences(current).map((item) =>
+        item.category === category ? { ...item, enabled: !item.enabled } : item,
+      ),
+    );
+  }
+
+  async function handleSave() {
+    if (isSaving) return;
+
+    setIsSaving(true);
+    try {
+      const result = await updateNotificationPreferences(
+        normalizeNotificationPreferences(preferences),
+      );
+      setPreferences(normalizeNotificationPreferences(result.preferences));
+      toast.success({
+        title: 'Preferencje zapisane',
+        description: 'Centrum powiadomień będzie pokazywać wybrane kategorie.',
+      });
+    } catch (err) {
+      toast.error({
+        title: 'Nie udało się zapisać preferencji',
+        description: getApiErrorMessage(err),
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const normalizedPreferences = normalizeNotificationPreferences(preferences);
+  const enabledCount = normalizedPreferences.filter(
+    (preference) => preference.enabled,
+  ).length;
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="rounded-xl bg-muted p-2 text-primary">
+            <Bell className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-xl font-semibold text-foreground">
+              Powiadomienia
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Wybierz typy zdarzeń, które mają trafiać do centrum powiadomień.
+              Wyłączone kategorie nie będą liczone jako nieprzeczytane.
+            </p>
+          </div>
+        </div>
+
+        <Badge variant="outline">
+          Aktywne: {enabledCount}/{NOTIFICATION_PREFERENCE_OPTIONS.length}
+        </Badge>
+      </div>
+
+      <div className="mt-5">
+        {isLoading ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            {NOTIFICATION_PREFERENCE_OPTIONS.slice(0, 4).map((item) => (
+              <div
+                key={item.category}
+                className="min-h-24 animate-pulse rounded-xl border border-border bg-muted/30"
+              />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">Nie udało się pobrać preferencji.</p>
+              <p className="mt-1 opacity-90">{error}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {NOTIFICATION_PREFERENCE_OPTIONS.map((option) => {
+              const preference = normalizedPreferences.find(
+                (item) => item.category === option.category,
+              );
+              const enabled = preference?.enabled ?? true;
+
+              return (
+                <label
+                  key={option.category}
+                  className="flex min-h-28 cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/20 p-4 transition hover:border-primary/40 hover:bg-muted/35"
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-border accent-primary"
+                    checked={enabled}
+                    onChange={() => handleToggle(option.category)}
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-foreground">
+                      {option.label}
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                      {option.description}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-muted-foreground">
+          Preferencje dotyczą tylko dashboardu zalogowanego agenta.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              void loadPreferences();
+            }}
+            disabled={isLoading || isSaving}
+          >
+            Odśwież
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              void handleSave();
+            }}
+            disabled={isLoading || isSaving || Boolean(error)}
+          >
+            {isSaving ? 'Zapisywanie...' : 'Zapisz preferencje'}
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function normalizeNotificationPreferences(
+  preferences: NotificationPreference[],
+): NotificationPreference[] {
+  const byCategory = new Map(
+    preferences.map((preference) => [preference.category, preference.enabled]),
+  );
+
+  return NOTIFICATION_PREFERENCE_OPTIONS.map((option) => ({
+    category: option.category,
+    enabled: byCategory.get(option.category) ?? true,
+  }));
 }
 
 function HiddenInsightsSettingsSection() {
