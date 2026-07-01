@@ -24,10 +24,12 @@ describe('NotificationsService', () => {
     overdueFollowUps = [],
     staleActiveListings = [],
     readIds = [],
+    preferences = [],
   }: {
     overdueFollowUps?: unknown[];
     staleActiveListings?: unknown[];
     readIds?: string[];
+    preferences?: unknown[];
   } = {}) {
     const appointmentRepo = {
       find: jest.fn().mockResolvedValue([]),
@@ -59,6 +61,10 @@ describe('NotificationsService', () => {
       create: jest.fn((value) => value),
       save: jest.fn().mockResolvedValue([]),
     };
+    const notificationPreferenceRepo = {
+      find: jest.fn().mockResolvedValue(preferences),
+      upsert: jest.fn().mockResolvedValue({}),
+    };
     const usersService = {
       resolveAgentForUser: jest.fn().mockResolvedValue({ id: agentId }),
     };
@@ -74,6 +80,7 @@ describe('NotificationsService', () => {
       publicLeadRepo as never,
       taskRepo as never,
       notificationReadRepo as never,
+      notificationPreferenceRepo as never,
       usersService as never,
       listingDocumentsService as never,
     );
@@ -82,6 +89,7 @@ describe('NotificationsService', () => {
       service,
       taskRepo,
       notificationReadRepo,
+      notificationPreferenceRepo,
       readQueryBuilder,
       usersService,
       listingDocumentsService,
@@ -158,6 +166,51 @@ describe('NotificationsService', () => {
         href: '/dashboard/listings/listing-1',
         isRead: false,
       }),
+    );
+  });
+
+  it('filters notifications disabled in agent preferences before unread count', async () => {
+    const { service, notificationReadRepo } = createService({
+      preferences: [{ agentId, category: 'task', enabled: false }],
+      overdueFollowUps: [
+        {
+          id: 'task-1',
+          agentId,
+          title: 'Oddzwonić po prezentacji',
+          status: TaskStatus.TODO,
+          type: TaskType.FOLLOW_UP,
+          dueAt: new Date('2026-06-28T09:00:00.000Z'),
+          createdAt: new Date('2026-06-27T09:00:00.000Z'),
+          clientId: 'client-1',
+        },
+      ],
+    });
+
+    const result = await service.findAll(userId, { limit: 8 });
+
+    expect(result.items).not.toContainEqual(
+      expect.objectContaining({ category: 'task' }),
+    );
+    expect(result.unreadCount).toBe(0);
+    expect(notificationReadRepo.createQueryBuilder).not.toHaveBeenCalled();
+  });
+
+  it('upserts notification preferences for the resolved agent', async () => {
+    const { service, notificationPreferenceRepo, usersService } =
+      createService();
+
+    await service.updatePreferences(userId, [
+      { category: 'task', enabled: false },
+      { category: 'listing', enabled: true },
+    ]);
+
+    expect(usersService.resolveAgentForUser).toHaveBeenCalledWith(userId);
+    expect(notificationPreferenceRepo.upsert).toHaveBeenCalledWith(
+      [
+        { agentId, category: 'task', enabled: false },
+        { agentId, category: 'listing', enabled: true },
+      ],
+      ['agentId', 'category'],
     );
   });
 });

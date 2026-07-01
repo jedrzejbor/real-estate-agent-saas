@@ -20,16 +20,13 @@ import {
   type ListingDocumentAttentionItem,
 } from '../listing-documents';
 import { NotificationsQueryDto } from './dto/notifications-query.dto';
-import { NotificationRead } from './entities';
+import { NotificationPreference, NotificationRead } from './entities';
+import {
+  NOTIFICATION_CATEGORIES,
+  type NotificationCategory,
+} from './notification-categories';
 
 export type NotificationVariant = 'info' | 'warning' | 'success';
-export type NotificationCategory =
-  | 'appointment'
-  | 'client'
-  | 'document'
-  | 'listing'
-  | 'public_lead'
-  | 'task';
 
 export interface NotificationItem {
   id: string;
@@ -46,6 +43,15 @@ export interface NotificationsResponse {
   generatedAt: string;
   unreadCount: number;
   items: NotificationItem[];
+}
+
+export interface NotificationPreferenceItem {
+  category: NotificationCategory;
+  enabled: boolean;
+}
+
+export interface NotificationPreferencesResponse {
+  preferences: NotificationPreferenceItem[];
 }
 
 interface RankedNotification extends Omit<NotificationItem, 'isRead'> {
@@ -70,6 +76,8 @@ export class NotificationsService {
     private readonly taskRepo: Repository<Task>,
     @InjectRepository(NotificationRead)
     private readonly notificationReadRepo: Repository<NotificationRead>,
+    @InjectRepository(NotificationPreference)
+    private readonly notificationPreferenceRepo: Repository<NotificationPreference>,
     private readonly usersService: UsersService,
     private readonly listingDocumentsService: ListingDocumentsService,
   ) {}
@@ -272,7 +280,9 @@ export class NotificationsService {
       ranked.push(this.buildDocumentNotification(item));
     }
 
+    const enabledCategories = await this.getEnabledCategorySet(agent.id);
     const candidateItems = ranked
+      .filter((item) => enabledCategories.has(item.category))
       .sort((left, right) => {
         if (right.priority !== left.priority) {
           return right.priority - left.priority;
@@ -297,6 +307,41 @@ export class NotificationsService {
       generatedAt: now.toISOString(),
       unreadCount: items.filter((item) => !item.isRead).length,
       items,
+    };
+  }
+
+  async findPreferences(
+    userId: string,
+  ): Promise<NotificationPreferencesResponse> {
+    const agent = await this.resolveAgent(userId);
+
+    return {
+      preferences: await this.getPreferences(agent.id),
+    };
+  }
+
+  async updatePreferences(
+    userId: string,
+    preferences: NotificationPreferenceItem[],
+  ): Promise<NotificationPreferencesResponse> {
+    const agent = await this.resolveAgent(userId);
+    const uniquePreferences = Array.from(
+      new Map(preferences.map((item) => [item.category, item])).values(),
+    );
+
+    if (uniquePreferences.length > 0) {
+      await this.notificationPreferenceRepo.upsert(
+        uniquePreferences.map((item) => ({
+          agentId: agent.id,
+          category: item.category,
+          enabled: item.enabled,
+        })),
+        ['agentId', 'category'],
+      );
+    }
+
+    return {
+      preferences: await this.getPreferences(agent.id),
     };
   }
 
@@ -349,6 +394,37 @@ export class NotificationsService {
       .getMany();
 
     return new Set(readItems.map((item) => item.notificationId));
+  }
+
+  private async getEnabledCategorySet(
+    agentId: string,
+  ): Promise<Set<NotificationCategory>> {
+    const preferences = await this.getPreferences(agentId);
+
+    return new Set(
+      preferences
+        .filter((preference) => preference.enabled)
+        .map((preference) => preference.category),
+    );
+  }
+
+  private async getPreferences(
+    agentId: string,
+  ): Promise<NotificationPreferenceItem[]> {
+    const savedPreferences = await this.notificationPreferenceRepo.find({
+      where: { agentId },
+    });
+    const savedByCategory = new Map(
+      savedPreferences.map((preference) => [
+        preference.category,
+        preference.enabled,
+      ]),
+    );
+
+    return NOTIFICATION_CATEGORIES.map((category) => ({
+      category,
+      enabled: savedByCategory.get(category) ?? true,
+    }));
   }
 
   private buildPublicLeadDescription(lead: PublicLead): string {
