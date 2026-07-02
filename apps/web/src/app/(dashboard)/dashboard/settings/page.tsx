@@ -42,6 +42,7 @@ import {
   updateNotificationPreferences,
   type NotificationCategory,
   type NotificationPreference,
+  type NotificationRuleSettings,
 } from '@/lib/notifications';
 import { getPlanFeatureItems, getPlanUsageMetrics } from '@/lib/plan';
 import { getResolvedReleaseFlags } from '@/lib/release-flags';
@@ -82,6 +83,11 @@ const NOTIFICATION_PREFERENCE_OPTIONS: Array<{
     description: 'Braki i wygasające dokumenty powiązane z ofertami.',
   },
 ];
+
+const DEFAULT_NOTIFICATION_RULE_SETTINGS: NotificationRuleSettings = {
+  followUpOverdueDays: 0,
+  staleListingDays: 14,
+};
 
 export default function AccountSettingsPage() {
   const { user } = useAuth();
@@ -393,6 +399,9 @@ export default function AccountSettingsPage() {
 function NotificationPreferencesSection() {
   const toast = useToast();
   const [preferences, setPreferences] = useState<NotificationPreference[]>([]);
+  const [ruleSettings, setRuleSettings] = useState<NotificationRuleSettings>(
+    DEFAULT_NOTIFICATION_RULE_SETTINGS,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -404,6 +413,7 @@ function NotificationPreferencesSection() {
     try {
       const result = await fetchNotificationPreferences();
       setPreferences(normalizeNotificationPreferences(result.preferences));
+      setRuleSettings(normalizeNotificationRuleSettings(result.ruleSettings));
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
@@ -430,8 +440,10 @@ function NotificationPreferencesSection() {
     try {
       const result = await updateNotificationPreferences(
         normalizeNotificationPreferences(preferences),
+        normalizeNotificationRuleSettings(ruleSettings),
       );
       setPreferences(normalizeNotificationPreferences(result.preferences));
+      setRuleSettings(normalizeNotificationRuleSettings(result.ruleSettings));
       toast.success({
         title: 'Preferencje zapisane',
         description: 'Centrum powiadomień będzie pokazywać wybrane kategorie.',
@@ -526,6 +538,72 @@ function NotificationPreferencesSection() {
         )}
       </div>
 
+      {!isLoading && !error ? (
+        <div className="mt-5 rounded-xl border border-border bg-muted/20 p-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">
+              Progi reguł operacyjnych
+            </h3>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Ustaw, kiedy przypomnienia mają stać się wystarczająco pilne, aby
+              trafić do centrum powiadomień.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-medium text-muted-foreground">
+                Follow-up po terminie od ilu dni
+              </span>
+              <input
+                type="number"
+                min={0}
+                max={30}
+                step={1}
+                className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+                value={ruleSettings.followUpOverdueDays}
+                onChange={(event) =>
+                  setRuleSettings((current) => ({
+                    ...current,
+                    followUpOverdueDays: clampInteger(
+                      event.target.value,
+                      0,
+                      30,
+                    ),
+                  }))
+                }
+              />
+              <span className="mt-1 block text-xs text-muted-foreground">
+                0 oznacza przypomnienie od razu po przekroczeniu terminu.
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-medium text-muted-foreground">
+                Oferta bez aktywności od ilu dni
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={120}
+                step={1}
+                className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+                value={ruleSettings.staleListingDays}
+                onChange={(event) =>
+                  setRuleSettings((current) => ({
+                    ...current,
+                    staleListingDays: clampInteger(event.target.value, 1, 120),
+                  }))
+                }
+              />
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Domyślnie aplikacja przypomina po 14 dniach bez zmian.
+              </span>
+            </label>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">
           Preferencje dotyczą tylko dashboardu zalogowanego agenta.
@@ -567,6 +645,39 @@ function normalizeNotificationPreferences(
     category: option.category,
     enabled: byCategory.get(option.category) ?? true,
   }));
+}
+
+function normalizeNotificationRuleSettings(
+  settings?: Partial<NotificationRuleSettings> | null,
+): NotificationRuleSettings {
+  return {
+    followUpOverdueDays: clampInteger(
+      settings?.followUpOverdueDays ??
+        DEFAULT_NOTIFICATION_RULE_SETTINGS.followUpOverdueDays,
+      0,
+      30,
+    ),
+    staleListingDays: clampInteger(
+      settings?.staleListingDays ??
+        DEFAULT_NOTIFICATION_RULE_SETTINGS.staleListingDays,
+      1,
+      120,
+    ),
+  };
+}
+
+function clampInteger(
+  value: string | number,
+  min: number,
+  max: number,
+): number {
+  const parsed = typeof value === 'number' ? value : Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed)) {
+    return min;
+  }
+
+  return Math.min(Math.max(Math.trunc(parsed), min), max);
 }
 
 function HiddenInsightsSettingsSection() {

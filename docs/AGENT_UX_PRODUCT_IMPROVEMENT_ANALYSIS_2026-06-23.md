@@ -2998,6 +2998,46 @@ Do kolejnej iteracji UX-9:
 2. Rozważyć harmonogram ciszy i priorytety krytyczne, jeśli liczba reguł
    powiadomień zacznie rosnąć.
 
+Status UX-9 / iteracja 5 - progi reguł powiadomień:
+
+Zrobione:
+
+1. Dodano trwałe ustawienia progów operacyjnych:
+   - tabela `notification_rule_settings`,
+   - unikalny rekord per agent,
+   - domyślne wartości zgodne z obecnym zachowaniem systemu.
+2. Rozszerzono kontrakt `GET /api/notifications/preferences` o:
+   - `ruleSettings.followUpOverdueDays`,
+   - `ruleSettings.staleListingDays`.
+3. Rozszerzono `PATCH /api/notifications/preferences` o możliwość zapisu
+   progów razem z preferencjami kategorii.
+4. Generator powiadomień używa progów już na poziomie zapytań do bazy:
+   - zaległe follow-upy pobierane są względem ustawionego opóźnienia,
+   - aktywne oferty bez zmian pobierane są względem ustawionego progu dni.
+5. W ustawieniach konta dodano sekcję `Progi reguł operacyjnych`:
+   - follow-up po terminie od `0` do `30` dni,
+   - oferta bez aktywności od `1` do `120` dni.
+6. Dodano test backendowy sprawdzający, że niestandardowe progi wpływają na
+   zapytania generujące kandydatów powiadomień.
+
+Decyzje techniczne:
+
+1. Progi są osobnym modelem od włączania kategorii, bo odpowiadają na inne
+   pytanie: `kiedy reguła jest pilna`, a nie `czy kategoria działa`.
+2. Domyślne wartości zachowują kompatybilność z dotychczasowym działaniem:
+   - follow-up alarmuje od razu po terminie,
+   - aktywna oferta alarmuje po 14 dniach bez zmian.
+3. Nie dodano jeszcze kanałów email/SMS/push. W tej iteracji trzymamy się
+   dashboardu, bo wysyłka poza aplikację wymaga zgód, statusów doręczeń,
+   harmonogramu ciszy i logowania prób wysyłki.
+
+Do kolejnej iteracji UX-9:
+
+1. Dodać opcjonalny harmonogram ciszy dla kanałów poza dashboardem, jeśli
+   zdecydujemy się na email/SMS/push.
+2. Rozważyć oznaczenie części powiadomień jako krytyczne, których nie da się
+   wyciszyć zwykłym progiem.
+
 Poprawka UX/dane - publiczne zapytania i błędny klient CRM:
 
 Problem:

@@ -20,7 +20,11 @@ import {
   type ListingDocumentAttentionItem,
 } from '../listing-documents';
 import { NotificationsQueryDto } from './dto/notifications-query.dto';
-import { NotificationPreference, NotificationRead } from './entities';
+import {
+  NotificationPreference,
+  NotificationRead,
+  NotificationRuleSettings,
+} from './entities';
 import {
   NOTIFICATION_CATEGORIES,
   type NotificationCategory,
@@ -50,8 +54,14 @@ export interface NotificationPreferenceItem {
   enabled: boolean;
 }
 
+export interface NotificationRuleSettingsItem {
+  followUpOverdueDays: number;
+  staleListingDays: number;
+}
+
 export interface NotificationPreferencesResponse {
   preferences: NotificationPreferenceItem[];
+  ruleSettings: NotificationRuleSettingsItem;
 }
 
 interface RankedNotification extends Omit<NotificationItem, 'isRead'> {
@@ -78,6 +88,8 @@ export class NotificationsService {
     private readonly notificationReadRepo: Repository<NotificationRead>,
     @InjectRepository(NotificationPreference)
     private readonly notificationPreferenceRepo: Repository<NotificationPreference>,
+    @InjectRepository(NotificationRuleSettings)
+    private readonly notificationRuleSettingsRepo: Repository<NotificationRuleSettings>,
     private readonly usersService: UsersService,
     private readonly listingDocumentsService: ListingDocumentsService,
   ) {}
@@ -89,9 +101,15 @@ export class NotificationsService {
     const agent = await this.resolveAgent(userId);
     const limit = query.limit ?? 8;
     const now = new Date();
+    const ruleSettings = await this.getRuleSettings(agent.id);
     const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const followUpThreshold = new Date(
+      now.getTime() - ruleSettings.followUpOverdueDays * 24 * 60 * 60 * 1000,
+    );
+    const staleListingThreshold = new Date(
+      now.getTime() - ruleSettings.staleListingDays * 24 * 60 * 60 * 1000,
+    );
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
 
     const [
@@ -147,7 +165,7 @@ export class NotificationsService {
           agentId: agent.id,
           status: TaskStatus.TODO,
           type: TaskType.FOLLOW_UP,
-          dueAt: LessThan(now),
+          dueAt: LessThan(followUpThreshold),
         },
         order: { dueAt: 'ASC' },
         take: 5,
@@ -157,7 +175,7 @@ export class NotificationsService {
         where: {
           agentId: agent.id,
           status: ListingStatus.ACTIVE,
-          updatedAt: LessThan(fourteenDaysAgo),
+          updatedAt: LessThan(staleListingThreshold),
         },
         order: { updatedAt: 'ASC' },
         take: 3,
@@ -317,12 +335,14 @@ export class NotificationsService {
 
     return {
       preferences: await this.getPreferences(agent.id),
+      ruleSettings: await this.getRuleSettings(agent.id),
     };
   }
 
   async updatePreferences(
     userId: string,
     preferences: NotificationPreferenceItem[],
+    ruleSettings?: NotificationRuleSettingsItem,
   ): Promise<NotificationPreferencesResponse> {
     const agent = await this.resolveAgent(userId);
     const uniquePreferences = Array.from(
@@ -340,8 +360,20 @@ export class NotificationsService {
       );
     }
 
+    if (ruleSettings) {
+      await this.notificationRuleSettingsRepo.upsert(
+        {
+          agentId: agent.id,
+          followUpOverdueDays: ruleSettings.followUpOverdueDays,
+          staleListingDays: ruleSettings.staleListingDays,
+        },
+        ['agentId'],
+      );
+    }
+
     return {
       preferences: await this.getPreferences(agent.id),
+      ruleSettings: await this.getRuleSettings(agent.id),
     };
   }
 
@@ -425,6 +457,19 @@ export class NotificationsService {
       category,
       enabled: savedByCategory.get(category) ?? true,
     }));
+  }
+
+  private async getRuleSettings(
+    agentId: string,
+  ): Promise<NotificationRuleSettingsItem> {
+    const savedSettings = await this.notificationRuleSettingsRepo.findOne({
+      where: { agentId },
+    });
+
+    return {
+      followUpOverdueDays: savedSettings?.followUpOverdueDays ?? 0,
+      staleListingDays: savedSettings?.staleListingDays ?? 14,
+    };
   }
 
   private buildPublicLeadDescription(lead: PublicLead): string {

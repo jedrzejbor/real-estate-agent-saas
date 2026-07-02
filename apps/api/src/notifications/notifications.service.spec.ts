@@ -25,11 +25,13 @@ describe('NotificationsService', () => {
     staleActiveListings = [],
     readIds = [],
     preferences = [],
+    ruleSettings = null,
   }: {
     overdueFollowUps?: unknown[];
     staleActiveListings?: unknown[];
     readIds?: string[];
     preferences?: unknown[];
+    ruleSettings?: unknown;
   } = {}) {
     const appointmentRepo = {
       find: jest.fn().mockResolvedValue([]),
@@ -65,6 +67,10 @@ describe('NotificationsService', () => {
       find: jest.fn().mockResolvedValue(preferences),
       upsert: jest.fn().mockResolvedValue({}),
     };
+    const notificationRuleSettingsRepo = {
+      findOne: jest.fn().mockResolvedValue(ruleSettings),
+      upsert: jest.fn().mockResolvedValue({}),
+    };
     const usersService = {
       resolveAgentForUser: jest.fn().mockResolvedValue({ id: agentId }),
     };
@@ -81,6 +87,7 @@ describe('NotificationsService', () => {
       taskRepo as never,
       notificationReadRepo as never,
       notificationPreferenceRepo as never,
+      notificationRuleSettingsRepo as never,
       usersService as never,
       listingDocumentsService as never,
     );
@@ -88,8 +95,10 @@ describe('NotificationsService', () => {
     return {
       service,
       taskRepo,
+      listingRepo,
       notificationReadRepo,
       notificationPreferenceRepo,
+      notificationRuleSettingsRepo,
       readQueryBuilder,
       usersService,
       listingDocumentsService,
@@ -195,14 +204,56 @@ describe('NotificationsService', () => {
     expect(notificationReadRepo.createQueryBuilder).not.toHaveBeenCalled();
   });
 
-  it('upserts notification preferences for the resolved agent', async () => {
-    const { service, notificationPreferenceRepo, usersService } =
-      createService();
+  it('uses custom rule thresholds when querying notification candidates', async () => {
+    const { service, taskRepo, listingRepo } = createService({
+      ruleSettings: {
+        agentId,
+        followUpOverdueDays: 3,
+        staleListingDays: 21,
+      },
+    });
 
-    await service.updatePreferences(userId, [
-      { category: 'task', enabled: false },
-      { category: 'listing', enabled: true },
-    ]);
+    await service.findAll(userId, { limit: 8 });
+
+    expect(taskRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          dueAt: expect.objectContaining({
+            _value: new Date('2026-06-27T10:00:00.000Z'),
+          }),
+        }),
+      }),
+    );
+    expect(listingRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          updatedAt: expect.objectContaining({
+            _value: new Date('2026-06-09T10:00:00.000Z'),
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('upserts notification preferences for the resolved agent', async () => {
+    const {
+      service,
+      notificationPreferenceRepo,
+      notificationRuleSettingsRepo,
+      usersService,
+    } = createService();
+
+    await service.updatePreferences(
+      userId,
+      [
+        { category: 'task', enabled: false },
+        { category: 'listing', enabled: true },
+      ],
+      {
+        followUpOverdueDays: 2,
+        staleListingDays: 30,
+      },
+    );
 
     expect(usersService.resolveAgentForUser).toHaveBeenCalledWith(userId);
     expect(notificationPreferenceRepo.upsert).toHaveBeenCalledWith(
@@ -211,6 +262,14 @@ describe('NotificationsService', () => {
         { agentId, category: 'listing', enabled: true },
       ],
       ['agentId', 'category'],
+    );
+    expect(notificationRuleSettingsRepo.upsert).toHaveBeenCalledWith(
+      {
+        agentId,
+        followUpOverdueDays: 2,
+        staleListingDays: 30,
+      },
+      ['agentId'],
     );
   });
 });

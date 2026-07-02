@@ -10,7 +10,11 @@ import { Client } from '../clients/entities/client.entity';
 import { PublicLead } from '../public-leads/entities';
 import { Task } from '../tasks/entities';
 import { ListingDocumentsModule } from '../listing-documents';
-import { NotificationPreference, NotificationRead } from './entities';
+import {
+  NotificationPreference,
+  NotificationRead,
+  NotificationRuleSettings,
+} from './entities';
 
 @Module({
   imports: [
@@ -23,6 +27,7 @@ import { NotificationPreference, NotificationRead } from './entities';
       Task,
       NotificationRead,
       NotificationPreference,
+      NotificationRuleSettings,
     ]),
     UsersModule,
     ListingDocumentsModule,

@@ -27,7 +27,11 @@ export class NotificationsController {
     @CurrentUser('id') userId: string,
     @Body() dto: UpdateNotificationPreferencesDto,
   ) {
-    return this.notificationsService.updatePreferences(userId, dto.preferences);
+    return this.notificationsService.updatePreferences(
+      userId,
+      dto.preferences,
+      dto.ruleSettings,
+    );
   }
 
   @Post('read')

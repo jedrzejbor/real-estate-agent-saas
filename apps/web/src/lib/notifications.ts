@@ -31,8 +31,14 @@ export interface NotificationPreference {
   enabled: boolean;
 }
 
+export interface NotificationRuleSettings {
+  followUpOverdueDays: number;
+  staleListingDays: number;
+}
+
 export interface NotificationPreferencesResponse {
   preferences: NotificationPreference[];
+  ruleSettings: NotificationRuleSettings;
 }
 
 export async function fetchNotifications(): Promise<NotificationsResponse> {
@@ -47,12 +53,13 @@ export async function fetchNotificationPreferences(): Promise<NotificationPrefer
 
 export async function updateNotificationPreferences(
   preferences: NotificationPreference[],
+  ruleSettings?: NotificationRuleSettings,
 ): Promise<NotificationPreferencesResponse> {
   return apiFetch<NotificationPreferencesResponse>(
     '/notifications/preferences',
     {
       method: 'PATCH',
-      body: { preferences },
+      body: { preferences, ruleSettings },
     },
   );
 }
