@@ -6,6 +6,7 @@ import {
   markTodayTaskDone,
   type DashboardTodayResponse,
 } from '@/lib/dashboard';
+import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 
 interface UseDashboardTodayReturn {
   today: DashboardTodayResponse | null;
@@ -33,6 +34,18 @@ export function useDashboardToday(): UseDashboardTodayReturn {
       const result = await fetchDashboardToday();
       if (!controller.signal.aborted) {
         setToday(result);
+        trackAnalyticsEvent({
+          name: AnalyticsEventName.DASHBOARD_TODAY_VIEWED,
+          properties: {
+            overdueCount: result.items.filter((item) =>
+              item.dueAt ? new Date(item.dueAt).getTime() < Date.now() : false,
+            ).length,
+            highPriorityCount: result.items.filter(
+              (item) => item.priority === 'high',
+            ).length,
+            totalCount: result.items.length,
+          },
+        });
       }
     } catch (err) {
       if (!controller.signal.aborted) {

@@ -20,6 +20,7 @@ import {
   type NotificationCategory,
   type NotificationItem,
 } from '@/lib/notifications';
+import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import { formatRelativeTime } from '@/lib/dashboard';
 import { cn } from '@/lib/utils';
 
@@ -106,6 +107,16 @@ export function NotificationsDropdown() {
 
     if (nextOpen) {
       await refresh();
+      trackAnalyticsEvent({
+        name: AnalyticsEventName.NOTIFICATION_CENTER_OPENED,
+        properties: {
+          unreadCount: notifications.unreadCount,
+          totalCount: notifications.items.length,
+          criticalCount: notifications.items.filter(
+            (item) => item.severity === 'critical',
+          ).length,
+        },
+      });
     }
   };
 
@@ -201,6 +212,11 @@ export function NotificationsDropdown() {
                         try {
                           await startReadAnimation(id);
                           await markAsRead([id]);
+                          trackNotificationEvent(
+                            AnalyticsEventName.NOTIFICATION_MARKED_READ,
+                            item,
+                            'single',
+                          );
                         } finally {
                           stopReadAnimation(id);
                           setIsMarkingRead(false);
@@ -217,6 +233,11 @@ export function NotificationsDropdown() {
                           try {
                             await startReadAnimation(id);
                             await markAsRead([id]);
+                            trackNotificationEvent(
+                              AnalyticsEventName.NOTIFICATION_MARKED_READ,
+                              item,
+                              'navigate',
+                            );
                           } finally {
                             stopReadAnimation(id);
                             setIsMarkingRead(false);
@@ -224,6 +245,11 @@ export function NotificationsDropdown() {
                         }
 
                         setIsOpen(false);
+                        trackNotificationEvent(
+                          AnalyticsEventName.NOTIFICATION_NAVIGATED,
+                          item,
+                          'row',
+                        );
                         router.push(href);
                       }}
                     />
@@ -236,6 +262,26 @@ export function NotificationsDropdown() {
       ) : null}
     </div>
   );
+}
+
+function trackNotificationEvent(
+  name:
+    | typeof AnalyticsEventName.NOTIFICATION_MARKED_READ
+    | typeof AnalyticsEventName.NOTIFICATION_NAVIGATED,
+  item: NotificationItem,
+  source: string,
+) {
+  trackAnalyticsEvent({
+    name,
+    properties: {
+      notificationId: item.id,
+      category: item.category,
+      variant: item.variant,
+      severity: item.severity ?? null,
+      hasHref: Boolean(item.href),
+      source,
+    },
+  });
 }
 
 function groupNotifications(items: NotificationItem[]) {

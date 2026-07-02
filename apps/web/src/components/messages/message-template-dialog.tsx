@@ -5,6 +5,7 @@ import { Copy, MessageSquareText, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/contexts/toast-context';
+import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import {
   fetchMessageTemplates,
@@ -89,6 +90,16 @@ export function MessageTemplateDialog({
           context,
         }),
       );
+      trackAnalyticsEvent({
+        name: AnalyticsEventName.MESSAGE_TEMPLATE_RENDERED,
+        properties: {
+          templateType: selectedType,
+          missingRequiredContextCount: missingRequiredContext.length,
+          hasClientName: Boolean(context.clientName),
+          hasListingTitle: Boolean(context.listingTitle),
+          hasAppointmentTime: Boolean(context.appointmentTime),
+        },
+      });
     } catch (err) {
       setError(
         err instanceof Error
@@ -98,7 +109,7 @@ export function MessageTemplateDialog({
     } finally {
       setIsRendering(false);
     }
-  }, [context, selectedType]);
+  }, [context, missingRequiredContext.length, selectedType]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -121,6 +132,15 @@ export function MessageTemplateDialog({
       success({
         title: 'Wiadomość skopiowana',
         description: 'Treść jest gotowa do wklejenia w emailu albo SMS.',
+      });
+      trackAnalyticsEvent({
+        name: AnalyticsEventName.MESSAGE_TEMPLATE_COPIED,
+        properties: {
+          templateType: rendered.type,
+          missingRequiredContextCount: missingRequiredContext.length,
+          subjectLength: rendered.subject.length,
+          bodyLength: rendered.body.length,
+        },
       });
     } catch (err) {
       showError({

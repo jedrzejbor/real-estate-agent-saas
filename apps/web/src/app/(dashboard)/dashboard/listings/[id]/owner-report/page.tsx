@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/contexts/toast-context';
+import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import {
   fetchListingOwnerReport,
   formatArea,
@@ -70,6 +71,17 @@ export default function ListingOwnerReportPage() {
             report: response,
             error: null,
           });
+          trackAnalyticsEvent({
+            name: AnalyticsEventName.OWNER_REPORT_VIEWED,
+            properties: {
+              listingId: response.listing.id,
+              periodDays: getInclusiveDateRangeDays(dateFrom, dateTo),
+              insightsCount: response.insights.length,
+              publicViews: response.metrics.publicViews,
+              inquiries: response.metrics.inquiries,
+              appointments: response.metrics.appointments,
+            },
+          });
         }
       })
       .catch((err) => {
@@ -105,6 +117,13 @@ export default function ListingOwnerReportPage() {
         title: 'Link skopiowany',
         description: 'Link do raportu z wybranym okresem jest w schowku.',
       });
+      trackAnalyticsEvent({
+        name: AnalyticsEventName.OWNER_REPORT_LINK_COPIED,
+        properties: {
+          listingId: params.id,
+          periodDays: getInclusiveDateRangeDays(dateFrom, dateTo),
+        },
+      });
     } catch {
       showErrorToast({
         title: 'Nie udało się skopiować linku',
@@ -127,6 +146,17 @@ export default function ListingOwnerReportPage() {
       showSuccessToast({
         title: 'Podsumowanie skopiowane',
         description: 'Gotowa treść dla właściciela jest w schowku.',
+      });
+      trackAnalyticsEvent({
+        name: AnalyticsEventName.OWNER_REPORT_SUMMARY_COPIED,
+        properties: {
+          listingId: currentReport.listing.id,
+          periodDays: getInclusiveDateRangeDays(dateFrom, dateTo),
+          insightsCount: currentReport.insights.length,
+          publicViews: currentReport.metrics.publicViews,
+          inquiries: currentReport.metrics.inquiries,
+          appointments: currentReport.metrics.appointments,
+        },
       });
     } catch {
       showErrorToast({
@@ -614,6 +644,16 @@ function getDateInputValue(dayOffset: number): string {
   const date = new Date();
   date.setDate(date.getDate() + dayOffset);
   return date.toISOString().slice(0, 10);
+}
+
+function getInclusiveDateRangeDays(dateFrom: string, dateTo: string): number {
+  const from = new Date(`${dateFrom}T00:00:00.000Z`);
+  const to = new Date(`${dateTo}T00:00:00.000Z`);
+  const diff = to.getTime() - from.getTime();
+
+  if (!Number.isFinite(diff)) return 0;
+
+  return Math.max(1, Math.floor(diff / (24 * 60 * 60 * 1000)) + 1);
 }
 
 function normalizeDateInput(value: string | null): string | null {

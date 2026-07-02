@@ -11,10 +11,8 @@ export const AnalyticsEventName = {
   LISTING_CREATED: 'listing_created',
   LISTING_RETENTION_CHOICES_OPENED: 'listing_retention_choices_opened',
   LISTING_RETENTION_CHOICES_SAVED: 'listing_retention_choices_saved',
-  LISTING_ADDRESS_GEOCODING_REQUESTED:
-    'listing_address_geocoding_requested',
-  LISTING_ADDRESS_GEOCODING_SUCCEEDED:
-    'listing_address_geocoding_succeeded',
+  LISTING_ADDRESS_GEOCODING_REQUESTED: 'listing_address_geocoding_requested',
+  LISTING_ADDRESS_GEOCODING_SUCCEEDED: 'listing_address_geocoding_succeeded',
   LISTING_ADDRESS_GEOCODING_FAILED: 'listing_address_geocoding_failed',
   LISTING_PUBLISHED: 'listing_published',
   LISTING_UNPUBLISHED: 'listing_unpublished',
@@ -36,6 +34,15 @@ export const AnalyticsEventName = {
   CLIENT_CREATED: 'client_created',
   CLIENTS_IMPORTED: 'clients_imported',
   APPOINTMENT_CREATED: 'appointment_created',
+  DASHBOARD_TODAY_VIEWED: 'dashboard_today_viewed',
+  MESSAGE_TEMPLATE_RENDERED: 'message_template_rendered',
+  MESSAGE_TEMPLATE_COPIED: 'message_template_copied',
+  OWNER_REPORT_VIEWED: 'owner_report_viewed',
+  OWNER_REPORT_LINK_COPIED: 'owner_report_link_copied',
+  OWNER_REPORT_SUMMARY_COPIED: 'owner_report_summary_copied',
+  NOTIFICATION_CENTER_OPENED: 'notification_center_opened',
+  NOTIFICATION_MARKED_READ: 'notification_marked_read',
+  NOTIFICATION_NAVIGATED: 'notification_navigated',
   LIMIT_WARNING_SHOWN: 'limit_warning_shown',
   LIMIT_REACHED: 'limit_reached',
   UPGRADE_CTA_CLICKED: 'upgrade_cta_clicked',
@@ -60,10 +67,7 @@ export function trackAnalyticsEvent({
   properties,
   path,
 }: TrackAnalyticsEventInput): void {
-  if (
-    typeof window === 'undefined' ||
-    !canTrackAnalyticsEvent(name)
-  ) {
+  if (typeof window === 'undefined' || !canTrackAnalyticsEvent(name)) {
     return;
   }
 

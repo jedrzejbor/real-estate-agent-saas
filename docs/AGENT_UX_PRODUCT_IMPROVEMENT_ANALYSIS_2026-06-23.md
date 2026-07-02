@@ -3150,6 +3150,68 @@ Kryteria akceptacji:
 - nowe funkcje są opisane w dokumentacji,
 - można włączyć rollout etapami.
 
+Status UX-10 / iteracja 1 - bazowa instrumentacja użycia:
+
+Zrobione:
+
+1. Rozszerzono kontrakt analytics o eventy produktowe:
+   - `dashboard_today_viewed`,
+   - `message_template_rendered`,
+   - `message_template_copied`,
+   - `owner_report_viewed`,
+   - `owner_report_link_copied`,
+   - `owner_report_summary_copied`,
+   - `notification_center_opened`,
+   - `notification_marked_read`,
+   - `notification_navigated`.
+2. Dodano tracking widoku `Dzisiaj`:
+   - liczba elementów,
+   - liczba elementów wysokiego priorytetu,
+   - liczba elementów po terminie.
+3. Dodano tracking szablonów wiadomości:
+   - render szablonu,
+   - kopiowanie treści,
+   - typ szablonu,
+   - liczba brakujących danych kontekstowych,
+   - długość tematu i treści po renderze.
+4. Dodano tracking raportu właściciela:
+   - wyświetlenie raportu,
+   - skopiowanie linku,
+   - skopiowanie podsumowania,
+   - zakres dni,
+   - liczba insightów,
+   - podstawowe liczniki efektywności oferty.
+5. Dodano tracking centrum powiadomień:
+   - otwarcie dropdownu,
+   - oznaczenie powiadomienia jako przeczytane,
+   - przejście z powiadomienia do źródłowego widoku,
+   - kategoria, wariant i krytyczność powiadomienia.
+
+Zasady prywatności:
+
+1. Nie logujemy imion, nazwisk, emaili, telefonów, treści wiadomości ani
+   zawartości raportu.
+2. Eventy używają istniejącego mechanizmu zgód analytics.
+3. W properties zapisujemy tylko identyfikatory techniczne, typy, źródła akcji,
+   liczniki i długości tekstu.
+
+Decyzje techniczne:
+
+1. Nie dodano nowego modułu telemetrycznego. Wykorzystano istniejący endpoint
+   `POST /api/analytics/events` i tabelę `analytics_events`.
+2. Eventy są rozszerzeniem kontraktu DTO, dzięki czemu backend nadal odrzuca
+   nieznane nazwy zdarzeń.
+3. Instrumentacja jest po stronie frontendu, bo mierzone akcje są
+   interakcjami użytkownika, a nie tylko skutkiem operacji backendowej.
+
+Do kolejnej iteracji UX-10:
+
+1. Dodać dashboard/raport wykorzystania eventów dla admina albo właściciela
+   workspace.
+2. Uzupełnić instrumentację o matching klient-oferta i wykonane follow-upy,
+   jeśli chcemy mierzyć skuteczność domykania zadań.
+3. Przejrzeć empty states i teksty instruktażowe pod kątem skrócenia.
+
 ## Ryzyka i zależności
 
 1. Część bardziej zaawansowanych raportów wymaga historii zdarzeń.
