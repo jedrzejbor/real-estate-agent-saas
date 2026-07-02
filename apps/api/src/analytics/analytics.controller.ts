@@ -1,14 +1,18 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
   Post,
+  Query,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../common/enums';
 import { PublicSlugPipe } from '../common/public-param-security';
 import { AnalyticsService } from './analytics.service';
 import {
@@ -16,6 +20,7 @@ import {
   CreatePublicBlogAnalyticsEventDto,
   CreatePublicListingAnalyticsEventDto,
 } from './dto/create-analytics-event.dto';
+import { AdminAnalyticsUsageQueryDto } from './dto/admin-analytics-usage-query.dto';
 
 @Controller('analytics')
 export class AnalyticsController {
@@ -53,5 +58,17 @@ export class AnalyticsController {
     @Body() dto: CreatePublicBlogAnalyticsEventDto,
   ) {
     return this.analyticsService.trackPublicBlog(slug, dto);
+  }
+}
+
+@Controller('admin/analytics')
+@Roles(UserRole.ADMIN)
+export class AdminAnalyticsController {
+  constructor(private readonly analyticsService: AnalyticsService) {}
+
+  /** GET /api/admin/analytics/usage — aggregate product analytics usage for rollout review. */
+  @Get('usage')
+  async getUsage(@Query() query: AdminAnalyticsUsageQueryDto) {
+    return this.analyticsService.getAdminUsageSummary(query);
   }
 }

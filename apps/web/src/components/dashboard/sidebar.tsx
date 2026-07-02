@@ -73,6 +73,11 @@ export function DashboardSidebar() {
             icon: ShieldCheck,
           },
           {
+            label: 'Analytics',
+            href: '/dashboard/admin/analytics',
+            icon: BarChart3,
+          },
+          {
             label: 'Blog',
             href: '/dashboard/blog',
             icon: Newspaper,

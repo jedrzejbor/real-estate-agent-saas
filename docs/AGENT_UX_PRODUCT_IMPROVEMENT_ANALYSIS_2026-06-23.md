@@ -3212,6 +3212,55 @@ Do kolejnej iteracji UX-10:
    jeśli chcemy mierzyć skuteczność domykania zadań.
 3. Przejrzeć empty states i teksty instruktażowe pod kątem skrócenia.
 
+Status UX-10 / iteracja 2 - raport wykorzystania eventów dla admina:
+
+Zrobione:
+
+1. Dodano endpoint administracyjny:
+   - `GET /api/admin/analytics/usage`,
+   - parametr `days` z zakresem od `1` do `90`,
+   - dostęp tylko dla roli `admin`.
+2. Endpoint agreguje eventy z tabeli `analytics_events` bez nowej migracji:
+   - łączna liczba eventów,
+   - aktywni użytkownicy,
+   - aktywni agenci,
+   - aktywne workspace,
+   - top eventy,
+   - dzienna seria aktywności,
+   - ostatnie zdarzenia bez payloadu `properties`.
+3. Dodano frontendowy klient API `fetchAdminAnalyticsUsage`.
+4. Dodano widok `Dashboard -> Admin -> Analytics`:
+   - wybór zakresu `7 / 14 / 30 / 60 / 90 dni`,
+   - karty metryk,
+   - wykres słupkowy aktywności dziennej,
+   - lista najczęstszych eventów,
+   - tabela ostatnich zdarzeń.
+5. Dodano link `Analytics` w panelu admina w sidebarze.
+
+Zasady bezpieczeństwa i prywatności:
+
+1. Widok jest dostępny tylko dla administratorów.
+2. Endpoint nie zwraca `properties`, żeby nie ryzykować wycieku kontekstu
+   zdarzeń.
+3. Raport pokazuje tylko zagregowane dane i minimalne informacje techniczne:
+   nazwę eventu, plan, ścieżkę i czas.
+
+Decyzje techniczne:
+
+1. Raport jest czytany bezpośrednio z `analytics_events`, ponieważ na tym
+   etapie potrzebujemy szybkiej walidacji rolloutu, a nie osobnego warehouse.
+2. Nie dodano migracji ani materializowanych agregatów. Przy obecnej skali
+   wystarczy zapytanie po indeksowanych danych czasowych i nazwach eventów.
+3. Raport jest adminowy, a nie workspace-ownerowy, bo obecnie służy do oceny
+   wdrożenia produktu, nie do rozliczania pracy pojedynczego biura.
+
+Do kolejnej iteracji UX-10:
+
+1. Uzupełnić instrumentację o matching klient-oferta i wykonane follow-upy.
+2. Dodać prostą listę metryk sukcesu i checklistę rolloutu w dokumentacji.
+3. Przejrzeć najważniejsze empty states w dashboardzie i skrócić teksty, które
+   są zbyt instruktażowe.
+
 ## Ryzyka i zależności
 
 1. Część bardziej zaawansowanych raportów wymaga historii zdarzeń.

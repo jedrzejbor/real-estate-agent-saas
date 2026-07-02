@@ -5,7 +5,10 @@ import { Listing } from '../listings/entities/listing.entity';
 import { MonitoringModule } from '../monitoring';
 import { Agent } from '../users/entities/agent.entity';
 import { BlogPost } from '../blog/entities/blog-post.entity';
-import { AnalyticsController } from './analytics.controller';
+import {
+  AdminAnalyticsController,
+  AnalyticsController,
+} from './analytics.controller';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsEvent } from './entities/analytics-event.entity';
 
@@ -15,7 +18,7 @@ import { AnalyticsEvent } from './entities/analytics-event.entity';
     UsersModule,
     MonitoringModule,
   ],
-  controllers: [AnalyticsController],
+  controllers: [AnalyticsController, AdminAnalyticsController],
   providers: [AnalyticsService],
   exports: [AnalyticsService],
 })
