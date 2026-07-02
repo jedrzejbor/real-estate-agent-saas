@@ -8,6 +8,7 @@ export type NotificationCategory =
   | 'public_lead'
   | 'task';
 export type NotificationVariant = 'info' | 'warning' | 'success';
+export type NotificationSeverity = 'critical';
 
 export interface NotificationItem {
   id: string;
@@ -18,6 +19,7 @@ export interface NotificationItem {
   href?: string;
   createdAt: string;
   isRead: boolean;
+  severity?: NotificationSeverity;
 }
 
 export interface NotificationsResponse {

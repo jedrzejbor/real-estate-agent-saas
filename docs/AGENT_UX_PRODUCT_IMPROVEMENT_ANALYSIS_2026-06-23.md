@@ -3038,6 +3038,56 @@ Do kolejnej iteracji UX-9:
 2. Rozważyć oznaczenie części powiadomień jako krytyczne, których nie da się
    wyciszyć zwykłym progiem.
 
+Status UX-9 / iteracja 6 - krytyczność powiadomień operacyjnych:
+
+Zrobione:
+
+1. Rozszerzono kontrakt powiadomienia o opcjonalne pole:
+   - `severity: critical`.
+2. Dodano progi krytyczności w generatorze dashboardowym:
+   - follow-up po terminie co najmniej 7 dni,
+   - aktywna oferta bez aktualizacji co najmniej 45 dni,
+   - zaległe spotkanie po czasie rozpoczęcia.
+3. Krytyczne follow-upy i krytycznie nieświeże oferty mogą pojawić się nawet
+   wtedy, gdy zwykły próg użytkownika jest ustawiony wyżej.
+4. Nie zmieniono znaczenia wyłączenia całej kategorii. Jeśli agent wyłączy typ
+   powiadomienia, ta kategoria nadal nie trafia do centrum powiadomień.
+5. Dropdown powiadomień pokazuje mały badge `Krytyczne` przy elementach z
+   wysoką pilnością.
+6. Dodano test backendowy dla scenariusza:
+   - użytkownik ustawia wysoki próg follow-upu,
+   - bardzo zaległy follow-up nadal jest kandydatem,
+   - powiadomienie dostaje `severity: critical`.
+
+Decyzje techniczne:
+
+1. Krytyczność jest metadanym w istniejącym kontrakcie, a nie osobną kategorią,
+   żeby nie komplikować ustawień użytkownika i grupowania dropdownu.
+2. Krytyczność przebija progi reguł, ale nie przebija świadomego wyłączenia
+   kategorii przez użytkownika.
+3. Nadal nie uruchamiamy kanałów poza aplikacją. Email/SMS/push zostają na
+   osobny zakres z harmonogramem ciszy, zgodami, logowaniem prób wysyłki i
+   obsługą błędów dostawcy.
+
+Status UX-9 / zamknięcie zakresu dashboardowego:
+
+Decyzja:
+Zakres dashboardowy UX-9 można uznać za zamknięty. Mamy generowanie
+powiadomień operacyjnych, idempotencję przez stabilne id, oznaczanie jako
+przeczytane, grupowanie, ustawienia kategorii, progi reguł i podstawową
+krytyczność.
+
+Poza UX-9 dashboard MVP zostają:
+
+1. Kanały poza aplikacją:
+   - email,
+   - SMS,
+   - push.
+2. Harmonogram ciszy i zgody komunikacyjne.
+3. Log wysyłek i statusów doręczeń.
+4. Ewentualny scheduler zapisujący materializowane powiadomienia zamiast
+   deterministycznego generowania przy odczycie.
+
 Poprawka UX/dane - publiczne zapytania i błędny klient CRM:
 
 Problem:

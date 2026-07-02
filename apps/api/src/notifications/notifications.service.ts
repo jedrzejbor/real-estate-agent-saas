@@ -31,6 +31,10 @@ import {
 } from './notification-categories';
 
 export type NotificationVariant = 'info' | 'warning' | 'success';
+export type NotificationSeverity = 'critical';
+
+const CRITICAL_FOLLOW_UP_OVERDUE_DAYS = 7;
+const CRITICAL_STALE_LISTING_DAYS = 45;
 
 export interface NotificationItem {
   id: string;
@@ -41,6 +45,7 @@ export interface NotificationItem {
   href?: string;
   createdAt: string;
   isRead: boolean;
+  severity?: NotificationSeverity;
 }
 
 export interface NotificationsResponse {
@@ -107,8 +112,14 @@ export class NotificationsService {
     const followUpThreshold = new Date(
       now.getTime() - ruleSettings.followUpOverdueDays * 24 * 60 * 60 * 1000,
     );
+    const criticalFollowUpThreshold = new Date(
+      now.getTime() - CRITICAL_FOLLOW_UP_OVERDUE_DAYS * 24 * 60 * 60 * 1000,
+    );
     const staleListingThreshold = new Date(
       now.getTime() - ruleSettings.staleListingDays * 24 * 60 * 60 * 1000,
+    );
+    const criticalStaleListingThreshold = new Date(
+      now.getTime() - CRITICAL_STALE_LISTING_DAYS * 24 * 60 * 60 * 1000,
     );
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
 
@@ -165,7 +176,9 @@ export class NotificationsService {
           agentId: agent.id,
           status: TaskStatus.TODO,
           type: TaskType.FOLLOW_UP,
-          dueAt: LessThan(followUpThreshold),
+          dueAt: LessThan(
+            maxDate(followUpThreshold, criticalFollowUpThreshold),
+          ),
         },
         order: { dueAt: 'ASC' },
         take: 5,
@@ -175,7 +188,9 @@ export class NotificationsService {
         where: {
           agentId: agent.id,
           status: ListingStatus.ACTIVE,
-          updatedAt: LessThan(staleListingThreshold),
+          updatedAt: LessThan(
+            maxDate(staleListingThreshold, criticalStaleListingThreshold),
+          ),
         },
         order: { updatedAt: 'ASC' },
         take: 3,
@@ -201,6 +216,7 @@ export class NotificationsService {
         description: `"${appointment.title}" miało rozpocząć się ${appointment.startTime.toLocaleString('pl-PL')}.`,
         href: `/dashboard/calendar/${appointment.id}`,
         createdAt: appointment.startTime.toISOString(),
+        severity: 'critical',
         priority: 300,
         sortTimestamp: appointment.startTime.getTime(),
       });
@@ -243,7 +259,7 @@ export class NotificationsService {
     }
 
     for (const listing of staleActiveListings) {
-      ranked.push(this.buildStaleActiveListingNotification(listing));
+      ranked.push(this.buildStaleActiveListingNotification(listing, now));
     }
 
     const publicLeadClientIds = new Set(
@@ -508,6 +524,7 @@ export class NotificationsService {
       1,
       Math.ceil((now.getTime() - dueAt.getTime()) / (24 * 60 * 60 * 1000)),
     );
+    const isCritical = overdueDays >= CRITICAL_FOLLOW_UP_OVERDUE_DAYS;
 
     return {
       id: `task-overdue-follow-up-${task.id}`,
@@ -517,14 +534,24 @@ export class NotificationsService {
       description: `${task.title}${context.label ? ` (${context.label})` : ''} czeka ${overdueDays} ${this.pluralize(overdueDays, 'dzień', 'dni', 'dni')}.`,
       href: context.href,
       createdAt: dueAt.toISOString(),
-      priority: 280,
+      severity: isCritical ? 'critical' : undefined,
+      priority: isCritical ? 340 : 280,
       sortTimestamp: dueAt.getTime(),
     };
   }
 
   private buildStaleActiveListingNotification(
     listing: Listing,
+    now: Date,
   ): RankedNotification {
+    const staleDays = Math.max(
+      1,
+      Math.ceil(
+        (now.getTime() - listing.updatedAt.getTime()) / (24 * 60 * 60 * 1000),
+      ),
+    );
+    const isCritical = staleDays >= CRITICAL_STALE_LISTING_DAYS;
+
     return {
       id: `listing-stale-active-${listing.id}`,
       category: 'listing',
@@ -533,7 +560,8 @@ export class NotificationsService {
       description: `"${listing.title}" nie była aktualizowana od ${listing.updatedAt.toLocaleDateString('pl-PL')}. Warto sprawdzić cenę, opis i ekspozycję.`,
       href: `/dashboard/listings/${listing.id}`,
       createdAt: listing.updatedAt.toISOString(),
-      priority: 190,
+      severity: isCritical ? 'critical' : undefined,
+      priority: isCritical ? 260 : 190,
       sortTimestamp: listing.updatedAt.getTime(),
     };
   }
@@ -631,4 +659,8 @@ function getDocumentNotificationMessage(item: ListingDocumentAttentionItem): {
     title: 'Brak wymaganych dokumentów oferty',
     description: `Oferta "${item.listingTitle}" ma ${item.count} brakujące wymagane dokumenty.`,
   };
+}
+
+function maxDate(left: Date, right: Date): Date {
+  return left.getTime() >= right.getTime() ? left : right;
 }

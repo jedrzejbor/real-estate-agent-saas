@@ -277,7 +277,18 @@ function NotificationRow({
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
-          <p className="text-sm font-medium text-foreground">{item.title}</p>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-medium text-foreground">
+                {item.title}
+              </p>
+              {item.severity === 'critical' ? (
+                <span className="rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-destructive">
+                  Krytyczne
+                </span>
+              ) : null}
+            </div>
+          </div>
           <span className="shrink-0 text-[11px] text-muted-foreground">
             {formatRelativeTime(item.createdAt)}
           </span>

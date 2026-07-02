@@ -235,6 +235,46 @@ describe('NotificationsService', () => {
     );
   });
 
+  it('keeps critical overdue follow-ups visible even when the regular threshold is higher', async () => {
+    const { service, taskRepo } = createService({
+      ruleSettings: {
+        agentId,
+        followUpOverdueDays: 30,
+        staleListingDays: 90,
+      },
+      overdueFollowUps: [
+        {
+          id: 'task-critical',
+          agentId,
+          title: 'Bardzo zaległy kontakt',
+          status: TaskStatus.TODO,
+          type: TaskType.FOLLOW_UP,
+          dueAt: new Date('2026-06-20T09:00:00.000Z'),
+          createdAt: new Date('2026-06-19T09:00:00.000Z'),
+          clientId: 'client-1',
+        },
+      ],
+    });
+
+    const result = await service.findAll(userId, { limit: 8 });
+
+    expect(taskRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          dueAt: expect.objectContaining({
+            _value: new Date('2026-06-23T10:00:00.000Z'),
+          }),
+        }),
+      }),
+    );
+    expect(result.items).toContainEqual(
+      expect.objectContaining({
+        id: 'task-overdue-follow-up-task-critical',
+        severity: 'critical',
+      }),
+    );
+  });
+
   it('upserts notification preferences for the resolved agent', async () => {
     const {
       service,
