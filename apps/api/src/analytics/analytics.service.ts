@@ -178,7 +178,7 @@ export class AnalyticsService {
       .addSelect('COUNT(DISTINCT event.user_id)', 'activeUsers')
       .addSelect('COUNT(DISTINCT event.agent_id)', 'activeAgents')
       .addSelect('COUNT(DISTINCT event.agency_id)', 'activeAgencies')
-      .where('event.created_at >= :from', { from })
+      .where('event.createdAt >= :from', { from })
       .getRawOne<{
         totalEvents: string | null;
         activeUsers: string | null;
@@ -199,7 +199,7 @@ export class AnalyticsService {
       .createQueryBuilder('event')
       .select('event.name', 'name')
       .addSelect('COUNT(*)', 'count')
-      .where('event.created_at >= :from', { from })
+      .where('event.createdAt >= :from', { from })
       .groupBy('event.name')
       .orderBy('COUNT(*)', 'DESC')
       .addOrderBy('event.name', 'ASC')
@@ -216,13 +216,13 @@ export class AnalyticsService {
     const rows = await this.analyticsEventRepo
       .createQueryBuilder('event')
       .select(
-        "to_char(date_trunc('day', event.created_at), 'YYYY-MM-DD')",
+        `to_char(date_trunc('day', event."createdAt"), 'YYYY-MM-DD')`,
         'date',
       )
       .addSelect('COUNT(*)', 'count')
-      .where('event.created_at >= :from', { from })
-      .groupBy("date_trunc('day', event.created_at)")
-      .orderBy("date_trunc('day', event.created_at)", 'ASC')
+      .where('event.createdAt >= :from', { from })
+      .groupBy(`date_trunc('day', event."createdAt")`)
+      .orderBy(`date_trunc('day', event."createdAt")`, 'ASC')
       .getRawMany<{ date: string; count: string }>();
 
     return rows.map((row) => ({
