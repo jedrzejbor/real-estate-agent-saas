@@ -533,10 +533,9 @@ function TodayPanel({
           </div>
         </div>
       ) : items.length === 0 ? (
-        <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-          Brak pilnych działań na dziś. Najważniejsze spotkania, leady i
-          dokumenty pojawią się tutaj automatycznie.
-        </div>
+        <DashboardEmptyNotice className="mt-4">
+          Dzisiaj bez pilnych spraw.
+        </DashboardEmptyNotice>
       ) : (
         <div className="mt-4 grid gap-3 lg:grid-cols-3">
           {items.map((item) => (
@@ -654,10 +653,9 @@ function DashboardInsightsPanel({
           </div>
         </div>
       ) : items.length === 0 ? (
-        <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-          Brak nowych rekomendacji. System pokaże tutaj tylko konkretne sygnały,
-          które wymagają decyzji lub szybkiej akcji.
-        </div>
+        <DashboardEmptyNotice className="mt-4">
+          Brak nowych rekomendacji.
+        </DashboardEmptyNotice>
       ) : (
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           {items.map((insight) => (
@@ -740,6 +738,24 @@ function DashboardInsightCard({
         </Button>
       </Link>
     </article>
+  );
+}
+
+function DashboardEmptyNotice({
+  children,
+  className,
+}: {
+  children: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground ${
+        className ?? ''
+      }`}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -1231,8 +1247,8 @@ function RecentActivityCard({ activities }: { activities: RecentActivity[] }) {
       {activities.length === 0 ? (
         <OnboardingEmptyState
           icon={Clock}
-          title="Tu pojawią się pierwsze działania"
-          description="Dodaj ofertę, klienta albo spotkanie, a ta karta zacznie działać jak szybka historia pracy w CRM."
+          title="Brak aktywności"
+          description="Dodaj ofertę albo klienta, żeby zobaczyć historię pracy."
           actionHref="/dashboard/listings/new"
           actionLabel="Dodaj ofertę"
           secondaryHref="/dashboard/clients/new"
@@ -1303,7 +1319,7 @@ function UpcomingAppointmentsCard({
         <OnboardingEmptyState
           icon={CalendarCheck}
           title="Brak nadchodzących spotkań"
-          description="Zaplanuj pierwszy kontakt, prezentację lub konsultację, żeby mieć najbliższe zadania pod ręką od razu po wejściu do panelu."
+          description="Zaplanuj prezentację lub konsultację."
           actionHref="/dashboard/calendar/new"
           actionLabel="Zaplanuj spotkanie"
           compact
@@ -1386,7 +1402,7 @@ function ListingStatusBreakdown({
         <OnboardingEmptyState
           icon={Building2}
           title="Brak ofert do pokazania"
-          description="Dodaj pierwszą ofertę, żeby zobaczyć rozkład statusów i przygotować grunt pod publiczne strony ofert."
+          description="Dodaj ofertę, żeby śledzić statusy i publikację."
           actionHref="/dashboard/listings/new"
           actionLabel="Dodaj ofertę"
           compact
@@ -1469,8 +1485,8 @@ function ClientPipelineBreakdown({
       {stats.total === 0 ? (
         <OnboardingEmptyState
           icon={Users}
-          title="Pipeline czeka na pierwszego klienta"
-          description="Dodaj kontakt albo zaimportuj bazę CSV, a statusy klientów zaczną pokazywać realny lejek pracy."
+          title="Brak klientów w pipeline"
+          description="Dodaj klienta albo zaimportuj bazę CSV."
           actionHref="/dashboard/clients/new"
           actionLabel="Dodaj klienta"
           compact

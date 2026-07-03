@@ -3330,6 +3330,47 @@ Do kolejnej iteracji UX-10:
 3. Dodać proste alerty administracyjne dla nagłego spadku użycia kluczowych
    funkcji, jeśli dashboard analytics stanie się stałym narzędziem operacyjnym.
 
+Status UX-10 / iteracja 4 - skrócenie empty states w dashboardzie:
+
+Zrobione:
+
+1. Przejrzano główny widok dashboardu i skrócono najbardziej instruktażowe
+   puste stany:
+   - lista `Dzisiaj`,
+   - `Insight dnia`,
+   - `Ostatnia aktywność`,
+   - `Nadchodzące spotkania`,
+   - `Oferty wg statusu`,
+   - `Pipeline klientów`.
+2. Dodano mały lokalny komponent `DashboardEmptyNotice` dla prostych pustych
+   komunikatów w dashboardzie, żeby nie powielać klas i utrzymać spójny wygląd.
+3. Zachowano istniejące CTA w pustych stanach onboardingowych:
+   - `Dodaj ofertę`,
+   - `Dodaj klienta`,
+   - `Zaplanuj spotkanie`.
+
+Decyzje UX:
+
+1. Empty states mają teraz mówić użytkownikowi, jaki jest stan i jaka jest
+   najbliższa akcja, bez długiego tłumaczenia działania systemu.
+2. Dłuższe instrukcje pozostają w samouczku i onboarding checklist, a dashboard
+   ma być szybkim widokiem operacyjnym.
+3. Nie zmieniono analityki empty states, więc dotychczasowe eventy
+   `onboarding_empty_state_shown` i `onboarding_empty_state_cta_clicked` dalej
+   działają bez zmian.
+
+Do kolejnej iteracji UX-10:
+
+1. Rozważyć eventy kliknięć CTA w wynikach matchingu, jeśli same wyświetlenia i
+   ukrycia nie wystarczą do oceny skuteczności.
+2. Przejrzeć empty states poza głównym dashboardem:
+   - listy ofert,
+   - listy klientów,
+   - kalendarz,
+   - zapytania publiczne.
+3. Dodać proste alerty administracyjne dla nagłego spadku użycia kluczowych
+   funkcji, jeśli dashboard analytics stanie się stałym narzędziem operacyjnym.
+
 ## Ryzyka i zależności
 
 1. Część bardziej zaawansowanych raportów wymaga historii zdarzeń.
