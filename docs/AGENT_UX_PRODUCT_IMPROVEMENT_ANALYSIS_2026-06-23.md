@@ -3261,6 +3261,75 @@ Do kolejnej iteracji UX-10:
 3. Przejrzeć najważniejsze empty states w dashboardzie i skrócić teksty, które
    są zbyt instruktażowe.
 
+Status UX-10 / iteracja 3 - matching i zakończone zadania:
+
+Zrobione:
+
+1. Dodano eventy telemetryczne:
+   - `matching_results_viewed`,
+   - `matching_dismissed`,
+   - `today_task_completed`.
+2. Instrumentacja matchingu klient-oferta obejmuje oba kierunki:
+   - profil klienta i propozycje ofert,
+   - profil oferty i propozycje klientów.
+3. Event pobrania wyników matchingu zapisuje:
+   - źródło widoku,
+   - liczbę wyników,
+   - najwyższy score,
+   - techniczny identyfikator klienta albo oferty.
+4. Event ukrycia propozycji matchingu zapisuje:
+   - źródło widoku,
+   - techniczne identyfikatory klienta i oferty.
+5. Event zakończenia zadania z widoku `Dzisiaj` zapisuje:
+   - identyfikator zadania,
+   - priorytet,
+   - informację, czy zadanie było po terminie,
+   - źródło `dashboard_today`.
+
+Zasady prywatności:
+
+1. Nie logujemy nazw klientów, tytułów ofert, adresów, telefonów, emaili ani
+   treści zadań.
+2. Eventy matchingu mierzą skuteczność mechanizmu rekomendacji, a nie dane
+   osobowe powiązanych rekordów.
+3. Event zakończenia zadania jest wysyłany dopiero po udanym oznaczeniu zadania
+   jako wykonanego.
+
+Metryki sukcesu UX-10:
+
+1. Udział użytkowników otwierających widok `Dzisiaj` po zalogowaniu.
+2. Liczba zakończonych zadań z widoku `Dzisiaj` na aktywnego użytkownika.
+3. Udział profili klienta i oferty, na których użytkownik otwiera propozycje
+   matchingu.
+4. Stosunek ukrytych propozycji matchingu do liczby wyświetlonych wyników.
+   Wysoki udział ukryć oznacza konieczność poprawy scoringu albo preferencji.
+5. Liczba renderów i skopiowań szablonów wiadomości na aktywnego użytkownika.
+6. Liczba wyświetleń i skopiowań raportu właściciela.
+7. Użycie centrum powiadomień: otwarcia, oznaczenia jako przeczytane i przejścia
+   do źródłowych widoków.
+
+Checklist rolloutu:
+
+1. Zweryfikować, że nowe eventy pojawiają się w `Admin -> Analytics`.
+2. Sprawdzić, czy `properties` eventów nie zawierają danych osobowych ani treści
+   użytkownika.
+3. Porównać liczbę eventów `matching_results_viewed` z realnym ruchem na
+   profilach klientów i ofert.
+4. Monitorować błędy endpointu `POST /api/analytics/events` po wdrożeniu.
+5. Po kilku dniach ocenić, czy liczba ukryć matchingu nie wskazuje na słabą
+   trafność rekomendacji.
+6. Jeśli eventy są stabilne, można rozpocząć iterację nad skróceniem empty
+   states i mikrocopy w dashboardzie.
+
+Do kolejnej iteracji UX-10:
+
+1. Przejrzeć najważniejsze empty states w dashboardzie i skrócić teksty, które
+   są zbyt instruktażowe.
+2. Rozważyć eventy kliknięć CTA w wynikach matchingu, jeśli same wyświetlenia i
+   ukrycia nie wystarczą do oceny skuteczności.
+3. Dodać proste alerty administracyjne dla nagłego spadku użycia kluczowych
+   funkcji, jeśli dashboard analytics stanie się stałym narzędziem operacyjnym.
+
 ## Ryzyka i zależności
 
 1. Część bardziej zaawansowanych raportów wymaga historii zdarzeń.

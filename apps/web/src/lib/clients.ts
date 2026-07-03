@@ -293,19 +293,40 @@ export async function fetchClient(id: string): Promise<Client> {
 export async function fetchClientMatchingListings(
   clientId: string,
 ): Promise<MatchingListingResult[]> {
-  return apiFetch<MatchingListingResult[]>(
+  const results = await apiFetch<MatchingListingResult[]>(
     `/clients/${clientId}/matching-listings`,
   );
+
+  trackAnalyticsEvent({
+    name: AnalyticsEventName.MATCHING_RESULTS_VIEWED,
+    properties: {
+      clientId,
+      resultCount: results.length,
+      source: 'client_profile',
+      topScore: results.at(0)?.score ?? null,
+    },
+  });
+
+  return results;
 }
 
 export async function dismissClientMatchingListing(
   clientId: string,
   listingId: string,
 ): Promise<void> {
-  return apiFetch<void>(
+  await apiFetch<void>(
     `/clients/${clientId}/matching-listings/${listingId}/dismiss`,
     { method: 'POST' },
   );
+
+  trackAnalyticsEvent({
+    name: AnalyticsEventName.MATCHING_DISMISSED,
+    properties: {
+      clientId,
+      listingId,
+      source: 'client_profile',
+    },
+  });
 }
 
 export async function createClient(

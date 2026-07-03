@@ -69,10 +69,25 @@ export function useDashboardToday(): UseDashboardTodayReturn {
 
   const completeTask = useCallback(
     async (taskId: string) => {
+      const task = today?.items.find(
+        (item) => item.entityType === 'task' && item.entityId === taskId,
+      );
+
       await markTodayTaskDone(taskId);
+      trackAnalyticsEvent({
+        name: AnalyticsEventName.TODAY_TASK_COMPLETED,
+        properties: {
+          isOverdue: task?.dueAt
+            ? new Date(task.dueAt).getTime() < Date.now()
+            : false,
+          priority: task?.priority ?? null,
+          source: 'dashboard_today',
+          taskId,
+        },
+      });
       await load();
     },
-    [load],
+    [load, today?.items],
   );
 
   return { today, isLoading, error, refresh: load, completeTask };

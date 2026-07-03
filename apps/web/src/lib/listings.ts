@@ -860,19 +860,40 @@ export async function fetchListing(id: string): Promise<Listing> {
 export async function fetchListingMatchingClients(
   listingId: string,
 ): Promise<ListingMatchingClientResult[]> {
-  return apiFetch<ListingMatchingClientResult[]>(
+  const results = await apiFetch<ListingMatchingClientResult[]>(
     `/listings/${listingId}/matching-clients`,
   );
+
+  trackAnalyticsEvent({
+    name: AnalyticsEventName.MATCHING_RESULTS_VIEWED,
+    properties: {
+      listingId,
+      resultCount: results.length,
+      source: 'listing_profile',
+      topScore: results.at(0)?.score ?? null,
+    },
+  });
+
+  return results;
 }
 
 export async function dismissListingMatchingClient(
   listingId: string,
   clientId: string,
 ): Promise<void> {
-  return apiFetch<void>(
+  await apiFetch<void>(
     `/listings/${listingId}/matching-clients/${clientId}/dismiss`,
     { method: 'POST' },
   );
+
+  trackAnalyticsEvent({
+    name: AnalyticsEventName.MATCHING_DISMISSED,
+    properties: {
+      clientId,
+      listingId,
+      source: 'listing_profile',
+    },
+  });
 }
 
 export async function fetchListingOwnerReport(
