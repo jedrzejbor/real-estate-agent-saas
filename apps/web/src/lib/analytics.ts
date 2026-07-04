@@ -44,6 +44,7 @@ export const AnalyticsEventName = {
   NOTIFICATION_MARKED_READ: 'notification_marked_read',
   NOTIFICATION_NAVIGATED: 'notification_navigated',
   MATCHING_RESULTS_VIEWED: 'matching_results_viewed',
+  MATCHING_CTA_CLICKED: 'matching_cta_clicked',
   MATCHING_DISMISSED: 'matching_dismissed',
   TODAY_TASK_COMPLETED: 'today_task_completed',
   LIMIT_WARNING_SHOWN: 'limit_warning_shown',

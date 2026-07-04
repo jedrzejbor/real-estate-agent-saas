@@ -47,6 +47,7 @@ export const ANALYTICS_EVENT_NAMES = [
   'notification_marked_read',
   'notification_navigated',
   'matching_results_viewed',
+  'matching_cta_clicked',
   'matching_dismissed',
   'today_task_completed',
   'limit_warning_shown',

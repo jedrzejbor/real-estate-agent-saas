@@ -106,6 +106,7 @@ import {
   MessageTemplateType,
   type MessageTemplateContext,
 } from '@/lib/message-templates';
+import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 
 export default function ListingDetailPage() {
   const params = useParams<{ id: string }>();
@@ -1421,6 +1422,18 @@ function ListingMatchingClientItem({
     listingLabel: listing.title,
     location: listingAddress,
   });
+  const trackMatchingCta = (action: 'propose_listing' | 'schedule_viewing') => {
+    trackAnalyticsEvent({
+      name: AnalyticsEventName.MATCHING_CTA_CLICKED,
+      properties: {
+        action,
+        clientId: client.id,
+        listingId: listing.id,
+        score: match.score,
+        source: 'listing_profile',
+      },
+    });
+  };
 
   return (
     <div className="rounded-xl border border-border/70 bg-muted/10 p-3">
@@ -1483,12 +1496,18 @@ function ListingMatchingClientItem({
           variant="outline"
           size="sm"
           className="justify-start gap-1.5 rounded-xl"
-          onClick={() => onProposeListing(match)}
+          onClick={() => {
+            trackMatchingCta('propose_listing');
+            onProposeListing(match);
+          }}
         >
           <Send className="h-3.5 w-3.5" />
           Zaproponuj ofertę
         </Button>
-        <Link href={scheduleUrl}>
+        <Link
+          href={scheduleUrl}
+          onClick={() => trackMatchingCta('schedule_viewing')}
+        >
           <Button
             variant="outline"
             size="sm"

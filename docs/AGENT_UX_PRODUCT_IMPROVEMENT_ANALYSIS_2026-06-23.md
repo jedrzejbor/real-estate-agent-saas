@@ -3371,6 +3371,56 @@ Do kolejnej iteracji UX-10:
 3. Dodać proste alerty administracyjne dla nagłego spadku użycia kluczowych
    funkcji, jeśli dashboard analytics stanie się stałym narzędziem operacyjnym.
 
+Status UX-10 / iteracja 5 - CTA w wynikach matchingu:
+
+Zrobione:
+
+1. Dodano event `matching_cta_clicked` do kontraktu analytics po stronie
+   frontendu i backendu.
+2. Dodano tracking kliknięcia `Zaplanuj prezentację` w wynikach matchingu na
+   profilu klienta.
+3. Dodano tracking kliknięć na profilu oferty:
+   - `Zaproponuj ofertę`,
+   - `Zaplanuj prezentację`.
+4. Event zapisuje tylko dane techniczne:
+   - `action`,
+   - `source`,
+   - `clientId`,
+   - `listingId`,
+   - `score`.
+
+Zasady prywatności:
+
+1. Nie zapisujemy nazw klientów, tytułów ofert, adresów, emaili, telefonów ani
+   treści wiadomości.
+2. Ukrycie propozycji nadal jest mierzone przez osobny event
+   `matching_dismissed`, więc kliknięcie `Ukryj` nie jest dublowane.
+3. Event jest wysyłany w momencie świadomej akcji użytkownika, a nie przy samym
+   renderowaniu komponentu.
+
+Jak czytać metrykę:
+
+1. `matching_results_viewed` pokazuje ekspozycję propozycji.
+2. `matching_cta_clicked` pokazuje intencję wykorzystania propozycji.
+3. `matching_dismissed` pokazuje odrzucenie propozycji.
+4. Porównanie tych trzech eventów pozwala ocenić, czy matching jest realnie
+   użyteczny, czy tylko wyświetlany.
+
+Do kolejnej iteracji UX-10:
+
+1. Przejrzeć empty states poza głównym dashboardem:
+   - listy ofert,
+   - listy klientów,
+   - kalendarz,
+   - zapytania publiczne.
+2. Dodać proste alerty administracyjne dla nagłego spadku użycia kluczowych
+   funkcji, jeśli dashboard analytics stanie się stałym narzędziem operacyjnym.
+3. Rozważyć rozdzielenie dashboardu analytics na sekcje:
+   - aktywacja,
+   - komunikacja,
+   - matching,
+   - retencja.
+
 ## Ryzyka i zależności
 
 1. Część bardziej zaawansowanych raportów wymaga historii zdarzeń.

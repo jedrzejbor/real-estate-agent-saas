@@ -82,6 +82,7 @@ import {
   MessageTemplateType,
   type MessageTemplateContext,
 } from '@/lib/message-templates';
+import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import {
   formatPrice,
   PROPERTY_TYPE_LABELS as LISTING_PROPERTY_TYPE_LABELS,
@@ -772,6 +773,18 @@ function MatchingListingItem({
     listingLabel: listing.title,
   });
   const address = formatMatchingListingAddress(listing.address);
+  const trackMatchingCta = (action: 'schedule_viewing') => {
+    trackAnalyticsEvent({
+      name: AnalyticsEventName.MATCHING_CTA_CLICKED,
+      properties: {
+        action,
+        clientId: client.id,
+        listingId: listing.id,
+        score: match.score,
+        source: 'client_profile',
+      },
+    });
+  };
 
   return (
     <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
@@ -829,7 +842,10 @@ function MatchingListingItem({
           <p className="font-heading text-lg font-semibold text-foreground">
             {formatPrice(listing.price, listing.currency)}
           </p>
-          <Link href={scheduleUrl}>
+          <Link
+            href={scheduleUrl}
+            onClick={() => trackMatchingCta('schedule_viewing')}
+          >
             <Button variant="outline" size="sm" className="rounded-xl">
               Zaplanuj prezentację
             </Button>
