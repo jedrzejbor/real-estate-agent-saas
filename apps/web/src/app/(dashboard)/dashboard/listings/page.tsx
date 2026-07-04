@@ -114,7 +114,7 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
       <OnboardingEmptyState
         icon={Building2}
         title="Brak wyników"
-        description="Nie znaleźliśmy ofert dla wybranych filtrów. Wyczyść kryteria albo zmień zapytanie, żeby wrócić do pełnej listy."
+        description="Zmień filtry albo wyczyść wyszukiwanie."
         compact
         analyticsId="listings_filtered_empty"
       />
@@ -125,7 +125,7 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
     <OnboardingEmptyState
       icon={Building2}
       title="Dodaj pierwszą ofertę"
-      description="Oferta jest pierwszym praktycznym krokiem w EstateFlow: po jej zapisaniu dashboard, raporty i późniejsze publiczne strony zaczną mieć realne dane."
+      description="Po zapisie zobaczysz statusy, publikację i raporty."
       actionHref="/dashboard/listings/new"
       actionLabel="Dodaj ofertę"
       secondaryHref="/dashboard"

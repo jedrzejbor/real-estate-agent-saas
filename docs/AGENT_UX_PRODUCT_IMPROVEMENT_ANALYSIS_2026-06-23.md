@@ -3421,6 +3421,46 @@ Do kolejnej iteracji UX-10:
    - matching,
    - retencja.
 
+Status UX-10 / iteracja 6 - empty states w głównych modułach:
+
+Zrobione:
+
+1. Skrócono empty states poza głównym dashboardem:
+   - lista ofert,
+   - lista klientów,
+   - kalendarz,
+   - zapytania publiczne.
+2. Ujednolicono teksty pustych wyników filtrowania:
+   - `Zmień filtry albo wyczyść wyszukiwanie.`
+3. Skrócono pierwsze empty states onboardingowe w modułach:
+   - oferty: nacisk na statusy, publikację i raporty,
+   - klienci: dodanie kontaktu albo import CSV,
+   - kalendarz: prezentacja, konsultacja lub kontakt,
+   - zapytania: nowe formularze z opublikowanych ofert.
+4. Zachowano istniejące CTA i identyfikatory analytics empty states, więc
+   dotychczasowe eventy nie tracą ciągłości.
+
+Decyzje UX:
+
+1. Widoki operacyjne nie powinny tłumaczyć całej funkcji, tylko wskazywać
+   aktualny stan i następną akcję.
+2. Opisy importu CSV i publicznych zapytań zostały skrócone, ale nie usunięte,
+   bo pomagają zrozumieć źródło danych.
+3. Dłuższe wyjaśnienia zostają w samouczku, checklistach i dokumentacji
+   produktowej.
+
+Do kolejnej iteracji UX-10:
+
+1. Dodać proste alerty administracyjne dla nagłego spadku użycia kluczowych
+   funkcji, jeśli dashboard analytics stanie się stałym narzędziem operacyjnym.
+2. Rozważyć rozdzielenie dashboardu analytics na sekcje:
+   - aktywacja,
+   - komunikacja,
+   - matching,
+   - retencja.
+3. Przejrzeć, czy eventy UX-10 powinny być widoczne w dokumentacji technicznej
+   jako tabela kontraktu analytics.
+
 ## Ryzyka i zależności
 
 1. Część bardziej zaawansowanych raportów wymaga historii zdarzeń.

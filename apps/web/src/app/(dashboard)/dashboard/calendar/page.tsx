@@ -190,7 +190,7 @@ export default function CalendarPage() {
         <OnboardingEmptyState
           icon={CalendarDays}
           title="Zaplanuj pierwsze spotkanie"
-          description="Spotkanie spina klienta, ofertę i konkretny termin. Dodaj pierwszą prezentację albo konsultację, żeby kalendarz zaczął wspierać codzienną pracę."
+          description="Dodaj prezentację, konsultację albo kontakt z klientem."
           actionHref="/dashboard/calendar/new"
           actionLabel="Zaplanuj spotkanie"
           secondaryHref="/dashboard/clients"
@@ -395,7 +395,7 @@ function EmptyState() {
     <OnboardingEmptyState
       icon={CalendarDays}
       title="Brak spotkań w tym miesiącu"
-      description="Zaplanuj pierwsze spotkanie z klientem, żeby utrzymać rytm kontaktu i mieć nadchodzące zadania widoczne na dashboardzie."
+      description="Dodaj termin, żeby mieć go pod ręką w dashboardzie."
       actionHref="/dashboard/calendar/new"
       actionLabel="Zaplanuj spotkanie"
       secondaryHref="/dashboard/clients"

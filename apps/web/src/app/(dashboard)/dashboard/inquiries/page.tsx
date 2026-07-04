@@ -491,7 +491,7 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
       <OnboardingEmptyState
         icon={Search}
         title="Brak zapytań dla filtrów"
-        description="Nie znaleźliśmy publicznych zapytań pasujących do wybranych kryteriów. Wyczyść filtry albo zmień wyszukiwanie."
+        description="Zmień filtry albo wyczyść wyszukiwanie."
         compact
         analyticsId="public_inquiries_filtered_empty"
       />
@@ -501,16 +501,15 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
   return (
     <OnboardingEmptyState
       icon={Inbox}
-      title="Czekasz na pierwsze zapytanie"
-      description="Gdy ktoś wyśle formularz z publicznej strony oferty, zobaczysz tutaj źródło, status, ofertę i powiązanego klienta CRM."
+      title="Brak publicznych zapytań"
+      description="Nowe formularze z opublikowanych ofert pojawią się tutaj."
       actionHref="/dashboard/listings"
       actionLabel="Przejdź do ofert"
       analyticsId="public_inquiries_empty"
     >
       <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
         <MessageSquareText className="h-4 w-4 shrink-0" />
-        Publiczne zapytania powstają automatycznie po wysłaniu formularza na
-        stronie opublikowanej oferty.
+        Zapytania powstają automatycznie po wysłaniu formularza.
       </div>
     </OnboardingEmptyState>
   );
