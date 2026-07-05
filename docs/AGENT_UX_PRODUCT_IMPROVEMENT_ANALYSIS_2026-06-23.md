@@ -3541,6 +3541,43 @@ Do kolejnej iteracji UX-10:
    konfiguracji obserwowanych eventów.
 3. Rozważyć filtrowanie widoku analytics po kategorii produktu.
 
+Status UX-10 / iteracja 9 - czytelność admin analytics:
+
+Zrobione:
+
+1. Usunięto robocze nazewnictwo sprintowe z produkcyjnego widoku
+   `Admin -> Analytics`:
+   - badge `UX rollout` zastąpiono neutralnym `Produkt`,
+   - opis sekcji produktu nie wspomina już o `UX-10`,
+   - alert `Brak kluczowych eventów UX-10` zmieniono na `Brak kluczowych
+sygnałów`.
+2. Dodano słownik czytelnych nazw eventów w widoku analytics, żeby użytkownik
+   nie musiał interpretować technicznych kluczy typu `matching_results_viewed`.
+3. Techniczne nazwy eventów zostają dostępne jako mniejszy tekst pomocniczy,
+   przydatny przy debugowaniu.
+4. Karty sekcji produktu pokazują teraz:
+   - udział procentowy sekcji w całości eventów,
+   - pasek udziału sekcji,
+   - czytelne nazwy top eventów,
+   - paski względnej intensywności dla top eventów.
+
+Decyzje UX:
+
+1. Widok admin analytics ma być czytelny po czasie, bez wiedzy o nazwach
+   sprintów i bez pamiętania kontekstu implementacyjnego.
+2. Techniczne event names są nadal widoczne, ale drugorzędne, bo są potrzebne
+   przy diagnozie integracji i analizie kontraktu analytics.
+3. Dane liczbowe dostały kontekst procentowy, żeby łatwiej porównać kategorie
+   bez ręcznego liczenia udziałów.
+
+Do kolejnej iteracji UX-10:
+
+1. Przejrzeć, czy eventy powinny być widoczne w dokumentacji technicznej jako
+   tabela kontraktu analytics.
+2. Jeśli alerty okażą się przydatne, dodać backendowe progi i możliwość
+   konfiguracji obserwowanych eventów.
+3. Rozważyć filtrowanie widoku analytics po kategorii produktu.
+
 ## Ryzyka i zależności
 
 1. Część bardziej zaawansowanych raportów wymaga historii zdarzeń.

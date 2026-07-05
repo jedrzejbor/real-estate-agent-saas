@@ -96,7 +96,7 @@ export default function AdminAnalyticsUsagePage() {
               Analytics użycia
             </h1>
             <Badge variant="outline" className="rounded-full">
-              UX rollout
+              Produkt
             </Badge>
           </div>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
@@ -177,11 +177,10 @@ export default function AdminAnalyticsUsagePage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="font-heading text-lg font-semibold text-foreground">
-                  Alerty rolloutu
+                  Alerty użycia
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Szybkie sygnały spadku aktywności i brakujących eventów
-                  adopcyjnych.
+                  Sygnały spadku aktywności i brakujących kluczowych zdarzeń.
                 </p>
               </div>
               <TrendingDown className="h-5 w-5 text-primary" />
@@ -201,7 +200,7 @@ export default function AdminAnalyticsUsagePage() {
                   Sekcje produktu
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Eventy pogrupowane według głównych obszarów rolloutu UX-10.
+                  Eventy pogrupowane według obszarów pracy użytkownika.
                 </p>
               </div>
               <BarChart3 className="h-5 w-5 text-primary" />
@@ -214,6 +213,7 @@ export default function AdminAnalyticsUsagePage() {
                   <AnalyticsCategoryCard
                     key={category.category}
                     category={category}
+                    totalEvents={data.summary.totalEvents}
                   />
                 ))}
             </div>
@@ -275,7 +275,7 @@ export default function AdminAnalyticsUsagePage() {
                       className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/20 px-3 py-2"
                     >
                       <span className="min-w-0 truncate text-sm font-medium text-foreground">
-                        {event.name}
+                        {formatEventLabel(event.name)}
                       </span>
                       <Badge variant="outline" className="rounded-full">
                         {event.count}
@@ -309,10 +309,11 @@ export default function AdminAnalyticsUsagePage() {
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium text-foreground">
-                        {event.name}
+                        {formatEventLabel(event.name)}
                       </p>
                       <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {event.path ?? 'Brak ścieżki'}
+                        {event.name}
+                        {event.path ? ` · ${event.path}` : ''}
                       </p>
                     </div>
                     <span className="text-muted-foreground">
@@ -352,6 +353,50 @@ const KEY_ADOPTION_EVENTS = [
   'message_template_copied',
   'owner_report_viewed',
 ] as const;
+
+const EVENT_LABELS: Record<string, string> = {
+  appointment_created: 'Utworzono spotkanie',
+  blog_article_viewed: 'Wyświetlono artykuł bloga',
+  blog_cta_clicked: 'Kliknięto CTA bloga',
+  client_created: 'Utworzono klienta',
+  clients_imported: 'Zaimportowano klientów',
+  dashboard_today_viewed: 'Wyświetlono widok Dzisiaj',
+  listing_created: 'Utworzono ofertę',
+  limit_reached: 'Osiągnięto limit',
+  limit_warning_shown: 'Pokazano ostrzeżenie limitu',
+  matching_cta_clicked: 'Kliknięto akcję matchingu',
+  matching_dismissed: 'Ukryto dopasowanie',
+  matching_results_viewed: 'Wyświetlono dopasowania',
+  message_template_copied: 'Skopiowano szablon wiadomości',
+  message_template_rendered: 'Wyrenderowano szablon wiadomości',
+  notification_center_opened: 'Otworzono centrum powiadomień',
+  notification_marked_read: 'Oznaczono powiadomienie jako przeczytane',
+  notification_navigated: 'Przejście z powiadomienia',
+  onboarding_checklist_dismissed: 'Ukryto checklistę onboardingu',
+  onboarding_checklist_restored: 'Przywrócono checklistę onboardingu',
+  onboarding_empty_state_cta_clicked: 'Kliknięto CTA pustego stanu',
+  onboarding_empty_state_shown: 'Wyświetlono pusty stan',
+  onboarding_step_completed: 'Ukończono krok onboardingu',
+  owner_report_link_copied: 'Skopiowano link raportu właściciela',
+  owner_report_summary_copied: 'Skopiowano podsumowanie raportu',
+  owner_report_viewed: 'Wyświetlono raport właściciela',
+  product_feedback_submitted: 'Wysłano feedback produktowy',
+  public_lead_accepted: 'Zaakceptowano publiczny lead',
+  public_lead_submitted: 'Wysłano publiczny lead',
+  public_listing_abuse_reported: 'Zgłoszono publiczną ofertę',
+  public_listing_catalog_result_clicked: 'Kliknięto wynik katalogu ofert',
+  public_listing_claim_completed: 'Zakończono przejęcie oferty',
+  public_listing_claim_started: 'Rozpoczęto przejęcie oferty',
+  public_listing_gallery_image_viewed: 'Wyświetlono zdjęcie w galerii',
+  public_listing_gallery_opened: 'Otworzono galerię oferty',
+  public_listing_link_copied: 'Skopiowano link publicznej oferty',
+  public_listing_map_search_used: 'Użyto wyszukiwania na mapie',
+  public_listing_share_clicked: 'Kliknięto udostępnienie oferty',
+  public_listing_viewed: 'Wyświetlono publiczną ofertę',
+  signup_completed: 'Ukończono rejestrację',
+  today_task_completed: 'Ukończono zadanie z widoku Dzisiaj',
+  upgrade_cta_clicked: 'Kliknięto CTA upgrade',
+};
 
 function buildUsageAlerts(data: AdminAnalyticsUsageSummary): UsageAlert[] {
   const alerts: UsageAlert[] = [];
@@ -404,7 +449,7 @@ function buildUsageAlerts(data: AdminAnalyticsUsageSummary): UsageAlert[] {
   if (!hasKeyAdoptionEvent) {
     alerts.push({
       id: 'missing-key-events',
-      title: 'Brak kluczowych eventów UX-10',
+      title: 'Brak kluczowych sygnałów',
       description:
         'Nie widać eventów Dzisiaj, matchingu, wiadomości lub raportu.',
       severity: 'info',
@@ -425,6 +470,24 @@ function buildUsageAlerts(data: AdminAnalyticsUsageSummary): UsageAlert[] {
 
 function sumDailyEvents(events: AdminAnalyticsUsageSummary['dailyEvents']) {
   return events.reduce((sum, event) => sum + event.count, 0);
+}
+
+function formatEventLabel(name: string): string {
+  return (
+    EVENT_LABELS[name] ??
+    name
+      .split('_')
+      .filter(Boolean)
+      .map((part, index) =>
+        index === 0 ? capitalize(part) : part.toLocaleLowerCase('pl-PL'),
+      )
+      .join(' ')
+  );
+}
+
+function capitalize(value: string): string {
+  if (!value) return value;
+  return `${value.charAt(0).toLocaleUpperCase('pl-PL')}${value.slice(1).toLocaleLowerCase('pl-PL')}`;
 }
 
 function UsageAlertCard({ alert }: { alert: UsageAlert }) {
@@ -493,15 +556,24 @@ const ANALYTICS_CATEGORY_CONFIG: Record<
   },
   other: {
     label: 'Inne',
-    description: 'Eventy spoza głównych sekcji UX-10.',
+    description: 'Eventy spoza głównych sekcji produktu.',
     icon: Activity,
   },
 };
 
-function AnalyticsCategoryCard({ category }: { category: AnalyticsCategory }) {
+function AnalyticsCategoryCard({
+  category,
+  totalEvents,
+}: {
+  category: AnalyticsCategory;
+  totalEvents: number;
+}) {
   const config = ANALYTICS_CATEGORY_CONFIG[category.category];
   const Icon = config.icon;
   const topEvents = category.events.slice(0, 3);
+  const categoryShare =
+    totalEvents > 0 ? Math.round((category.count / totalEvents) * 100) : 0;
+  const topEventCount = Math.max(1, ...topEvents.map((event) => event.count));
 
   return (
     <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
@@ -518,18 +590,41 @@ function AnalyticsCategoryCard({ category }: { category: AnalyticsCategory }) {
       <p className="mt-4 text-2xl font-semibold text-foreground">
         {category.count.toLocaleString('pl-PL')}
       </p>
+      <div className="mt-2 flex items-center gap-2">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${Math.max(2, categoryShare)}%` }}
+          />
+        </div>
+        <span className="text-xs font-medium text-muted-foreground">
+          {categoryShare}%
+        </span>
+      </div>
 
-      <div className="mt-3 space-y-1">
+      <div className="mt-4 space-y-3">
         {topEvents.length > 0 ? (
           topEvents.map((event) => (
-            <div
-              key={event.name}
-              className="flex items-center justify-between gap-2 text-xs"
-            >
-              <span className="min-w-0 truncate text-muted-foreground">
+            <div key={event.name} className="space-y-1">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="min-w-0 truncate font-medium text-foreground">
+                  {formatEventLabel(event.name)}
+                </span>
+                <span className="font-medium text-foreground">
+                  {event.count}
+                </span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary/70"
+                  style={{
+                    width: `${Math.max(4, (event.count / topEventCount) * 100)}%`,
+                  }}
+                />
+              </div>
+              <p className="truncate text-[11px] text-muted-foreground">
                 {event.name}
-              </span>
-              <span className="font-medium text-foreground">{event.count}</span>
+              </p>
             </div>
           ))
         ) : (
