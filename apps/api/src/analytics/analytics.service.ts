@@ -63,12 +63,14 @@ export class AnalyticsService {
     const now = new Date();
     const from = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
-    const [summary, topEvents, dailyEvents, recentEvents] = await Promise.all([
-      this.getAnalyticsUsageTotals(from),
-      this.getTopAnalyticsEvents(from),
-      this.getDailyAnalyticsEvents(from),
-      this.getRecentAnalyticsEvents(from),
-    ]);
+    const [summary, topEvents, eventCategories, dailyEvents, recentEvents] =
+      await Promise.all([
+        this.getAnalyticsUsageTotals(from),
+        this.getTopAnalyticsEvents(from),
+        this.getAnalyticsEventCategories(from),
+        this.getDailyAnalyticsEvents(from),
+        this.getRecentAnalyticsEvents(from),
+      ]);
 
     return {
       period: {
@@ -78,6 +80,7 @@ export class AnalyticsService {
       },
       summary,
       topEvents,
+      eventCategories,
       dailyEvents,
       recentEvents,
     };
@@ -212,6 +215,42 @@ export class AnalyticsService {
     }));
   }
 
+  private async getAnalyticsEventCategories(from: Date) {
+    const rows = await this.analyticsEventRepo
+      .createQueryBuilder('event')
+      .select('event.name', 'name')
+      .addSelect('COUNT(*)', 'count')
+      .where('event.createdAt >= :from', { from })
+      .groupBy('event.name')
+      .getRawMany<{ name: string; count: string }>();
+
+    const categories = new Map<
+      AnalyticsEventCategory,
+      { count: number; events: Array<{ name: string; count: number }> }
+    >();
+
+    for (const row of rows) {
+      const category = getAnalyticsEventCategory(row.name);
+      const count = parseCount(row.count);
+      const current = categories.get(category) ?? { count: 0, events: [] };
+      current.count += count;
+      current.events.push({ name: row.name, count });
+      categories.set(category, current);
+    }
+
+    return ANALYTICS_EVENT_CATEGORY_ORDER.map((category) => {
+      const value = categories.get(category) ?? { count: 0, events: [] };
+      return {
+        category,
+        count: value.count,
+        events: value.events.sort((a, b) => {
+          if (b.count !== a.count) return b.count - a.count;
+          return a.name.localeCompare(b.name);
+        }),
+      };
+    });
+  }
+
   private async getDailyAnalyticsEvents(from: Date) {
     const rows = await this.analyticsEventRepo
       .createQueryBuilder('event')
@@ -301,6 +340,71 @@ export class AnalyticsService {
 function parseCount(value: string | number | null | undefined): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+type AnalyticsEventCategory =
+  | 'activation'
+  | 'communication'
+  | 'matching'
+  | 'retention'
+  | 'public_growth'
+  | 'limits'
+  | 'other';
+
+const ANALYTICS_EVENT_CATEGORY_ORDER: AnalyticsEventCategory[] = [
+  'activation',
+  'communication',
+  'matching',
+  'retention',
+  'public_growth',
+  'limits',
+  'other',
+];
+
+function getAnalyticsEventCategory(name: string): AnalyticsEventCategory {
+  if (
+    name.startsWith('onboarding_') ||
+    name === 'signup_completed' ||
+    name === 'dashboard_today_viewed' ||
+    name === 'today_task_completed'
+  ) {
+    return 'activation';
+  }
+
+  if (
+    name.startsWith('message_template_') ||
+    name.startsWith('notification_')
+  ) {
+    return 'communication';
+  }
+
+  if (name.startsWith('matching_')) {
+    return 'matching';
+  }
+
+  if (
+    name.startsWith('owner_report_') ||
+    name === 'listing_created' ||
+    name === 'client_created' ||
+    name === 'clients_imported' ||
+    name === 'appointment_created'
+  ) {
+    return 'retention';
+  }
+
+  if (
+    name.startsWith('public_') ||
+    name.startsWith('blog_') ||
+    name === 'product_feedback_submitted'
+  ) {
+    return 'public_growth';
+  }
+
+  if (name.startsWith('limit_') || name === 'upgrade_cta_clicked') {
+    return 'limits';
+  }
+
+  return 'other';
 }
 
 function isListingExpired(listing: { expiresAt?: Date | null }): boolean {

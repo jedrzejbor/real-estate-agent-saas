@@ -7,8 +7,11 @@ import {
   BarChart3,
   CalendarDays,
   CheckCircle2,
+  HeartHandshake,
+  MessageSquareText,
   RefreshCw,
   ShieldCheck,
+  Sparkles,
   TrendingDown,
   Users,
 } from 'lucide-react';
@@ -188,6 +191,31 @@ export default function AdminAnalyticsUsagePage() {
               {usageAlerts.map((alert) => (
                 <UsageAlertCard key={alert.id} alert={alert} />
               ))}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-heading text-lg font-semibold text-foreground">
+                  Sekcje produktu
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Eventy pogrupowane według głównych obszarów rolloutu UX-10.
+                </p>
+              </div>
+              <BarChart3 className="h-5 w-5 text-primary" />
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {data.eventCategories
+                .filter((category) => category.category !== 'other')
+                .map((category) => (
+                  <AnalyticsCategoryCard
+                    key={category.category}
+                    category={category}
+                  />
+                ))}
             </div>
           </section>
 
@@ -418,6 +446,95 @@ function UsageAlertCard({ alert }: { alert: UsageAlert }) {
           <p className="font-medium">{alert.title}</p>
           <p className="mt-1 text-sm opacity-90">{alert.description}</p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+type AnalyticsCategory = AdminAnalyticsUsageSummary['eventCategories'][number];
+
+const ANALYTICS_CATEGORY_CONFIG: Record<
+  AnalyticsCategory['category'],
+  {
+    label: string;
+    description: string;
+    icon: typeof Activity;
+  }
+> = {
+  activation: {
+    label: 'Aktywacja',
+    description: 'Onboarding, Dzisiaj i pierwsze zadania.',
+    icon: Users,
+  },
+  communication: {
+    label: 'Komunikacja',
+    description: 'Szablony wiadomości i powiadomienia.',
+    icon: MessageSquareText,
+  },
+  matching: {
+    label: 'Matching',
+    description: 'Dopasowania klientów i ofert.',
+    icon: Sparkles,
+  },
+  retention: {
+    label: 'Retencja',
+    description: 'Raporty właściciela i codzienna praca CRM.',
+    icon: HeartHandshake,
+  },
+  public_growth: {
+    label: 'Public growth',
+    description: 'Publiczne oferty, leady, blog i feedback.',
+    icon: BarChart3,
+  },
+  limits: {
+    label: 'Limity',
+    description: 'Ostrzeżenia limitów i CTA upgrade.',
+    icon: ShieldCheck,
+  },
+  other: {
+    label: 'Inne',
+    description: 'Eventy spoza głównych sekcji UX-10.',
+    icon: Activity,
+  },
+};
+
+function AnalyticsCategoryCard({ category }: { category: AnalyticsCategory }) {
+  const config = ANALYTICS_CATEGORY_CONFIG[category.category];
+  const Icon = config.icon;
+  const topEvents = category.events.slice(0, 3);
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-medium text-foreground">{config.label}</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            {config.description}
+          </p>
+        </div>
+        <Icon className="h-4 w-4 shrink-0 text-primary" />
+      </div>
+
+      <p className="mt-4 text-2xl font-semibold text-foreground">
+        {category.count.toLocaleString('pl-PL')}
+      </p>
+
+      <div className="mt-3 space-y-1">
+        {topEvents.length > 0 ? (
+          topEvents.map((event) => (
+            <div
+              key={event.name}
+              className="flex items-center justify-between gap-2 text-xs"
+            >
+              <span className="min-w-0 truncate text-muted-foreground">
+                {event.name}
+              </span>
+              <span className="font-medium text-foreground">{event.count}</span>
+            </div>
+          ))
+        ) : (
+          <p className="text-xs text-muted-foreground">Brak eventów.</p>
+        )}
       </div>
     </div>
   );

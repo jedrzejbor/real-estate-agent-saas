@@ -3503,6 +3503,44 @@ Do kolejnej iteracji UX-10:
 3. Jeśli alerty okażą się przydatne, dodać backendowe progi i możliwość
    konfiguracji obserwowanych eventów.
 
+Status UX-10 / iteracja 8 - sekcje produktu w analytics:
+
+Zrobione:
+
+1. Rozszerzono endpoint `GET /api/admin/analytics/usage` o pole
+   `eventCategories`.
+2. Backend grupuje wszystkie eventy z wybranego okresu, a nie tylko `topEvents`,
+   dzięki czemu sekcje produktu mają pełne liczniki.
+3. Dodano kategorie eventów:
+   - `activation`,
+   - `communication`,
+   - `matching`,
+   - `retention`,
+   - `public_growth`,
+   - `limits`,
+   - `other`.
+4. Widok `Admin -> Analytics` pokazuje sekcję `Sekcje produktu` z:
+   - liczbą eventów w kategorii,
+   - krótkim opisem obszaru,
+   - trzema najczęstszymi eventami w danej kategorii.
+
+Decyzje techniczne:
+
+1. Kategoryzacja jest jawna i deterministyczna po stronie backendu, żeby każdy
+   klient API widział ten sam podział.
+2. `topEvents` zostaje bez zmian i nadal służy do szybkiego przeglądu
+   najczęstszych zdarzeń.
+3. `eventCategories` nie zwraca `properties`, więc nie zmienia profilu
+   prywatności raportu.
+
+Do kolejnej iteracji UX-10:
+
+1. Przejrzeć, czy eventy UX-10 powinny być widoczne w dokumentacji technicznej
+   jako tabela kontraktu analytics.
+2. Jeśli alerty okażą się przydatne, dodać backendowe progi i możliwość
+   konfiguracji obserwowanych eventów.
+3. Rozważyć filtrowanie widoku analytics po kategorii produktu.
+
 ## Ryzyka i zależności
 
 1. Część bardziej zaawansowanych raportów wymaga historii zdarzeń.
