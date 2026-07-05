@@ -16,6 +16,21 @@ export interface AdminAnalyticsUsageSummary {
     name: string;
     count: number;
   }>;
+  eventCategories: Array<{
+    category:
+      | 'activation'
+      | 'communication'
+      | 'matching'
+      | 'retention'
+      | 'public_growth'
+      | 'limits'
+      | 'other';
+    count: number;
+    events: Array<{
+      name: string;
+      count: number;
+    }>;
+  }>;
   dailyEvents: Array<{
     date: string;
     count: number;
