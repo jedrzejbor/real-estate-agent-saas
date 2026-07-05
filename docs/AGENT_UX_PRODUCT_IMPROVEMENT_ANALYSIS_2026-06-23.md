@@ -3461,6 +3461,48 @@ Do kolejnej iteracji UX-10:
 3. Przejrzeć, czy eventy UX-10 powinny być widoczne w dokumentacji technicznej
    jako tabela kontraktu analytics.
 
+Status UX-10 / iteracja 7 - alerty rolloutu analytics:
+
+Zrobione:
+
+1. Dodano sekcję `Alerty rolloutu` w widoku `Admin -> Analytics`.
+2. Alerty są liczone po stronie frontendu na podstawie istniejącego payloadu
+   `GET /api/admin/analytics/usage`, bez migracji i bez nowego endpointu.
+3. Dodano heurystyki:
+   - brak eventów w wybranym okresie,
+   - brak aktywnych użytkowników,
+   - spadek liczby eventów w ostatnich 3 dniach względem poprzednich 3 dni,
+   - brak kluczowych eventów UX-10 w top eventach,
+   - stabilny stan, jeśli nie ma alertów.
+4. Kluczowe eventy UX-10 obserwowane przez alert:
+   - `dashboard_today_viewed`,
+   - `matching_results_viewed`,
+   - `matching_cta_clicked`,
+   - `message_template_copied`,
+   - `owner_report_viewed`.
+
+Decyzje techniczne:
+
+1. Alerty są heurystyczne i lokalne dla widoku admin analytics, ponieważ na tym
+   etapie służą do szybkiej walidacji rolloutu, nie do formalnego monitoringu
+   SLA.
+2. Nie dodano tabeli konfiguracji alertów ani jobów cyklicznych. Jeśli widok
+   stanie się narzędziem operacyjnym, można przenieść progi do backendu.
+3. Alerty nie używają `properties` eventów, więc nie zwiększają ryzyka wycieku
+   danych użytkownika.
+
+Do kolejnej iteracji UX-10:
+
+1. Rozważyć rozdzielenie dashboardu analytics na sekcje:
+   - aktywacja,
+   - komunikacja,
+   - matching,
+   - retencja.
+2. Przejrzeć, czy eventy UX-10 powinny być widoczne w dokumentacji technicznej
+   jako tabela kontraktu analytics.
+3. Jeśli alerty okażą się przydatne, dodać backendowe progi i możliwość
+   konfiguracji obserwowanych eventów.
+
 ## Ryzyka i zależności
 
 1. Część bardziej zaawansowanych raportów wymaga historii zdarzeń.

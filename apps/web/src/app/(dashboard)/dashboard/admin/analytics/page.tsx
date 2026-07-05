@@ -6,8 +6,10 @@ import {
   AlertCircle,
   BarChart3,
   CalendarDays,
+  CheckCircle2,
   RefreshCw,
   ShieldCheck,
+  TrendingDown,
   Users,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -62,6 +64,10 @@ export default function AdminAnalyticsUsagePage() {
     () =>
       Math.max(1, ...(data?.dailyEvents.map((event) => event.count) ?? [0])),
     [data?.dailyEvents],
+  );
+  const usageAlerts = useMemo(
+    () => (data ? buildUsageAlerts(data) : []),
+    [data],
   );
 
   if (!isAdmin) {
@@ -163,6 +169,27 @@ export default function AdminAnalyticsUsagePage() {
               icon={BarChart3}
             />
           </div>
+
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-heading text-lg font-semibold text-foreground">
+                  Alerty rolloutu
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Szybkie sygnały spadku aktywności i brakujących eventów
+                  adopcyjnych.
+                </p>
+              </div>
+              <TrendingDown className="h-5 w-5 text-primary" />
+            </div>
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-3">
+              {usageAlerts.map((alert) => (
+                <UsageAlertCard key={alert.id} alert={alert} />
+              ))}
+            </div>
+          </section>
 
           <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -277,6 +304,121 @@ export default function AdminAnalyticsUsagePage() {
           </section>
         </>
       ) : null}
+    </div>
+  );
+}
+
+type UsageAlertSeverity = 'success' | 'info' | 'warning' | 'critical';
+
+interface UsageAlert {
+  id: string;
+  title: string;
+  description: string;
+  severity: UsageAlertSeverity;
+}
+
+const KEY_ADOPTION_EVENTS = [
+  'dashboard_today_viewed',
+  'matching_results_viewed',
+  'matching_cta_clicked',
+  'message_template_copied',
+  'owner_report_viewed',
+] as const;
+
+function buildUsageAlerts(data: AdminAnalyticsUsageSummary): UsageAlert[] {
+  const alerts: UsageAlert[] = [];
+  const sortedDailyEvents = [...data.dailyEvents].sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
+  const recentThreeDaysCount = sumDailyEvents(sortedDailyEvents.slice(-3));
+  const previousThreeDaysCount = sumDailyEvents(
+    sortedDailyEvents.slice(-6, -3),
+  );
+  const topEventNames = new Set(data.topEvents.map((event) => event.name));
+  const hasKeyAdoptionEvent = KEY_ADOPTION_EVENTS.some((eventName) =>
+    topEventNames.has(eventName),
+  );
+
+  if (data.summary.totalEvents === 0) {
+    alerts.push({
+      id: 'no-events',
+      title: 'Brak eventów',
+      description: 'Sprawdź tracking frontendowy albo endpoint analytics.',
+      severity: 'critical',
+    });
+
+    return alerts;
+  }
+
+  if (data.summary.activeUsers === 0) {
+    alerts.push({
+      id: 'no-users',
+      title: 'Brak aktywnych użytkowników',
+      description:
+        'Eventy nie mają powiązanego użytkownika w wybranym okresie.',
+      severity: 'critical',
+    });
+  }
+
+  if (
+    sortedDailyEvents.length >= 6 &&
+    previousThreeDaysCount >= 5 &&
+    recentThreeDaysCount <= previousThreeDaysCount * 0.5
+  ) {
+    alerts.push({
+      id: 'daily-drop',
+      title: 'Spadek aktywności',
+      description: `Ostatnie 3 dni: ${recentThreeDaysCount}, poprzednie 3 dni: ${previousThreeDaysCount}.`,
+      severity: 'warning',
+    });
+  }
+
+  if (!hasKeyAdoptionEvent) {
+    alerts.push({
+      id: 'missing-key-events',
+      title: 'Brak kluczowych eventów UX-10',
+      description:
+        'Nie widać eventów Dzisiaj, matchingu, wiadomości lub raportu.',
+      severity: 'info',
+    });
+  }
+
+  if (alerts.length === 0) {
+    alerts.push({
+      id: 'rollout-stable',
+      title: 'Brak alertów',
+      description: 'Aktywność i kluczowe eventy wyglądają stabilnie.',
+      severity: 'success',
+    });
+  }
+
+  return alerts;
+}
+
+function sumDailyEvents(events: AdminAnalyticsUsageSummary['dailyEvents']) {
+  return events.reduce((sum, event) => sum + event.count, 0);
+}
+
+function UsageAlertCard({ alert }: { alert: UsageAlert }) {
+  const Icon = alert.severity === 'success' ? CheckCircle2 : AlertCircle;
+  const classNameBySeverity: Record<UsageAlertSeverity, string> = {
+    success: 'border-emerald-500/30 bg-emerald-500/5 text-emerald-700',
+    info: 'border-blue-500/30 bg-blue-500/5 text-blue-700',
+    warning: 'border-amber-500/30 bg-amber-500/5 text-amber-700',
+    critical: 'border-destructive/30 bg-destructive/5 text-destructive',
+  };
+
+  return (
+    <div
+      className={`rounded-xl border p-4 ${classNameBySeverity[alert.severity]}`}
+    >
+      <div className="flex items-start gap-3">
+        <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+        <div className="min-w-0">
+          <p className="font-medium">{alert.title}</p>
+          <p className="mt-1 text-sm opacity-90">{alert.description}</p>
+        </div>
+      </div>
     </div>
   );
 }
