@@ -4,6 +4,8 @@ import type { ElementType } from 'react';
 import { useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
+  AlertTriangle,
+  ArrowRight,
   BarChart3,
   BookOpenText,
   Building2,
@@ -30,6 +32,7 @@ import { ReportsListingsSection } from '@/components/reports/reports-listings-se
 import { ReportsPremiumPlaceholder } from '@/components/reports/reports-premium-placeholder';
 import { ReportSectionCard } from '@/components/reports/report-section-card';
 import { ReportsTrendCard } from '@/components/reports/reports-trend-card';
+import { formatPricePL } from '@/lib/dashboard';
 import {
   useReportsAppointments,
   useReportsBlog,
@@ -43,8 +46,12 @@ import {
   formatReportsDateRange,
   formatReportsDelta,
   parseReportsFilters,
+  type ClientsReportResponse,
+  type EarningsReportResponse,
+  type ListingsReportResponse,
   type ReportsFilters,
 } from '@/lib/reports';
+import { CLIENT_SOURCE_LABELS, type ClientSource } from '@/lib/clients';
 import { getResolvedReleaseFlags } from '@/lib/release-flags';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -214,6 +221,14 @@ export default function ReportsPage() {
           label: agent.label,
         }))}
         onChange={updateFilter}
+      />
+
+      <ReportsDecisionInsights
+        clientsData={clientsData}
+        listingsData={listingsData}
+        earningsData={earningsData}
+        isLoading={isClientsLoading || isListingsLoading || isEarningsLoading}
+        onSelectReport={updateReport}
       />
 
       {isLoading && !data && (
@@ -430,6 +445,238 @@ function isReportsTabId(value: string | null): value is ReportsTabId {
     value === 'blog' ||
     value === 'appointments'
   );
+}
+
+interface DecisionInsight {
+  id: string;
+  title: string;
+  value: string;
+  description: string;
+  icon: ElementType;
+  tone: 'success' | 'warning' | 'info';
+  report: ReportsTabId;
+}
+
+function ReportsDecisionInsights({
+  clientsData,
+  listingsData,
+  earningsData,
+  isLoading,
+  onSelectReport,
+}: {
+  clientsData: ClientsReportResponse | null;
+  listingsData: ListingsReportResponse | null;
+  earningsData: EarningsReportResponse | null;
+  isLoading: boolean;
+  onSelectReport: (report: ReportsTabId) => void;
+}) {
+  const hasAnyData = Boolean(clientsData || listingsData || earningsData);
+
+  if (isLoading && !hasAnyData) {
+    return (
+      <section
+        aria-label="Wnioski z raportów"
+        className="grid gap-4 lg:grid-cols-3"
+      >
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={index}
+            className="h-36 animate-pulse rounded-2xl border border-border bg-card"
+          />
+        ))}
+      </section>
+    );
+  }
+
+  const insights = [
+    buildLeadSourceInsight(clientsData),
+    buildListingAttentionInsight(listingsData),
+    buildCommissionOpportunityInsight(earningsData),
+  ];
+
+  return (
+    <section aria-label="Wnioski z raportów" className="grid gap-4 lg:grid-cols-3">
+      {insights.map((insight) => (
+        <DecisionInsightCard
+          key={insight.id}
+          insight={insight}
+          onSelectReport={onSelectReport}
+        />
+      ))}
+    </section>
+  );
+}
+
+function DecisionInsightCard({
+  insight,
+  onSelectReport,
+}: {
+  insight: DecisionInsight;
+  onSelectReport: (report: ReportsTabId) => void;
+}) {
+  const Icon = insight.icon;
+  const toneClass = {
+    success: 'bg-status-success-bg text-status-success ring-status-success/25',
+    warning: 'bg-status-warning-bg text-status-warning ring-status-warning/25',
+    info: 'bg-status-info-bg text-status-info ring-status-info/25',
+  }[insight.tone];
+
+  return (
+    <article className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${toneClass}`}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium uppercase text-muted-foreground">
+            {insight.title}
+          </p>
+          <p className="mt-1 truncate font-heading text-xl font-semibold text-foreground">
+            {insight.value}
+          </p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {insight.description}
+          </p>
+        </div>
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="mt-3 h-8 gap-1.5 rounded-lg px-2 text-xs"
+        onClick={() => onSelectReport(insight.report)}
+      >
+        Przejdź do raportu
+        <ArrowRight className="h-3.5 w-3.5" />
+      </Button>
+    </article>
+  );
+}
+
+function buildLeadSourceInsight(
+  clientsData: ClientsReportResponse | null,
+): DecisionInsight {
+  const topSource = clientsData?.breakdowns.bySource
+    .slice()
+    .sort((a, b) => b.count - a.count)[0];
+
+  if (!topSource || topSource.count === 0) {
+    return {
+      id: 'lead-source',
+      title: 'Najlepsze źródło leadów',
+      value: 'Brak danych',
+      description:
+        'Dodaj klientów ze źródłem leadu, żeby raport wskazał kanał do skalowania.',
+      icon: Users,
+      tone: 'info',
+      report: 'clients',
+    };
+  }
+
+  const label =
+    CLIENT_SOURCE_LABELS[topSource.key as ClientSource] ?? topSource.key;
+
+  return {
+    id: 'lead-source',
+    title: 'Najlepsze źródło leadów',
+    value: label,
+    description: `${topSource.count} klientów, ${topSource.percentage}% udziału i ${topSource.wonCount ?? 0} wygranych spraw.`,
+    icon: Users,
+    tone: topSource.wonCount && topSource.wonCount > 0 ? 'success' : 'info',
+    report: 'clients',
+  };
+}
+
+function buildListingAttentionInsight(
+  listingsData: ListingsReportResponse | null,
+): DecisionInsight {
+  const summary = listingsData?.summary;
+
+  if (!summary || summary.totalListings === 0) {
+    return {
+      id: 'listing-attention',
+      title: 'Oferta wymagająca uwagi',
+      value: 'Brak ofert',
+      description:
+        'Dodaj pierwszą ofertę, żeby raport mógł wykrywać aktywacje, zamknięcia i wyświetlenia.',
+      icon: Building2,
+      tone: 'info',
+      report: 'listings',
+    };
+  }
+
+  if (summary.activeListingsEnd === 0) {
+    return {
+      id: 'listing-attention',
+      title: 'Oferta wymagająca uwagi',
+      value: 'Brak aktywnych ofert',
+      description:
+        'Portfel nie ma aktywnej oferty na koniec okresu. Najpierw aktywuj lub opublikuj najlepszą ofertę.',
+      icon: AlertTriangle,
+      tone: 'warning',
+      report: 'listings',
+    };
+  }
+
+  if (summary.publicViews === 0) {
+    return {
+      id: 'listing-attention',
+      title: 'Oferta wymagająca uwagi',
+      value: 'Brak wyświetleń',
+      description:
+        'Aktywne oferty nie generują publicznych odsłon w tym zakresie. Sprawdź publikację i udostępnianie linków.',
+      icon: AlertTriangle,
+      tone: 'warning',
+      report: 'listings',
+    };
+  }
+
+  return {
+    id: 'listing-attention',
+    title: 'Oferta wymagająca uwagi',
+    value: `${summary.activeListingsEnd} aktywnych`,
+    description: `${summary.publicViews} odsłon publicznych, ${summary.closedListings} zamknięć i ${summary.withdrawnListings} wycofanych ofert.`,
+    icon: Building2,
+    tone: summary.withdrawnListings > summary.closedListings ? 'warning' : 'success',
+    report: 'listings',
+  };
+}
+
+function buildCommissionOpportunityInsight(
+  earningsData: EarningsReportResponse | null,
+): DecisionInsight {
+  const summary = earningsData?.summary;
+
+  if (!summary || summary.listingsWithCommission === 0) {
+    return {
+      id: 'commission-opportunity',
+      title: 'Największa szansa prowizyjna',
+      value: 'Brak prowizji',
+      description:
+        'Uzupełnij prowizje przy ofertach, żeby raport pokazał potencjał przychodu.',
+      icon: CircleDollarSign,
+      tone: 'info',
+      report: 'earnings',
+    };
+  }
+
+  const activeOpportunity = summary.activeCommissionValue;
+  const closedValue = summary.closedCommissionValue;
+  const useActiveOpportunity = activeOpportunity >= closedValue;
+
+  return {
+    id: 'commission-opportunity',
+    title: 'Największa szansa prowizyjna',
+    value: formatPricePL(useActiveOpportunity ? activeOpportunity : closedValue),
+    description: useActiveOpportunity
+      ? `${summary.listingsWithCommission} ofert ma ustawioną prowizję. Największy potencjał jest jeszcze w aktywnym portfelu.`
+      : `${summary.closedListingsWithCommission} zamkniętych transakcji buduje wynik okresu.`,
+    icon: CircleDollarSign,
+    tone: useActiveOpportunity ? 'success' : 'info',
+    report: 'earnings',
+  };
 }
 
 function getReportsTabs({

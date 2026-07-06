@@ -803,7 +803,7 @@ feedback po kazdej waznej akcji.
 
 - [ ] Redukcja nadmiaru kart.
 - [ ] Uspojnienie radiusow i gestosci.
-- [ ] Raporty z interpretacjami.
+- [x] Raporty z interpretacjami.
 - [x] Mikrointerakcje i lepsze next actions po kazdej waznej akcji.
 - [x] Standard potwierdzen po akcjach:
   - [x] zapisano,
@@ -812,7 +812,7 @@ feedback po kazdej waznej akcji.
   - [x] zaplanowano spotkanie,
   - [x] oznaczono zadanie jako wykonane.
 - [x] Po akcjach pokazac kolejny krok zamiast samego toastu.
-- [ ] Raporty z trzema wnioskami na gorze ekranu:
+- [x] Raporty z trzema wnioskami na gorze ekranu:
   - najlepsze zrodlo leadow,
   - oferta wymagajaca uwagi,
   - najwieksza szansa prowizyjna.
@@ -871,6 +871,31 @@ Zakres po iteracji 2:
   publikacji, tworzenia klienta, tworzenia spotkania i taskow.
 - Kolejna iteracja powinna przejsc do raportow z interpretacjami oraz
   ograniczenia `card-heavy UI` w ekranach operacyjnych.
+
+Status wdrozenia Sprint 4, iteracja 3 - 2026-07-07:
+
+- Dodano panel `Wnioski z raportow` nad glownym widokiem raportow:
+  - wykorzystuje istniejace dane z raportow Klienci, Oferty i Zarobki,
+  - nie dodaje nowych endpointow ani dodatkowych requestow,
+  - pokazuje skeleton, gdy dane raportowe jeszcze sie laduja.
+- Dodano trzy interpretacje decyzyjne:
+  - `Najlepsze zrodlo leadow` na podstawie breakdownu zrodel klientow,
+  - `Oferta wymagajaca uwagi` na podstawie aktywnych ofert, wyswietlen i
+    zamkniec/wycofan,
+  - `Najwieksza szansa prowizyjna` na podstawie aktywnej i zamknietej
+    prowizji.
+- Dodano CTA `Przejdz do raportu` na kazdej interpretacji:
+  - prowadzi do odpowiedniej zakladki raportowej,
+  - pozwala przejsc od wniosku do danych zrodlowych bez szukania w tabach.
+
+Zakres po iteracji 3:
+
+- Sprint 4 ma pokryty mikrofeedback, standard potwierdzen i raporty z
+  interpretacjami.
+- Kolejna iteracja powinna skupic sie na ograniczeniu `card-heavy UI`:
+  - mniejsze promienie i gestosc w listach operacyjnych,
+  - mniej zagniezdzonych kart,
+  - bardziej tabelaryczne uklady tam, gdzie uzytkownik porownuje dane.
 
 ### Sprint 5: Defensywny admin UX
 
