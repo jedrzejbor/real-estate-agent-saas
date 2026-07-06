@@ -495,19 +495,58 @@ Pokrywa obserwacje:
 Cel: listy i strony szczegolow maja pomagac szybko porownywac rekordy, znalezc
 problem i wykonac nastepna akcje.
 
-- Widok listowy ofert i klientow.
-- Szybkie filtry operacyjne.
-- Standard detail page.
-- Pasek `Nastepny krok`.
-- Ujednolicone puste stany dla list, filtrow i powiazanych danych.
-- Chipsy aktywnych filtrow z mozliwoscia szybkiego usuniecia.
-- Lepsze stany braku danych:
+- [x] Widok listowy ofert i klientow.
+- [x] Szybkie filtry operacyjne.
+- [ ] Standard detail page.
+- [ ] Pasek `Nastepny krok`.
+- [ ] Ujednolicone puste stany dla list, filtrow i powiazanych danych.
+- [ ] Chipsy aktywnych filtrow z mozliwoscia szybkiego usuniecia.
+- [ ] Lepsze stany braku danych:
   - brak ofert -> dodaj oferte,
   - brak klientow -> dodaj/importuj klienta,
   - brak leadow -> opublikuj oferte albo udostepnij profil,
   - brak wynikow filtrow -> pokaz aktywne filtry i akcje czyszczenia.
-- Wspolny wzorzec bledu z akcja `Sprobuj ponownie` i informacja, co nie zostalo
+- [ ] Wspolny wzorzec bledu z akcja `Sprobuj ponownie` i informacja, co nie zostalo
   zaladowane.
+
+Status wdrozenia Sprint 2, iteracja 1 - 2026-07-06:
+
+- Dodano wspolny komponent `DashboardViewModeToggle`:
+  - obsluguje tryby `Karty` i `Lista`,
+  - jest gotowy do ponownego uzycia na kolejnych listach CRM,
+  - zachowuje czytelne sterowanie ikonami i tekstem.
+- Dodano widok listowy ofert:
+  - kolumny: `Oferta`, `Cena`, `Status`, `Publikacja`, `Aktywnosc`, `Akcja`,
+  - wiersz pokazuje typ nieruchomosci, typ transakcji, lokalizacje i metraz,
+  - status CRM i status publikacji sa oddzielone,
+  - aktywnosc pokazuje liczbe wyswietlen i zdjec,
+  - akcja prowadzi bezposrednio do szczegolow oferty.
+- Dodano szybkie filtry ofert oparte o istniejace filtry API:
+  - `Szkice`,
+  - `Aktywne`,
+  - `Sprzedaz`,
+  - `Wynajem`.
+- Dodano widok listowy klientow:
+  - kolumny: `Klient`, `Kontakt`, `Status`, `Zrodlo`, `Preferencje`, `Akcja`,
+  - wiersz pokazuje kontakt, status, zrodlo, budzet i preferencje,
+  - akcja prowadzi bezposrednio do profilu klienta.
+- Dodano szybkie filtry klientow oparte o istniejace filtry API:
+  - `Nowi`,
+  - `Aktywni`,
+  - `Negocjacje`,
+  - `WWW`.
+- Rozszerzono rozpoznawanie aktywnych filtrow w pustych stanach list ofert i
+  klientow, zeby szybkie filtry byly traktowane jak realne filtrowanie.
+
+Zakres celowo odlozony po iteracji 1:
+
+- Filtry typu `bez zdjec`, `bez leadow 14 dni` i `po terminie wygasniecia`
+  wymagaja danych/filtracji po stronie API albo pelnych agregatow, wiec nie
+  zostaly zasymulowane tylko na aktualnej stronie wynikow.
+- Standard detail page i pasek `Nastepny krok` zostaja na kolejna iteracje,
+  bo dotykaja stron szczegolow ofert, klientow i powiazanych encji.
+- Chipsy aktywnych filtrow i wspolny wzorzec bledow zostaja na nastepny krok,
+  po ustabilizowaniu list i szybkich filtrow.
 
 Pokrywa obserwacje:
 

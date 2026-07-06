@@ -1,20 +1,79 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { Building2, Plus } from 'lucide-react';
+import { ArrowRight, Building2, Eye, ImageIcon, Plus } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DashboardPageHeader } from '@/components/dashboard/page-header';
+import {
+  DashboardViewModeToggle,
+  type DashboardViewMode,
+} from '@/components/dashboard/view-mode-toggle';
 import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { PlanLimitStatusBanner } from '@/components/growth/plan-limit-status-banner';
 import { ListingCard } from '@/components/listings/listing-card';
 import { ListingFiltersBar } from '@/components/listings/listing-filters';
 import { ListingPagination } from '@/components/listings/listing-pagination';
 import { ListingRetentionChoiceModal } from '@/components/listings/listing-retention-choice-modal';
+import { ListingStatusBadge } from '@/components/listings/listing-status-badge';
 import { useAuth } from '@/contexts/auth-context';
 import { useListings } from '@/hooks/use-listings';
+import {
+  formatArea,
+  formatListingCommission,
+  formatPrice,
+  ListingStatus,
+  LISTING_PUBLICATION_STATUS_LABELS,
+  PROPERTY_TYPE_LABELS,
+  TransactionType,
+  TRANSACTION_TYPE_LABELS,
+  type Listing,
+  type ListingFilters,
+} from '@/lib/listings';
+
+const LISTING_DEFAULT_FILTERS: ListingFilters = {
+  page: 1,
+  limit: 12,
+  sortBy: 'createdAt',
+  sortOrder: 'DESC',
+};
+
+const LISTING_QUICK_FILTERS: Array<{
+  id: string;
+  label: string;
+  description: string;
+  filters: Partial<ListingFilters>;
+}> = [
+  {
+    id: 'drafts',
+    label: 'Szkice',
+    description: 'Oferty do uzupełnienia',
+    filters: { status: ListingStatus.DRAFT },
+  },
+  {
+    id: 'active',
+    label: 'Aktywne',
+    description: 'Bieżący portfel',
+    filters: { status: ListingStatus.ACTIVE },
+  },
+  {
+    id: 'sale',
+    label: 'Sprzedaż',
+    description: 'Transakcje sprzedaży',
+    filters: { transactionType: TransactionType.SALE },
+  },
+  {
+    id: 'rent',
+    label: 'Wynajem',
+    description: 'Transakcje najmu',
+    filters: { transactionType: TransactionType.RENT },
+  },
+];
 
 export default function ListingsPage() {
   const { user } = useAuth();
+  const [viewMode, setViewMode] = useState<DashboardViewMode>('cards');
   const {
     listings,
     meta,
@@ -38,12 +97,12 @@ export default function ListingsPage() {
         description="Zarządzaj swoimi ofertami nieruchomości"
         icon={Building2}
         actions={
-        <Link href="/dashboard/listings/new">
-          <Button size="lg" className="gap-2 rounded-xl">
-            <Plus className="h-4 w-4" />
-            Dodaj ofertę
-          </Button>
-        </Link>
+          <Link href="/dashboard/listings/new">
+            <Button size="lg" className="gap-2 rounded-xl">
+              <Plus className="h-4 w-4" />
+              Dodaj ofertę
+            </Button>
+          </Link>
         }
       />
 
@@ -63,12 +122,17 @@ export default function ListingsPage() {
       <ListingFiltersBar
         filters={filters}
         onFilterChange={updateFilter}
-        onReset={() =>
+        onReset={() => setFilters(LISTING_DEFAULT_FILTERS)}
+      />
+
+      <ListingOperationsToolbar
+        filters={filters}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onApplyQuickFilter={(quickFilters) =>
           setFilters({
-            page: 1,
-            limit: 12,
-            sortBy: 'createdAt',
-            sortOrder: 'DESC',
+            ...LISTING_DEFAULT_FILTERS,
+            ...quickFilters,
           })
         }
       />
@@ -85,9 +149,23 @@ export default function ListingsPage() {
       ) : listings.length === 0 ? (
         <EmptyState
           hasFilters={
-            !!filters.search || !!filters.propertyType || !!filters.status
+            !!filters.search ||
+            !!filters.propertyType ||
+            !!filters.status ||
+            !!filters.transactionType ||
+            !!filters.city ||
+            !!filters.priceMin ||
+            !!filters.priceMax ||
+            !!filters.areaMin ||
+            !!filters.areaMax ||
+            !!filters.roomsMin
           }
         />
+      ) : viewMode === 'list' ? (
+        <>
+          <ListingTable listings={listings} />
+          {meta && <ListingPagination meta={meta} onPageChange={setPage} />}
+        </>
       ) : (
         <>
           {/* Grid */}
@@ -101,6 +179,153 @@ export default function ListingsPage() {
           {meta && <ListingPagination meta={meta} onPageChange={setPage} />}
         </>
       )}
+    </div>
+  );
+}
+
+function ListingOperationsToolbar({
+  filters,
+  viewMode,
+  onViewModeChange,
+  onApplyQuickFilter,
+}: {
+  filters: ListingFilters;
+  viewMode: DashboardViewMode;
+  onViewModeChange: (mode: DashboardViewMode) => void;
+  onApplyQuickFilter: (filters: Partial<ListingFilters>) => void;
+}) {
+  return (
+    <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-wrap gap-2">
+        {LISTING_QUICK_FILTERS.map((item) => {
+          const isActive = Object.entries(item.filters).every(
+            ([key, value]) => filters[key as keyof ListingFilters] === value,
+          );
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => onApplyQuickFilter(item.filters)}
+              className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                isActive
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <span className="block text-xs font-semibold">{item.label}</span>
+              <span className="block text-[0.68rem]">{item.description}</span>
+            </button>
+          );
+        })}
+      </div>
+      <DashboardViewModeToggle value={viewMode} onChange={onViewModeChange} />
+    </section>
+  );
+}
+
+function ListingTable({ listings }: { listings: Listing[] }) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[920px] text-sm">
+          <thead className="border-b border-border bg-muted/30 text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3 text-left font-semibold">Oferta</th>
+              <th className="px-4 py-3 text-left font-semibold">Cena</th>
+              <th className="px-4 py-3 text-left font-semibold">Status</th>
+              <th className="px-4 py-3 text-left font-semibold">Publikacja</th>
+              <th className="px-4 py-3 text-left font-semibold">Aktywność</th>
+              <th className="px-4 py-3 text-right font-semibold">Akcja</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {listings.map((listing) => {
+              const location = [listing.address?.district, listing.address?.city]
+                .filter(Boolean)
+                .join(', ');
+              const area = listing.areaM2 ?? listing.plotAreaM2;
+              const metric = area ? formatArea(area) : null;
+              const imageCount = listing.images?.length ?? 0;
+
+              return (
+                <tr key={listing.id} className="hover:bg-muted/20">
+                  <td className="max-w-[340px] px-4 py-3">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                        <ImageIcon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <Link
+                          href={`/dashboard/listings/${listing.id}`}
+                          className="font-medium text-foreground hover:text-primary"
+                        >
+                          {listing.title}
+                        </Link>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          {[
+                            PROPERTY_TYPE_LABELS[listing.propertyType],
+                            TRANSACTION_TYPE_LABELS[listing.transactionType],
+                            location,
+                            metric,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-foreground">
+                      {formatPrice(listing.price, listing.currency)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Prowizja: {formatListingCommission(listing)}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <ListingStatusBadge status={listing.status} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge
+                      variant={
+                        listing.publicationStatus === 'published'
+                          ? 'success'
+                          : 'secondary'
+                      }
+                    >
+                      {LISTING_PUBLICATION_STATUS_LABELS[
+                        listing.publicationStatus
+                      ]}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    <div className="flex flex-col gap-1">
+                      <span className="inline-flex items-center gap-1">
+                        <Eye className="h-3.5 w-3.5" />
+                        {listing.publicViewCount ?? 0} wyświetleń
+                      </span>
+                      <span>{imageCount} zdjęć</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      render={<Link href={`/dashboard/listings/${listing.id}`} />}
+                    >
+                      Otwórz
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
