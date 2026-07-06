@@ -1,3 +1,10 @@
+import {
+  APP_ABUSE_EMAIL,
+  APP_LEGAL_EMAIL,
+  APP_NAME,
+  APP_SUPPORT_EMAIL,
+} from './brand';
+
 export const LEGAL_LINKS = {
   terms: '/regulamin',
   privacy: '/polityka-prywatnosci',
@@ -8,9 +15,9 @@ export const LEGAL_LINKS = {
 export const LEGAL_META = {
   version: 'MVP-2026-05-03',
   effectiveDate: '2026-05-03',
-  contactEmail: 'legal@estateflow.pl',
-  abuseEmail: 'abuse@estateflow.pl',
-  supportEmail: 'support@estateflow.pl',
+  contactEmail: APP_LEGAL_EMAIL,
+  abuseEmail: APP_ABUSE_EMAIL,
+  supportEmail: APP_SUPPORT_EMAIL,
 } as const;
 
 export const LEGAL_RETENTION = {
@@ -24,7 +31,7 @@ export const LEGAL_RETENTION = {
 
 export const LEGAL_COPY = {
   dataController:
-    'Administratorem danych przekazanych przez formularz jest agent lub biuro obsługujące ofertę albo profil. EstateFlow działa jako dostawca narzędzia do obsługi zgłoszeń.',
+    `Administratorem danych przekazanych przez formularz jest agent lub biuro obsługujące ofertę albo profil. ${APP_NAME} działa jako dostawca narzędzia do obsługi zgłoszeń.`,
   responsePurpose:
     'Dane są przetwarzane w celu obsługi zapytania, kontaktu zwrotnego oraz zabezpieczenia formularza przed nadużyciami.',
   publicationConsent:
@@ -36,7 +43,7 @@ export const LEGAL_COPY = {
   marketingConsent:
     'Chcę otrzymywać informacje o podobnych ofertach lub usługach. Zgodę mogę wycofać w dowolnym momencie.',
   rightsContact:
-    'W sprawach prywatności, usunięcia danych lub publicznej oferty można skontaktować się z administratorem danych albo pomocniczo z EstateFlow.',
+    `W sprawach prywatności, usunięcia danych lub publicznej oferty można skontaktować się z administratorem danych albo pomocniczo z ${APP_NAME}.`,
   abuseProcedure:
     'Zgłoszenia nadużyć są weryfikowane operacyjnie. Oferta może zostać ograniczona, wycofana albo przekazana do dalszej obsługi, jeśli narusza zasady publikacji.',
 } as const;

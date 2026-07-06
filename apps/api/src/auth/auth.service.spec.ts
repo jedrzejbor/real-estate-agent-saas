@@ -1,5 +1,6 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { APP_NAME } from '../common/brand';
 import { UserRole } from '../common/enums';
 import { User } from '../users/entities';
 import { AuthService } from './auth.service';
@@ -167,7 +168,7 @@ describe('AuthService account settings', () => {
     expect(emailService.send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'agent@example.com',
-        subject: 'Reset hasła EstateFlow',
+        subject: `Reset hasła ${APP_NAME}`,
         text: expect.stringContaining('/reset-password?token='),
       }),
     );

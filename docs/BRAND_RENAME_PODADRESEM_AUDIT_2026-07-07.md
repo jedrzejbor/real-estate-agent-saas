@@ -248,6 +248,8 @@ decyzji produktowych i widocznego UI do migracji technicznych oraz rollout.
 
 Cel: zamknąć decyzje, które blokują bezpieczne wdrożenie nazwy `PodAdresem`.
 
+Status: rozpoczęty, pierwsza iteracja wykonana 2026-07-07.
+
 Zakres:
 
 - potwierdzić finalną pisownię: `PodAdresem`,
@@ -275,10 +277,43 @@ Pliki startowe:
 
 Kryteria akceptacji:
 
-- [ ] jest jedna zaakceptowana forma nazwy,
-- [ ] jest decyzja domenowa i mailowa,
-- [ ] wiadomo, które identyfikatory techniczne zostają legacy,
-- [ ] nowe zmiany w kodzie mogą korzystać z centralnej konfiguracji brandu.
+- [x] jest jedna zaakceptowana forma nazwy: `PodAdresem`,
+- [x] jest robocza decyzja domenowa i mailowa zapisana centralnie:
+  `podadresem.pl`, `kontakt@podadresem.pl`, `legal@podadresem.pl`,
+  `abuse@podadresem.pl`, `support@podadresem.pl`,
+- [x] wiadomo, które identyfikatory techniczne zostają legacy w pierwszym etapie:
+  `estateflowBrandingEnabled`, `estateflow-*`, `x-estateflow-billing-signature`,
+  `real_estate_saas` i nazwa paczki `real-estate-agent-saas`,
+- [x] nowe zmiany w kodzie mogą korzystać z centralnej konfiguracji brandu.
+
+Wykonano w pierwszej iteracji Sprintu 0:
+
+- dodano centralne stałe brandowe dla frontendu:
+  `apps/web/src/lib/brand.ts`,
+- dodano centralne stałe brandowe dla API:
+  `apps/api/src/common/brand.ts`,
+- podpięto `apps/web/src/lib/legal.ts` do nowych stałych, żeby e-maile legal,
+  abuse i support oraz wspólne teksty prawne nie miały już nazwy wpisanej na
+  sztywno,
+- zmieniono healthcheck API z `Real Estate Agent SaaS API` na `PodAdresem API`
+  przez stałą `APP_NAME`,
+- zmieniono temat i treść maila resetu hasła na `PodAdresem`,
+- zaktualizowano testy dla healthchecka i resetu hasła,
+- zaktualizowano `SMTP_FROM` w `.env.example` na `PodAdresem
+  <noreply@podadresem.pl>`.
+
+Świadomie odłożone poza pierwszą iterację:
+
+- masowa podmiana widocznych tekstów UI - zakres Sprintu 1,
+- aktualizacja stron legalnych i pełnego copy prawnego - zakres Sprintu 2,
+- seed bloga i istniejące dane blogowe - zakres Sprintu 3,
+- zmiana `estateflowBrandingEnabled` - wymaga migracji DB/API i zostaje legacy,
+- zmiana cookies/localStorage `estateflow-*` - wymaga migracji preferencji
+  użytkowników,
+- zmiana `x-estateflow-billing-signature` - wymaga okresu kompatybilności dla
+  webhooków,
+- zmiana nazwy bazy `real_estate_saas` i paczki `real-estate-agent-saas` - nie
+  jest wymagana do widocznego rebrandingu i może zostać techniczną nazwą projektu.
 
 ### Sprint 1 - widoczny rebranding UI i SEO
 

@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
+import { APP_NAME } from '../common/brand';
 import { EmailService } from '../email';
 import { UsersService } from '../users/users.service';
 import { AgencyPlanService } from '../users/agency-plan.service';
@@ -262,9 +263,9 @@ export class AuthService {
 
     await this.emailService.send({
       to: email,
-      subject: 'Reset hasła EstateFlow',
+      subject: `Reset hasła ${APP_NAME}`,
       text: [
-        'Otrzymaliśmy prośbę o ustawienie nowego hasła do konta EstateFlow.',
+        `Otrzymaliśmy prośbę o ustawienie nowego hasła do konta ${APP_NAME}.`,
         '',
         `Kliknij link i podaj nowe hasło: ${resetUrl}`,
         '',
