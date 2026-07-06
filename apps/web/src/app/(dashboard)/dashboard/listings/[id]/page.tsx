@@ -32,6 +32,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AddressLink } from '@/components/common';
+import { DashboardDetailHeader } from '@/components/dashboard/detail-header';
+import {
+  DashboardNextStepBar,
+  type DashboardNextStep,
+} from '@/components/dashboard/next-step-bar';
 import { ActivityHistoryCard } from '@/components/activity/activity-history-card';
 import { ActivityTimeline } from '@/components/activity/activity-timeline';
 import { ListingDocumentsPanel } from '@/components/listings/listing-documents-panel';
@@ -99,6 +104,7 @@ import {
 } from '@/lib/transactions';
 import {
   PUBLIC_LEAD_STATUS_LABELS,
+  PublicLeadStatus,
   type PublicInquiry,
 } from '@/lib/public-inquiries';
 import {
@@ -471,41 +477,48 @@ export default function ListingDetailPage() {
   const isActiveButUnpublished =
     listing.status === LS.ACTIVE &&
     listing.publicationStatus !== ListingPublicationStatus.PUBLISHED;
+  const nextStep = getListingNextStep({
+    listing,
+    listingAddress,
+    isActiveButUnpublished,
+    inquiries: listingInquiries,
+    appointments: listingAppointments,
+    matchingClients,
+    onOpenPublication: () => setActiveTab('publication'),
+    onOpenMessage: () => {
+      setInitialMessageTemplate(MessageTemplateType.DOCUMENT_REQUEST);
+      setIsMessageDialogOpen(true);
+    },
+  });
   const listingActionButtonClass =
     'w-full justify-start gap-1.5 rounded-xl sm:w-auto sm:justify-center';
   const listingActionLinkClass = 'w-full sm:w-auto';
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <Link
-        href="/dashboard/listings"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Wróć do listy ofert
-      </Link>
-
-      {/* Header */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-        <div className="min-w-0 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="min-w-0 basis-full font-heading text-2xl font-bold text-foreground sm:basis-auto">
-              {listing.title}
-            </h1>
+      <DashboardDetailHeader
+        backHref="/dashboard/listings"
+        backLabel="Wróć do listy ofert"
+        title={listing.title}
+        badges={
+          <>
             <ListingStatusBadge status={listing.status} />
             <ListingPublicationBadge status={listing.publicationStatus} />
-          </div>
-          {listingAddress && (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <MapPin className="h-4 w-4 shrink-0" />
-              <AddressLink address={listingAddress} />
-            </div>
-          )}
-          <ListingMessageRecipientSummary listing={listing} />
-        </div>
-
-        <div className="flex w-full flex-col gap-2 lg:w-auto lg:max-w-[760px] lg:items-end">
+          </>
+        }
+        description={
+          <>
+            {listingAddress ? (
+              <div className="flex items-center gap-1.5">
+                <MapPin className="h-4 w-4 shrink-0" />
+                <AddressLink address={listingAddress} />
+              </div>
+            ) : null}
+            <ListingMessageRecipientSummary listing={listing} />
+          </>
+        }
+        actions={
+          <>
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
             <Button
               type="button"
@@ -599,8 +612,11 @@ export default function ListingDetailPage() {
               Usuń
             </Button>
           </div>
-        </div>
-      </div>
+          </>
+        }
+      />
+
+      <DashboardNextStepBar step={nextStep} />
 
       {isActiveButUnpublished ? (
         <div className="flex flex-col gap-3 rounded-2xl border border-status-warning/25 bg-status-warning-bg p-4 text-status-warning sm:flex-row sm:items-center sm:justify-between">
@@ -1740,6 +1756,93 @@ function formatDashboardListingAddress(
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(', ') : null;
+}
+
+function getListingNextStep({
+  listing,
+  listingAddress,
+  isActiveButUnpublished,
+  inquiries,
+  appointments,
+  matchingClients,
+  onOpenPublication,
+  onOpenMessage,
+}: {
+  listing: Listing;
+  listingAddress: string | null;
+  isActiveButUnpublished: boolean;
+  inquiries: PublicInquiry[];
+  appointments: Appointment[];
+  matchingClients: ListingMatchingClientResult[];
+  onOpenPublication: () => void;
+  onOpenMessage: () => void;
+}): DashboardNextStep {
+  const newInquiryCount = inquiries.filter(
+    (inquiry) => inquiry.status === PublicLeadStatus.NEW,
+  ).length;
+
+  if (isActiveButUnpublished) {
+    return {
+      title: 'Opublikuj aktywną ofertę',
+      description:
+        'Oferta ma status aktywny, ale nie jest jeszcze widoczna publicznie. Publikacja odblokuje formularz kontaktowy i publiczny podgląd.',
+      actionLabel: 'Przejdź do publikacji',
+      onAction: onOpenPublication,
+      icon: RadioTower,
+      dueLabel: 'Wymaga uwagi',
+    };
+  }
+
+  if (newInquiryCount > 0) {
+    return {
+      title: `Odpowiedz na ${newInquiryCount} nowe ${newInquiryCount === 1 ? 'zapytanie' : 'zapytania'}`,
+      description:
+        'Nowe leady z publicznej strony oferty wymagają szybkiego kontaktu, zanim stracą intencję zakupu lub najmu.',
+      actionLabel: 'Otwórz zapytania',
+      actionHref: `/dashboard/inquiries?listingId=${listing.id}&status=${PublicLeadStatus.NEW}`,
+      icon: MessageSquareText,
+      dueLabel: 'Teraz',
+    };
+  }
+
+  if (appointments.length === 0) {
+    return {
+      title: 'Zaplanuj pierwszą prezentację',
+      description:
+        'Brak nadchodzących spotkań dla tej oferty. Dodaj prezentację albo follow-up, żeby oferta miała kolejny operacyjny krok.',
+      actionLabel: 'Zaplanuj spotkanie',
+      actionHref: buildNewAppointmentUrl({
+        listingId: listing.id,
+        listingLabel: listing.title,
+        location: listingAddress ?? undefined,
+      }),
+      icon: Calendar,
+      dueLabel: 'Plan pracy',
+    };
+  }
+
+  if (matchingClients.length > 0) {
+    const bestMatch = matchingClients[0]!;
+
+    return {
+      title: 'Sprawdź najlepiej dopasowanego klienta',
+      description: `${bestMatch.client.firstName} ${bestMatch.client.lastName} ma dopasowanie ${bestMatch.score}%. Zweryfikuj, czy warto wysłać propozycję oferty.`,
+      actionLabel: 'Otwórz klienta',
+      actionHref: `/dashboard/clients/${bestMatch.client.id}`,
+      icon: Sparkles,
+      dueLabel: 'Szansa',
+    };
+  }
+
+  return {
+    title: 'Wyślij aktualizację do właściciela',
+    description:
+      'Podsumuj status oferty, aktywność publiczną i najbliższe działania, żeby właściciel miał jasny obraz pracy.',
+    actionLabel: 'Przygotuj wiadomość',
+    onAction: onOpenMessage,
+    icon: Send,
+    dueLabel: 'Komunikacja',
+  };
 }
 
 function MetadataRow({

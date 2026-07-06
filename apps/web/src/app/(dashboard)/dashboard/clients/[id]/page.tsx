@@ -19,6 +19,7 @@ import {
   Ruler,
   BedDouble,
   EyeOff,
+  UserRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +29,11 @@ import {
   DetailCard,
   RelationCard,
 } from '@/components/common';
+import { DashboardDetailHeader } from '@/components/dashboard/detail-header';
+import {
+  DashboardNextStepBar,
+  type DashboardNextStep,
+} from '@/components/dashboard/next-step-bar';
 import { ActivityHistoryCard } from '@/components/activity/activity-history-card';
 import { ActivityTimeline } from '@/components/activity/activity-timeline';
 import { MessageTemplateDialog } from '@/components/messages/message-template-dialog';
@@ -76,6 +82,7 @@ import {
   clientInitials,
   formatBudgetRange,
   getClientStatusActions,
+  type StatusAction as ClientStatusAction,
 } from '@/lib/clients';
 import {
   buildAgentMessageTemplateContext,
@@ -385,44 +392,39 @@ export default function ClientDetailPage() {
   const initialMessageTemplate = primaryAppointment
     ? MessageTemplateType.APPOINTMENT_CONFIRMATION
     : MessageTemplateType.VIEWING_FOLLOW_UP;
+  const nextStep = getClientNextStep({
+    client,
+    budgetRange,
+    scheduleAppointmentUrl,
+    appointments: relatedAppointments,
+    matchingListings,
+    statusActions,
+    onStatusChange: handleStatusChange,
+    onOpenMessage: () => setIsMessageDialogOpen(true),
+  });
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <Link
-        href="/dashboard/clients"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Wróć do listy klientów
-      </Link>
-
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-4">
-          {/* Avatar */}
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary">
+      <DashboardDetailHeader
+        backHref="/dashboard/clients"
+        backLabel="Wróć do listy klientów"
+        title={clientFullName(client)}
+        leading={
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary">
             {clientInitials(client)}
           </div>
-
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="font-heading text-2xl font-bold text-foreground">
-                {clientFullName(client)}
-              </h1>
-              <ClientStatusBadge status={client.status} />
-              <Badge variant={SOURCE_BADGE_VARIANT[client.source]}>
-                {CLIENT_SOURCE_LABELS[client.source]}
-              </Badge>
-            </div>
-
-            <p className="text-sm text-muted-foreground">
-              Kontakt, preferencje i aktywność klienta w jednym miejscu.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
+        }
+        badges={
+          <>
+            <ClientStatusBadge status={client.status} />
+            <Badge variant={SOURCE_BADGE_VARIANT[client.source]}>
+              {CLIENT_SOURCE_LABELS[client.source]}
+            </Badge>
+          </>
+        }
+        description="Kontakt, preferencje i aktywność klienta w jednym miejscu."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
@@ -454,8 +456,11 @@ export default function ClientDetailPage() {
             <Trash2 className="h-3.5 w-3.5" />
             Usuń
           </Button>
-        </div>
-      </div>
+          </div>
+        }
+      />
+
+      <DashboardNextStepBar step={nextStep} />
 
       {/* Main content grid */}
       <div className="grid gap-6 lg:grid-cols-3">
@@ -677,6 +682,99 @@ function buildClientMessageContext(
       : null,
     documentList:
       '- dokument potwierdzający własność\n- świadectwo energetyczne, jeśli jest dostępne\n- rzut lokalu, jeśli jest dostępny',
+  };
+}
+
+function getClientNextStep({
+  client,
+  budgetRange,
+  scheduleAppointmentUrl,
+  appointments,
+  matchingListings,
+  statusActions,
+  onStatusChange,
+  onOpenMessage,
+}: {
+  client: Client;
+  budgetRange: string;
+  scheduleAppointmentUrl: string;
+  appointments: Appointment[];
+  matchingListings: MatchingListingResult[];
+  statusActions: ClientStatusAction[];
+  onStatusChange: (status: ClientStatus) => void;
+  onOpenMessage: () => void;
+}): DashboardNextStep {
+  if (!client.email && !client.phone) {
+    return {
+      title: 'Uzupełnij dane kontaktowe',
+      description:
+        'Klient nie ma zapisanego telefonu ani adresu email. Bez kontaktu nie da się sprawnie prowadzić follow-upów.',
+      actionLabel: 'Edytuj klienta',
+      actionHref: `/dashboard/clients/${client.id}/edit`,
+      icon: Phone,
+      dueLabel: 'Wymaga danych',
+    };
+  }
+
+  if (budgetRange === '—') {
+    return {
+      title: 'Uzupełnij budżet klienta',
+      description:
+        'Budżet jest kluczowy do porównywania klienta z ofertami i szybkiego oceniania dopasowań.',
+      actionLabel: 'Uzupełnij budżet',
+      actionHref: `/dashboard/clients/${client.id}/edit`,
+      icon: Wallet,
+      dueLabel: 'CRM',
+    };
+  }
+
+  if (appointments.length === 0) {
+    return {
+      title: 'Zaplanuj następny kontakt',
+      description:
+        'Brak nadchodzących spotkań lub follow-upów dla klienta. Dodaj termin, żeby relacja nie utknęła bez kolejnego kroku.',
+      actionLabel: 'Zaplanuj spotkanie',
+      actionHref: scheduleAppointmentUrl,
+      icon: Calendar,
+      dueLabel: 'Plan pracy',
+    };
+  }
+
+  if (matchingListings.length > 0) {
+    const bestMatch = matchingListings[0]!;
+
+    return {
+      title: 'Sprawdź najlepiej dopasowaną ofertę',
+      description: `${bestMatch.listing.title} ma dopasowanie ${bestMatch.score}%. Zweryfikuj ofertę przed kontaktem z klientem.`,
+      actionLabel: 'Otwórz ofertę',
+      actionHref: `/dashboard/listings/${bestMatch.listing.id}`,
+      icon: Sparkles,
+      dueLabel: 'Szansa',
+    };
+  }
+
+  if (statusActions.length > 0) {
+    const nextAction = statusActions[0]!;
+
+    return {
+      title: 'Zaktualizuj status klienta',
+      description:
+        'Status powinien odzwierciedlać aktualny etap relacji, żeby pipeline i raporty pokazywały realny obraz pracy.',
+      actionLabel: nextAction.label,
+      onAction: () => onStatusChange(nextAction.status),
+      icon: UserRound,
+      dueLabel: CLIENT_STATUS_LABELS[nextAction.status],
+    };
+  }
+
+  return {
+    title: 'Wyślij wiadomość do klienta',
+    description:
+      'Klient ma uzupełnione dane i zaplanowane działania. Wyślij krótką aktualizację albo podsumowanie kolejnego kroku.',
+    actionLabel: 'Przygotuj wiadomość',
+    onAction: onOpenMessage,
+    icon: MessageSquareText,
+    dueLabel: 'Komunikacja',
   };
 }
 

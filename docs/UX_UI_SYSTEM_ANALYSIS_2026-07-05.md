@@ -497,8 +497,8 @@ problem i wykonac nastepna akcje.
 
 - [x] Widok listowy ofert i klientow.
 - [x] Szybkie filtry operacyjne.
-- [ ] Standard detail page.
-- [ ] Pasek `Nastepny krok`.
+- [x] Standard detail page.
+- [x] Pasek `Nastepny krok`.
 - [x] Ujednolicone puste stany dla list, filtrow i powiazanych danych.
 - [x] Chipsy aktywnych filtrow z mozliwoscia szybkiego usuniecia.
 - [x] Lepsze stany braku danych:
@@ -606,6 +606,60 @@ Zakres celowo odlozony po iteracji 3:
 
 - Standard detail page i pasek `Nastepny krok` zostaja jako ostatni duzy blok
   Sprintu 2, poniewaz wymagaja zmian na stronach szczegolow ofert i klientow.
+
+Status wdrozenia Sprint 2, iteracja 4 - 2026-07-06:
+
+- Dodano wspolny komponent `DashboardNextStepBar`:
+  - pokazuje jeden najwazniejszy nastepny krok,
+  - zawiera kontekst, priorytet i jedna glowna akcje,
+  - obsluguje akcje linkiem albo callbackiem,
+  - jest gotowy do uzycia na kolejnych detail pages.
+- Podpieto pasek `Nastepny krok` na stronie szczegolow oferty:
+  - priorytet 1: aktywna oferta bez publikacji -> przejscie do publikacji,
+  - priorytet 2: nowe zapytania -> przejscie do zapytan oferty,
+  - priorytet 3: brak spotkan -> zaplanowanie prezentacji,
+  - priorytet 4: dopasowany klient -> otwarcie najlepszego dopasowania,
+  - fallback: przygotowanie wiadomosci do wlasciciela.
+- Podpieto pasek `Nastepny krok` na stronie szczegolow klienta:
+  - priorytet 1: brak danych kontaktowych -> edycja klienta,
+  - priorytet 2: brak budzetu -> uzupelnienie budzetu,
+  - priorytet 3: brak spotkan -> zaplanowanie kontaktu,
+  - priorytet 4: dopasowana oferta -> otwarcie najlepszej oferty,
+  - priorytet 5: mozliwa zmiana statusu -> wykonanie akcji statusu,
+  - fallback: przygotowanie wiadomosci do klienta.
+
+Zakres celowo odlozony po iteracji 4:
+
+- Pelny standard detail page nadal wymaga osobnej iteracji porzadkujacej
+  strukture sekcji, prawy panel kontekstowy i nazewnictwo zakladek na stronach
+  szczegolow.
+
+Status wdrozenia Sprint 2, iteracja 5 - 2026-07-06:
+
+- Dodano wspolny komponent `DashboardDetailHeader`:
+  - laczy breadcrumb, tytul, statusy, opis/kontekst i akcje,
+  - pozwala dodac element prowadzacy, np. avatar klienta,
+  - utrzymuje jeden responsywny uklad headera detail page,
+  - ogranicza kopiowanie klas i rozjazdy miedzy stronami szczegolow.
+- Podmieniono header strony szczegolow oferty:
+  - breadcrumb `Wroc do listy ofert`,
+  - tytul oferty,
+  - status CRM i status publikacji,
+  - adres i kontakt wlasciciela,
+  - dotychczasowe akcje pozostaly bez zmiany.
+- Podmieniono header strony szczegolow klienta:
+  - breadcrumb `Wroc do listy klientow`,
+  - avatar i nazwa klienta,
+  - status oraz zrodlo,
+  - opis kontekstu strony,
+  - dotychczasowe akcje pozostaly bez zmiany.
+
+Zakres po iteracji 5:
+
+- Sprint 2 jest domkniety funkcjonalnie w zakresie list, filtrow, pustych
+  stanow, bledow, paska `Nastepny krok` i wspolnego headera detail page.
+- Dalsze prace nad detail pages moga byc prowadzone jako polish albo osobny
+  refactor informacyjnej architektury, ale nie blokuja przejscia do Sprintu 3.
 
 Pokrywa obserwacje:
 
