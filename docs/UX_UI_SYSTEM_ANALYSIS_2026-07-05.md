@@ -1073,7 +1073,7 @@ Zakres po iteracji 4:
 | 9. UI system/card-heavy | Sprint 4 | Pokryte |
 | 10. Empty states | Sprint 2 | Pokryte |
 | 11. Raporty jako decyzje | Sprint 4 | Pokryte |
-| 12. Admin UI defensywny | Sprint 5 | Czesciowo pokryte |
+| 12. Admin UI defensywny | Sprint 5 | Pokryte |
 
 ## Wniosek
 

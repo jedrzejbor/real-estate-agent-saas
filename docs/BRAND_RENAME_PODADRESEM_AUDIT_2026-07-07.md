@@ -1,0 +1,542 @@
+# Rebranding aplikacji na PodAdresem - mapa użycia nazwy
+
+Data audytu: 2026-07-07  
+Nowa nazwa produktu: `PodAdresem`  
+Dotychczasowa nazwa produktu: `EstateFlow`
+
+## Cel dokumentu
+
+Ten dokument opisuje miejsca, w których repozytorium używa obecnej nazwy aplikacji
+albo identyfikatorów pochodnych od starego brandu. Ma służyć jako checklist do
+zmiany nazwy aplikacji na `PodAdresem`.
+
+Skan obejmował wystąpienia:
+
+- `EstateFlow`
+- `estateflow`
+- `Real Estate Agent SaaS`
+- `real-estate-agent-saas`
+- `real_estate_saas`
+
+Wynik skanu: 416 wystąpień w 110 plikach, z wyłączeniem `node_modules` i
+`pnpm-lock.yaml`.
+
+## Decyzja nazewnicza
+
+Rekomendowana forma widoczna dla użytkownika:
+
+- nazwa produktu: `PodAdresem`
+- blog: `Blog PodAdresem`
+- branding publiczny: `Powered by PodAdresem`
+- panel właściciela: `Panel właściciela PodAdresem`
+- reset hasła: `Reset hasła PodAdresem`
+
+Do decyzji przed wdrożeniem:
+
+- domena produkcyjna, np. `podadresem.pl`
+- e-maile kontaktowe, np. `legal@podadresem.pl`, `abuse@podadresem.pl`,
+  `support@podadresem.pl`, `kontakt@podadresem.pl`
+- czy zmieniamy techniczne klucze `estateflow-*`, czy zostawiamy je jako legacy
+- czy zmieniamy nazwę paczki/repo `real-estate-agent-saas`, czy tylko nazwę produktu
+- czy pole API `estateflowBrandingEnabled` migrujemy na nową nazwę, czy zostawiamy
+  jako stabilny kontrakt techniczny na czas przejściowy
+
+## Priorytety migracji
+
+| Priorytet | Zakres | Rekomendacja |
+| --- | --- | --- |
+| P0 | Widoczne teksty w UI, SEO, maile, metadane, stopki, logo | Zmienić na `PodAdresem` w pierwszej kolejności |
+| P0 | Legal, regulamin, prywatność, cookies, zasady publikacji | Zmienić razem z finalnymi danymi operatora i e-mailami |
+| P1 | Seed bloga, autorzy, CTA, raporty, QR, publiczne formularze | Zmienić po aktualizacji głównego copy |
+| P1 | Dokumentacja produktowa i launch checklisty | Zmienić albo oznaczyć jako dokumenty historyczne |
+| P2 | Klucze localStorage/cookie/CSS/className/test domains | Nie zmieniać automatycznie bez planu migracji |
+| P2 | Nazwa repo, nazwa bazy `real_estate_saas`, nazwa pakietu | Decyzja techniczna; nie jest wymagana do rebrandingu UI |
+
+## Najważniejsze miejsca widoczne dla użytkownika
+
+### Globalny brand i layout
+
+| Plik | Co zawiera | Działanie |
+| --- | --- | --- |
+| `apps/web/src/components/common/logo.tsx` | tekst logo `EstateFlow` oraz komentarz brandowy | zmienić tekst logo na `PodAdresem` |
+| `apps/web/src/app/layout.tsx` | metadata title `EstateFlow — Platforma...` i klucz `estateflow-theme` | title zmienić, klucz storage rozważyć jako legacy |
+| `apps/web/src/components/layout/footer.tsx` | copyright `© ... EstateFlow` | zmienić na `PodAdresem` |
+| `apps/web/src/components/layout/navbar.tsx` | aria-label strony głównej | zmienić na `PodAdresem` |
+| `apps/web/src/app/(auth)/layout.tsx` | copyright w auth layout | zmienić na `PodAdresem` |
+
+### Marketing i publiczne strony
+
+| Plik | Co zawiera | Działanie |
+| --- | --- | --- |
+| `apps/web/src/app/(marketing)/page.tsx` | główna strona marketingowa, testimonial, sekcje CTA | zmienić całość copy brandowego |
+| `apps/web/src/app/(marketing)/cennik/page.tsx` | nazwa w cenniku i mailto `kontakt@estateflow.pl` | zmienić nazwę i adres e-mail po decyzji domenowej |
+| `apps/web/src/components/marketing/home-pricing-section.tsx` | mailto enterprise | zmienić adres i temat wiadomości |
+| `apps/web/src/app/(marketing)/feedback/page.tsx` | title, description, CTA `Wróć do EstateFlow` | zmienić na `PodAdresem` |
+| `apps/web/src/components/feedback/public-product-feedback-form.tsx` | opis feedbacku | zmienić copy |
+
+### Blog i SEO
+
+| Plik | Co zawiera | Działanie |
+| --- | --- | --- |
+| `apps/web/src/app/(marketing)/blog/page.tsx` | `Blog EstateFlow`, metadata, Open Graph `siteName` | zmienić na `Blog PodAdresem` |
+| `apps/web/src/app/(marketing)/blog/[slug]/page.tsx` | tytuły SEO, `siteName`, JSON-LD, autor fallback | zmienić widoczne nazwy |
+| `apps/web/src/app/(marketing)/blog/kategoria/[slug]/page.tsx` | tytuły kategorii i opisy | zmienić na `Blog PodAdresem` |
+| `apps/web/src/components/blog/article-cta.tsx` | CTA i mailto `legal@estateflow.pl` | zmienić copy oraz e-mail |
+| `apps/web/src/components/blog/blog-post-card.tsx` | fallback autora `EstateFlow` | zmienić fallback |
+| `apps/web/src/components/blog/blog-post-form.tsx` | szablon linku `[załóż konto w EstateFlow]` | zmienić szablon |
+| `apps/web/src/components/blog/featured-listings-block.tsx` | copy katalogu | zmienić copy |
+| `apps/api/migrations/20260604_blog_content_launch_seed.sql` | seed tytułów SEO, autora `Redakcja EstateFlow`, slug `redakcja-estateflow` | nowy seed/migracja danych albo aktualizacja dla nowych instalacji |
+
+### Publiczne oferty, katalog, formularze
+
+| Plik | Co zawiera | Działanie |
+| --- | --- | --- |
+| `apps/web/src/app/(public)/oferty/page.tsx` | metadata katalogu i `siteName` | zmienić na `PodAdresem` |
+| `apps/web/src/app/(public)/oferty/[slug]/page.tsx` | metadata oferty, `Powered by EstateFlow`, `siteName` | zmienić copy; pole techniczne rozważyć osobno |
+| `apps/web/src/app/(public)/formularz/oferty/[slug]/page.tsx` | metadata formularza, `Powered by EstateFlow` | zmienić copy |
+| `apps/web/src/app/(public)/agenci/[id]/page.tsx` | metadata profilu agenta, `siteName`, brand w UI | zmienić copy |
+| `apps/web/src/app/(public)/dodaj-oferte/page.tsx` | widoczny brand oraz `estateflow.publicListingWizard.v1` | copy zmienić, storage key zostawić albo migrować |
+| `apps/web/src/app/(public)/dodaj-oferte/potwierdzono/page.tsx` | brand w potwierdzeniu | zmienić copy |
+| `apps/web/src/app/(public)/dodaj-oferte/sprawdz-email/page.tsx` | brand na ekranie sprawdzania maila | zmienić copy |
+| `apps/web/src/components/listings/public-listing-catalog.tsx` | fallback agencji `EstateFlow` | zmienić na `PodAdresem` albo lepszy neutralny fallback |
+| `apps/web/src/components/listings/public-listing-abuse-report.tsx` | komunikat o logu operacyjnym `EstateFlow` | zmienić copy |
+
+### Dashboard, auth, seller flow
+
+| Plik | Co zawiera | Działanie |
+| --- | --- | --- |
+| `apps/web/src/app/(auth)/login/page.tsx` | `Zaloguj się do swojego konta EstateFlow` | zmienić copy |
+| `apps/web/src/app/(auth)/register/page.tsx` | informacja o logowaniu do `EstateFlow` | zmienić copy |
+| `apps/web/src/app/(dashboard)/dashboard/[...slug]/page.tsx` | title placeholderów `... | EstateFlow` | zmienić metadata |
+| `apps/web/src/app/(dashboard)/dashboard/tutorial/page.tsx` | opis samouczka po produkcie | zmienić copy |
+| `apps/web/src/app/(dashboard)/dashboard/blog/[id]/preview/page.tsx` | fallback autora i copy katalogu | zmienić copy |
+| `apps/web/src/app/(dashboard)/dashboard/listings/[id]/owner-report/page.tsx` | fallback brandu, tekst w raporcie właściciela | zmienić copy/fallback |
+| `apps/web/src/app/(seller)/seller/page.tsx` | aria-label i copy katalogu | zmienić copy |
+| `apps/web/src/app/(seller)/seller/listings/[id]/page.tsx` | aria-label panelu właściciela | zmienić copy |
+| `apps/web/src/app/(seller)/seller/listings/[id]/edit/page.tsx` | aria-label panelu właściciela | zmienić copy |
+
+## Legal, prywatność i kontakt
+
+Te miejsca wymagają zmiany razem z finalną domeną i danymi operatora.
+
+| Plik | Co zawiera | Działanie |
+| --- | --- | --- |
+| `apps/web/src/lib/legal.ts` | `legal@estateflow.pl`, `abuse@estateflow.pl`, `support@estateflow.pl`, teksty prawne | zmienić e-maile i nazwę produktu |
+| `apps/web/src/app/(marketing)/regulamin/page.tsx` | metadata i treść regulaminu | zmienić nazwę produktu; zweryfikować dane prawne |
+| `apps/web/src/app/(marketing)/polityka-prywatnosci/page.tsx` | metadata i treść polityki prywatności | zmienić nazwę produktu i kontakt |
+| `apps/web/src/app/(marketing)/polityka-cookies/page.tsx` | metadata, treść i lista kluczy storage | widoczne copy zmienić; klucze rozważyć osobno |
+| `apps/web/src/app/(marketing)/zasady-publikacji/page.tsx` | metadata i treść zasad publikacji | zmienić copy |
+| `apps/web/src/components/legal/cookie-consent-manager.tsx` | komunikat zgód cookies | zmienić copy |
+
+## API, backend i maile systemowe
+
+| Plik | Co zawiera | Działanie |
+| --- | --- | --- |
+| `apps/api/src/auth/auth.service.ts` | temat i treść maila resetu hasła `EstateFlow` | zmienić na `PodAdresem` |
+| `apps/api/src/auth/auth.service.spec.ts` | oczekiwany temat resetu hasła | zaktualizować test |
+| `apps/api/src/listings/listings.service.ts` | opisy SEO publicznych ofert oraz pole `estateflowBrandingEnabled` | copy zmienić; pole techniczne rozważyć osobno |
+| `apps/api/src/public-listing-submissions/public-listing-submissions.service.ts` | opisy SEO i domyślne branding flagi | copy zmienić; pole techniczne rozważyć osobno |
+| `apps/api/src/reports/reports.service.ts` | komunikat o centralnym blogu `EstateFlow` | zmienić na `PodAdresem` |
+| `apps/api/src/users/users.service.ts` | fallback `EstateFlow Workspace` | zmienić fallback |
+| `apps/api/src/app.service.ts` | healthcheck `Real Estate Agent SaaS API` | zmienić na `PodAdresem API`, jeśli chcemy spójny healthcheck |
+| `apps/api/src/app.controller.spec.ts` | test healthchecka | zaktualizować po zmianie healthchecka |
+
+## Pola, klucze i identyfikatory techniczne
+
+Nie wszystkie wystąpienia `estateflow` są prostą nazwą do podmiany. Poniższe
+elementy mogą wpływać na dane użytkowników, API, cookies, localStorage, webhooki
+albo migracje bazy.
+
+| Element | Pliki | Rekomendacja |
+| --- | --- | --- |
+| `estateflowBrandingEnabled` | `apps/api/src/listings/entities/listing.entity.ts`, `apps/api/src/listings/public-listing.model.ts`, `apps/web/src/lib/listings.ts`, `apps/api/migrations/20260429_freemium_public_listings_and_analytics.sql`, użycia w serwisach i komponentach | Nie zmieniać w pierwszym kroku. To kontrakt techniczny i kolumna bazy. Jeśli zmieniamy, potrzebna migracja DB, compatibility layer i aktualizacja API. |
+| `estateflow.csrf-token` | `apps/api/src/auth/auth-token-cookies.ts`, `apps/web/src/lib/csrf.ts` | Można zostawić jako legacy. Zmiana wymaga planu wygaszenia starych cookies. |
+| `estateflow-theme` | `apps/web/src/app/layout.tsx`, `apps/web/src/contexts/theme-context.tsx` | Zostawić albo dodać migrację localStorage ze starego klucza na nowy. |
+| `estateflow-cookie-consent` | `apps/web/src/lib/cookie-consent.ts`, `apps/web/src/contexts/cookie-consent-context.tsx`, strona cookies | Zostawić albo dodać migrację zgód. Nie kasować bez decyzji prawnej. |
+| `estateflow.publicListingWizard.v1` | `apps/web/src/app/(public)/dodaj-oferte/page.tsx` | Zostawić albo dodać migrację draftów publicznego formularza. |
+| `estateflow.dashboard-onboarding` | `apps/web/src/hooks/use-onboarding-progress.ts` | Zostawić albo dodać migrację postępu onboardingu. |
+| `estateflow:listing-description-assistant` | `apps/web/src/lib/listing-description-assistant.ts` | Klucz cache/namespace; zmienić tylko z migracją lub świadomym resetem. |
+| `x-estateflow-billing-signature` | `apps/api/src/billing/billing-webhooks.controller.ts` | Nie zmieniać bez koordynacji z billingiem/webhookami. Można dodać alias `x-podadresem-billing-signature`. |
+| klasy CSS `estateflow-map-*` | `apps/web/src/app/globals.css`, `apps/web/src/components/listings/public-listing-catalog-map.tsx` | Niepilne. To wewnętrzne klasy CSS; zmiana jest kosmetyczna, ale musi być atomowa w CSS i TSX. |
+| nazwy plików QR `estateflow-*.png` | komponenty QR i analytics | Można zmienić na `podadresem-*.png`; niskie ryzyko. |
+| domeny testowe `estateflow.test` | testy backendu i konfiguracji storage | Zmienić tylko jeśli chcemy pełną spójność testów. Funkcjonalnie nie jest pilne. |
+
+## Konfiguracja projektu i środowiska
+
+| Plik | Co zawiera | Rekomendacja |
+| --- | --- | --- |
+| `package.json` | nazwa paczki `real-estate-agent-saas` | opcjonalnie zmienić dopiero po decyzji o nazwie repo/paczki |
+| `README.md` | tytuł `EstateFlow — Real Estate Agent SaaS` oraz DB example | zmienić tytuł; DB zostawić albo migrować oddzielnie |
+| `docker-compose.yml` | `real_estate_saas` jako nazwa bazy | zostawić, jeśli nie migrujemy lokalnej bazy |
+| `apps/api/src/app.module.ts` | domyślna wartość `DB_NAME=real_estate_saas` | zostawić albo zmienić razem z konfiguracją lokalną |
+| `apps/api/src/locations/locations-import.module.ts` | domyślna wartość `DB_NAME=real_estate_saas` | jak wyżej |
+
+## Dokumentacja do aktualizacji
+
+Dokumenty produktowe i wdrożeniowe z nazwą `EstateFlow`:
+
+- `docs/AGENCY_BRANDED_WEBSITE_PLAN.md`
+- `docs/AGENT_ONBOARDING_TUTORIAL_PLAN.md`
+- `docs/AGENT_UX_PRODUCT_IMPROVEMENT_ANALYSIS_2026-06-23.md`
+- `docs/BILLING_PLANS_IMPLEMENTATION.md`
+- `docs/BLOG_POST_PUBLISHING_GUIDE.md`
+- `docs/BLOG_SEO_PLAN.md`
+- `docs/COOKIE_CONSENT_READINESS_PLAN.md`
+- `docs/FREEMIUM_GROWTH_PLAN.md`
+- `docs/FREEMIUM_SPRINT_6_5_READINESS_ANALYSIS.md`
+- `docs/FREEMIUM_SPRINT_7_LEGAL_PRIVACY_CLOSEOUT.md`
+- `docs/FREEMIUM_SPRINT_PLAN.md`
+- `docs/LISTING_FIELD_MATRIX.md`
+- `docs/LOCAL_SETUP.md`
+- `docs/PLANS_AND_ENTITLEMENTS_STRATEGY.md`
+- `docs/PORTAL_API_INTEGRATIONS.md`
+- `docs/PRODUCT_FEEDBACK_SYSTEM_PLAN.md`
+- `docs/PROJECT_SPEC.md`
+- `docs/PUBLIC_CATALOG_AND_PRIVATE_SELLERS_PLAN.md`
+- `docs/REPORTS_MODULE_SPEC.md`
+- `docs/SECURITY_MODULE_AUDIT_MAP.md`
+- `docs/SECURITY_SYSTEM_ANALYSIS_2026-07-05.md`
+- `docs/UX_UI_SYSTEM_ANALYSIS_2026-07-05.md`
+- `docs/design/AI_GUIDE.md`
+- `docs/design/COMPONENT_PATTERNS.md`
+- `docs/design/DESIGN_SYSTEM.md`
+
+Dokumenty z technicznymi identyfikatorami `estateflow`, `real_estate_saas` albo
+`real-estate-agent-saas`:
+
+- `docs/COOKIE_CONSENT_READINESS_PLAN.md`
+- `docs/FREEMIUM_SPRINT_7_E2E_TEST_PLAN.md`
+- `docs/FREEMIUM_SPRINT_7_RELEASE_ROLLOUT_PLAN.md`
+- `docs/LOCAL_SETUP.md`
+- `docs/PLAN_DOWNGRADE_LIMIT_ENFORCEMENT_SPRINT.md`
+- `docs/PRODUCTION_LAUNCH_CHECKLIST.md`
+- `docs/PROJECT_CRITICAL_REVIEW_2026-06-23.md`
+- `docs/PUBLIC_LISTING_SUBMISSION_WIZARD.md`
+- `docs/PUBLIC_MAP_DISTRICT_PRECISION_PLAN.md`
+
+Rekomendacja: dokumenty historyczne można zostawić, jeśli opisują stan z dnia
+powstania. Dokumenty operacyjne, onboardingowe, launchowe, legalne i design
+system powinny zostać zaktualizowane do `PodAdresem`.
+
+## Proponowana kolejność prac
+
+1. Ustalić finalną domenę i e-maile.
+2. Dodać centralny stały brand w kodzie, np. `APP_NAME = 'PodAdresem'`, żeby nie
+   powielać nazwy w nowych miejscach.
+3. Zmienić widoczne UI copy, SEO metadata, Open Graph, JSON-LD, logo, stopki,
+   CTA i maile systemowe.
+4. Zaktualizować legal pages i `apps/web/src/lib/legal.ts`.
+5. Zaktualizować seed bloga i ewentualnie przygotować migrację istniejących
+   rekordów blogowych.
+6. Zdecydować, które klucze techniczne zostają jako legacy, a które dostają
+   migrację: cookies, localStorage, webhook header, `estateflowBrandingEnabled`.
+7. Zaktualizować testy po zmianach copy.
+8. Zaktualizować dokumentację operacyjną i design system.
+9. Uruchomić wyszukiwanie kontrolne:
+
+```bash
+rg -n "EstateFlow|estateflow|Real Estate Agent SaaS|real-estate-agent-saas|real_estate_saas" . --glob '!node_modules' --glob '!pnpm-lock.yaml'
+```
+
+## Plan sprintów rebrandingu
+
+Poniższy plan zakłada, że zmiana nazwy ma zostać wdrożona bez ryzykownej,
+jednorazowej podmiany wszystkich wystąpień `estateflow`. Sprinty są ułożone od
+decyzji produktowych i widocznego UI do migracji technicznych oraz rollout.
+
+### Sprint 0 - decyzje i przygotowanie
+
+Cel: zamknąć decyzje, które blokują bezpieczne wdrożenie nazwy `PodAdresem`.
+
+Zakres:
+
+- potwierdzić finalną pisownię: `PodAdresem`,
+- potwierdzić domenę produkcyjną, np. `podadresem.pl`,
+- potwierdzić e-maile: `kontakt@`, `legal@`, `abuse@`, `support@`,
+- zdecydować, czy stare domeny/e-maile `estateflow.pl` mają działać jako aliasy,
+- zdecydować, czy nazwa repo/paczki `real-estate-agent-saas` zostaje techniczna,
+- zdecydować, czy `estateflowBrandingEnabled` zostaje legacy nazwą pola, czy
+  będzie migrowane w osobnym sprincie,
+- dodać centralne stałe brandowe, np.:
+  - `APP_NAME = 'PodAdresem'`,
+  - `APP_LEGAL_NAME`,
+  - `APP_DOMAIN`,
+  - `APP_SUPPORT_EMAIL`,
+  - `APP_LEGAL_EMAIL`,
+  - `APP_ABUSE_EMAIL`.
+
+Pliki startowe:
+
+- `apps/web/src/lib/legal.ts`
+- nowy albo istniejący plik konfiguracyjny brandu w `apps/web/src/lib`
+- nowy albo istniejący plik konfiguracyjny brandu w `apps/api/src`
+- `README.md`
+- `.env.example`, jeśli istnieje albo zostanie dodany
+
+Kryteria akceptacji:
+
+- [ ] jest jedna zaakceptowana forma nazwy,
+- [ ] jest decyzja domenowa i mailowa,
+- [ ] wiadomo, które identyfikatory techniczne zostają legacy,
+- [ ] nowe zmiany w kodzie mogą korzystać z centralnej konfiguracji brandu.
+
+### Sprint 1 - widoczny rebranding UI i SEO
+
+Cel: użytkownik w aplikacji i na stronach publicznych widzi już `PodAdresem`
+zamiast `EstateFlow`.
+
+Zakres:
+
+- logo, navbar, footer, auth layout,
+- globalne metadata i title,
+- strona marketingowa,
+- cennik, feedback, CTA,
+- publiczny katalog ofert,
+- publiczna strona oferty,
+- publiczny formularz kontaktowy,
+- publiczny profil agenta,
+- wizard dodawania oferty,
+- panel sprzedającego,
+- dashboardowe fallbacki i placeholdery,
+- `Powered by EstateFlow` -> `Powered by PodAdresem`,
+- `Blog EstateFlow` -> `Blog PodAdresem`,
+- Open Graph `siteName`,
+- JSON-LD `name` i publisher/organization.
+
+Najważniejsze pliki:
+
+- `apps/web/src/components/common/logo.tsx`
+- `apps/web/src/app/layout.tsx`
+- `apps/web/src/components/layout/footer.tsx`
+- `apps/web/src/components/layout/navbar.tsx`
+- `apps/web/src/app/(auth)/layout.tsx`
+- `apps/web/src/app/(marketing)/page.tsx`
+- `apps/web/src/app/(marketing)/cennik/page.tsx`
+- `apps/web/src/app/(marketing)/feedback/page.tsx`
+- `apps/web/src/app/(marketing)/blog/page.tsx`
+- `apps/web/src/app/(marketing)/blog/[slug]/page.tsx`
+- `apps/web/src/app/(marketing)/blog/kategoria/[slug]/page.tsx`
+- `apps/web/src/app/(public)/oferty/page.tsx`
+- `apps/web/src/app/(public)/oferty/[slug]/page.tsx`
+- `apps/web/src/app/(public)/formularz/oferty/[slug]/page.tsx`
+- `apps/web/src/app/(public)/agenci/[id]/page.tsx`
+- `apps/web/src/app/(public)/dodaj-oferte/page.tsx`
+- `apps/web/src/app/(seller)/seller/page.tsx`
+- `apps/web/src/app/(dashboard)/dashboard/[...slug]/page.tsx`
+
+Kryteria akceptacji:
+
+- [ ] główna nawigacja i stopka pokazują `PodAdresem`,
+- [ ] publiczny katalog i publiczna oferta nie pokazują `EstateFlow`,
+- [ ] metadata stron publicznych używają `PodAdresem`,
+- [ ] blog używa `Blog PodAdresem`,
+- [ ] `rg -n "EstateFlow" apps/web/src` zwraca tylko miejsca świadomie odłożone
+  do kolejnych sprintów.
+
+### Sprint 2 - legal, kontakt i komunikacja systemowa
+
+Cel: treści prawne, e-maile i komunikaty systemowe są spójne z nową nazwą.
+
+Zakres:
+
+- polityka prywatności,
+- regulamin,
+- polityka cookies,
+- zasady publikacji ofert,
+- cookie consent banner,
+- `LEGAL_COPY`,
+- e-maile kontaktowe,
+- mail resetu hasła,
+- fallbacki w raportach właściciela i komunikatach API,
+- CTA mailowe w blogu i cenniku.
+
+Najważniejsze pliki:
+
+- `apps/web/src/lib/legal.ts`
+- `apps/web/src/app/(marketing)/regulamin/page.tsx`
+- `apps/web/src/app/(marketing)/polityka-prywatnosci/page.tsx`
+- `apps/web/src/app/(marketing)/polityka-cookies/page.tsx`
+- `apps/web/src/app/(marketing)/zasady-publikacji/page.tsx`
+- `apps/web/src/components/legal/cookie-consent-manager.tsx`
+- `apps/api/src/auth/auth.service.ts`
+- `apps/api/src/auth/auth.service.spec.ts`
+- `apps/web/src/components/blog/article-cta.tsx`
+- `apps/web/src/components/marketing/home-pricing-section.tsx`
+
+Kryteria akceptacji:
+
+- [ ] strony legalne używają `PodAdresem`,
+- [ ] e-maile kontaktowe wskazują finalną domenę,
+- [ ] mail resetu hasła ma temat i treść z `PodAdresem`,
+- [ ] test resetu hasła przechodzi po aktualizacji oczekiwanego copy,
+- [ ] dokumenty prawne nie mieszają `EstateFlow` i `PodAdresem`.
+
+### Sprint 3 - backend, seed danych i publiczne payloady
+
+Cel: backend generuje nowe widoczne teksty, a dane startowe nie tworzą nowych
+treści ze starą nazwą.
+
+Zakres:
+
+- opisy SEO generowane w API,
+- seed bloga i autor `Redakcja PodAdresem`,
+- fallback `EstateFlow Workspace`,
+- healthcheck API,
+- komunikat raportowy o centralnym blogu,
+- testy backendu z widocznym copy,
+- decyzja, czy przygotować migrację istniejących rekordów bloga.
+
+Najważniejsze pliki:
+
+- `apps/api/src/listings/listings.service.ts`
+- `apps/api/src/public-listing-submissions/public-listing-submissions.service.ts`
+- `apps/api/src/reports/reports.service.ts`
+- `apps/api/src/users/users.service.ts`
+- `apps/api/src/app.service.ts`
+- `apps/api/src/app.controller.spec.ts`
+- `apps/api/migrations/20260604_blog_content_launch_seed.sql`
+- `apps/api/src/public-listing-submissions/public-listing-submissions.service.spec.ts`
+- `apps/api/src/listings/listing-owner-report.spec.ts`
+
+Kryteria akceptacji:
+
+- [ ] nowe SEO descriptions z API używają `PodAdresem`,
+- [ ] nowe instalacje/seed nie tworzą wpisów `Redakcja EstateFlow`,
+- [ ] fallback workspace nie używa starej nazwy,
+- [ ] healthcheck jest zgodny z decyzją produktową,
+- [ ] testy backendu są zaktualizowane.
+
+### Sprint 4 - identyfikatory techniczne i migracje legacy
+
+Cel: świadomie zdecydować, które stare identyfikatory zostają, a które dostają
+migrację bez utraty danych użytkowników.
+
+Zakres decyzyjny:
+
+- `estateflowBrandingEnabled`,
+- `estateflow.csrf-token`,
+- `estateflow-theme`,
+- `estateflow-cookie-consent`,
+- `estateflow.publicListingWizard.v1`,
+- `estateflow.dashboard-onboarding`,
+- `estateflow:listing-description-assistant`,
+- `x-estateflow-billing-signature`,
+- klasy CSS `estateflow-map-*`,
+- nazwy plików QR `estateflow-*.png`,
+- domeny testowe `estateflow.test`,
+- nazwa bazy `real_estate_saas`.
+
+Rekomendowana kolejność:
+
+1. Zostawić `estateflowBrandingEnabled` jako legacy kontrakt API na czas
+   rebrandingu widocznego.
+2. Dla localStorage dodać migrację: jeśli istnieje stary klucz, przepisać wartość
+   pod nowy klucz i nie resetować użytkownikom preferencji.
+3. Dla cookies rozważyć okres przejściowy, w którym backend akceptuje stary i
+   nowy token.
+4. Dla billing webhooka najpierw dodać alias `x-podadresem-billing-signature`,
+   a dopiero później wygasić stary nagłówek.
+5. Klasy CSS i nazwy QR zmienić dopiero po widocznym rebrandingu, bo nie blokują
+   odbioru produktu.
+
+Kryteria akceptacji:
+
+- [ ] istnieje lista legacy identyfikatorów, które zostają celowo,
+- [ ] migracje localStorage/cookies nie resetują preferencji użytkowników,
+- [ ] webhook billingowy ma plan kompatybilności,
+- [ ] ewentualna zmiana `estateflowBrandingEnabled` ma osobną migrację DB i API,
+- [ ] po sprincie nie ma przypadkowych, niewyjaśnionych wystąpień `estateflow`.
+
+### Sprint 5 - dokumentacja, design system i materiały operacyjne
+
+Cel: dokumenty, checklisty i instrukcje dla zespołu opisują już `PodAdresem`.
+
+Zakres:
+
+- dokumentacja produktowa,
+- design system,
+- instrukcje lokalne,
+- launch checklist,
+- dokumenty legal/privacy readiness,
+- przewodnik publikacji bloga,
+- dokumenty historyczne oznaczone jako historyczne albo zostawione bez zmian z
+  jasną decyzją.
+
+Najważniejsze pliki:
+
+- `README.md`
+- `docs/LOCAL_SETUP.md`
+- `docs/PRODUCTION_LAUNCH_CHECKLIST.md`
+- `docs/PROJECT_SPEC.md`
+- `docs/BLOG_POST_PUBLISHING_GUIDE.md`
+- `docs/BLOG_SEO_PLAN.md`
+- `docs/COOKIE_CONSENT_READINESS_PLAN.md`
+- `docs/design/DESIGN_SYSTEM.md`
+- `docs/design/COMPONENT_PATTERNS.md`
+- `docs/design/AI_GUIDE.md`
+- `docs/UX_UI_SYSTEM_ANALYSIS_2026-07-05.md`
+
+Kryteria akceptacji:
+
+- [ ] operacyjne dokumenty używają `PodAdresem`,
+- [ ] design system opisuje nowy brand,
+- [ ] dokumenty historyczne są świadomie zostawione albo oznaczone,
+- [ ] instrukcje lokalne nie sugerują użytkownikowi starej nazwy produktu.
+
+### Sprint 6 - QA, rollout i cleanup po wdrożeniu
+
+Cel: wypuścić zmianę bez regresji i mieć jasny obraz pozostałości starej nazwy.
+
+Zakres:
+
+- pełny skan repo po sprintach,
+- testy jednostkowe i lint,
+- ręczny smoke test stron publicznych,
+- ręczny smoke test auth i dashboardu,
+- sprawdzenie metadanych SEO/Open Graph,
+- sprawdzenie stron legalnych,
+- sprawdzenie maili systemowych,
+- sprawdzenie, czy stare domeny/e-maile mają aliasy albo redirecty,
+- lista świadomych legacy wystąpień.
+
+Komendy kontrolne:
+
+```bash
+rg -n "EstateFlow|estateflow|Real Estate Agent SaaS|real-estate-agent-saas|real_estate_saas" . --glob '!node_modules' --glob '!pnpm-lock.yaml'
+pnpm lint
+pnpm test
+```
+
+Kryteria akceptacji:
+
+- [ ] publiczne strony nie pokazują starej nazwy,
+- [ ] dashboard nie pokazuje starej nazwy,
+- [ ] legal/contact są spójne z finalną domeną,
+- [ ] testy i lint przechodzą,
+- [ ] pozostałe wystąpienia starej nazwy są opisane jako legacy albo historia,
+- [ ] zespół ma decyzję, czy i kiedy usuwać legacy identyfikatory.
+
+## Podział ryzyka
+
+| Ryzyko | Gdzie występuje | Jak ograniczyć |
+| --- | --- | --- |
+| Utrata zgód cookies albo preferencji | localStorage/cookies `estateflow-*` | migracja kluczy zamiast kasowania |
+| Zerwanie API publicznych ofert | `estateflowBrandingEnabled` | zostawić pole legacy na czas przejściowy |
+| Niedziałające webhooki billingowe | `x-estateflow-billing-signature` | dodać alias nowego nagłówka przed wygaszeniem starego |
+| Niespójne legal/contact | `legal.ts`, strony prawne, mailto | najpierw potwierdzić domenę i e-maile |
+| Stare SEO w danych bloga | seed SQL i istniejące rekordy DB | przygotować migrację danych albo ręczne update wpisów |
+| Mieszanie brandów w UI | rozproszone stringi w komponentach | centralny `APP_NAME` i skan `rg` po każdym sprincie |
+
+## Szybka checklista akceptacyjna
+
+- [ ] Logo pokazuje `PodAdresem`.
+- [ ] Title i metadata strony głównej pokazują `PodAdresem`.
+- [ ] Publiczny katalog i publiczna oferta pokazują `PodAdresem`.
+- [ ] `Powered by EstateFlow` zostało zmienione na `Powered by PodAdresem`.
+- [ ] Blog używa `Blog PodAdresem`.
+- [ ] Maile resetu hasła używają `PodAdresem`.
+- [ ] Regulamin, polityka prywatności, cookies i zasady publikacji używają nowej nazwy.
+- [ ] E-maile kontaktowe są zgodne z finalną domeną.
+- [ ] Testy snapshotów/oczekiwań tekstowych zostały zaktualizowane.
+- [ ] Świadomie zdecydowano, czy zostają legacy klucze `estateflow-*`.
+- [ ] Po zmianach `rg` nie znajduje niechcianych widocznych wystąpień `EstateFlow`.
