@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
   fetchTasks,
@@ -103,19 +104,11 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <ClipboardList className="h-5 w-5 text-primary" />
-            <h1 className="font-heading text-2xl font-bold text-foreground">
-              Zadania
-            </h1>
-          </div>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Jedno miejsce dla follow-upów i operacyjnych zadań CRM powiązanych
-            ze spotkaniami, klientami i ofertami.
-          </p>
-        </div>
+      <DashboardPageHeader
+        title="Zadania"
+        description="Jedno miejsce dla follow-upów i operacyjnych zadań CRM powiązanych ze spotkaniami, klientami i ofertami."
+        icon={ClipboardList}
+        actions={
         <Button
           type="button"
           variant="outline"
@@ -127,7 +120,8 @@ export default function TasksPage() {
           <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
           Odśwież
         </Button>
-      </div>
+        }
+      />
 
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div className="flex flex-wrap gap-2">

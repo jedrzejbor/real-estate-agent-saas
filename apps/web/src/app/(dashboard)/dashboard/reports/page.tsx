@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import { ReportsAppointmentsSection } from '@/components/reports/reports-appointments-section';
 import { ReportsBlogSection } from '@/components/reports/reports-blog-section';
 import { ReportsClientsSection } from '@/components/reports/reports-clients-section';
@@ -180,19 +181,12 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="font-heading text-2xl font-bold text-foreground">
-              Raporty
-            </h1>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {reportsDescription}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
+      <DashboardPageHeader
+        title="Raporty"
+        description={reportsDescription}
+        icon={BarChart3}
+        actions={
+        <>
           <Badge variant="secondary" className="rounded-full px-3 py-1">
             {formatReportsDateRange(filters.dateFrom, filters.dateTo)}
           </Badge>
@@ -208,8 +202,9 @@ export default function ReportsPage() {
             />
             Odśwież
           </Button>
-        </div>
-      </div>
+        </>
+        }
+      />
 
       <ReportsFilterBar
         filters={filters}

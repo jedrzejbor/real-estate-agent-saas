@@ -21,6 +21,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ContactAction, RelationCard } from '@/components/common';
+import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import { MessageTemplateDialog } from '@/components/messages/message-template-dialog';
 import { InlineSelect } from '@/components/ui/inline-select';
 import { Input } from '@/components/ui/input';
@@ -111,15 +112,11 @@ export default function PublicInquiriesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">
-            Zapytania publiczne
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Monitoruj leady z publicznych stron ofert i ich powiązanie z CRM.
-          </p>
-        </div>
+      <DashboardPageHeader
+        title="Zapytania publiczne"
+        description="Monitoruj leady z publicznych stron ofert i ich powiązanie z CRM."
+        icon={Inbox}
+        actions={
         <Button
           variant="outline"
           size="lg"
@@ -130,7 +127,8 @@ export default function PublicInquiriesPage() {
           <RefreshCw className="h-4 w-4" />
           Odśwież
         </Button>
-      </div>
+        }
+      />
 
       <PublicInquiryFiltersBar
         filters={filters}

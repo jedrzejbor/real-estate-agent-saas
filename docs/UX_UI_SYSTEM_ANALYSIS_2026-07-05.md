@@ -405,13 +405,13 @@ przejsc do codziennej pracy bez szukania funkcji.
 
 - [x] Mobile drawer i dolna nawigacja.
 - [x] Grupowanie sidebara.
-- [ ] Ujednolicone headery stron.
+- [x] Ujednolicone headery stron.
 - [x] Dashboard `Dzisiaj` jako pierwszy widok.
 - [x] Wyroznienie sekcji z nowymi leadami, zadaniami po terminie i dzisiejszymi
   spotkaniami.
 - [x] Badge/liczniki przy `Zapytania`, `Zadania` i `Kalendarz`, gdy wymagaja
   reakcji.
-- [ ] Krotka wersja menu dla nowych uzytkownikow w pierwszym okresie onboardingu.
+- [x] Krotka wersja menu dla nowych uzytkownikow w pierwszym okresie onboardingu.
 
 Status wdrozenia Sprint 1, iteracja 1 - 2026-07-06:
 
@@ -440,13 +440,49 @@ Status wdrozenia Sprint 1, iteracja 1 - 2026-07-06:
   - nad metrykami dodano trzy priorytety operacyjne:
     `Nowe leady`, `Zadania po terminie`, `Spotkania dzisiaj`.
 
-Zakres celowo odlozony:
+Zakres celowo odlozony po iteracji 1:
 
 - Ujednolicone headery wszystkich stron dashboardu zostaly zostawione na
   kolejna iteracje, poniewaz wymagaja dotkniecia wielu ekranow i warto zrobic
   je jako osobny, konsekwentny wzorzec.
 - Krotka wersja menu dla nowych uzytkownikow wymaga decyzji produktowej, czy
   ma byc oparta o wiek konta, postep onboardingu czy oba sygnaly jednoczesnie.
+  W iteracji 2 przyjeto konserwatywna regule: pierwsze 7 dni od `user.createdAt`,
+  tylko dla zwyklych uzytkownikow, bez ograniczania dostepu do tras.
+
+Status wdrozenia Sprint 1, iteracja 2 - 2026-07-06:
+
+- Dodano wspolny komponent `DashboardPageHeader` dla stron dashboardu:
+  - obsluguje tytul, opis, ikone, badge i akcje,
+  - utrzymuje jeden responsywny uklad headera na desktopie i mobile,
+  - ogranicza kopiowanie klas i ryzyko rozjechania naglowkow w kolejnych
+    ekranach.
+- Podmieniono reczne headery na glownych ekranach dashboardu:
+  - `Dzisiaj`,
+  - `Oferty`,
+  - `Klienci`,
+  - `Zapytania publiczne`,
+  - `Kalendarz`,
+  - `Zadania`,
+  - `Transakcje`,
+  - `Raporty`,
+  - `Moje zgloszenia`,
+  - `Samouczek`,
+  - `Ustawienia`.
+- Dodano krotka wersje menu dla nowych uzytkownikow:
+  - dziala przez pierwsze 7 dni od `user.createdAt`,
+  - dotyczy zwyklych uzytkownikow,
+  - admin zawsze widzi pelne menu,
+  - nowe menu pokazuje tylko sekcje potrzebne do pierwszej pracy:
+    `Praca`, `CRM` i `Start`.
+- Zachowano pelna funkcjonalnosc tras: zmiana dotyczy tylko ekspozycji w
+  sidebarze, nie blokuje dostepu do ekranow.
+
+Zakres po iteracji 2:
+
+- Sprint 1 jest domkniety funkcjonalnie w zakresie zaplanowanym w tej analizie.
+- W kolejnej iteracji warto przejsc do Sprintu 2: operacyjna ergonomia CRM,
+  czyli widoki listowe, szybkie filtry i standard detail page.
 
 Pokrywa obserwacje:
 

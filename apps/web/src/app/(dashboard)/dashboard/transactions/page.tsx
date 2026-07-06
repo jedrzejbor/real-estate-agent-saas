@@ -8,10 +8,12 @@ import {
   CalendarClock,
   CheckCircle2,
   Circle,
+  Handshake,
   Plus,
   RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { fetchClients, type Client } from '@/lib/clients';
 import {
@@ -235,15 +237,11 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">
-            Transakcje
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Pipeline zamknięć, terminów, checklist i prowizji
-          </p>
-        </div>
+      <DashboardPageHeader
+        title="Transakcje"
+        description="Pipeline zamknięć, terminów, checklist i prowizji"
+        icon={Handshake}
+        actions={
         <Button
           type="button"
           variant="outline"
@@ -254,7 +252,8 @@ export default function TransactionsPage() {
           <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
           Odśwież
         </Button>
-      </div>
+        }
+      />
 
       {error ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">

@@ -30,6 +30,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip } from '@/components/ui/tooltip';
+import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { OnboardingChecklist } from '@/components/dashboard/onboarding-checklist';
 import { PlanUsageCard } from '@/components/dashboard/plan-usage-card';
@@ -101,16 +102,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">
-            {greeting}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Zacznij od spraw, które wymagają reakcji dzisiaj.
-          </p>
-        </div>
+      <DashboardPageHeader
+        title={greeting}
+        description="Zacznij od spraw, które wymagają reakcji dzisiaj."
+        icon={LayoutDashboard}
+        actions={
         <Button
           variant="outline"
           size="sm"
@@ -131,7 +127,8 @@ export default function DashboardPage() {
           />
           Odśwież
         </Button>
-      </div>
+        }
+      />
 
       {/* Loading */}
       {isLoading && !stats && (

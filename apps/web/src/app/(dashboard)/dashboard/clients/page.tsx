@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Plus, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { ClientCard } from '@/components/clients/client-card';
 import { ClientCsvImport } from '@/components/clients/client-csv-import';
@@ -28,23 +29,19 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">
-            Klienci
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Zarządzaj swoimi klientami i ich preferencjami
-          </p>
-        </div>
+      <DashboardPageHeader
+        title="Klienci"
+        description="Zarządzaj swoimi klientami i ich preferencjami"
+        icon={Users}
+        actions={
         <Link href="/dashboard/clients/new">
           <Button size="lg" className="w-full gap-2 rounded-xl sm:w-auto">
             <Plus className="h-4 w-4" />
             Dodaj klienta
           </Button>
         </Link>
-      </div>
+        }
+      />
 
       {user ? (
         <PlanLimitStatusBanner

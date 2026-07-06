@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Inbox, MessageSquareReply, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import { InlineSelect } from '@/components/ui/inline-select';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
@@ -146,21 +147,12 @@ export default function MyProductFeedbackPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-heading text-2xl font-bold text-foreground">
-              Moje zgłoszenia
-            </h1>
-            <Badge variant="outline" className="rounded-full">
-              {total} zgłoszeń
-            </Badge>
-          </div>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Śledź status feedbacku wysłanego z dashboardu i odpowiedzi zespołu.
-          </p>
-        </div>
-
+      <DashboardPageHeader
+        title="Moje zgłoszenia"
+        description="Śledź status feedbacku wysłanego z dashboardu i odpowiedzi zespołu."
+        icon={MessageSquareReply}
+        badge={{ label: `${total} zgłoszeń` }}
+        actions={
         <Button
           variant="outline"
           className="gap-2 rounded-xl"
@@ -174,7 +166,8 @@ export default function MyProductFeedbackPage() {
           <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
           Odśwież
         </Button>
-      </div>
+        }
+      />
 
       <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
         <InlineSelect

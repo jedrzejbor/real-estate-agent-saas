@@ -11,11 +11,13 @@ import {
   EyeOff,
   LockKeyhole,
   RotateCcw,
+  Settings,
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import { PlanUsageCard } from '@/components/dashboard/plan-usage-card';
 import { GrowthUpsellCard } from '@/components/growth/growth-upsell-card';
 import {
@@ -123,17 +125,11 @@ export default function AccountSettingsPage() {
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h1 className="font-heading text-2xl font-bold text-foreground">
-              Ustawienia
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Zarządzaj profilem agenta, bezpieczeństwem konta, planem i
-              dostępem do aplikacji.
-            </p>
-          </div>
-
+        <DashboardPageHeader
+          title="Ustawienia"
+          description="Zarządzaj profilem agenta, bezpieczeństwem konta, planem i dostępem do aplikacji."
+          icon={Settings}
+          actions={
           <Link
             href="/dashboard"
             className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
@@ -141,7 +137,8 @@ export default function AccountSettingsPage() {
             Wróć do dashboardu
             <ArrowRight className="h-4 w-4" />
           </Link>
-        </div>
+          }
+        />
       </section>
 
       <AccountProfileSection />

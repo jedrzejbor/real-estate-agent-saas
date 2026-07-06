@@ -12,6 +12,7 @@ import {
   LayoutGrid,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { PlanLimitStatusBanner } from '@/components/growth/plan-limit-status-banner';
 import { useAuth } from '@/contexts/auth-context';
@@ -122,23 +123,19 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">
-            Kalendarz
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Zarządzaj swoimi spotkaniami i prezentacjami
-          </p>
-        </div>
+      <DashboardPageHeader
+        title="Kalendarz"
+        description="Zarządzaj swoimi spotkaniami i prezentacjami"
+        icon={CalendarDays}
+        actions={
         <Link href="/dashboard/calendar/new">
           <Button size="lg" className="gap-2 rounded-xl">
             <Plus className="h-4 w-4" />
             Nowe spotkanie
           </Button>
         </Link>
-      </div>
+        }
+      />
 
       {user ? (
         <PlanLimitStatusBanner

@@ -12,13 +12,13 @@ import {
   ClipboardList,
   Gauge,
   HelpCircle,
-  MessageSquareText,
   Search,
   Settings,
   Users,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import { cn } from '@/lib/utils';
 
 type TutorialSectionId =
@@ -271,25 +271,18 @@ export default function DashboardTutorialPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-heading text-2xl font-bold text-foreground">
-              Samouczek
-            </h1>
-            <Badge variant="brand">Przewodnik systemu</Badge>
-          </div>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Krótki przewodnik po EstateFlow: co gdzie jest, jak zacząć pracę i
-            do których ekranów przejść, gdy chcesz wykonać konkretną akcję.
-          </p>
-        </div>
-
+      <DashboardPageHeader
+        title="Samouczek"
+        description="Krótki przewodnik po EstateFlow: co gdzie jest, jak zacząć pracę i do których ekranów przejść, gdy chcesz wykonać konkretną akcję."
+        icon={BookOpenCheck}
+        badge={{ label: 'Przewodnik systemu', variant: 'brand' }}
+        actions={
         <Button className="w-fit rounded-xl" render={<Link href="/dashboard" />}>
           Wróć do dashboardu
           <ArrowRight className="h-4 w-4" />
         </Button>
-      </header>
+        }
+      />
 
       <section className="grid gap-4 lg:grid-cols-4">
         {quickLinks.map((item) => {

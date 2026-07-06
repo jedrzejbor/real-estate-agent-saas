@@ -112,6 +112,50 @@ const navGroups: DashboardNavGroup[] = [
   },
 ];
 
+const onboardingNavGroups: DashboardNavGroup[] = [
+  {
+    label: 'Praca',
+    items: [
+      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, exact: true },
+      {
+        label: 'Zapytania',
+        href: '/dashboard/inquiries',
+        icon: MessageSquareText,
+        countKey: 'inquiries',
+      },
+      {
+        label: 'Zadania',
+        href: '/dashboard/tasks',
+        icon: ClipboardList,
+        countKey: 'tasks',
+      },
+      {
+        label: 'Kalendarz',
+        href: '/dashboard/calendar',
+        icon: CalendarCheck,
+        countKey: 'calendar',
+      },
+    ],
+  },
+  {
+    label: 'CRM',
+    items: [
+      { label: 'Oferty', href: '/dashboard/listings', icon: Building2 },
+      { label: 'Klienci', href: '/dashboard/clients', icon: Users },
+    ],
+  },
+  {
+    label: 'Start',
+    items: [
+      {
+        label: 'Samouczek',
+        href: '/dashboard/tutorial',
+        icon: BookOpenCheck,
+      },
+    ],
+  },
+];
+
 const adminGroup: DashboardNavGroup = {
   label: 'Admin',
   items: [
@@ -180,9 +224,16 @@ export function DashboardSidebar({
 }) {
   const pathname = usePathname();
   const { logout, user } = useAuth();
+  const isInitialOnboarding = useInitialOnboardingPeriod(user?.createdAt);
   const visibleGroups = useMemo(
-    () => (user?.role === 'admin' ? [...navGroups, adminGroup] : navGroups),
-    [user?.role],
+    () => {
+      if (user?.role === 'admin') {
+        return [...navGroups, adminGroup];
+      }
+
+      return isInitialOnboarding ? onboardingNavGroups : navGroups;
+    },
+    [isInitialOnboarding, user?.role],
   );
 
   useEffect(() => {
@@ -399,4 +450,39 @@ function isNavItemActive(pathname: string, item: DashboardNavItem): boolean {
 
 function formatNavCount(value: number): string {
   return value > 9 ? '9+' : String(value);
+}
+
+function useInitialOnboardingPeriod(createdAt?: string): boolean {
+  const [isInitialOnboarding, setIsInitialOnboarding] = useState(false);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setIsInitialOnboarding(
+        isInInitialOnboardingPeriod(createdAt, Date.now()),
+      );
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [createdAt]);
+
+  return isInitialOnboarding;
+}
+
+function isInInitialOnboardingPeriod(
+  createdAt: string | undefined,
+  nowMs: number,
+): boolean {
+  if (!createdAt) {
+    return false;
+  }
+
+  const createdAtMs = new Date(createdAt).getTime();
+
+  if (!Number.isFinite(createdAtMs)) {
+    return false;
+  }
+
+  const onboardingPeriodMs = 7 * 24 * 60 * 60 * 1000;
+
+  return nowMs - createdAtMs < onboardingPeriodMs;
 }

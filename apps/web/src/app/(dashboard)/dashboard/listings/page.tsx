@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Building2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { PlanLimitStatusBanner } from '@/components/growth/plan-limit-status-banner';
 import { ListingCard } from '@/components/listings/listing-card';
@@ -32,23 +33,19 @@ export default function ListingsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">
-            Oferty
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Zarządzaj swoimi ofertami nieruchomości
-          </p>
-        </div>
+      <DashboardPageHeader
+        title="Oferty"
+        description="Zarządzaj swoimi ofertami nieruchomości"
+        icon={Building2}
+        actions={
         <Link href="/dashboard/listings/new">
           <Button size="lg" className="gap-2 rounded-xl">
             <Plus className="h-4 w-4" />
             Dodaj ofertę
           </Button>
         </Link>
-      </div>
+        }
+      />
 
       {user ? (
         <PlanLimitStatusBanner
