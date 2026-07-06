@@ -13,6 +13,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PublicListingSubmissionProcess } from '@/components/listings/public-listing-submission-process';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { isPrivateSellerUser, PRIVATE_SELLER_HOME_PATH } from '@/lib/auth';
@@ -135,6 +136,8 @@ function VerificationShell({ state }: { state: VerificationState }) {
           <ArrowRight className="h-4 w-4" />
         </Link>
 
+        <PublicListingSubmissionProcess currentStage="review" />
+
         <section className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
           {state.status === 'idle' ||
           state.status === 'loading' ||
@@ -195,6 +198,16 @@ function VerificationShell({ state }: { state: VerificationState }) {
                   ? 'Zgłoszenie jest przypisane do Twojego konta. W panelu właściciela zobaczysz jego aktualny status i kolejne kroki publikacji.'
                   : 'Załóż konto albo zaloguj się, a przypniemy ofertę do Twojego workspace i otworzymy ją w panelu CRM. Jeśli oferta przejdzie automatyczną kontrolę, po przejęciu będzie mogła pojawić się w publicznym katalogu; w przeciwnym razie poczeka na sprawdzenie przed publikacją.'}
               </p>
+              <div className="mt-5 max-w-xl rounded-2xl border border-border bg-muted/30 px-4 py-3 text-left">
+                <p className="text-sm font-semibold text-foreground">
+                  Następny krok
+                </p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Oferta przechodzi weryfikację jakości i bezpieczeństwa. Po
+                  akceptacji może pojawić się w publicznym katalogu; jeżeli
+                  będzie wymagała uzupełnienia, status zobaczysz w panelu.
+                </p>
+              </div>
               {isPrivateSeller ? (
                 <div className="mt-6 grid gap-3 sm:grid-cols-3">
                   <Link href="/seller">

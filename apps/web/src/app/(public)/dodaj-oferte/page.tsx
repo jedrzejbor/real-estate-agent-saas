@@ -22,6 +22,7 @@ import { BulkSelectionToolbar } from '@/components/common/bulk-selection-toolbar
 import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { DistrictAutocomplete } from '@/components/locations/district-autocomplete';
 import { Input } from '@/components/ui/input';
+import { PublicListingSubmissionProcess } from '@/components/listings/public-listing-submission-process';
 import { useToast } from '@/contexts/toast-context';
 import { useAuth } from '@/contexts/auth-context';
 import { useBulkSelection } from '@/hooks/use-bulk-selection';
@@ -133,13 +134,6 @@ const STEPS = [
   'Zdjęcia',
   'Kontakt',
   'Podsumowanie',
-] as const;
-
-const SUBMISSION_PROCESS = [
-  'Uzupełnij dane',
-  'Potwierdź email',
-  'Poczekaj na weryfikację',
-  'Pokaż ofertę w katalogu',
 ] as const;
 
 export default function PublicListingSubmissionWizardPage() {
@@ -375,6 +369,11 @@ export default function PublicListingSubmissionWizardPage() {
           EstateFlow
         </Link>
 
+        <PublicListingSubmissionProcess
+          currentStage="form"
+          className="sticky top-3 z-20"
+        />
+
         <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <div className="border-b border-border px-5 py-5 sm:px-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -392,22 +391,6 @@ export default function PublicListingSubmissionWizardPage() {
               <div className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
                 Krok {step + 1} z {STEPS.length}
               </div>
-            </div>
-
-            <div className="mt-5 grid gap-2 sm:grid-cols-4">
-              {SUBMISSION_PROCESS.map((label, index) => (
-                <div
-                  key={label}
-                  className="rounded-xl border border-border bg-muted/20 px-3 py-2"
-                >
-                  <p className="text-xs font-semibold text-primary">
-                    {index + 1}
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-foreground">
-                    {label}
-                  </p>
-                </div>
-              ))}
             </div>
 
             <div className="mt-5 grid gap-2 sm:grid-cols-5">
@@ -998,6 +981,16 @@ function StepSummary({ draft }: { draft: PublicListingWizardDraft }) {
         title="Podsumowanie"
         description="Sprawdź dane przed wysłaniem. Po potwierdzeniu emaila oferta trafi do weryfikacji."
       />
+      <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+        <p className="text-sm font-semibold text-foreground">
+          Po wysłaniu oferty do weryfikacji
+        </p>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          Wyślemy link na podany email. Oferta nie pojawi się publicznie, dopóki
+          email nie zostanie potwierdzony, a zgłoszenie nie przejdzie
+          weryfikacji jakości i bezpieczeństwa.
+        </p>
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
         <SummaryCard
           title="Oferta"

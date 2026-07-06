@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, MailCheck, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PublicListingSubmissionProcess } from '@/components/listings/public-listing-submission-process';
 
 interface CheckEmailPageProps {
   searchParams: Promise<{
@@ -28,6 +29,8 @@ export default async function PublicListingSubmissionCheckEmailPage({
           <ArrowRight className="h-4 w-4" />
         </Link>
 
+        <PublicListingSubmissionProcess currentStage="email" />
+
         <section className="rounded-2xl border border-border bg-card p-6 text-center shadow-sm sm:p-8">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
             <MailCheck className="h-7 w-7" />
@@ -52,6 +55,16 @@ export default async function PublicListingSubmissionCheckEmailPage({
               {isPrivateSeller
                 ? 'Gdy potwierdzisz adres email, pokażemy zgłoszenie w panelu właściciela ze statusem weryfikacji. Stamtąd możesz wrócić do ogłoszenia i śledzić jego publikację.'
                 : 'Gdy potwierdzisz adres email, oferta będzie gotowa do przejęcia. Jeżeli przejdzie automatyczną kontrolę treści, po przejęciu może pojawić się publicznie w katalogu; w przeciwnym razie zostanie sprawdzona przed publikacją.'}
+            </p>
+          </div>
+          <div className="mx-auto mt-3 max-w-xl rounded-2xl border border-border bg-muted/30 px-4 py-3 text-left">
+            <p className="text-sm font-semibold text-foreground">
+              Co dzieje się teraz?
+            </p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              Link potwierdzający chroni właściciela i ogranicza fałszywe
+              zgłoszenia. Bez potwierdzenia emaila oferta nie zostanie
+              opublikowana.
             </p>
           </div>
           <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">

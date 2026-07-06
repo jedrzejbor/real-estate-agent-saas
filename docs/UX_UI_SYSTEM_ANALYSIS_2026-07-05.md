@@ -694,9 +694,9 @@ i mniej stresujace dla osoby, ktora nie zna systemu.
 - [x] Tryb `Szybka oferta`.
 - [x] Lepsza walidacja inline.
 - [ ] Publiczny katalog mobile-first.
-- [ ] Wizard sprzedajacego z mocniejszym poczuciem procesu.
+- [x] Wizard sprzedajacego z mocniejszym poczuciem procesu.
 - [x] Pasek jakosci oferty z konkretnymi brakami do uzupelnienia.
-- [ ] Stale widoczny postep w publicznym wizardzie:
+- [x] Stale widoczny postep w publicznym wizardzie:
   - dane,
   - email,
   - weryfikacja,
@@ -705,7 +705,7 @@ i mniej stresujace dla osoby, ktora nie zna systemu.
   - `Filtry`,
   - `Mapa`,
   - `Wyniki`.
-- [ ] Jasne komunikaty, co stanie sie po wyslaniu publicznego formularza.
+- [x] Jasne komunikaty, co stanie sie po wyslaniu publicznego formularza.
 - [ ] Sygnaly zaufania przy publicznych ofertach:
   - typ kontaktu,
   - ostatnia aktualizacja,
@@ -741,6 +741,32 @@ Zakres po iteracji 1:
   - staly pasek procesu w publicznym wizardzie,
   - jasniejsze komunikaty po wyslaniu formularza,
   - sticky sterowanie katalogiem publicznym na mobile.
+
+Status wdrozenia Sprint 3, iteracja 2 - 2026-07-06:
+
+- Dodano wspolny komponent `PublicListingSubmissionProcess`:
+  - opisuje proces publicznego dodawania oferty jako `Dane`, `Email`,
+    `Weryfikacja`, `Publikacja`,
+  - rozroznia etap ukonczony, aktualny i oczekujacy,
+  - moze byc uzywany w komponentach client i server.
+- Podpieto stale widoczny proces w publicznym wizardzie `/dodaj-oferte`:
+  - pasek pozostaje widoczny podczas przechodzenia przez formularz,
+  - dotychczasowy lokalny pasek krokow formularza pozostal jako nawigacja po
+    polach.
+- Doprecyzowano komunikaty po wyslaniu i potwierdzeniu:
+  - ekran podsumowania wyjasnia, ze oferta nie pojawi sie publicznie przed
+    potwierdzeniem emaila i weryfikacja,
+  - ekran `sprawdz-email` wyjasnia powod potwierdzenia emaila,
+  - ekran `potwierdzono` pokazuje kolejny krok po kliknieciu linku.
+
+Zakres po iteracji 2:
+
+- Sprint 3 pokrywa juz dashboardowy formularz oferty oraz glowny proces
+  publicznego dodawania oferty.
+- Kolejna iteracja powinna skupic sie na publicznym katalogu mobile-first:
+  - sticky sterowanie `Filtry / Mapa / Wyniki`,
+  - sygnaly zaufania przy publicznych ofertach,
+  - dopracowanie czytelnosci listy i mapy na telefonie.
 
 ### Sprint 4: Polish i decyzje
 
