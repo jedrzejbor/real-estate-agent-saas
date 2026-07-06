@@ -801,8 +801,8 @@ Zakres po iteracji 3:
 Cel: interfejs ma byc mniej ciezki wizualnie, bardziej decyzyjny i dawac lepszy
 feedback po kazdej waznej akcji.
 
-- [ ] Redukcja nadmiaru kart.
-- [ ] Uspojnienie radiusow i gestosci.
+- [x] Redukcja nadmiaru kart.
+- [x] Uspojnienie radiusow i gestosci.
 - [x] Raporty z interpretacjami.
 - [x] Mikrointerakcje i lepsze next actions po kazdej waznej akcji.
 - [x] Standard potwierdzen po akcjach:
@@ -816,7 +816,7 @@ feedback po kazdej waznej akcji.
   - najlepsze zrodlo leadow,
   - oferta wymagajaca uwagi,
   - najwieksza szansa prowizyjna.
-- [ ] Ograniczenie `card-heavy UI` w ekranach operacyjnych:
+- [x] Ograniczenie `card-heavy UI` w ekranach operacyjnych:
   - mniej zagniezdzonych kart,
   - mniejsze promienie w listach,
   - wiecej separatorow i ukladow tabelarycznych.
@@ -896,6 +896,28 @@ Zakres po iteracji 3:
   - mniejsze promienie i gestosc w listach operacyjnych,
   - mniej zagniezdzonych kart,
   - bardziej tabelaryczne uklady tam, gdzie uzytkownik porownuje dane.
+
+Status wdrozenia Sprint 4, iteracja 4 - 2026-07-07:
+
+- Ograniczono `card-heavy UI` na glownych ekranach operacyjnych:
+  - lista ofert domyslnie otwiera sie w widoku tabelarycznym,
+  - lista klientow domyslnie otwiera sie w widoku tabelarycznym,
+  - widok kart nadal jest dostepny przez przelacznik.
+- Odchudzono toolbar szybkich filtrow:
+  - usunieto dodatkowa karte/wrapper z tla `card`,
+  - zastosowano separatory `border-y`,
+  - zmniejszono promien i wysokosc przyciskow szybkich filtrow.
+- Zageszczono widoki tabelaryczne ofert i klientow:
+  - zmniejszono padding komorek,
+  - zmniejszono promien kontenera tabeli,
+  - zachowano istniejace kolumny, akcje i paginacje.
+
+Zakres po iteracji 4:
+
+- Sprint 4 ma pokryte: mikrofeedback, standard potwierdzen, raporty z
+  interpretacjami oraz pierwszy etap redukcji `card-heavy UI`.
+- Kolejne poprawki w Sprint 4 powinny byc traktowane jako polish gestosci w
+  wybranych ekranach szczegolow albo raportow, jezeli bedzie taka potrzeba.
 
 ### Sprint 5: Defensywny admin UX
 

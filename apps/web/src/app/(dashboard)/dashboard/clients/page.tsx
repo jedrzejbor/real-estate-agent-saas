@@ -81,7 +81,7 @@ const CLIENT_QUICK_FILTERS: Array<{
 
 export default function ClientsPage() {
   const { user } = useAuth();
-  const [viewMode, setViewMode] = useState<DashboardViewMode>('cards');
+  const [viewMode, setViewMode] = useState<DashboardViewMode>('list');
   const {
     clients,
     meta,
@@ -252,7 +252,7 @@ function ClientOperationsToolbar({
   onApplyQuickFilter: (filters: Partial<ClientFilters>) => void;
 }) {
   return (
-    <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+    <section className="flex flex-col gap-3 border-y border-border bg-background py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap gap-2">
         {CLIENT_QUICK_FILTERS.map((item) => {
           const isActive = Object.entries(item.filters).every(
@@ -265,7 +265,7 @@ function ClientOperationsToolbar({
               type="button"
               aria-pressed={isActive}
               onClick={() => onApplyQuickFilter(item.filters)}
-              className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+              className={`rounded-md border px-3 py-1.5 text-left transition-colors ${
                 isActive
                   ? 'border-primary bg-primary/10 text-primary'
                   : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -284,17 +284,19 @@ function ClientOperationsToolbar({
 
 function ClientTable({ clients }: { clients: Client[] }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
+    <div className="overflow-hidden rounded-md border border-border bg-card">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[920px] text-sm">
           <thead className="border-b border-border bg-muted/30 text-xs uppercase text-muted-foreground">
             <tr>
-              <th className="px-4 py-3 text-left font-semibold">Klient</th>
-              <th className="px-4 py-3 text-left font-semibold">Kontakt</th>
-              <th className="px-4 py-3 text-left font-semibold">Status</th>
-              <th className="px-4 py-3 text-left font-semibold">Źródło</th>
-              <th className="px-4 py-3 text-left font-semibold">Preferencje</th>
-              <th className="px-4 py-3 text-right font-semibold">Akcja</th>
+              <th className="px-3 py-2.5 text-left font-semibold">Klient</th>
+              <th className="px-3 py-2.5 text-left font-semibold">Kontakt</th>
+              <th className="px-3 py-2.5 text-left font-semibold">Status</th>
+              <th className="px-3 py-2.5 text-left font-semibold">Źródło</th>
+              <th className="px-3 py-2.5 text-left font-semibold">
+                Preferencje
+              </th>
+              <th className="px-3 py-2.5 text-right font-semibold">Akcja</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -316,7 +318,7 @@ function ClientTable({ clients }: { clients: Client[] }) {
 
               return (
                 <tr key={client.id} className="hover:bg-muted/20">
-                  <td className="max-w-[260px] px-4 py-3">
+                  <td className="max-w-[260px] px-3 py-2.5">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                         {clientInitials(client)}
@@ -335,7 +337,7 @@ function ClientTable({ clients }: { clients: Client[] }) {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  <td className="px-3 py-2.5 text-muted-foreground">
                     <div className="space-y-1">
                       {client.email ? (
                         <span className="flex items-center gap-1.5">
@@ -352,15 +354,15 @@ function ClientTable({ clients }: { clients: Client[] }) {
                       {!client.email && !client.phone ? 'Brak kontaktu' : null}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5">
                     <ClientStatusBadge status={client.status} />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5">
                     <Badge variant={SOURCE_BADGE_VARIANT[client.source]}>
                       {CLIENT_SOURCE_LABELS[client.source]}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5">
                     <p className="font-medium text-foreground">
                       {formatBudgetRange(client.budgetMin, client.budgetMax)}
                     </p>
@@ -368,7 +370,7 @@ function ClientTable({ clients }: { clients: Client[] }) {
                       {preferenceSummary || 'Brak preferencji'}
                     </p>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-3 py-2.5 text-right">
                     <Button
                       variant="outline"
                       size="sm"
