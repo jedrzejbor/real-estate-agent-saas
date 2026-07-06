@@ -10,12 +10,12 @@ import {
   type ActiveFilterChip,
 } from '@/components/dashboard/active-filter-chips';
 import { DashboardErrorState } from '@/components/dashboard/error-state';
+import { DashboardFilteredEmptyState } from '@/components/dashboard/filtered-empty-state';
 import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import {
   DashboardViewModeToggle,
   type DashboardViewMode,
 } from '@/components/dashboard/view-mode-toggle';
-import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { PlanLimitStatusBanner } from '@/components/growth/plan-limit-status-banner';
 import { ListingCard } from '@/components/listings/listing-card';
 import { ListingFiltersBar } from '@/components/listings/listing-filters';
@@ -96,6 +96,7 @@ export default function ListingsPage() {
     user !== null &&
     activeListingsLimit !== null &&
     user.usage.activeListings > activeListingsLimit;
+  const activeFilterChips = getActiveListingFilterChips(filters, updateFilter);
 
   return (
     <div className="space-y-6">
@@ -133,7 +134,7 @@ export default function ListingsPage() {
       />
 
       <ActiveFilterChips
-        filters={getActiveListingFilterChips(filters, updateFilter)}
+        filters={activeFilterChips}
         onClearAll={() => setFilters(LISTING_DEFAULT_FILTERS)}
       />
 
@@ -162,18 +163,8 @@ export default function ListingsPage() {
         />
       ) : listings.length === 0 ? (
         <EmptyState
-          hasFilters={
-            !!filters.search ||
-            !!filters.propertyType ||
-            !!filters.status ||
-            !!filters.transactionType ||
-            !!filters.city ||
-            !!filters.priceMin ||
-            !!filters.priceMax ||
-            !!filters.areaMin ||
-            !!filters.areaMax ||
-            !!filters.roomsMin
-          }
+          filters={activeFilterChips}
+          onClearFilters={() => setFilters(LISTING_DEFAULT_FILTERS)}
         />
       ) : viewMode === 'list' ? (
         <>
@@ -446,24 +437,21 @@ function ListingTable({ listings }: { listings: Listing[] }) {
   );
 }
 
-function EmptyState({ hasFilters }: { hasFilters: boolean }) {
-  if (hasFilters) {
-    return (
-      <OnboardingEmptyState
-        icon={Building2}
-        title="Brak wyników"
-        description="Zmień filtry albo wyczyść wyszukiwanie."
-        compact
-        analyticsId="listings_filtered_empty"
-      />
-    );
-  }
-
+function EmptyState({
+  filters,
+  onClearFilters,
+}: {
+  filters: ActiveFilterChip[];
+  onClearFilters: () => void;
+}) {
   return (
-    <OnboardingEmptyState
+    <DashboardFilteredEmptyState
       icon={Building2}
       title="Dodaj pierwszą ofertę"
       description="Po zapisie zobaczysz statusy, publikację i raporty."
+      filteredDescription="Nie znaleziono ofert dla aktywnych filtrów. Usuń wybrane filtry albo wyczyść je wszystkie."
+      filters={filters}
+      onClearFilters={onClearFilters}
       actionHref="/dashboard/listings/new"
       actionLabel="Dodaj ofertę"
       secondaryHref="/dashboard"

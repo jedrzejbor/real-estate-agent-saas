@@ -10,12 +10,12 @@ import {
   type ActiveFilterChip,
 } from '@/components/dashboard/active-filter-chips';
 import { DashboardErrorState } from '@/components/dashboard/error-state';
+import { DashboardFilteredEmptyState } from '@/components/dashboard/filtered-empty-state';
 import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import {
   DashboardViewModeToggle,
   type DashboardViewMode,
 } from '@/components/dashboard/view-mode-toggle';
-import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { ClientCard } from '@/components/clients/client-card';
 import { ClientCsvImport } from '@/components/clients/client-csv-import';
 import { ClientFiltersBar } from '@/components/clients/client-filters';
@@ -93,6 +93,7 @@ export default function ClientsPage() {
     setPage,
     refresh,
   } = useClients();
+  const activeFilterChips = getActiveClientFilterChips(filters, updateFilter);
 
   return (
     <div className="space-y-6">
@@ -128,7 +129,7 @@ export default function ClientsPage() {
       />
 
       <ActiveFilterChips
-        filters={getActiveClientFilterChips(filters, updateFilter)}
+        filters={activeFilterChips}
         onClearAll={() => setFilters(CLIENT_DEFAULT_FILTERS)}
       />
 
@@ -157,13 +158,8 @@ export default function ClientsPage() {
         />
       ) : clients.length === 0 ? (
         <EmptyState
-          hasFilters={
-            !!filters.search ||
-            !!filters.source ||
-            !!filters.status ||
-            !!filters.budgetMin ||
-            !!filters.budgetMax
-          }
+          filters={activeFilterChips}
+          onClearFilters={() => setFilters(CLIENT_DEFAULT_FILTERS)}
         />
       ) : viewMode === 'list' ? (
         <>
@@ -393,24 +389,21 @@ function ClientTable({ clients }: { clients: Client[] }) {
   );
 }
 
-function EmptyState({ hasFilters }: { hasFilters: boolean }) {
-  if (hasFilters) {
-    return (
-      <OnboardingEmptyState
-        icon={Users}
-        title="Brak wyników"
-        description="Zmień filtry albo wyczyść wyszukiwanie."
-        compact
-        analyticsId="clients_filtered_empty"
-      />
-    );
-  }
-
+function EmptyState({
+  filters,
+  onClearFilters,
+}: {
+  filters: ActiveFilterChip[];
+  onClearFilters: () => void;
+}) {
   return (
-    <OnboardingEmptyState
+    <DashboardFilteredEmptyState
       icon={Users}
       title="Dodaj pierwszego klienta"
       description="Dodaj kontakt ręcznie albo zaimportuj CSV."
+      filteredDescription="Nie znaleziono klientów dla aktywnych filtrów. Usuń wybrane filtry albo wyczyść je wszystkie."
+      filters={filters}
+      onClearFilters={onClearFilters}
       actionHref="/dashboard/clients/new"
       actionLabel="Dodaj klienta"
       analyticsId="clients_empty"
@@ -418,6 +411,6 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
       <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
         Import CSV jest dostępny nad filtrami.
       </div>
-    </OnboardingEmptyState>
+    </DashboardFilteredEmptyState>
   );
 }

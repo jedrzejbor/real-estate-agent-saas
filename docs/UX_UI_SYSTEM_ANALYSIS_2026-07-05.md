@@ -499,9 +499,9 @@ problem i wykonac nastepna akcje.
 - [x] Szybkie filtry operacyjne.
 - [ ] Standard detail page.
 - [ ] Pasek `Nastepny krok`.
-- [ ] Ujednolicone puste stany dla list, filtrow i powiazanych danych.
+- [x] Ujednolicone puste stany dla list, filtrow i powiazanych danych.
 - [x] Chipsy aktywnych filtrow z mozliwoscia szybkiego usuniecia.
-- [ ] Lepsze stany braku danych:
+- [x] Lepsze stany braku danych:
   - brak ofert -> dodaj oferte,
   - brak klientow -> dodaj/importuj klienta,
   - brak leadow -> opublikuj oferte albo udostepnij profil,
@@ -582,6 +582,30 @@ Zakres celowo odlozony po iteracji 2:
   pages i przypadki braku danych po filtrach.
 - Standard detail page i pasek `Nastepny krok` nadal sa kolejnym wiekszym
   krokiem Sprintu 2.
+
+Status wdrozenia Sprint 2, iteracja 3 - 2026-07-06:
+
+- Dodano wspolny komponent `DashboardFilteredEmptyState`:
+  - rozroznia realny brak danych od braku wynikow po filtrach,
+  - dla filtrow pokazuje aktywne chipsy i akcje czyszczenia,
+  - dla realnego braku danych pokazuje konkretna nastepna akcje.
+- Podmieniono puste stany listy ofert:
+  - brak ofert prowadzi do `Dodaj oferte`,
+  - brak wynikow po filtrach pokazuje aktywne filtry i czyszczenie.
+- Podmieniono puste stany listy klientow:
+  - brak klientow prowadzi do `Dodaj klienta`,
+  - przypomina o imporcie CSV,
+  - brak wynikow po filtrach pokazuje aktywne filtry i czyszczenie.
+- Uspojniono liste zapytan publicznych:
+  - dodano chipsy aktywnych filtrow,
+  - dodano wspolny wzorzec bledu z retry,
+  - brak leadow prowadzi do ofert,
+  - brak wynikow po filtrach pokazuje aktywne filtry i czyszczenie.
+
+Zakres celowo odlozony po iteracji 3:
+
+- Standard detail page i pasek `Nastepny krok` zostaja jako ostatni duzy blok
+  Sprintu 2, poniewaz wymagaja zmian na stronach szczegolow ofert i klientow.
 
 Pokrywa obserwacje:
 

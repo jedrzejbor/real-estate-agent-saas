@@ -21,11 +21,16 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ContactAction, RelationCard } from '@/components/common';
+import {
+  ActiveFilterChips,
+  type ActiveFilterChip,
+} from '@/components/dashboard/active-filter-chips';
+import { DashboardErrorState } from '@/components/dashboard/error-state';
+import { DashboardFilteredEmptyState } from '@/components/dashboard/filtered-empty-state';
 import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import { MessageTemplateDialog } from '@/components/messages/message-template-dialog';
 import { InlineSelect } from '@/components/ui/inline-select';
 import { Input } from '@/components/ui/input';
-import { OnboardingEmptyState } from '@/components/dashboard/onboarding-empty-state';
 import { ClientPagination } from '@/components/clients/client-pagination';
 import { useAuth } from '@/contexts/auth-context';
 import { usePublicInquiries } from '@/hooks/use-public-inquiries';
@@ -102,8 +107,10 @@ export default function PublicInquiriesPage() {
     };
   }, []);
 
-  const hasFilters = Boolean(
-    filters.search || filters.status || filters.source || filters.listingId,
+  const activeFilterChips = getActivePublicInquiryFilterChips(
+    filters,
+    listings,
+    updateFilter,
   );
   const agentMessageContext = useMemo(
     () => buildAgentMessageTemplateContext(user),
@@ -117,16 +124,16 @@ export default function PublicInquiriesPage() {
         description="Monitoruj leady z publicznych stron ofert i ich powiązanie z CRM."
         icon={Inbox}
         actions={
-        <Button
-          variant="outline"
-          size="lg"
-          className="w-full gap-2 rounded-xl sm:w-auto"
-          onClick={refresh}
-          disabled={isLoading}
-        >
-          <RefreshCw className="h-4 w-4" />
-          Odśwież
-        </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full gap-2 rounded-xl sm:w-auto"
+            onClick={refresh}
+            disabled={isLoading}
+          >
+            <RefreshCw className="h-4 w-4" />
+            Odśwież
+          </Button>
         }
       />
 
@@ -137,16 +144,26 @@ export default function PublicInquiriesPage() {
         onReset={() => setFilters(DEFAULT_FILTERS)}
       />
 
+      <ActiveFilterChips
+        filters={activeFilterChips}
+        onClearAll={() => setFilters(DEFAULT_FILTERS)}
+      />
+
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
       ) : error ? (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
+        <DashboardErrorState
+          title="Nie udało się załadować zapytań."
+          description={`Lista zapytań publicznych nie została pobrana. ${error}`}
+          onRetry={refresh}
+        />
       ) : inquiries.length === 0 ? (
-        <EmptyState hasFilters={hasFilters} />
+        <EmptyState
+          filters={activeFilterChips}
+          onClearFilters={() => setFilters(DEFAULT_FILTERS)}
+        />
       ) : (
         <>
           <div className="grid gap-4">
@@ -173,6 +190,57 @@ function parsePublicLeadStatus(
   return Object.values(PublicLeadStatus).includes(value as PublicLeadStatus)
     ? (value as PublicLeadStatus)
     : undefined;
+}
+
+function getActivePublicInquiryFilterChips(
+  filters: PublicInquiryFilters,
+  listings: Listing[],
+  updateFilter: <K extends keyof PublicInquiryFilters>(
+    key: K,
+    value: PublicInquiryFilters[K],
+  ) => void,
+): ActiveFilterChip[] {
+  const chips: ActiveFilterChip[] = [];
+
+  if (filters.search) {
+    chips.push({
+      id: 'search',
+      label: 'Szukaj',
+      value: filters.search,
+      onRemove: () => updateFilter('search', undefined),
+    });
+  }
+
+  if (filters.status) {
+    chips.push({
+      id: 'status',
+      label: 'Status',
+      value: PUBLIC_LEAD_STATUS_LABELS[filters.status],
+      onRemove: () => updateFilter('status', undefined),
+    });
+  }
+
+  if (filters.source) {
+    chips.push({
+      id: 'source',
+      label: 'Źródło',
+      value: PUBLIC_LEAD_SOURCE_LABELS[filters.source],
+      onRemove: () => updateFilter('source', undefined),
+    });
+  }
+
+  if (filters.listingId) {
+    const listing = listings.find((item) => item.id === filters.listingId);
+
+    chips.push({
+      id: 'listingId',
+      label: 'Oferta',
+      value: listing?.publicTitle || listing?.title || filters.listingId,
+      onRemove: () => updateFilter('listingId', undefined),
+    });
+  }
+
+  return chips;
 }
 
 function PublicInquiryFiltersBar({
@@ -483,24 +551,22 @@ function truncateNote(value: string, maxLength: number): string {
   return `${value.slice(0, maxLength - 1).trim()}…`;
 }
 
-function EmptyState({ hasFilters }: { hasFilters: boolean }) {
-  if (hasFilters) {
-    return (
-      <OnboardingEmptyState
-        icon={Search}
-        title="Brak zapytań dla filtrów"
-        description="Zmień filtry albo wyczyść wyszukiwanie."
-        compact
-        analyticsId="public_inquiries_filtered_empty"
-      />
-    );
-  }
-
+function EmptyState({
+  filters,
+  onClearFilters,
+}: {
+  filters: ActiveFilterChip[];
+  onClearFilters: () => void;
+}) {
   return (
-    <OnboardingEmptyState
+    <DashboardFilteredEmptyState
       icon={Inbox}
       title="Brak publicznych zapytań"
       description="Nowe formularze z opublikowanych ofert pojawią się tutaj."
+      filteredTitle="Brak zapytań dla filtrów"
+      filteredDescription="Nie znaleziono zapytań publicznych dla aktywnych filtrów. Usuń wybrane filtry albo wyczyść je wszystkie."
+      filters={filters}
+      onClearFilters={onClearFilters}
       actionHref="/dashboard/listings"
       actionLabel="Przejdź do ofert"
       analyticsId="public_inquiries_empty"
@@ -509,6 +575,6 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
         <MessageSquareText className="h-4 w-4 shrink-0" />
         Zapytania powstają automatycznie po wysłaniu formularza.
       </div>
-    </OnboardingEmptyState>
+    </DashboardFilteredEmptyState>
   );
 }
