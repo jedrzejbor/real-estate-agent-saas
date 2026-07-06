@@ -7,6 +7,7 @@ import {
   Building2,
   CheckCircle2,
   Clock3,
+  ShieldAlert,
   RefreshCw,
   Save,
   Search,
@@ -21,6 +22,7 @@ import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
+  enforceAdminAgencyLimits,
   fetchAdminAgencies,
   fetchAdminAgencyLimitEnforcements,
   fetchAdminAgencyPlan,
@@ -29,6 +31,7 @@ import {
   updateAdminAgencyPlan,
   updateAdminPlan,
   type AdminAgencyListItem,
+  type AdminAgencyLimitEnforcementResult,
   type AdminLimitEnforcementAuditItem,
   type AdminAgencyPlanResponse,
   type AdminPlan,
@@ -123,6 +126,7 @@ export default function AdminPlansPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [isSavingAgency, setIsSavingAgency] = useState(false);
+  const [isEnforcingAgency, setIsEnforcingAgency] = useState(false);
   const [isLoadingEnforcements, setIsLoadingEnforcements] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
@@ -375,6 +379,39 @@ export default function AdminPlansPage() {
     }
   }
 
+  async function enforceAgencyLimits() {
+    if (!agencyPlan) return;
+
+    const confirmed = await confirm({
+      title: 'Wymusić egzekucję limitów?',
+      description: formatImpactDescription(
+        getLimitEnforcementImpactItems(agencyPlan),
+        'Ta akcja może zarchiwizować nadmiarowe aktywne oferty i zdjąć je z publikacji publicznej natychmiast, z pominięciem oczekiwania na koniec karencji.',
+      ),
+      confirmLabel: 'Wymuś egzekucję',
+      variant: 'destructive',
+    });
+
+    if (!confirmed) return;
+
+    setIsEnforcingAgency(true);
+    try {
+      const result = await enforceAdminAgencyLimits(agencyPlan.agency.id);
+      showSuccessToast({
+        title: 'Egzekucja limitów zakończona',
+        description: formatEnforcementResult(result),
+      });
+      setRefreshToken((current) => current + 1);
+    } catch (enforceError) {
+      showErrorToast({
+        title: 'Nie udało się wymusić egzekucji limitów',
+        description: getApiErrorMessage(enforceError),
+      });
+    } finally {
+      setIsEnforcingAgency(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -512,7 +549,9 @@ export default function AdminPlansPage() {
               onChange={setAgencyPlan}
               onSave={saveAgencyPlan}
               onReset={resetAgencyOverrides}
+              onEnforceLimits={enforceAgencyLimits}
               isSaving={isSavingAgency}
+              isEnforcing={isEnforcingAgency}
             />
           ) : (
             <EmptyState label="Wybierz agencję" />
@@ -677,7 +716,9 @@ function AgencyPlanEditor({
   onChange,
   onSave,
   onReset,
+  onEnforceLimits,
   isSaving,
+  isEnforcing,
 }: {
   value: AdminAgencyPlanResponse;
   enforcements: AdminLimitEnforcementAuditItem[];
@@ -685,7 +726,9 @@ function AgencyPlanEditor({
   onChange: (value: AdminAgencyPlanResponse) => void;
   onSave: () => void;
   onReset: () => void;
+  onEnforceLimits: () => void;
   isSaving: boolean;
+  isEnforcing: boolean;
 }) {
   const overrides = value.planOverrides ?? {};
   const customLimits = {
@@ -756,6 +799,8 @@ function AgencyPlanEditor({
         agencyPlan={value}
         enforcements={enforcements}
         isLoading={isLoadingEnforcements}
+        isEnforcing={isEnforcing}
+        onEnforceLimits={onEnforceLimits}
       />
 
       <div className="grid gap-3 md:grid-cols-3">
@@ -1001,6 +1046,43 @@ function getAgencyImpactItems(
   return items;
 }
 
+function getLimitEnforcementImpactItems(
+  value: AdminAgencyPlanResponse,
+): ImpactItem[] {
+  const activeListingsLimit = value.entitlements.limits.activeListings;
+  const activeListingsUsage = value.usage.activeListings;
+  const excessListings =
+    activeListingsLimit === null
+      ? 0
+      : Math.max(0, activeListingsUsage - activeListingsLimit);
+
+  return [
+    {
+      label: 'Aktywne oferty',
+      value:
+        activeListingsLimit === null
+          ? `${activeListingsUsage} aktywnych ofert, plan nie ma limitu.`
+          : `${activeListingsUsage}/${activeListingsLimit} aktywnych ofert.`,
+      severity: excessListings > 0 ? 'critical' : 'neutral',
+    },
+    {
+      label: 'Nadmiar do archiwizacji',
+      value:
+        excessListings > 0
+          ? `${excessListings} ofert może zostać zarchiwizowanych i zdjętych z publikacji.`
+          : 'Aktualne użycie mieści się w limicie, więc enforcement powinien zostać pominięty.',
+      severity: excessListings > 0 ? 'critical' : 'neutral',
+    },
+    {
+      label: 'Karencja',
+      value: value.agency.limitGraceEndsAt
+        ? `Koniec karencji: ${formatNullableDateTime(value.agency.limitGraceEndsAt)}. Ręczna egzekucja działa natychmiast.`
+        : 'Brak aktywnej karencji zapisanej dla tej agencji.',
+      severity: value.agency.limitGraceEndsAt ? 'warning' : 'neutral',
+    },
+  ];
+}
+
 function formatImpactDescription(items: ImpactItem[], fallback: string): string {
   const details = items
     .slice(0, 6)
@@ -1061,6 +1143,27 @@ function countPlanOverrides(
     ...Object.values(overrides.limits ?? {}),
     ...Object.values(overrides.features ?? {}),
   ].filter((value) => value !== undefined && value !== null).length;
+}
+
+function formatEnforcementResult(
+  result: AdminAgencyLimitEnforcementResult,
+): string {
+  if (result.status === 'enforced') {
+    return `Zarchiwizowano ${result.archivedListingIds.length} ofert. Użycie przed egzekucją: ${result.activeListingsUsage}, limit: ${formatLimitValue(result.limit)}.`;
+  }
+
+  const statusLabels: Record<
+    Exclude<AdminAgencyLimitEnforcementResult['status'], 'enforced'>,
+    string
+  > = {
+    skipped_no_limit: 'Pominięto, ponieważ plan nie ma limitu aktywnych ofert.',
+    skipped_no_agents: 'Pominięto, ponieważ agencja nie ma agentów.',
+    skipped_within_limit: 'Pominięto, ponieważ użycie mieści się w limicie.',
+    skipped_grace_active:
+      'Pominięto, ponieważ karencja nadal jest aktywna.',
+  };
+
+  return statusLabels[result.status];
 }
 
 function EditorGrid({
@@ -1146,10 +1249,14 @@ function LimitEnforcementSupportPanel({
   agencyPlan,
   enforcements,
   isLoading,
+  isEnforcing,
+  onEnforceLimits,
 }: {
   agencyPlan: AdminAgencyPlanResponse;
   enforcements: AdminLimitEnforcementAuditItem[];
   isLoading: boolean;
+  isEnforcing: boolean;
+  onEnforceLimits: () => void;
 }) {
   const graceStatus = getGraceStatus(agencyPlan);
   const latestEnforcement = enforcements[0] ?? null;
@@ -1191,6 +1298,33 @@ function LimitEnforcementSupportPanel({
             label="Zarchiwizowane"
             value={isLoading ? '...' : String(archivedCount)}
           />
+        </div>
+      </div>
+
+      <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-2 text-sm">
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <div>
+              <p className="font-medium text-foreground">
+                Ręczna egzekucja limitów
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Używaj tylko po weryfikacji planu, użycia i karencji. Akcja może
+                zarchiwizować nadmiarowe oferty oraz zdjąć je z publikacji.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            className="gap-2 rounded-xl"
+            disabled={isLoading || isEnforcing}
+            onClick={onEnforceLimits}
+          >
+            <ShieldAlert className="h-4 w-4" />
+            {isEnforcing ? 'Egzekwuję...' : 'Wymuś egzekucję'}
+          </Button>
         </div>
       </div>
 

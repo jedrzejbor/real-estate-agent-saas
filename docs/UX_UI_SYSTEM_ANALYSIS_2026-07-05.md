@@ -927,10 +927,10 @@ pokazywac skutki zmian zanim admin je zatwierdzi.
 - [x] Wyrazne oznaczenie trybu admin w shellu albo headerze admin screens.
 - [x] Osobne grupowanie admin navigation.
 - [x] Podsumowanie skutkow przed zmiana planu, limitow albo widocznosci planu.
-- [ ] Confirm dialog dla operacji wysokiego wplywu:
+- [x] Confirm dialog dla operacji wysokiego wplywu:
   - [x] zmiana limitow,
   - [x] reset override'ow,
-  - [ ] wymuszenie limit enforcement,
+  - [x] wymuszenie limit enforcement,
   - [x] zatwierdzenie/odrzucenie publicznej oferty.
 - [x] Checklisty moderacji publicznych ofert:
   - [x] dane kontaktowe,
@@ -1029,6 +1029,34 @@ Zakres po iteracji 3:
   - analytics nastawione na decyzje.
 - Do dopracowania zostaje tylko osobny confirm dla wymuszenia limit enforcement,
   jezeli zostanie dodana reczna akcja egzekucji limitow w admin UI.
+
+Status wdrozenia Sprint 5, iteracja 4 - 2026-07-07:
+
+- Dodano reczna akcje `Wymus egzekucje` na ekranie `Plany i limity`:
+  - akcja korzysta z istniejacego endpointu
+    `/admin/agencies/:id/plan/enforce-limits`,
+  - po wykonaniu odswieza plan agencji i audyt egzekucji limitow,
+  - toast pokazuje czy egzekucja zarchiwizowala oferty czy zostala pominieta.
+- Dodano confirm dialog dla wymuszenia limit enforcement:
+  - opisuje, ze akcja moze natychmiast zarchiwizowac nadmiarowe oferty,
+  - pokazuje aktualne uzycie aktywnych ofert, limit i nadmiar,
+  - pokazuje informacje o karencji i wyjasnia, ze reczna akcja dziala
+    natychmiast.
+- Dodano defensywny panel ostrzegawczy przy audycie karencji:
+  - przycisk jest umieszczony przy diagnostyce limitow,
+  - copy wskazuje, ze akcja jest dla supportu po weryfikacji planu, uzycia i
+    karencji.
+
+Zakres po iteracji 4:
+
+- Sprint 5 ma domkniete wszystkie glowne punkty z checklisty:
+  - tryb admina,
+  - admin navigation,
+  - defensywne zmiany planow i limitow,
+  - confirm dialogi dla operacji wysokiego wplywu,
+  - checklisty moderacji,
+  - admin analytics nastawione na decyzje,
+  - lepsze empty/error states.
 
 ## Macierz pokrycia obserwacji przez sprinty
 

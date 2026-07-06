@@ -129,6 +129,22 @@ export interface AdminLimitEnforcementAuditItem {
   createdAt: string;
 }
 
+export interface AdminAgencyLimitEnforcementResult {
+  agencyId: string;
+  status:
+    | 'skipped_no_limit'
+    | 'skipped_no_agents'
+    | 'skipped_within_limit'
+    | 'skipped_grace_active'
+    | 'enforced';
+  limit: number | null;
+  activeListingsUsage: number;
+  keptListingIds: string[];
+  excessListingIds: string[];
+  archivedListingIds: string[];
+  unpublishedListingIds: string[];
+}
+
 export type UpdatePlanInput = Partial<
   Pick<
     AdminPlan,
@@ -195,6 +211,15 @@ export function fetchAdminAgencyLimitEnforcements(
   const params = new URLSearchParams({ limit: String(limit) });
   return apiFetch<AdminLimitEnforcementAuditItem[]>(
     `/admin/agencies/${agencyId}/plan/enforcements?${params.toString()}`,
+  );
+}
+
+export function enforceAdminAgencyLimits(
+  agencyId: string,
+): Promise<AdminAgencyLimitEnforcementResult> {
+  return apiFetch<AdminAgencyLimitEnforcementResult>(
+    `/admin/agencies/${agencyId}/plan/enforce-limits`,
+    { method: 'POST' },
   );
 }
 
