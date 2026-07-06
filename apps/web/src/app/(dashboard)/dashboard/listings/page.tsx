@@ -5,6 +5,11 @@ import Link from 'next/link';
 import { ArrowRight, Building2, Eye, ImageIcon, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  ActiveFilterChips,
+  type ActiveFilterChip,
+} from '@/components/dashboard/active-filter-chips';
+import { DashboardErrorState } from '@/components/dashboard/error-state';
 import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import {
   DashboardViewModeToggle,
@@ -25,6 +30,7 @@ import {
   formatPrice,
   ListingStatus,
   LISTING_PUBLICATION_STATUS_LABELS,
+  LISTING_STATUS_LABELS,
   PROPERTY_TYPE_LABELS,
   TransactionType,
   TRANSACTION_TYPE_LABELS,
@@ -83,6 +89,7 @@ export default function ListingsPage() {
     updateFilter,
     setFilters,
     setPage,
+    refresh,
   } = useListings();
   const activeListingsLimit = user?.entitlements.limits.activeListings ?? null;
   const shouldShowRetentionChoices =
@@ -125,6 +132,11 @@ export default function ListingsPage() {
         onReset={() => setFilters(LISTING_DEFAULT_FILTERS)}
       />
 
+      <ActiveFilterChips
+        filters={getActiveListingFilterChips(filters, updateFilter)}
+        onClearAll={() => setFilters(LISTING_DEFAULT_FILTERS)}
+      />
+
       <ListingOperationsToolbar
         filters={filters}
         viewMode={viewMode}
@@ -143,9 +155,11 @@ export default function ListingsPage() {
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
       ) : error ? (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
+        <DashboardErrorState
+          title="Nie udało się załadować ofert."
+          description={`Lista ofert nie została pobrana. ${error}`}
+          onRetry={refresh}
+        />
       ) : listings.length === 0 ? (
         <EmptyState
           hasFilters={
@@ -181,6 +195,108 @@ export default function ListingsPage() {
       )}
     </div>
   );
+}
+
+function getActiveListingFilterChips(
+  filters: ListingFilters,
+  updateFilter: <K extends keyof ListingFilters>(
+    key: K,
+    value: ListingFilters[K],
+  ) => void,
+): ActiveFilterChip[] {
+  const chips: ActiveFilterChip[] = [];
+
+  if (filters.search) {
+    chips.push({
+      id: 'search',
+      label: 'Szukaj',
+      value: filters.search,
+      onRemove: () => updateFilter('search', undefined),
+    });
+  }
+
+  if (filters.propertyType) {
+    chips.push({
+      id: 'propertyType',
+      label: 'Typ',
+      value: PROPERTY_TYPE_LABELS[filters.propertyType],
+      onRemove: () => updateFilter('propertyType', undefined),
+    });
+  }
+
+  if (filters.transactionType) {
+    chips.push({
+      id: 'transactionType',
+      label: 'Transakcja',
+      value: TRANSACTION_TYPE_LABELS[filters.transactionType],
+      onRemove: () => updateFilter('transactionType', undefined),
+    });
+  }
+
+  if (filters.status) {
+    chips.push({
+      id: 'status',
+      label: 'Status',
+      value: LISTING_STATUS_LABELS[filters.status],
+      onRemove: () => updateFilter('status', undefined),
+    });
+  }
+
+  if (filters.city) {
+    chips.push({
+      id: 'city',
+      label: 'Miasto',
+      value: filters.city,
+      onRemove: () => updateFilter('city', undefined),
+    });
+  }
+
+  if (filters.priceMin !== undefined) {
+    chips.push({
+      id: 'priceMin',
+      label: 'Cena od',
+      value: formatPrice(filters.priceMin),
+      onRemove: () => updateFilter('priceMin', undefined),
+    });
+  }
+
+  if (filters.priceMax !== undefined) {
+    chips.push({
+      id: 'priceMax',
+      label: 'Cena do',
+      value: formatPrice(filters.priceMax),
+      onRemove: () => updateFilter('priceMax', undefined),
+    });
+  }
+
+  if (filters.areaMin !== undefined) {
+    chips.push({
+      id: 'areaMin',
+      label: 'Metraż od',
+      value: formatArea(filters.areaMin),
+      onRemove: () => updateFilter('areaMin', undefined),
+    });
+  }
+
+  if (filters.areaMax !== undefined) {
+    chips.push({
+      id: 'areaMax',
+      label: 'Metraż do',
+      value: formatArea(filters.areaMax),
+      onRemove: () => updateFilter('areaMax', undefined),
+    });
+  }
+
+  if (filters.roomsMin !== undefined) {
+    chips.push({
+      id: 'roomsMin',
+      label: 'Pokoje od',
+      value: String(filters.roomsMin),
+      onRemove: () => updateFilter('roomsMin', undefined),
+    });
+  }
+
+  return chips;
 }
 
 function ListingOperationsToolbar({

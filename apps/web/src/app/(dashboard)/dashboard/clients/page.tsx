@@ -5,6 +5,11 @@ import Link from 'next/link';
 import { ArrowRight, Mail, Phone, Plus, UserRound, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  ActiveFilterChips,
+  type ActiveFilterChip,
+} from '@/components/dashboard/active-filter-chips';
+import { DashboardErrorState } from '@/components/dashboard/error-state';
 import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import {
   DashboardViewModeToggle,
@@ -24,6 +29,7 @@ import {
   ClientStatus,
   CLIENT_PREFERENCE_TRANSACTION_TYPE_LABELS,
   CLIENT_SOURCE_LABELS,
+  CLIENT_STATUS_LABELS,
   PROPERTY_TYPE_LABELS,
   SOURCE_BADGE_VARIANT,
   clientFullName,
@@ -121,6 +127,11 @@ export default function ClientsPage() {
         onReset={() => setFilters(CLIENT_DEFAULT_FILTERS)}
       />
 
+      <ActiveFilterChips
+        filters={getActiveClientFilterChips(filters, updateFilter)}
+        onClearAll={() => setFilters(CLIENT_DEFAULT_FILTERS)}
+      />
+
       <ClientOperationsToolbar
         filters={filters}
         viewMode={viewMode}
@@ -139,9 +150,11 @@ export default function ClientsPage() {
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
       ) : error ? (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
+        <DashboardErrorState
+          title="Nie udało się załadować klientów."
+          description={`Lista klientów nie została pobrana. ${error}`}
+          onRetry={refresh}
+        />
       ) : clients.length === 0 ? (
         <EmptyState
           hasFilters={
@@ -172,6 +185,63 @@ export default function ClientsPage() {
       )}
     </div>
   );
+}
+
+function getActiveClientFilterChips(
+  filters: ClientFilters,
+  updateFilter: <K extends keyof ClientFilters>(
+    key: K,
+    value: ClientFilters[K],
+  ) => void,
+): ActiveFilterChip[] {
+  const chips: ActiveFilterChip[] = [];
+
+  if (filters.search) {
+    chips.push({
+      id: 'search',
+      label: 'Szukaj',
+      value: filters.search,
+      onRemove: () => updateFilter('search', undefined),
+    });
+  }
+
+  if (filters.source) {
+    chips.push({
+      id: 'source',
+      label: 'Źródło',
+      value: CLIENT_SOURCE_LABELS[filters.source],
+      onRemove: () => updateFilter('source', undefined),
+    });
+  }
+
+  if (filters.status) {
+    chips.push({
+      id: 'status',
+      label: 'Status',
+      value: CLIENT_STATUS_LABELS[filters.status],
+      onRemove: () => updateFilter('status', undefined),
+    });
+  }
+
+  if (filters.budgetMin !== undefined) {
+    chips.push({
+      id: 'budgetMin',
+      label: 'Budżet od',
+      value: formatBudgetRange(filters.budgetMin, null),
+      onRemove: () => updateFilter('budgetMin', undefined),
+    });
+  }
+
+  if (filters.budgetMax !== undefined) {
+    chips.push({
+      id: 'budgetMax',
+      label: 'Budżet do',
+      value: formatBudgetRange(null, filters.budgetMax),
+      onRemove: () => updateFilter('budgetMax', undefined),
+    });
+  }
+
+  return chips;
 }
 
 function ClientOperationsToolbar({

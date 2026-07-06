@@ -500,13 +500,13 @@ problem i wykonac nastepna akcje.
 - [ ] Standard detail page.
 - [ ] Pasek `Nastepny krok`.
 - [ ] Ujednolicone puste stany dla list, filtrow i powiazanych danych.
-- [ ] Chipsy aktywnych filtrow z mozliwoscia szybkiego usuniecia.
+- [x] Chipsy aktywnych filtrow z mozliwoscia szybkiego usuniecia.
 - [ ] Lepsze stany braku danych:
   - brak ofert -> dodaj oferte,
   - brak klientow -> dodaj/importuj klienta,
   - brak leadow -> opublikuj oferte albo udostepnij profil,
   - brak wynikow filtrow -> pokaz aktywne filtry i akcje czyszczenia.
-- [ ] Wspolny wzorzec bledu z akcja `Sprobuj ponownie` i informacja, co nie zostalo
+- [x] Wspolny wzorzec bledu z akcja `Sprobuj ponownie` i informacja, co nie zostalo
   zaladowane.
 
 Status wdrozenia Sprint 2, iteracja 1 - 2026-07-06:
@@ -547,6 +547,41 @@ Zakres celowo odlozony po iteracji 1:
   bo dotykaja stron szczegolow ofert, klientow i powiazanych encji.
 - Chipsy aktywnych filtrow i wspolny wzorzec bledow zostaja na nastepny krok,
   po ustabilizowaniu list i szybkich filtrow.
+
+Status wdrozenia Sprint 2, iteracja 2 - 2026-07-06:
+
+- Dodano wspolny komponent `ActiveFilterChips`:
+  - pokazuje aktywne filtry jako usuwalne chipsy,
+  - pozwala usunac pojedynczy filtr,
+  - pozwala wyczyscic wszystkie filtry jednym przyciskiem,
+  - jest gotowy do uzycia na kolejnych listach.
+- Podpieto chipsy aktywnych filtrow na liscie ofert:
+  - wyszukiwanie,
+  - typ nieruchomosci,
+  - typ transakcji,
+  - status,
+  - miasto,
+  - zakres ceny,
+  - zakres metrazu,
+  - minimalna liczba pokoi.
+- Podpieto chipsy aktywnych filtrow na liscie klientow:
+  - wyszukiwanie,
+  - zrodlo,
+  - status,
+  - zakres budzetu.
+- Dodano wspolny komponent `DashboardErrorState`:
+  - pokazuje, czego nie udalo sie zaladowac,
+  - zawiera opis bledu,
+  - ma akcje `Sprobuj ponownie`.
+- Podmieniono bledy list ofert i klientow na wspolny wzorzec z retry.
+
+Zakres celowo odlozony po iteracji 2:
+
+- Ujednolicone puste stany dla wszystkich list i powiazanych danych zostaja na
+  kolejna iteracje, bo wymagaja przejscia przez zapytania, powiazania na detail
+  pages i przypadki braku danych po filtrach.
+- Standard detail page i pasek `Nastepny krok` nadal sa kolejnym wiekszym
+  krokiem Sprintu 2.
 
 Pokrywa obserwacje:
 
