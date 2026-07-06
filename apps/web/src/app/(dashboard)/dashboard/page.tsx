@@ -108,7 +108,7 @@ export default function DashboardPage() {
             {greeting}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Oto podsumowanie Twojej aktywności.
+            Zacznij od spraw, które wymagają reakcji dzisiaj.
           </p>
         </div>
         <Button
@@ -307,8 +307,8 @@ function getDashboardTabs({
   return [
     {
       id: 'overview',
-      label: 'Przegląd',
-      description: 'Najważniejsze liczby CRM i wartości portfela.',
+      label: 'Dzisiaj',
+      description: 'Leady, zadania i spotkania wymagające reakcji.',
       icon: LayoutDashboard,
       badge: String(
         stats.listings.active +
@@ -394,6 +394,12 @@ function DashboardOverviewContent({
         onCompleteTask={onCompleteTask}
       />
 
+      <TodayOperationalSummary
+        stats={stats}
+        today={today}
+        isLoading={isTodayLoading}
+      />
+
       <DashboardInsightsPanel
         insights={insights}
         isLoading={isInsightsLoading}
@@ -468,6 +474,105 @@ function DashboardOverviewContent({
 
       <DocumentAttentionCard stats={stats.documentAttention} />
     </div>
+  );
+}
+
+function TodayOperationalSummary({
+  stats,
+  today,
+  isLoading,
+}: {
+  stats: DashboardStats;
+  today: DashboardTodayResponse | null;
+  isLoading: boolean;
+}) {
+  const items = today?.items ?? [];
+  const generatedAtMs = today?.generatedAt
+    ? new Date(today.generatedAt).getTime()
+    : 0;
+  const overdueTasks = items.filter(
+    (item) =>
+      item.type === 'task' &&
+      item.dueAt &&
+      new Date(item.dueAt).getTime() < generatedAtMs,
+  ).length;
+  const publicLeads = items.filter((item) => item.type === 'public_lead').length;
+  const appointmentsToday =
+    items.filter((item) => item.type === 'appointment').length ||
+    stats.appointments.today;
+
+  const priorities = [
+    {
+      label: 'Nowe leady',
+      value: publicLeads,
+      description:
+        publicLeads > 0
+          ? 'Odpowiedz zanim lead ostygnie.'
+          : 'Brak nowych zapytań do obsługi.',
+      href: '/dashboard/inquiries',
+      icon: MessageSquareText,
+      variant: publicLeads > 0 ? 'warning' : 'success',
+    },
+    {
+      label: 'Zadania po terminie',
+      value: overdueTasks,
+      description:
+        overdueTasks > 0
+          ? 'Domknij zaległe follow-upy.'
+          : 'Brak zaległych zadań.',
+      href: '/dashboard/tasks',
+      icon: ClipboardList,
+      variant: overdueTasks > 0 ? 'destructive' : 'success',
+    },
+    {
+      label: 'Spotkania dzisiaj',
+      value: appointmentsToday,
+      description:
+        appointmentsToday > 0
+          ? 'Sprawdź plan dnia i kontekst klientów.'
+          : 'Brak spotkań zaplanowanych na dziś.',
+      href: '/dashboard/calendar',
+      icon: CalendarCheck,
+      variant: appointmentsToday > 0 ? 'info' : 'secondary',
+    },
+  ] satisfies Array<{
+    label: string;
+    value: number;
+    description: string;
+    href: string;
+    icon: ElementType;
+    variant: React.ComponentProps<typeof Badge>['variant'];
+  }>;
+
+  return (
+    <section className="grid gap-3 lg:grid-cols-3" aria-label="Priorytety dnia">
+      {priorities.map((priority) => (
+        <Link
+          key={priority.href}
+          href={priority.href}
+          className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-muted/20"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                <priority.icon className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {priority.label}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {priority.description}
+                </p>
+              </div>
+            </div>
+            <Badge variant={isLoading && !today ? 'muted' : priority.variant}>
+              {isLoading && !today ? '...' : priority.value}
+            </Badge>
+          </div>
+        </Link>
+      ))}
+    </section>
   );
 }
 

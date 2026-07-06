@@ -9,7 +9,7 @@ import { GlobalSearch } from './global-search';
 import { NotificationsDropdown } from './notifications-dropdown';
 import { ProductFeedbackWidget } from './product-feedback-widget';
 
-export function DashboardTopbar() {
+export function DashboardTopbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { user } = useAuth();
 
   const firstName = user?.agent?.firstName?.trim() ?? '';
@@ -28,8 +28,10 @@ export function DashboardTopbar() {
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/80 px-6 backdrop-blur-md">
       {/* Mobile menu button */}
       <button
+        type="button"
         className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground lg:hidden"
         aria-label="Menu"
+        onClick={onMenuClick}
       >
         <Menu className="h-5 w-5" />
       </button>

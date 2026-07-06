@@ -403,15 +403,50 @@ bardziej ryzykowny obszar admin UI.
 Cel: uzytkownik ma od razu rozumiec, gdzie jest, co jest najwazniejsze i jak
 przejsc do codziennej pracy bez szukania funkcji.
 
-- Mobile drawer i dolna nawigacja.
-- Grupowanie sidebara.
-- Ujednolicone headery stron.
-- Dashboard `Dzisiaj` jako pierwszy widok.
-- Wyroznienie sekcji z nowymi leadami, zadaniami po terminie i dzisiejszymi
+- [x] Mobile drawer i dolna nawigacja.
+- [x] Grupowanie sidebara.
+- [ ] Ujednolicone headery stron.
+- [x] Dashboard `Dzisiaj` jako pierwszy widok.
+- [x] Wyroznienie sekcji z nowymi leadami, zadaniami po terminie i dzisiejszymi
   spotkaniami.
-- Badge/liczniki przy `Zapytania`, `Zadania` i `Kalendarz`, gdy wymagaja
+- [x] Badge/liczniki przy `Zapytania`, `Zadania` i `Kalendarz`, gdy wymagaja
   reakcji.
-- Krotka wersja menu dla nowych uzytkownikow w pierwszym okresie onboardingu.
+- [ ] Krotka wersja menu dla nowych uzytkownikow w pierwszym okresie onboardingu.
+
+Status wdrozenia Sprint 1, iteracja 1 - 2026-07-06:
+
+- Dodano realny mobile drawer w shellu dashboardu:
+  - przycisk menu w topbarze otwiera panel boczny na mobile,
+  - panel ma overlay, przycisk zamkniecia i zamyka sie po zmianie trasy,
+  - desktopowy sidebar zachowuje dotychczasowe miejsce i szerokosc.
+- Dodano dolna nawigacje mobile dla najczestszych przejsc:
+  - `Dzisiaj`,
+  - `Zapytania`,
+  - `Kalendarz`,
+  - `Zadania`.
+- Przebudowano sidebar na grupy:
+  - `Praca`,
+  - `CRM`,
+  - `Analiza`,
+  - `Rozwoj`,
+  - `Admin` dla roli admina.
+- Dodano liczniki reakcji w nawigacji na podstawie `dashboard/today`:
+  - `Zapytania` liczy publiczne leady,
+  - `Zadania` liczy zadania z listy dzisiejszych akcji,
+  - `Kalendarz` liczy spotkania z listy dzisiejszych akcji.
+- Wzmocniono pierwszy widok dashboardu:
+  - zakladka `Przeglad` zostala przemianowana na `Dzisiaj`,
+  - opis headera kieruje uzytkownika do spraw wymagajacych reakcji,
+  - nad metrykami dodano trzy priorytety operacyjne:
+    `Nowe leady`, `Zadania po terminie`, `Spotkania dzisiaj`.
+
+Zakres celowo odlozony:
+
+- Ujednolicone headery wszystkich stron dashboardu zostaly zostawione na
+  kolejna iteracje, poniewaz wymagaja dotkniecia wielu ekranow i warto zrobic
+  je jako osobny, konsekwentny wzorzec.
+- Krotka wersja menu dla nowych uzytkownikow wymaga decyzji produktowej, czy
+  ma byc oparta o wiek konta, postep onboardingu czy oba sygnaly jednoczesnie.
 
 Pokrywa obserwacje:
 

@@ -1,13 +1,17 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
   isPrivateSellerUser,
   PRIVATE_SELLER_HOME_PATH,
 } from '@/lib/auth';
-import { DashboardSidebar } from '@/components/dashboard/sidebar';
+import {
+  DashboardMobileBottomNav,
+  DashboardSidebar,
+  useDashboardNavCounts,
+} from '@/components/dashboard/sidebar';
 import { DashboardTopbar } from '@/components/dashboard/topbar';
 import { PlanLimitStatusBanner } from '@/components/growth/plan-limit-status-banner';
 
@@ -20,9 +24,12 @@ export default function DashboardLayout({
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const isPrivateSeller = user ? isPrivateSellerUser(user) : false;
   const canPrivateSellerUseDashboardRoute = pathname === '/dashboard/upgrade';
   const shouldShowGlobalLimitBanner = !hasContextualLimitBanner(pathname);
+  const closeMobileNav = useCallback(() => setIsMobileNavOpen(false), []);
+  const navCounts = useDashboardNavCounts(!isLoading && Boolean(user) && !isPrivateSeller);
 
   useEffect(() => {
     if (
@@ -60,10 +67,14 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-background">
-      <DashboardSidebar />
+      <DashboardSidebar
+        isMobileOpen={isMobileNavOpen}
+        onMobileClose={closeMobileNav}
+        counts={navCounts}
+      />
       <div className="flex flex-1 flex-col lg:ml-64">
-        <DashboardTopbar />
-        <main className="flex-1 p-6">
+        <DashboardTopbar onMenuClick={() => setIsMobileNavOpen(true)} />
+        <main className="flex-1 px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:pb-6">
           <div className="space-y-6">
             {shouldShowGlobalLimitBanner ? (
               <PlanLimitStatusBanner
@@ -74,6 +85,7 @@ export default function DashboardLayout({
             {children}
           </div>
         </main>
+        <DashboardMobileBottomNav counts={navCounts} />
       </div>
     </div>
   );
