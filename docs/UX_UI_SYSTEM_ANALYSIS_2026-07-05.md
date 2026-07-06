@@ -938,12 +938,12 @@ pokazywac skutki zmian zanim admin je zatwierdzi.
   - [x] cena,
   - [x] opis,
   - [x] sygnaly abuse.
-- Widoki analytics nastawione na decyzje:
-  - anomalie,
-  - wzrosty,
-  - spadki,
-  - wymaga reakcji.
-- Lepsze empty/error states w admin UI, szczegolnie dla analytics i moderacji.
+- [x] Widoki analytics nastawione na decyzje:
+  - [x] anomalie,
+  - [x] wzrosty,
+  - [x] spadki,
+  - [x] wymaga reakcji.
+- [x] Lepsze empty/error states w admin UI, szczegolnie dla analytics i moderacji.
 
 Pokrywa obserwacje:
 
@@ -1004,6 +1004,31 @@ Zakres po iteracji 2:
   - wzrosty i spadki,
   - wskazanie metryk wymagajacych reakcji,
   - lepsze empty/error states dla analytics.
+
+Status wdrozenia Sprint 5, iteracja 3 - 2026-07-07:
+
+- Dodano panel decyzyjny `Wymaga reakcji` na ekranie admin analytics:
+  - pokazuje trend ostatnich dni wzgledem poprzedniego okna,
+  - wykrywa dzienna anomalie na podstawie odchylenia od sredniej,
+  - wskazuje najmocniejszy albo problematyczny obszar produktu,
+  - pokazuje luki w adopcji kluczowych eventow.
+- Rozszerzono interpretacje admin analytics:
+  - spadki aktywnosci sa oznaczane jako `Spadek` albo `Wymaga reakcji`,
+  - duze wzrosty sa oznaczane jako `Wzrost`,
+  - brak eventow tworzy krytyczny insight zamiast pustej sekcji.
+- Poprawiono error state analytics:
+  - blad ma teraz jasny tytul i opis,
+  - admin moze ponowic pobranie bez szukania przycisku w headerze.
+
+Zakres po iteracji 3:
+
+- Sprint 5 ma pokryte glowne punkty defensywnego admin UX:
+  - tryb admina i admin navigation,
+  - defensywne zmiany planow/limitow,
+  - moderacje publicznych ofert,
+  - analytics nastawione na decyzje.
+- Do dopracowania zostaje tylko osobny confirm dla wymuszenia limit enforcement,
+  jezeli zostanie dodana reczna akcja egzekucji limitow w admin UI.
 
 ## Macierz pokrycia obserwacji przez sprinty
 

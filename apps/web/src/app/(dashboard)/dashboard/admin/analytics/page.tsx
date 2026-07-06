@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Sparkles,
   TrendingDown,
+  TrendingUp,
   Users,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -70,6 +71,10 @@ export default function AdminAnalyticsUsagePage() {
   );
   const usageAlerts = useMemo(
     () => (data ? buildUsageAlerts(data) : []),
+    [data],
+  );
+  const decisionInsights = useMemo(
+    () => (data ? buildDecisionInsights(data) : []),
     [data],
   );
 
@@ -134,8 +139,24 @@ export default function AdminAnalyticsUsagePage() {
       </div>
 
       {error ? (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">
-          {error}
+        <div className="flex flex-col gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold">Nie udało się załadować analytics.</p>
+            <p className="mt-1">{error}</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2 rounded-xl border-destructive/30 bg-card text-destructive hover:bg-destructive/10"
+            onClick={() => {
+              setIsLoading(true);
+              setError(null);
+              setRefreshToken((current) => current + 1);
+            }}
+          >
+            <RefreshCw className="h-4 w-4" />
+            Ponów
+          </Button>
         </div>
       ) : null}
 
@@ -150,6 +171,8 @@ export default function AdminAnalyticsUsagePage() {
         </div>
       ) : data ? (
         <>
+          <DecisionInsightsPanel insights={decisionInsights} />
+
           <div className="grid gap-4 lg:grid-cols-4">
             <MetricCard
               label="Eventy"
@@ -346,6 +369,17 @@ interface UsageAlert {
   severity: UsageAlertSeverity;
 }
 
+type DecisionInsightTone = 'critical' | 'warning' | 'growth' | 'stable';
+
+interface DecisionInsight {
+  id: string;
+  label: string;
+  title: string;
+  value: string;
+  description: string;
+  tone: DecisionInsightTone;
+}
+
 const KEY_ADOPTION_EVENTS = [
   'dashboard_today_viewed',
   'matching_results_viewed',
@@ -468,8 +502,209 @@ function buildUsageAlerts(data: AdminAnalyticsUsageSummary): UsageAlert[] {
   return alerts;
 }
 
+function buildDecisionInsights(
+  data: AdminAnalyticsUsageSummary,
+): DecisionInsight[] {
+  const sortedDailyEvents = [...data.dailyEvents].sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
+  const trend = getRecentTrend(sortedDailyEvents);
+  const anomaly = getDailyAnomaly(sortedDailyEvents);
+  const categorySignal = getCategorySignal(data);
+  const missingAdoptionEvents = KEY_ADOPTION_EVENTS.filter(
+    (eventName) =>
+      !data.topEvents.some((event) => event.name === eventName),
+  );
+
+  if (data.summary.totalEvents === 0) {
+    return [
+      {
+        id: 'no-events-action',
+        label: 'Wymaga reakcji',
+        title: 'Brak danych analytics',
+        value: '0 eventów',
+        description:
+          'Sprawdź consent, tracking frontendowy i endpoint `/admin/analytics/usage` przed oceną adopcji.',
+        tone: 'critical',
+      },
+    ];
+  }
+
+  const insights: DecisionInsight[] = [
+    {
+      id: 'recent-trend',
+      label: getTrendLabel(trend.changePercent),
+      title: trend.changePercent >= 0 ? 'Wzrost aktywności' : 'Spadek aktywności',
+      value: formatSignedPercent(trend.changePercent),
+      description: `Ostatnie ${trend.recentDays} dni: ${trend.recentCount}, poprzednie ${trend.previousDays} dni: ${trend.previousCount}.`,
+      tone:
+        trend.changePercent <= -35
+          ? 'critical'
+          : trend.changePercent < 0
+            ? 'warning'
+            : trend.changePercent >= 35
+              ? 'growth'
+              : 'stable',
+    },
+    {
+      id: 'daily-anomaly',
+      label: anomaly ? 'Anomalia' : 'Stabilnie',
+      title: anomaly ? 'Nietypowy dzień w danych' : 'Brak dużych anomalii',
+      value: anomaly ? `${anomaly.date}: ${anomaly.count}` : 'OK',
+      description: anomaly
+        ? `Dzień odbiega o ${formatSignedPercent(anomaly.changePercent)} od średniej okresu.`
+        : 'Dzienna aktywność nie odbiega istotnie od średniej wybranego okresu.',
+      tone: anomaly
+        ? Math.abs(anomaly.changePercent) >= 80
+          ? 'critical'
+          : 'warning'
+        : 'stable',
+    },
+    {
+      id: 'category-signal',
+      label: categorySignal.requiresAction ? 'Wymaga reakcji' : 'Najmocniejszy obszar',
+      title: categorySignal.title,
+      value: categorySignal.value,
+      description: categorySignal.description,
+      tone: categorySignal.requiresAction ? 'warning' : 'growth',
+    },
+    {
+      id: 'adoption-coverage',
+      label: missingAdoptionEvents.length > 0 ? 'Luka adopcji' : 'Pokryte',
+      title:
+        missingAdoptionEvents.length > 0
+          ? 'Brakuje kluczowych eventów'
+          : 'Kluczowe eventy są widoczne',
+      value:
+        missingAdoptionEvents.length > 0
+          ? `${missingAdoptionEvents.length} brakujące`
+          : 'OK',
+      description:
+        missingAdoptionEvents.length > 0
+          ? missingAdoptionEvents
+              .slice(0, 3)
+              .map((eventName) => formatEventLabel(eventName))
+              .join(', ')
+          : 'W danych są widoczne sygnały Dzisiaj, matchingu, komunikacji albo raportów.',
+      tone: missingAdoptionEvents.length > 0 ? 'warning' : 'stable',
+    },
+  ];
+
+  return insights;
+}
+
+function getRecentTrend(
+  events: AdminAnalyticsUsageSummary['dailyEvents'],
+): {
+  recentCount: number;
+  previousCount: number;
+  recentDays: number;
+  previousDays: number;
+  changePercent: number;
+} {
+  const comparisonWindow = Math.min(7, Math.max(1, Math.floor(events.length / 2)));
+  const recent = events.slice(-comparisonWindow);
+  const previous = events.slice(-comparisonWindow * 2, -comparisonWindow);
+  const recentCount = sumDailyEvents(recent);
+  const previousCount = sumDailyEvents(previous);
+
+  if (previous.length === 0 || previousCount === 0) {
+    return {
+      recentCount,
+      previousCount,
+      recentDays: recent.length,
+      previousDays: previous.length,
+      changePercent: recentCount > 0 ? 100 : 0,
+    };
+  }
+
+  return {
+    recentCount,
+    previousCount,
+    recentDays: recent.length,
+    previousDays: previous.length,
+    changePercent: Math.round(((recentCount - previousCount) / previousCount) * 100),
+  };
+}
+
+function getDailyAnomaly(
+  events: AdminAnalyticsUsageSummary['dailyEvents'],
+): { date: string; count: number; changePercent: number } | null {
+  if (events.length < 4) return null;
+
+  const total = sumDailyEvents(events);
+  const average = total / events.length;
+
+  if (average <= 0) return null;
+
+  const strongest = events
+    .map((event) => ({
+      ...event,
+      changePercent: Math.round(((event.count - average) / average) * 100),
+    }))
+    .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))[0];
+
+  return Math.abs(strongest.changePercent) >= 60 ? strongest : null;
+}
+
+function getCategorySignal(data: AdminAnalyticsUsageSummary): {
+  title: string;
+  value: string;
+  description: string;
+  requiresAction: boolean;
+} {
+  const visibleCategories = data.eventCategories.filter(
+    (category) => category.category !== 'other',
+  );
+  const emptyCategories = visibleCategories.filter(
+    (category) => category.count === 0,
+  );
+  const strongest = [...visibleCategories].sort((a, b) => b.count - a.count)[0];
+
+  if (emptyCategories.length >= 3) {
+    return {
+      title: 'Nierówny tracking sekcji',
+      value: `${emptyCategories.length} puste`,
+      description: `Brak eventów w: ${emptyCategories
+        .slice(0, 3)
+        .map((category) => ANALYTICS_CATEGORY_CONFIG[category.category].label)
+        .join(', ')}.`,
+      requiresAction: true,
+    };
+  }
+
+  if (!strongest || strongest.count === 0) {
+    return {
+      title: 'Brak dominującej sekcji',
+      value: '0',
+      description: 'Kategorie produktu nie mają jeszcze wystarczającej aktywności.',
+      requiresAction: true,
+    };
+  }
+
+  const strongestConfig = ANALYTICS_CATEGORY_CONFIG[strongest.category];
+
+  return {
+    title: strongestConfig.label,
+    value: `${Math.round((strongest.count / data.summary.totalEvents) * 100)}%`,
+    description: `Najwięcej aktywności generuje obszar: ${strongestConfig.description}`,
+    requiresAction: false,
+  };
+}
+
 function sumDailyEvents(events: AdminAnalyticsUsageSummary['dailyEvents']) {
   return events.reduce((sum, event) => sum + event.count, 0);
+}
+
+function formatSignedPercent(value: number): string {
+  return `${value > 0 ? '+' : ''}${value}%`;
+}
+
+function getTrendLabel(changePercent: number): string {
+  if (changePercent <= -35) return 'Wymaga reakcji';
+  if (changePercent < 0) return 'Spadek';
+  if (changePercent >= 35) return 'Wzrost';
+  return 'Stabilnie';
 }
 
 function formatEventLabel(name: string): string {
@@ -511,6 +746,71 @@ function UsageAlertCard({ alert }: { alert: UsageAlert }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function DecisionInsightsPanel({
+  insights,
+}: {
+  insights: DecisionInsight[];
+}) {
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="font-heading text-lg font-semibold text-foreground">
+              Wymaga reakcji
+            </h2>
+            <Badge variant="outline" className="rounded-full">
+              Decyzje
+            </Badge>
+          </div>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Najważniejsze sygnały z analytics: anomalie, wzrosty, spadki i
+            luki w adopcji kluczowych funkcji.
+          </p>
+        </div>
+        <TrendingUp className="h-5 w-5 text-primary" />
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-4">
+        {insights.map((insight) => (
+          <DecisionInsightCard key={insight.id} insight={insight} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function DecisionInsightCard({ insight }: { insight: DecisionInsight }) {
+  const toneClassName: Record<DecisionInsightTone, string> = {
+    critical: 'border-destructive/30 bg-destructive/5 text-destructive',
+    warning: 'border-amber-500/30 bg-amber-500/5 text-amber-800',
+    growth: 'border-emerald-500/30 bg-emerald-500/5 text-emerald-700',
+    stable: 'border-border bg-muted/20 text-muted-foreground',
+  };
+  const Icon =
+    insight.tone === 'growth'
+      ? TrendingUp
+      : insight.tone === 'critical' || insight.tone === 'warning'
+        ? AlertCircle
+        : CheckCircle2;
+
+  return (
+    <article className={`rounded-xl border p-4 ${toneClassName[insight.tone]}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase">{insight.label}</p>
+          <h3 className="mt-2 font-medium text-foreground">{insight.title}</h3>
+        </div>
+        <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+      </div>
+      <p className="mt-3 text-2xl font-semibold text-foreground">
+        {insight.value}
+      </p>
+      <p className="mt-2 text-sm leading-5 opacity-90">{insight.description}</p>
+    </article>
   );
 }
 
