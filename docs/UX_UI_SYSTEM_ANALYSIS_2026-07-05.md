@@ -661,6 +661,25 @@ Zakres po iteracji 5:
 - Dalsze prace nad detail pages moga byc prowadzone jako polish albo osobny
   refactor informacyjnej architektury, ale nie blokuja przejscia do Sprintu 3.
 
+Status wdrozenia Sprint 2, iteracja 6 - 2026-07-06:
+
+- Dodano wspolny komponent `DashboardDetailTabs`:
+  - standaryzuje nawigacje zakladek detail page,
+  - laczy tablist, opis aktywnego widoku i badge kontekstowy,
+  - pozwala reuzywac ten sam kontrakt zakladek na kolejnych stronach
+    szczegolow.
+- Podmieniono recznie zlozony wrapper zakladek na stronie szczegolow oferty:
+  - zachowano te same zakladki,
+  - zachowano te sama zawartosc widokow,
+  - ograniczono lokalna duplikacje klas i struktury tablist.
+
+Zakres po iteracji 6:
+
+- Sprint 2 ma wspolne komponenty dla list, filtrow, pustych stanow, bledow,
+  headerow detail page, paska `Nastepny krok` i zakladek detail page.
+- Kolejna iteracja powinna przejsc do Sprintu 3, chyba ze pojawi sie potrzeba
+  czysto wizualnego polishu detail pages.
+
 Pokrywa obserwacje:
 
 - 4. Listy ofert i klientow sa czytelne, ale moga lepiej wspierac skanowanie.
