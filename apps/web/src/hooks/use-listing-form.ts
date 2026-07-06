@@ -31,6 +31,28 @@ export function useListingForm<T extends z.ZodType>({
     [errors],
   );
 
+  const validateField = useCallback(
+    (field: string, form: HTMLFormElement) => {
+      const formData = new FormData(form);
+      const raw = formDataToNestedObject(formData);
+      const result = schema.safeParse(raw);
+      const fieldErrors = result.success
+        ? []
+        : result.error.issues
+            .filter((issue) => issue.path.join('.') === field)
+            .map((issue) => ({
+              field,
+              message: issue.message,
+            }));
+
+      setErrors((current) => [
+        ...current.filter((error) => error.field !== field),
+        ...fieldErrors,
+      ]);
+    },
+    [schema],
+  );
+
   const handleSubmit = useCallback(
     async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault();
@@ -64,7 +86,13 @@ export function useListingForm<T extends z.ZodType>({
     [schema, onSubmit],
   );
 
-  return { handleSubmit, getFieldError, globalError, isLoading };
+  return {
+    handleSubmit,
+    validateField,
+    getFieldError,
+    globalError,
+    isLoading,
+  };
 }
 
 /**

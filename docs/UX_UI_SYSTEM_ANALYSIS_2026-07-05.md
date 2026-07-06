@@ -691,22 +691,22 @@ Pokrywa obserwacje:
 Cel: tworzenie ofert i publiczne flow maja byc prostsze, bardziej przewidywalne
 i mniej stresujace dla osoby, ktora nie zna systemu.
 
-- Tryb `Szybka oferta`.
-- Lepsza walidacja inline.
-- Publiczny katalog mobile-first.
-- Wizard sprzedajacego z mocniejszym poczuciem procesu.
-- Pasek jakosci oferty z konkretnymi brakami do uzupelnienia.
-- Stale widoczny postep w publicznym wizardzie:
+- [x] Tryb `Szybka oferta`.
+- [x] Lepsza walidacja inline.
+- [ ] Publiczny katalog mobile-first.
+- [ ] Wizard sprzedajacego z mocniejszym poczuciem procesu.
+- [x] Pasek jakosci oferty z konkretnymi brakami do uzupelnienia.
+- [ ] Stale widoczny postep w publicznym wizardzie:
   - dane,
   - email,
   - weryfikacja,
   - publikacja.
-- Sticky sterowanie publicznym katalogiem na mobile:
+- [ ] Sticky sterowanie publicznym katalogiem na mobile:
   - `Filtry`,
   - `Mapa`,
   - `Wyniki`.
-- Jasne komunikaty, co stanie sie po wyslaniu publicznego formularza.
-- Sygnaly zaufania przy publicznych ofertach:
+- [ ] Jasne komunikaty, co stanie sie po wyslaniu publicznego formularza.
+- [ ] Sygnaly zaufania przy publicznych ofertach:
   - typ kontaktu,
   - ostatnia aktualizacja,
   - lokalizacja dokladna/przyblizona.
@@ -715,6 +715,32 @@ Pokrywa obserwacje:
 
 - 6. Formularze sa kompletne, ale wymagaja redukcji tarcia.
 - 8. Publiczny katalog powinien byc bardziej `kupujacy-first`.
+
+Status wdrozenia Sprint 3, iteracja 1 - 2026-07-06:
+
+- Uruchomiono `Szybka oferte` jako domyslny flow tworzenia nowej oferty:
+  - strona `/dashboard/listings/new` korzysta z `ListingForm variant="guided"`,
+  - pierwszy ekran pokazuje tylko najwazniejsze dane,
+  - reszta pozostaje pod kontrolowanym blokiem `Uzupelnij szczegoly`.
+- Dodano panel `Jakosc oferty` w formularzu tworzenia:
+  - pokazuje postep jakosci jako pasek i licznik ukonczonych elementow,
+  - laczy istniejacy evaluator opisu z brakami operacyjnymi,
+  - pokazuje konkretne braki: tytul, opis, metraz/dzialka, min. 5 zdjec,
+    punkt mapy i prowizje,
+  - pozwala od razu rozwinac szczegoly, jezeli brak dotyczy mapy albo
+    parametrow.
+- Rozszerzono walidacje inline:
+  - `useListingForm` udostepnia `validateField`,
+  - formularz oferty waliduje opuszczone pole przez ten sam schemat Zod,
+  - submit nadal korzysta z pelnej walidacji calego formularza.
+
+Zakres po iteracji 1:
+
+- Pierwszy etap Sprintu 3 pokrywa dashboardowy formularz tworzenia oferty.
+- Kolejna iteracja powinna przejsc do publicznego flow:
+  - staly pasek procesu w publicznym wizardzie,
+  - jasniejsze komunikaty po wyslaniu formularza,
+  - sticky sterowanie katalogiem publicznym na mobile.
 
 ### Sprint 4: Polish i decyzje
 

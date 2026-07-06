@@ -4,6 +4,8 @@ import * as React from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  AlertTriangle,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock3,
@@ -53,6 +55,7 @@ import {
   getStoredDescriptionAssistantUsage,
   incrementStoredDescriptionAssistantUsage,
   type ListingDescriptionAssistantInput,
+  type ListingQualityReport,
 } from '@/lib/listing-description-assistant';
 import { useAuth } from '@/contexts/auth-context';
 import { isUsageExceeded, isUsageWarning } from '@/lib/auth';
@@ -74,6 +77,14 @@ type GeocodingStatus =
   | { state: 'success'; message: string }
   | { state: 'warning'; message: string }
   | { state: 'error'; message: string };
+
+interface ListingQualityTask {
+  id: string;
+  label: string;
+  description: string;
+  completed: boolean;
+  requiresDetails?: boolean;
+}
 
 /** Form for creating or editing a listing. */
 export function ListingForm({
@@ -139,7 +150,7 @@ export function ListingForm({
   const showUsageExceeded =
     !isEdit && isUsageExceeded(listingsUsage, listingsLimit);
 
-  const { handleSubmit, getFieldError, globalError, isLoading } =
+  const { handleSubmit, validateField, getFieldError, globalError, isLoading } =
     useListingForm({
       schema: createListingSchema,
       onSubmit: async (data: CreateListingFormData) => {
@@ -175,6 +186,22 @@ export function ListingForm({
     setAssistantInput(
       collectAssistantInput(formRef.current, propertyType, listing),
     );
+  }
+
+  function handleFieldBlur(event: React.FocusEvent<HTMLFormElement>) {
+    const target = event.target;
+    if (
+      !(target instanceof HTMLInputElement) &&
+      !(target instanceof HTMLTextAreaElement) &&
+      !(target instanceof HTMLSelectElement)
+    ) {
+      return;
+    }
+
+    if (!target.name) return;
+
+    validateField(target.name, event.currentTarget);
+    syncAssistantInput();
   }
 
   function handleGenerateDescription() {
@@ -413,10 +440,22 @@ export function ListingForm({
       ref={formRef}
       onSubmit={handleSubmit}
       onInput={syncAssistantInput}
+      onBlurCapture={handleFieldBlur}
       className="space-y-8"
       noValidate
     >
       {isGuidedCreate ? <GuidedCreateIntro /> : null}
+
+      {!isEdit ? (
+        <ListingQualityPanel
+          report={qualityReport}
+          imageCount={selectedImages.length}
+          hasExactLocation={hasExactLocation(locationPoint)}
+          hasCommission={hasCommission(commissionType, commissionValue)}
+          detailsVisible={showDetails}
+          onExpandDetails={() => setShowDetails(true)}
+        />
+      ) : null}
 
       {!isEdit && (showUsageWarning || showUsageExceeded) ? (
         <LimitUpgradeBanner
@@ -1287,6 +1326,127 @@ function GuidedCreateIntro() {
   );
 }
 
+function ListingQualityPanel({
+  report,
+  imageCount,
+  hasExactLocation,
+  hasCommission,
+  detailsVisible,
+  onExpandDetails,
+}: {
+  report: ListingQualityReport;
+  imageCount: number;
+  hasExactLocation: boolean;
+  hasCommission: boolean;
+  detailsVisible: boolean;
+  onExpandDetails: () => void;
+}) {
+  const tasks = getListingQualityTasks({
+    report,
+    imageCount,
+    hasExactLocation,
+    hasCommission,
+  });
+  const completedCount = tasks.filter((task) => task.completed).length;
+  const progress = Math.round((completedCount / tasks.length) * 100);
+  const missingTasks = tasks.filter((task) => !task.completed).slice(0, 4);
+  const badgeVariant =
+    progress >= 85 ? 'success' : progress >= 55 ? 'warning' : 'destructive';
+
+  return (
+    <section
+      aria-labelledby="listing-quality-panel-title"
+      className="rounded-xl border border-border bg-card p-4 shadow-sm"
+    >
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2
+              id="listing-quality-panel-title"
+              className="font-heading text-base font-semibold text-foreground"
+            >
+              Jakość oferty
+            </h2>
+            <Badge variant={badgeVariant}>
+              {completedCount}/{tasks.length} gotowe
+            </Badge>
+            <Badge variant="outline">{report.label} opis</Badge>
+          </div>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            Uzupełnij najważniejsze elementy przed publikacją. Oferta może być
+            zapisana wcześniej, a szczegóły można dodać później.
+          </p>
+        </div>
+
+        {!detailsVisible && missingTasks.some((task) => task.requiresDetails) ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 rounded-xl lg:self-start"
+            onClick={onExpandDetails}
+          >
+            Uzupełnij szczegóły
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="mt-4">
+        <div
+          className="h-2 overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress}
+          aria-label="Postęp jakości oferty"
+        >
+          <div
+            className={cn(
+              'h-full rounded-full transition-all',
+              progress >= 85
+                ? 'bg-status-success'
+                : progress >= 55
+                  ? 'bg-status-warning'
+                  : 'bg-destructive',
+            )}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        {tasks.map((task) => {
+          const Icon = task.completed ? CheckCircle2 : AlertTriangle;
+
+          return (
+            <div
+              key={task.id}
+              className={cn(
+                'flex min-w-0 gap-2 rounded-lg border px-3 py-2 text-sm',
+                task.completed
+                  ? 'border-status-success/20 bg-status-success-bg/60'
+                  : 'border-border bg-muted/20',
+              )}
+            >
+              <Icon
+                className={cn(
+                  'mt-0.5 h-4 w-4 shrink-0',
+                  task.completed ? 'text-status-success' : 'text-amber-600',
+                )}
+              />
+              <div className="min-w-0">
+                <p className="font-medium text-foreground">{task.label}</p>
+                <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                  {task.description}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function CommissionSection({
   currency,
   price,
@@ -1495,6 +1655,122 @@ function collectAssistantInput(
     yearBuilt: toNumberOrNull(getFormValue(form, 'yearBuilt')),
     description: getFormValue(form, 'description'),
   };
+}
+
+function getListingQualityTasks({
+  report,
+  imageCount,
+  hasExactLocation,
+  hasCommission,
+}: {
+  report: ListingQualityReport;
+  imageCount: number;
+  hasExactLocation: boolean;
+  hasCommission: boolean;
+}): ListingQualityTask[] {
+  return [
+    {
+      id: 'title',
+      label: 'Tytuł z wyróżnikiem',
+      description: hasListingQualityHint(report, 'short-title')
+        ? 'Dodaj lokalizację, metraż albo najmocniejszy atut oferty.'
+        : 'Tytuł pomaga szybko zrozumieć, co wyróżnia nieruchomość.',
+      completed: !hasListingQualityHint(report, 'short-title'),
+    },
+    {
+      id: 'description',
+      label: 'Opis gotowy do publikacji',
+      description: hasListingQualityHint(report, [
+        'missing-description',
+        'short-description',
+      ])
+        ? 'Uzupełnij opis o układ, standard, lokalizację i kontekst ceny.'
+        : 'Opis zawiera bazę potrzebną do publicznej prezentacji.',
+      completed: !hasListingQualityHint(report, [
+        'missing-description',
+        'short-description',
+      ]),
+    },
+    {
+      id: 'area',
+      label: 'Kluczowe parametry',
+      description: hasListingQualityHint(report, [
+        'missing-area',
+        'missing-plot-area',
+      ])
+        ? 'Uzupełnij metraż lub powierzchnię działki dla tego typu oferty.'
+        : 'Najważniejszy metraż dla wybranego typu jest uzupełniony.',
+      completed: !hasListingQualityHint(report, [
+        'missing-area',
+        'missing-plot-area',
+      ]),
+      requiresDetails: true,
+    },
+    {
+      id: 'images',
+      label: 'Min. 5 zdjęć',
+      description:
+        imageCount >= 5
+          ? 'Galeria ma dobry zestaw zdjęć startowych.'
+          : `Dodaj jeszcze ${5 - imageCount} ${pluralize(5 - imageCount, [
+              'zdjęcie',
+              'zdjęcia',
+              'zdjęć',
+            ])}, żeby oferta lepiej konwertowała.`,
+      completed: imageCount >= 5,
+    },
+    {
+      id: 'map-point',
+      label: 'Punkt na mapie',
+      description: hasExactLocation
+        ? 'Dokładny punkt jest gotowy do kontroli widoczności publicznej.'
+        : 'Ustaw współrzędne albo użyj geokodowania po uzupełnieniu adresu.',
+      completed: hasExactLocation,
+      requiresDetails: true,
+    },
+    {
+      id: 'commission',
+      label: 'Prowizja agenta',
+      description: hasCommission
+        ? 'Prywatna informacja o prowizji jest uzupełniona.'
+        : 'Dodaj typ i wartość prowizji, żeby dashboard pokazywał potencjał.',
+      completed: hasCommission,
+    },
+  ];
+}
+
+function hasListingQualityHint(
+  report: ListingQualityReport,
+  ids: string | string[],
+): boolean {
+  const idSet = new Set(Array.isArray(ids) ? ids : [ids]);
+  return report.hints.some((hint) => idSet.has(hint.id));
+}
+
+function hasExactLocation(locationPoint: {
+  lat: number | string;
+  lng: number | string;
+}): boolean {
+  return (
+    toNumberOrNull(locationPoint.lat) !== null &&
+    toNumberOrNull(locationPoint.lng) !== null
+  );
+}
+
+function hasCommission(
+  commissionType: ListingCommissionType | '',
+  commissionValue: number | string,
+): boolean {
+  return Boolean(commissionType && toNumberOrNull(commissionValue) !== null);
+}
+
+function pluralize(count: number, forms: [string, string, string]): string {
+  const abs = Math.abs(count);
+  if (abs === 1) return forms[0];
+  if (abs % 10 >= 2 && abs % 10 <= 4 && (abs % 100 < 12 || abs % 100 > 14)) {
+    return forms[1];
+  }
+  return forms[2];
 }
 
 function formatCoordinate(value: number): string {

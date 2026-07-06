@@ -10,13 +10,13 @@ export default function NewListingPage() {
           Dodaj ofertę
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Uzupełnij dane oferty, zdjęcia i ustawienia widoczności przed
-          zapisaniem.
+          Zacznij od najważniejszych danych. Szczegóły, mapę i ustawienia
+          publikacji możesz uzupełnić od razu albo po zapisaniu.
         </p>
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-        <ListingForm />
+        <ListingForm variant="guided" />
       </div>
     </div>
   );
