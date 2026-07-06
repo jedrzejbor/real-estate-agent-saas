@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Mail,
   MapPin,
+  ShieldAlert,
   Phone,
   RefreshCw,
   ShieldCheck,
@@ -14,6 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
+import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
@@ -31,6 +33,7 @@ import { cn } from '@/lib/utils';
 
 export default function AdminListingSubmissionsPage() {
   const { user } = useAuth();
+  const { confirm } = useConfirm();
   const { success: showSuccessToast, error: showErrorToast } = useToast();
   const [items, setItems] = useState<AdminPublicListingSubmissionListItem[]>(
     [],
@@ -71,6 +74,29 @@ export default function AdminListingSubmissionsPage() {
   }, [isAdmin, refreshToken]);
 
   async function approveSubmission(item: AdminPublicListingSubmissionListItem) {
+    const checklist = getModerationChecklist(item);
+    const blockingItems = checklist.filter((entry) => entry.blocksApproval);
+
+    if (blockingItems.length > 0) {
+      showErrorToast({
+        title: 'Nie można zatwierdzić bez pełnej kontroli',
+        description: blockingItems.map((entry) => entry.label).join(', '),
+      });
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Zatwierdzić publiczną ofertę?',
+      description: formatModerationDecisionSummary(
+        item,
+        'Oferta zostanie opublikowana w katalogu publicznym. Sprawdź checklistę, dane kontaktowe i sygnały moderacji przed zatwierdzeniem.',
+      ),
+      confirmLabel: 'Zatwierdź ofertę',
+      variant: 'destructive',
+    });
+
+    if (!confirmed) return;
+
     setUpdatingId(item.id);
 
     try {
@@ -102,6 +128,18 @@ export default function AdminListingSubmissionsPage() {
       });
       return;
     }
+
+    const confirmed = await confirm({
+      title: 'Odrzucić publiczną ofertę?',
+      description: formatModerationDecisionSummary(
+        item,
+        `Powód wysłany do właściciela: ${reason}`,
+      ),
+      confirmLabel: 'Odrzuć ofertę',
+      variant: 'destructive',
+    });
+
+    if (!confirmed) return;
 
     setUpdatingId(item.id);
 
@@ -233,6 +271,9 @@ function SubmissionModerationCard({
   onApprove: () => void;
   onReject: () => void;
 }) {
+  const checklist = getModerationChecklist(item);
+  const canApprove = checklist.every((entry) => !entry.blocksApproval);
+
   return (
     <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -284,9 +325,11 @@ function SubmissionModerationCard({
         </div>
 
         <div className="grid gap-3">
+          <ModerationChecklist items={checklist} />
+
           <Button
             className="gap-2 rounded-xl"
-            disabled={isUpdating}
+            disabled={isUpdating || !canApprove}
             onClick={onApprove}
           >
             <CheckCircle2 className="h-4 w-4" />
@@ -315,6 +358,115 @@ function SubmissionModerationCard({
       </div>
     </article>
   );
+}
+
+interface ModerationChecklistItem {
+  label: string;
+  detail: string;
+  status: 'ok' | 'warning' | 'blocked';
+  blocksApproval?: boolean;
+}
+
+function ModerationChecklist({ items }: { items: ModerationChecklistItem[] }) {
+  return (
+    <section className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-950">
+        <ShieldAlert className="h-4 w-4 text-amber-700" />
+        Checklist moderacji
+      </div>
+      <ul className="space-y-2">
+        {items.map((item) => (
+          <li
+            key={item.label}
+            className="flex items-start gap-2 rounded-lg border border-amber-200 bg-card px-3 py-2 text-sm"
+          >
+            <span
+              className={cn(
+                'mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full',
+                item.status === 'ok' && 'bg-status-success',
+                item.status === 'warning' && 'bg-amber-500',
+                item.status === 'blocked' && 'bg-destructive',
+              )}
+            />
+            <span className="min-w-0">
+              <span className="block font-medium text-foreground">
+                {item.label}
+              </span>
+              <span className="block text-xs leading-5 text-muted-foreground">
+                {item.detail}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function getModerationChecklist(
+  item: AdminPublicListingSubmissionListItem,
+): ModerationChecklistItem[] {
+  const hasContact = Boolean(item.ownerName.trim() && item.email && item.phone);
+  const hasImages = item.imageCount > 0;
+  const validPrice = item.price !== null && item.price > 0 ? item.price : null;
+  const hasPrice = validPrice !== null;
+  const descriptionLength = item.description?.trim().length ?? 0;
+  const hasDescription = descriptionLength >= 80;
+  const hasAbuseSignals = item.moderationReasons.length > 0;
+
+  return [
+    {
+      label: 'Dane kontaktowe',
+      detail: hasContact
+        ? `${item.ownerName}, ${item.email}, ${item.phone}`
+        : 'Brakuje właściciela, emaila albo telefonu.',
+      status: hasContact ? 'ok' : 'blocked',
+      blocksApproval: !hasContact,
+    },
+    {
+      label: 'Zdjęcia',
+      detail:
+        item.imageCount > 0
+          ? `${item.imageCount} zdjęć w zgłoszeniu.`
+          : 'Brak zdjęć. Oferta wymaga ręcznej decyzji przed publikacją.',
+      status: hasImages ? 'ok' : 'blocked',
+      blocksApproval: !hasImages,
+    },
+    {
+      label: 'Cena',
+      detail: hasPrice
+        ? formatPrice(validPrice, item.currency)
+        : 'Cena nie została podana albo jest nieprawidłowa.',
+      status: hasPrice ? 'ok' : 'blocked',
+      blocksApproval: !hasPrice,
+    },
+    {
+      label: 'Opis',
+      detail: hasDescription
+        ? `${descriptionLength} znaków opisu.`
+        : 'Opis jest krótki. Poproś właściciela o uzupełnienie albo odrzuć z konkretnym powodem.',
+      status: hasDescription ? 'ok' : 'warning',
+    },
+    {
+      label: 'Sygnały abuse',
+      detail: hasAbuseSignals
+        ? item.moderationReasons.join(', ')
+        : 'Brak sygnałów abuse z automatycznej moderacji.',
+      status: hasAbuseSignals ? 'blocked' : 'ok',
+      blocksApproval: hasAbuseSignals,
+    },
+  ];
+}
+
+function formatModerationDecisionSummary(
+  item: AdminPublicListingSubmissionListItem,
+  intro: string,
+): string {
+  const checklist = getModerationChecklist(item)
+    .map((entry) => `${entry.label}: ${entry.detail}`)
+    .join(' ');
+
+  return `${intro} Oferta: ${item.title}. Właściciel: ${item.ownerName}. ${checklist}`;
 }
 
 function formatDate(value: string): string {

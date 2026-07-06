@@ -931,13 +931,13 @@ pokazywac skutki zmian zanim admin je zatwierdzi.
   - [x] zmiana limitow,
   - [x] reset override'ow,
   - [ ] wymuszenie limit enforcement,
-  - [ ] zatwierdzenie/odrzucenie publicznej oferty.
-- Checklisty moderacji publicznych ofert:
-  - dane kontaktowe,
-  - zdjecia,
-  - cena,
-  - opis,
-  - sygnaly abuse.
+  - [x] zatwierdzenie/odrzucenie publicznej oferty.
+- [x] Checklisty moderacji publicznych ofert:
+  - [x] dane kontaktowe,
+  - [x] zdjecia,
+  - [x] cena,
+  - [x] opis,
+  - [x] sygnaly abuse.
 - Widoki analytics nastawione na decyzje:
   - anomalie,
   - wzrosty,
@@ -976,6 +976,34 @@ Zakres po iteracji 1:
 - Kolejna iteracja powinna objac moderacje publicznych ofert:
   - checklisty danych kontaktowych, zdjec, ceny, opisu i sygnalow abuse,
   - confirm dialog dla zatwierdzenia albo odrzucenia oferty publicznej.
+
+Status wdrozenia Sprint 5, iteracja 2 - 2026-07-07:
+
+- Rozszerzono dane admin listy publicznych zgloszen:
+  - admin API zwraca opis, liczbe zdjec i sygnaly automatycznej moderacji,
+  - sygnaly moderacji korzystaja z istniejacego backendowego evaluatora oraz
+    zapisanych wynikow moderacji, jezeli sa dostepne.
+- Dodano checklisty moderacji na ekranie `Moderacja zgloszen`:
+  - dane kontaktowe,
+  - zdjecia,
+  - cena,
+  - opis,
+  - sygnaly abuse.
+- Wzmocniono decyzje moderacyjne:
+  - zatwierdzenie wymaga confirm dialogu z podsumowaniem skutkow,
+  - odrzucenie wymaga powodu oraz confirm dialogu,
+  - zatwierdzenie jest blokowane, jezeli brakuje danych krytycznych albo
+    wystepuja sygnaly abuse.
+
+Zakres po iteracji 2:
+
+- Sprint 5 ma pokryte: shell admina, admin navigation, defensywne zmiany
+  planow/limitow oraz moderacje publicznych ofert.
+- Kolejna iteracja powinna objac analytics admina:
+  - anomalie,
+  - wzrosty i spadki,
+  - wskazanie metryk wymagajacych reakcji,
+  - lepsze empty/error states dla analytics.
 
 ## Macierz pokrycia obserwacji przez sprinty
 

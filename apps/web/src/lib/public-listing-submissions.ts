@@ -144,11 +144,14 @@ export interface AdminPublicListingSubmissionListItem {
   email: string;
   phone: string;
   title: string;
+  description: string | null;
   propertyType: PropertyType;
   transactionType: TransactionType;
   price: number | null;
   currency: string;
   city: string | null;
+  imageCount: number;
+  moderationReasons: string[];
   createdAt: string;
   verifiedAt: string | null;
   claimedAt: string | null;

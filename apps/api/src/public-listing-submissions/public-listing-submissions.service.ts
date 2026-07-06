@@ -171,11 +171,14 @@ export interface AdminPublicListingSubmissionListItem {
   email: string;
   phone: string;
   title: string;
+  description: string | null;
   propertyType: PropertyType;
   transactionType: TransactionType;
   price: number | null;
   currency: string;
   city: string | null;
+  imageCount: number;
+  moderationReasons: string[];
   createdAt: Date;
   verifiedAt: Date | null;
   claimedAt: Date | null;
@@ -1638,6 +1641,22 @@ function evaluateSubmissionModeration(
   });
 }
 
+function getModerationSignals(submission: PublicListingSubmission): string[] {
+  const storedModeration = submission.metadata?.moderation;
+
+  if (
+    typeof storedModeration === 'object' &&
+    storedModeration !== null &&
+    Array.isArray((storedModeration as { reasons?: unknown }).reasons)
+  ) {
+    return (storedModeration as { reasons: unknown[] }).reasons
+      .filter((reason): reason is string => typeof reason === 'string')
+      .slice(0, 8);
+  }
+
+  return evaluateSubmissionModeration(submission).reasons.slice(0, 8);
+}
+
 function getStoredAbuseReport(
   metadata: Record<string, unknown> | null | undefined,
 ): { riskScore?: unknown; signals?: unknown } | null {
@@ -1788,6 +1807,7 @@ function toAdminListItem(
     email: submission.email,
     phone: submission.phone,
     title: getString(listing.title, 'Ogłoszenie nieruchomości'),
+    description: getNullableString(listing.description),
     propertyType: getEnumValue(
       listing.propertyType,
       Object.values(PropertyType),
@@ -1801,6 +1821,10 @@ function toAdminListItem(
     price: getNullableNumber(listing.price),
     currency: getString(listing.currency, 'PLN').slice(0, 3),
     city: getNullableString(address.city),
+    imageCount: Array.isArray(submission.payload.images)
+      ? submission.payload.images.length
+      : 0,
+    moderationReasons: getModerationSignals(submission),
     createdAt: submission.createdAt,
     verifiedAt: submission.verifiedAt ?? null,
     claimedAt: submission.claimedAt ?? null,
