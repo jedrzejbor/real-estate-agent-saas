@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Check,
   Code2,
@@ -64,6 +65,7 @@ export function ListingPublicationPanel({
   onListingChange,
   density = 'default',
 }: ListingPublicationPanelProps) {
+  const router = useRouter();
   const { success: showSuccessToast, error: showErrorToast } = useToast();
   const { user } = useAuth();
   const [origin, setOrigin] = React.useState('');
@@ -151,11 +153,22 @@ export function ListingPublicationPanel({
         ? await unpublishListing(listing.id)
         : await publishListing(listing.id);
       onListingChange?.(updated);
+      const nextPublicPath = updated.publicSlug
+        ? `/oferty/${updated.publicSlug}`
+        : publicPath;
       showSuccessToast({
         title: isPublished ? 'Oferta wyłączona' : 'Oferta opublikowana',
         description: isPublished
           ? 'Publiczny link nie będzie już dostępny dla klientów.'
           : 'Możesz teraz skopiować link i udostępnić ofertę.',
+        duration: 7000,
+        action:
+          !isPublished && nextPublicPath
+            ? {
+                label: 'Otwórz publiczną stronę',
+                onClick: () => router.push(nextPublicPath),
+              }
+            : undefined,
       });
     } catch (error) {
       showErrorToast({

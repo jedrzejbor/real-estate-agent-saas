@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
   CalendarClock,
@@ -15,6 +16,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DashboardPageHeader } from '@/components/dashboard/page-header';
+import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
   fetchTasks,
@@ -38,6 +40,8 @@ const TASK_FILTERS: Array<{ id: TaskFilter; label: string }> = [
 ];
 
 export default function TasksPage() {
+  const router = useRouter();
+  const { success: showSuccessToast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('todo');
   const [isLoading, setIsLoading] = useState(true);
@@ -94,6 +98,21 @@ export default function TasksPage() {
             ? item.status === TaskStatus.TODO
             : item.status === TaskStatus.DONE,
         );
+      });
+      showSuccessToast({
+        title:
+          nextStatus === TaskStatus.DONE
+            ? 'Zadanie oznaczone jako wykonane'
+            : 'Zadanie przywrócone',
+        description:
+          nextStatus === TaskStatus.DONE
+            ? 'Dobra kolejność pracy jest zachowana. Możesz przejść do kontekstu zadania albo zostać na liście.'
+            : 'Zadanie wróciło na listę do zrobienia.',
+        duration: 7000,
+        action: {
+          label: 'Otwórz kontekst',
+          onClick: () => router.push(getTaskContextHref(updated)),
+        },
       });
     } catch (err) {
       setError(getApiErrorMessage(err));

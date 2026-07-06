@@ -805,12 +805,12 @@ feedback po kazdej waznej akcji.
 - [ ] Uspojnienie radiusow i gestosci.
 - [ ] Raporty z interpretacjami.
 - [x] Mikrointerakcje i lepsze next actions po kazdej waznej akcji.
-- [ ] Standard potwierdzen po akcjach:
+- [x] Standard potwierdzen po akcjach:
   - [x] zapisano,
-  - [ ] opublikowano,
+  - [x] opublikowano,
   - [x] utworzono klienta,
   - [x] zaplanowano spotkanie,
-  - [ ] oznaczono zadanie jako wykonane.
+  - [x] oznaczono zadanie jako wykonane.
 - [x] Po akcjach pokazac kolejny krok zamiast samego toastu.
 - [ ] Raporty z trzema wnioskami na gorze ekranu:
   - najlepsze zrodlo leadow,
@@ -851,6 +851,26 @@ Zakres po iteracji 1:
   glownych akcji operacyjnych.
 - Kolejna iteracja powinna objac publikacje ofert, taski oraz raporty z
   interpretacjami na gorze ekranu.
+
+Status wdrozenia Sprint 4, iteracja 2 - 2026-07-06:
+
+- Rozszerzono standard potwierdzen dla publikacji ofert:
+  - po opublikowaniu oferty toast ma CTA `Otworz publiczna strone`,
+  - CTA korzysta ze slug zwroconego po publikacji, jezeli zostal utworzony w
+    trakcie akcji,
+  - komunikat dalej informuje o mozliwosci skopiowania i udostepnienia linku.
+- Rozszerzono standard potwierdzen dla zadan:
+  - po oznaczeniu taska jako wykonanego toast pokazuje konkretny status,
+  - po przywroceniu taska toast informuje, ze zadanie wraca na liste,
+  - CTA `Otworz kontekst` prowadzi do klienta, oferty albo spotkania
+    powiazanego z zadaniem.
+
+Zakres po iteracji 2:
+
+- Standard potwierdzen po akcjach z listy Sprintu 4 jest pokryty dla zapisow,
+  publikacji, tworzenia klienta, tworzenia spotkania i taskow.
+- Kolejna iteracja powinna przejsc do raportow z interpretacjami oraz
+  ograniczenia `card-heavy UI` w ekranach operacyjnych.
 
 ### Sprint 5: Defensywny admin UX
 
