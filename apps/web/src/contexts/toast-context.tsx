@@ -19,6 +19,10 @@ export interface ToastInput {
   description?: string;
   variant?: ToastVariant;
   duration?: number;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 interface ToastItem extends ToastInput {
@@ -126,6 +130,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   <p className="text-sm font-semibold text-foreground">{toast.title}</p>
                   {toast.description ? (
                     <p className="mt-1 text-sm text-muted-foreground">{toast.description}</p>
+                  ) : null}
+                  {toast.action ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toast.action?.onClick();
+                        dismissToast(toast.id);
+                      }}
+                      className="mt-3 inline-flex h-8 items-center justify-center rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+                    >
+                      {toast.action.label}
+                    </button>
                   ) : null}
                 </div>
                 <button

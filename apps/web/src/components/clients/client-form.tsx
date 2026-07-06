@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { InlineSelect } from '@/components/ui/inline-select';
 import { LimitUpgradeBanner } from '@/components/growth/limit-upgrade-banner';
+import { useToast } from '@/contexts/toast-context';
 import { useClientForm } from '@/hooks/use-client-form';
 import {
   createClientSchema,
@@ -31,6 +32,7 @@ interface ClientFormProps {
 export function ClientForm({ client, initialValues }: ClientFormProps) {
   const router = useRouter();
   const { user } = useAuth();
+  const { success: showSuccessToast } = useToast();
   const isEdit = !!client;
 
   const clientsUsage = user?.usage.clients ?? 0;
@@ -46,8 +48,29 @@ export function ClientForm({ client, initialValues }: ClientFormProps) {
       onSubmit: async (data: CreateClientFormData) => {
         if (isEdit) {
           await updateClient(client.id, data);
+          showSuccessToast({
+            title: 'Zapisano zmiany w kliencie',
+            description:
+              'Profil klienta jest aktualny. Możesz sprawdzić dopasowania i aktywności.',
+            duration: 7000,
+            action: {
+              label: 'Otwórz klienta',
+              onClick: () => router.push(`/dashboard/clients/${client.id}`),
+            },
+          });
         } else {
-          await createClient(data);
+          const createdClient = await createClient(data);
+          showSuccessToast({
+            title: 'Klient został utworzony',
+            description:
+              'Następny krok: sprawdź dopasowane oferty albo zaplanuj kontakt.',
+            duration: 7000,
+            action: {
+              label: 'Otwórz klienta',
+              onClick: () =>
+                router.push(`/dashboard/clients/${createdClient.id}`),
+            },
+          });
         }
         router.push('/dashboard/clients');
         router.refresh();

@@ -97,7 +97,15 @@ export function AppointmentForm({
           title: isEdit
             ? 'Spotkanie zostało zaktualizowane'
             : 'Spotkanie zostało utworzone',
-          description: `${savedAppointment.title} zapisano pomyślnie.`,
+          description: isEdit
+            ? `${savedAppointment.title} zapisano pomyślnie. Sprawdź dzień w kalendarzu.`
+            : `${savedAppointment.title} dodano do kalendarza. Następny krok: przygotuj klienta albo ofertę do spotkania.`,
+          duration: 7000,
+          action: {
+            label: 'Pokaż w kalendarzu',
+            onClick: () =>
+              router.push(getCalendarRedirectUrl(savedAppointment.startTime)),
+          },
         });
 
         router.push(getCalendarRedirectUrl(savedAppointment.startTime));

@@ -156,6 +156,15 @@ export function ListingForm({
       onSubmit: async (data: CreateListingFormData) => {
         if (isEdit) {
           await updateListing(listing.id, data);
+          showSuccessToast({
+            title: 'Zapisano zmiany w ofercie',
+            description: 'Oferta jest aktualna. Możesz sprawdzić publikację albo wrócić do listy.',
+            duration: 7000,
+            action: {
+              label: 'Otwórz ofertę',
+              onClick: () => router.push(`/dashboard/listings/${listing.id}`),
+            },
+          });
         } else {
           const created = await createListing(data);
           if (selectedImages.length > 0) {
@@ -171,6 +180,15 @@ export function ListingForm({
               return;
             }
           }
+          showSuccessToast({
+            title: 'Oferta została utworzona',
+            description: 'Następny krok: sprawdź jakość danych, zdjęcia i ustawienia publikacji.',
+            duration: 7000,
+            action: {
+              label: 'Otwórz szczegóły',
+              onClick: () => router.push(`/dashboard/listings/${created.id}`),
+            },
+          });
         }
         router.push('/dashboard/listings');
         router.refresh();

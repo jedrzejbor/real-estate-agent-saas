@@ -801,22 +801,22 @@ Zakres po iteracji 3:
 Cel: interfejs ma byc mniej ciezki wizualnie, bardziej decyzyjny i dawac lepszy
 feedback po kazdej waznej akcji.
 
-- Redukcja nadmiaru kart.
-- Uspojnienie radiusow i gestosci.
-- Raporty z interpretacjami.
-- Mikrointerakcje i lepsze next actions po kazdej waznej akcji.
-- Standard potwierdzen po akcjach:
-  - zapisano,
-  - opublikowano,
-  - utworzono klienta,
-  - zaplanowano spotkanie,
-  - oznaczono zadanie jako wykonane.
-- Po akcjach pokazac kolejny krok zamiast samego toastu.
-- Raporty z trzema wnioskami na gorze ekranu:
+- [ ] Redukcja nadmiaru kart.
+- [ ] Uspojnienie radiusow i gestosci.
+- [ ] Raporty z interpretacjami.
+- [x] Mikrointerakcje i lepsze next actions po kazdej waznej akcji.
+- [ ] Standard potwierdzen po akcjach:
+  - [x] zapisano,
+  - [ ] opublikowano,
+  - [x] utworzono klienta,
+  - [x] zaplanowano spotkanie,
+  - [ ] oznaczono zadanie jako wykonane.
+- [x] Po akcjach pokazac kolejny krok zamiast samego toastu.
+- [ ] Raporty z trzema wnioskami na gorze ekranu:
   - najlepsze zrodlo leadow,
   - oferta wymagajaca uwagi,
   - najwieksza szansa prowizyjna.
-- Ograniczenie `card-heavy UI` w ekranach operacyjnych:
+- [ ] Ograniczenie `card-heavy UI` w ekranach operacyjnych:
   - mniej zagniezdzonych kart,
   - mniejsze promienie w listach,
   - wiecej separatorow i ukladow tabelarycznych.
@@ -826,6 +826,31 @@ Pokrywa obserwacje:
 - 7. Feedback po akcjach powinien byc bardziej widoczny i konkretny.
 - 9. UI system jest spojny, ale miejscami zbyt `card-heavy`.
 - 11. Raporty powinny mniej tlumaczyc, a bardziej pomagac podjac decyzje.
+
+Status wdrozenia Sprint 4, iteracja 1 - 2026-07-06:
+
+- Rozszerzono globalny system toastow o opcjonalne CTA:
+  - toast moze pokazac przycisk akcji,
+  - klikniecie akcji zamyka toast,
+  - istniejace toasty bez akcji zachowuja dotychczasowe dzialanie.
+- Dodano standard potwierdzen z next action dla ofert:
+  - po utworzeniu oferty toast prowadzi do szczegolow oferty,
+  - po edycji oferty toast pozwala otworzyc aktualna oferte,
+  - copy wskazuje kolejny krok: jakosc danych, zdjecia i publikacje.
+- Dodano standard potwierdzen z next action dla klientow:
+  - po utworzeniu klienta toast prowadzi do profilu klienta,
+  - po edycji klienta toast prowadzi do profilu klienta,
+  - copy wskazuje kolejny krok: dopasowania ofert albo kontakt.
+- Dodano standard potwierdzen z next action dla spotkan:
+  - po utworzeniu albo edycji spotkania toast prowadzi do dnia w kalendarzu,
+  - copy wskazuje przygotowanie klienta albo oferty do spotkania.
+
+Zakres po iteracji 1:
+
+- Sprint 4 ma wdrozony fundament mikrofeedbacku i next actions dla trzech
+  glownych akcji operacyjnych.
+- Kolejna iteracja powinna objac publikacje ofert, taski oraz raporty z
+  interpretacjami na gorze ekranu.
 
 ### Sprint 5: Defensywny admin UX
 
