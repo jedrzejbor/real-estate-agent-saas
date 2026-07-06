@@ -13,8 +13,10 @@ import {
   Layers3,
   MapPin,
   Maximize,
+  MessageCircle,
   Phone,
   Ruler,
+  ShieldCheck,
 } from 'lucide-react';
 import { absoluteUrl, compactJsonLd, getSiteUrl } from '@/lib/seo';
 import {
@@ -127,6 +129,7 @@ export default async function PublicListingPage({
   const jsonLd = buildListingJsonLd(listing, canonicalUrl, primaryImage);
   const facts = getPublicListingFacts(listing);
   const details = getPublicListingDetails(listing);
+  const trustSignals = getPublicListingTrustSignals(listing);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -256,6 +259,11 @@ export default async function PublicListingPage({
                 {listing.agent.agency.name}
               </p>
             ) : null}
+            <div className="mt-5 grid gap-2 rounded-2xl border border-border bg-muted/30 p-3">
+              {trustSignals.map((signal) => (
+                <TrustSignal key={signal.label} {...signal} />
+              ))}
+            </div>
             <div className="mt-5 space-y-3">
               {listing.agent?.id ? (
                 <Link
@@ -476,6 +484,45 @@ function getPublicListingDetails(listing: PublicListing): DisplayItem[] {
   return details;
 }
 
+function getPublicListingTrustSignals(listing: PublicListing): DisplayItem[] {
+  const hasPhone = Boolean(listing.agent?.phone);
+  const hasStreet = Boolean(listing.address?.street);
+
+  return [
+    {
+      icon: MessageCircle,
+      label: 'Typ kontaktu',
+      value: hasPhone ? 'Telefon i formularz' : 'Formularz kontaktowy',
+    },
+    {
+      icon: MapPin,
+      label: 'Lokalizacja',
+      value: hasStreet ? 'Dokładna' : 'Przybliżona',
+    },
+    {
+      icon: CalendarDays,
+      label: 'Ostatnia aktualizacja',
+      value: formatDisplayDate(listing.updatedAt),
+    },
+    {
+      icon: ShieldCheck,
+      label: 'Status oferty',
+      value: 'Publicznie zweryfikowana',
+    },
+  ];
+}
+
+function formatDisplayDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Brak daty';
+
+  return new Intl.DateTimeFormat('pl-PL', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
 function hasListingValue(value: unknown): boolean {
   return value !== null && value !== undefined && value !== '';
 }
@@ -591,6 +638,26 @@ function Detail({
       <div>
         <p className="text-xs text-muted-foreground">{label}</p>
         <p className="text-sm font-medium text-foreground">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function TrustSignal({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Home;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex min-w-0 items-start gap-2 text-sm">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+      <div className="min-w-0">
+        <p className="font-medium text-foreground">{label}</p>
+        <p className="mt-0.5 truncate text-muted-foreground">{value}</p>
       </div>
     </div>
   );

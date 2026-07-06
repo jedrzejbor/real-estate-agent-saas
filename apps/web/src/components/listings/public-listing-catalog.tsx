@@ -6,12 +6,15 @@ import Link from 'next/link';
 import {
   ArrowRight,
   Building2,
+  CalendarDays,
   Home,
   Map as MapIcon,
   MapPin,
+  MessageCircle,
   PlusCircle,
   RotateCcw,
   Search,
+  ShieldCheck,
   SlidersHorizontal,
 } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
@@ -162,8 +165,10 @@ function PublicListingCatalogContent({
   }
 
   return (
-    <section className="mx-auto grid max-w-7xl gap-6 px-5 py-8 sm:px-8 lg:grid-cols-[320px_1fr] lg:px-10">
-      <aside className="lg:sticky lg:top-6 lg:self-start">
+    <section className="mx-auto grid max-w-7xl gap-6 px-5 py-8 pb-24 sm:px-8 lg:grid-cols-[320px_1fr] lg:px-10 lg:pb-8">
+      <PublicCatalogMobileControls resultCount={catalog?.meta.total ?? 0} />
+
+      <aside id="filtry" className="scroll-mt-24 lg:sticky lg:top-6 lg:self-start">
         <form
           key={formKey}
           action="/oferty"
@@ -349,7 +354,7 @@ function PublicListingCatalogContent({
         </form>
       </aside>
 
-      <div className="relative min-w-0">
+      <div id="wyniki" className="relative min-w-0 scroll-mt-24">
         {isPending ? (
           <div className="pointer-events-none absolute inset-0 z-10 rounded-2xl bg-card/45" />
         ) : null}
@@ -390,7 +395,7 @@ function PublicListingCatalogContent({
               </div>
             </div>
 
-            <div className="mb-6">
+            <div id="mapa" className="mb-6 scroll-mt-24">
               <PublicListingCatalogMap
                 markers={catalog.mapMarkers}
                 mapMeta={catalog.meta.map}
@@ -432,6 +437,47 @@ function PublicListingCatalogContent({
   );
 }
 
+function PublicCatalogMobileControls({
+  resultCount,
+}: {
+  resultCount: number;
+}) {
+  return (
+    <nav
+      aria-label="Sterowanie katalogiem"
+      className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur lg:hidden"
+    >
+      <MobileControlLink href="#filtry" icon={SlidersHorizontal} label="Filtry" />
+      <MobileControlLink href="#mapa" icon={MapIcon} label="Mapa" />
+      <MobileControlLink
+        href="#wyniki"
+        icon={Search}
+        label={resultCount > 0 ? `${resultCount} wyniki` : 'Wyniki'}
+      />
+    </nav>
+  );
+}
+
+function MobileControlLink({
+  href,
+  icon: Icon,
+  label,
+}: {
+  href: string;
+  icon: typeof Search;
+  label: string;
+}) {
+  return (
+    <a
+      href={href}
+      className="inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl bg-muted/60 px-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+    >
+      <Icon className="h-4 w-4 shrink-0 text-primary" />
+      <span className="truncate">{label}</span>
+    </a>
+  );
+}
+
 function ListingCard({
   listing,
   position,
@@ -451,6 +497,7 @@ function ListingCard({
         ? [listing.primaryImage]
         : [];
   const agencyName = listing.agent?.agency?.name;
+  const trustSignals = getCatalogTrustSignals(listing);
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -517,6 +564,12 @@ function ListingCard({
             />
           </div>
 
+          <div className="mt-4 grid gap-2">
+            {trustSignals.map((signal) => (
+              <TrustSignal key={signal.label} {...signal} />
+            ))}
+          </div>
+
           <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3">
             <p className="truncate text-xs text-muted-foreground">
               {agencyName || 'EstateFlow'}
@@ -529,6 +582,21 @@ function ListingCard({
         </div>
       </PublicListingCatalogResultLink>
     </article>
+  );
+}
+
+function TrustSignal({
+  icon: Icon,
+  label,
+}: {
+  icon: typeof ShieldCheck;
+  label: string;
+}) {
+  return (
+    <p className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+      <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+      <span className="truncate">{label}</span>
+    </p>
   );
 }
 
@@ -550,6 +618,37 @@ function Metric({
       <p className="mt-1 truncate font-semibold text-foreground">{value}</p>
     </div>
   );
+}
+
+function getCatalogTrustSignals(listing: PublicListingCatalogItem) {
+  return [
+    {
+      icon: MessageCircle,
+      label: 'Kontakt przez formularz',
+    },
+    {
+      icon: MapPin,
+      label:
+        listing.mapPoint?.precision === 'exact'
+          ? 'Lokalizacja dokładna'
+          : 'Lokalizacja przybliżona',
+    },
+    {
+      icon: CalendarDays,
+      label: `Aktualizacja: ${formatShortDate(listing.updatedAt)}`,
+    },
+  ];
+}
+
+function formatShortDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'brak daty';
+
+  return new Intl.DateTimeFormat('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {

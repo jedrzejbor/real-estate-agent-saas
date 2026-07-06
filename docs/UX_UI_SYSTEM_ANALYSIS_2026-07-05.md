@@ -693,7 +693,7 @@ i mniej stresujace dla osoby, ktora nie zna systemu.
 
 - [x] Tryb `Szybka oferta`.
 - [x] Lepsza walidacja inline.
-- [ ] Publiczny katalog mobile-first.
+- [x] Publiczny katalog mobile-first.
 - [x] Wizard sprzedajacego z mocniejszym poczuciem procesu.
 - [x] Pasek jakosci oferty z konkretnymi brakami do uzupelnienia.
 - [x] Stale widoczny postep w publicznym wizardzie:
@@ -701,12 +701,12 @@ i mniej stresujace dla osoby, ktora nie zna systemu.
   - email,
   - weryfikacja,
   - publikacja.
-- [ ] Sticky sterowanie publicznym katalogiem na mobile:
+- [x] Sticky sterowanie publicznym katalogiem na mobile:
   - `Filtry`,
   - `Mapa`,
   - `Wyniki`.
 - [x] Jasne komunikaty, co stanie sie po wyslaniu publicznego formularza.
-- [ ] Sygnaly zaufania przy publicznych ofertach:
+- [x] Sygnaly zaufania przy publicznych ofertach:
   - typ kontaktu,
   - ostatnia aktualizacja,
   - lokalizacja dokladna/przyblizona.
@@ -767,6 +767,34 @@ Zakres po iteracji 2:
   - sticky sterowanie `Filtry / Mapa / Wyniki`,
   - sygnaly zaufania przy publicznych ofertach,
   - dopracowanie czytelnosci listy i mapy na telefonie.
+
+Status wdrozenia Sprint 3, iteracja 3 - 2026-07-06:
+
+- Dodano mobilne sticky sterowanie w publicznym katalogu `/oferty`:
+  - `Filtry` prowadza do panelu filtrow,
+  - `Mapa` prowadzi do mapy,
+  - `Wyniki` prowadza do listy wynikow i pokazuja liczbe ofert, gdy jest
+    dostepna.
+- Uporzadkowano kotwice katalogu:
+  - sekcja filtrow ma `id="filtry"`,
+  - mapa ma `id="mapa"`,
+  - lista wynikow ma `id="wyniki"`.
+- Dodano sygnaly zaufania na kartach publicznych ofert:
+  - typ kontaktu,
+  - dokladnosc lokalizacji,
+  - data ostatniej aktualizacji.
+- Dodano sygnaly zaufania na stronie szczegolu oferty:
+  - typ kontaktu jako `Telefon i formularz` albo `Formularz kontaktowy`,
+  - lokalizacja dokladna/przyblizona,
+  - ostatnia aktualizacja,
+  - status publicznej weryfikacji.
+
+Zakres po iteracji 3:
+
+- Sprint 3 ma pokryty formularz dashboardowy, publiczny wizard i publiczny
+  katalog mobile-first.
+- Dalsze prace w tym obszarze moga byc traktowane jako polish albo jako
+  czesc Sprintu 4 dotyczaca mikrofeedbacku i redukcji ciezaru wizualnego.
 
 ### Sprint 4: Polish i decyzje
 
