@@ -924,14 +924,14 @@ Zakres po iteracji 4:
 Cel: ekrany administracyjne maja minimalizowac ryzyko kosztownych pomylek i
 pokazywac skutki zmian zanim admin je zatwierdzi.
 
-- Wyrazne oznaczenie trybu admin w shellu albo headerze admin screens.
-- Osobne grupowanie admin navigation.
-- Podsumowanie skutkow przed zmiana planu, limitow albo widocznosci planu.
-- Confirm dialog dla operacji wysokiego wplywu:
-  - zmiana limitow,
-  - reset override'ow,
-  - wymuszenie limit enforcement,
-  - zatwierdzenie/odrzucenie publicznej oferty.
+- [x] Wyrazne oznaczenie trybu admin w shellu albo headerze admin screens.
+- [x] Osobne grupowanie admin navigation.
+- [x] Podsumowanie skutkow przed zmiana planu, limitow albo widocznosci planu.
+- [ ] Confirm dialog dla operacji wysokiego wplywu:
+  - [x] zmiana limitow,
+  - [x] reset override'ow,
+  - [ ] wymuszenie limit enforcement,
+  - [ ] zatwierdzenie/odrzucenie publicznej oferty.
 - Checklisty moderacji publicznych ofert:
   - dane kontaktowe,
   - zdjecia,
@@ -949,6 +949,34 @@ Pokrywa obserwacje:
 
 - 12. Admin UI powinien byc bardziej defensywny.
 
+Status wdrozenia Sprint 5, iteracja 1 - 2026-07-07:
+
+- Dodano wyrazne oznaczenie trybu administratora w shellu:
+  - banner pokazuje sie tylko adminom na trasach `/dashboard/admin/*` i
+    `/dashboard/blog/*`,
+  - copy ostrzega, ze zmiany moga wplywac na plany, limity, widocznosc
+    publiczna albo dane uzytkownikow.
+- Uporzadkowano admin navigation:
+  - grupa administracyjna ma osobna etykiete `Administracja`,
+  - grupa jest oddzielona separatorem od codziennej nawigacji agenta.
+- Wzmocniono defensywny UX na ekranie `Plany i limity`:
+  - dodano panel `Podsumowanie skutkow zapisu` przy edycji katalogu planow,
+  - panel pokazuje zmiany limitow, funkcji, ceny miesiecznej i widocznosci
+    publicznej,
+  - redukcje limitow i ukrycie/pokazanie planu sa oznaczone jako wysoki wplyw.
+- Dodano confirm dialog dla akcji wysokiego wplywu w planach:
+  - zapis katalogu planow wymaga potwierdzenia,
+  - zapis planu agencji wymaga potwierdzenia,
+  - reset override'ow agencji wymaga potwierdzenia z opisem skutku.
+
+Zakres po iteracji 1:
+
+- Sprint 5 ma pokryty pierwszy etap defensywnego admin UX dla shellu,
+  nawigacji oraz zmian planow/limitow.
+- Kolejna iteracja powinna objac moderacje publicznych ofert:
+  - checklisty danych kontaktowych, zdjec, ceny, opisu i sygnalow abuse,
+  - confirm dialog dla zatwierdzenia albo odrzucenia oferty publicznej.
+
 ## Macierz pokrycia obserwacji przez sprinty
 
 | Obserwacja | Sprint odpowiedzialny | Status pokrycia |
@@ -964,7 +992,7 @@ Pokrywa obserwacje:
 | 9. UI system/card-heavy | Sprint 4 | Pokryte |
 | 10. Empty states | Sprint 2 | Pokryte |
 | 11. Raporty jako decyzje | Sprint 4 | Pokryte |
-| 12. Admin UI defensywny | Sprint 5 | Pokryte |
+| 12. Admin UI defensywny | Sprint 5 | Czesciowo pokryte |
 
 ## Wniosek
 

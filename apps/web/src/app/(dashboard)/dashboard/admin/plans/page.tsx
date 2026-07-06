@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
+import { useConfirm } from '@/contexts/confirm-context';
 import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
@@ -105,6 +106,7 @@ const EMPTY_FEATURES: AgencyPlanFeatures = {
 
 export default function AdminPlansPage() {
   const { user } = useAuth();
+  const { confirm } = useConfirm();
   const { success: showSuccessToast, error: showErrorToast } = useToast();
   const [plans, setPlans] = useState<AdminPlan[]>([]);
   const [agencies, setAgencies] = useState<AdminAgencyListItem[]>([]);
@@ -252,6 +254,18 @@ export default function AdminPlansPage() {
   async function savePlan() {
     if (!planDraft) return;
 
+    const confirmed = await confirm({
+      title: 'Potwierdź zmianę planu',
+      description: formatImpactDescription(
+        getPlanImpactItems(selectedPlan, planDraft),
+        'Zapis katalogu planów może zmienić limity, funkcje albo widoczność planu dla nowych i istniejących procesów billingowych.',
+      ),
+      confirmLabel: 'Zapisz plan',
+      variant: 'destructive',
+    });
+
+    if (!confirmed) return;
+
     setIsSavingPlan(true);
     try {
       const updated = await updateAdminPlan(planDraft.code, {
@@ -284,6 +298,21 @@ export default function AdminPlansPage() {
 
   async function saveAgencyPlan() {
     if (!agencyPlan) return;
+
+    const currentAgency = agencies.find(
+      (agency) => agency.id === agencyPlan.agency.id,
+    );
+    const confirmed = await confirm({
+      title: 'Potwierdź zmianę planu agencji',
+      description: formatImpactDescription(
+        getAgencyImpactItems(agencyPlan, currentAgency),
+        'Zmiana planu agencji wpływa na limity pracy zespołu, dostępne funkcje i może uruchomić ostrzeżenia przy downgrade.',
+      ),
+      confirmLabel: 'Zapisz agencję',
+      variant: 'destructive',
+    });
+
+    if (!confirmed) return;
 
     setIsSavingAgency(true);
     try {
@@ -320,6 +349,16 @@ export default function AdminPlansPage() {
 
   async function resetAgencyOverrides() {
     if (!agencyPlan) return;
+
+    const confirmed = await confirm({
+      title: 'Wyczyścić override agencji?',
+      description:
+        'Agencja wróci do limitów i funkcji wynikających z bazowego planu. Indywidualne limity, funkcje, nazwa i cena custom zostaną usunięte.',
+      confirmLabel: 'Wyczyść override',
+      variant: 'destructive',
+    });
+
+    if (!confirmed) return;
 
     setIsSavingAgency(true);
     try {
@@ -409,6 +448,7 @@ export default function AdminPlansPage() {
           {planDraft ? (
             <PlanEditor
               plan={planDraft}
+              baseline={selectedPlan}
               onChange={setPlanDraft}
               onSave={savePlan}
               isSaving={isSavingPlan}
@@ -485,11 +525,13 @@ export default function AdminPlansPage() {
 
 function PlanEditor({
   plan,
+  baseline,
   onChange,
   onSave,
   isSaving,
 }: {
   plan: AdminPlan;
+  baseline: AdminPlan | null;
   onChange: (plan: AdminPlan) => void;
   onSave: () => void;
   isSaving: boolean;
@@ -524,6 +566,11 @@ function PlanEditor({
           Zapisz plan
         </Button>
       </div>
+
+      <ImpactSummary
+        title="Podsumowanie skutków zapisu"
+        items={getPlanImpactItems(baseline, plan)}
+      />
 
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="Nazwa">
@@ -700,6 +747,11 @@ function AgencyPlanEditor({
         </div>
       ) : null}
 
+      <ImpactSummary
+        title="Podsumowanie skutków dla agencji"
+        items={getAgencyImpactItems(value)}
+      />
+
       <LimitEnforcementSupportPanel
         agencyPlan={value}
         enforcements={enforcements}
@@ -771,6 +823,244 @@ function AgencyPlanEditor({
       </div>
     </div>
   );
+}
+
+type ImpactSeverity = 'neutral' | 'warning' | 'critical' | 'success';
+
+interface ImpactItem {
+  label: string;
+  value: string;
+  severity?: ImpactSeverity;
+}
+
+function ImpactSummary({
+  title,
+  items,
+}: {
+  title: string;
+  items: ImpactItem[];
+}) {
+  return (
+    <section className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+      <div className="mb-2 flex items-center gap-2">
+        <AlertCircle className="h-4 w-4 text-amber-700" />
+        <h3 className="text-sm font-semibold text-amber-950">{title}</h3>
+      </div>
+      <div className="grid gap-2 md:grid-cols-2">
+        {items.map((item) => (
+          <div
+            key={`${item.label}-${item.value}`}
+            className="rounded-lg border border-amber-200 bg-card px-3 py-2 text-sm"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <span className="font-medium text-foreground">{item.label}</span>
+              <span
+                className={cn(
+                  'rounded-full px-2 py-0.5 text-[0.68rem] font-semibold',
+                  getImpactSeverityClassName(item.severity ?? 'neutral'),
+                )}
+              >
+                {getImpactSeverityLabel(item.severity ?? 'neutral')}
+              </span>
+            </div>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              {item.value}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function getPlanImpactItems(
+  baseline: AdminPlan | null,
+  draft: AdminPlan,
+): ImpactItem[] {
+  if (!baseline) {
+    return [
+      {
+        label: 'Plan',
+        value: `Zapisujesz konfigurację planu ${draft.label}.`,
+        severity: 'warning',
+      },
+    ];
+  }
+
+  const items: ImpactItem[] = [];
+
+  if (baseline.isPublic !== draft.isPublic) {
+    items.push({
+      label: 'Widoczność w cenniku',
+      value: draft.isPublic
+        ? 'Plan stanie się publicznie dostępny w cenniku.'
+        : 'Plan zostanie ukryty w publicznym cenniku.',
+      severity: 'critical',
+    });
+  }
+
+  if (baseline.priceMonthlyPln !== draft.priceMonthlyPln) {
+    items.push({
+      label: 'Cena miesięczna',
+      value: `${formatMoney(baseline.priceMonthlyPln)} -> ${formatMoney(
+        draft.priceMonthlyPln,
+      )}`,
+      severity: 'warning',
+    });
+  }
+
+  LIMIT_FIELDS.forEach((field) => {
+    const previousValue = baseline.limits[field.key];
+    const nextValue = draft.limits[field.key];
+
+    if (previousValue === nextValue) return;
+
+    items.push({
+      label: `Limit: ${field.label}`,
+      value: `${formatLimitValue(previousValue)} -> ${formatLimitValue(
+        nextValue,
+      )}`,
+      severity: isLimitReduction(previousValue, nextValue)
+        ? 'critical'
+        : 'warning',
+    });
+  });
+
+  FEATURE_FIELDS.forEach((field) => {
+    const previousValue = baseline.features[field.key];
+    const nextValue = draft.features[field.key];
+
+    if (previousValue === nextValue) return;
+
+    items.push({
+      label: `Funkcja: ${field.label}`,
+      value: nextValue ? 'Funkcja zostanie włączona.' : 'Funkcja zostanie wyłączona.',
+      severity: nextValue ? 'success' : 'critical',
+    });
+  });
+
+  return items.length > 0
+    ? items
+    : [
+        {
+          label: 'Brak zmian wysokiego wpływu',
+          value: 'Nie wykryto zmiany limitów, funkcji, ceny miesięcznej ani widoczności publicznej.',
+          severity: 'neutral',
+        },
+      ];
+}
+
+function getAgencyImpactItems(
+  value: AdminAgencyPlanResponse,
+  currentAgency?: AdminAgencyListItem,
+): ImpactItem[] {
+  const items: ImpactItem[] = [];
+  const previousPlan = currentAgency?.plan;
+
+  if (previousPlan && previousPlan !== value.agency.plan) {
+    items.push({
+      label: 'Zmiana planu',
+      value: `${PLAN_LABELS[previousPlan]} -> ${PLAN_LABELS[value.agency.plan]}`,
+      severity: 'critical',
+    });
+  } else {
+    items.push({
+      label: 'Plan docelowy',
+      value: PLAN_LABELS[value.agency.plan],
+      severity: value.agency.plan === 'custom' ? 'warning' : 'neutral',
+    });
+  }
+
+  items.push({
+    label: 'Aktualne użycie',
+    value: [
+      `${value.usage.activeListings} ofert`,
+      `${value.usage.clients} klientów`,
+      `${value.usage.monthlyAppointments} spotkań/mies.`,
+      `${value.usage.users} użytkowników`,
+    ].join(', '),
+    severity: 'neutral',
+  });
+
+  if (value.agency.plan === 'custom') {
+    items.push({
+      label: 'Override custom',
+      value: `${countPlanOverrides(value.planOverrides)} aktywnych nadpisań limitów, funkcji albo ceny.`,
+      severity: 'warning',
+    });
+  }
+
+  if (value.limitWarnings.length > 0) {
+    items.push({
+      label: 'Ostrzeżenia limitów',
+      value: `${value.limitWarnings.length} ostrzeżeń po zmianie planu. Sprawdź je przed zapisem.`,
+      severity: 'critical',
+    });
+  }
+
+  return items;
+}
+
+function formatImpactDescription(items: ImpactItem[], fallback: string): string {
+  const details = items
+    .slice(0, 6)
+    .map((item) => `${item.label}: ${item.value}`)
+    .join(' ');
+
+  const suffix =
+    items.length > 6 ? ` Pokazano 6 z ${items.length} skutków.` : '';
+
+  return `${fallback} ${details}${suffix}`;
+}
+
+function getImpactSeverityClassName(severity: ImpactSeverity): string {
+  if (severity === 'critical') {
+    return 'bg-destructive/10 text-destructive';
+  }
+
+  if (severity === 'warning') {
+    return 'bg-amber-100 text-amber-800';
+  }
+
+  if (severity === 'success') {
+    return 'bg-status-success/10 text-status-success';
+  }
+
+  return 'bg-muted text-muted-foreground';
+}
+
+function getImpactSeverityLabel(severity: ImpactSeverity): string {
+  if (severity === 'critical') return 'Wysoki wpływ';
+  if (severity === 'warning') return 'Uwaga';
+  if (severity === 'success') return 'Włączane';
+  return 'Info';
+}
+
+function formatLimitValue(value: number | null): string {
+  return value === null ? 'Bez limitu' : String(value);
+}
+
+function isLimitReduction(
+  previousValue: number | null,
+  nextValue: number | null,
+): boolean {
+  if (nextValue === null) return false;
+  if (previousValue === null) return true;
+  return nextValue < previousValue;
+}
+
+function countPlanOverrides(
+  overrides: AdminAgencyPlanResponse['planOverrides'],
+): number {
+  if (!overrides) return 0;
+
+  return [
+    overrides.label,
+    overrides.priceMonthlyPln,
+    overrides.priceYearlyPln,
+    ...Object.values(overrides.limits ?? {}),
+    ...Object.values(overrides.features ?? {}),
+  ].filter((value) => value !== undefined && value !== null).length;
 }
 
 function EditorGrid({

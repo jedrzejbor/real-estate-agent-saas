@@ -157,7 +157,7 @@ const onboardingNavGroups: DashboardNavGroup[] = [
 ];
 
 const adminGroup: DashboardNavGroup = {
-  label: 'Admin',
+  label: 'Administracja',
   items: [
     {
       label: 'Feedback',
@@ -273,23 +273,37 @@ export function DashboardSidebar({
 
       {/* Main nav */}
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
-        {visibleGroups.map((group) => (
-          <div key={group.label}>
-            <p className="mb-1 px-3 text-[0.68rem] font-semibold uppercase tracking-wide text-muted-foreground">
-              {group.label}
-            </p>
-            <div className="space-y-1">
-              {group.items.map((item) => (
-                <DashboardNavLink
-                  key={item.href}
-                  item={item}
-                  pathname={pathname}
-                  count={item.countKey ? counts[item.countKey] : 0}
-                />
-              ))}
+        {visibleGroups.map((group) => {
+          const isAdminGroup = group.label === adminGroup.label;
+
+          return (
+            <div
+              key={group.label}
+              className={cn(
+                isAdminGroup && 'border-t border-amber-200 pt-4',
+              )}
+            >
+              <p
+                className={cn(
+                  'mb-1 px-3 text-[0.68rem] font-semibold uppercase tracking-wide text-muted-foreground',
+                  isAdminGroup && 'text-amber-700',
+                )}
+              >
+                {group.label}
+              </p>
+              <div className="space-y-1">
+                {group.items.map((item) => (
+                  <DashboardNavLink
+                    key={item.href}
+                    item={item}
+                    pathname={pathname}
+                    count={item.countKey ? counts[item.countKey] : 0}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* Bottom nav */}

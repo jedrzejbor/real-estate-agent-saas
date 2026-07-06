@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import {
   isPrivateSellerUser,
@@ -28,6 +29,9 @@ export default function DashboardLayout({
   const isPrivateSeller = user ? isPrivateSellerUser(user) : false;
   const canPrivateSellerUseDashboardRoute = pathname === '/dashboard/upgrade';
   const shouldShowGlobalLimitBanner = !hasContextualLimitBanner(pathname);
+  const isAdminRoute =
+    user?.role === 'admin' &&
+    (pathname.startsWith('/dashboard/admin') || pathname.startsWith('/dashboard/blog'));
   const closeMobileNav = useCallback(() => setIsMobileNavOpen(false), []);
   const navCounts = useDashboardNavCounts(!isLoading && Boolean(user) && !isPrivateSeller);
 
@@ -82,11 +86,30 @@ export default function DashboardLayout({
                 source="dashboard_global_limit_state"
               />
             ) : null}
+            {isAdminRoute ? <AdminModeBanner pathname={pathname} /> : null}
             {children}
           </div>
         </main>
         <DashboardMobileBottomNav counts={navCounts} />
       </div>
+    </div>
+  );
+}
+
+function AdminModeBanner({ pathname }: { pathname: string }) {
+  return (
+    <div className="flex flex-col gap-2 border-y border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-2">
+        <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+        <div>
+          <p className="font-semibold">Tryb administratora</p>
+          <p className="text-xs leading-5 text-amber-800">
+            Zmiany w tym obszarze mogą wpływać na plany, limity, widoczność
+            publiczną albo dane użytkowników.
+          </p>
+        </div>
+      </div>
+      <span className="text-xs font-medium text-amber-800">{pathname}</span>
     </div>
   );
 }
