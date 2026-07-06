@@ -393,33 +393,164 @@ Rekomendacja:
 
 ## Sugerowana kolejnosc wdrozenia
 
+Ponizsze sprinty sa ustawione tak, aby pokryc wszystkie punkty z sekcji
+`Najwazniejsze obserwacje`. Sprinty 1-3 poprawiaja podstawowa ergonomie pracy,
+Sprint 4 domyka jakosc odczuc i raporty, a Sprint 5 zabezpiecza osobny,
+bardziej ryzykowny obszar admin UI.
+
 ### Sprint 1: Nawigacja i orientacja
+
+Cel: uzytkownik ma od razu rozumiec, gdzie jest, co jest najwazniejsze i jak
+przejsc do codziennej pracy bez szukania funkcji.
 
 - Mobile drawer i dolna nawigacja.
 - Grupowanie sidebara.
 - Ujednolicone headery stron.
 - Dashboard `Dzisiaj` jako pierwszy widok.
+- Wyroznienie sekcji z nowymi leadami, zadaniami po terminie i dzisiejszymi
+  spotkaniami.
+- Badge/liczniki przy `Zapytania`, `Zadania` i `Kalendarz`, gdy wymagaja
+  reakcji.
+- Krotka wersja menu dla nowych uzytkownikow w pierwszym okresie onboardingu.
+
+Pokrywa obserwacje:
+
+- 1. Dashboard ma duzo wartosci, ale potrzebuje mocniejszej hierarchii.
+- 2. Sidebar jest funkcjonalny, ale za dlugi i plaski.
+- 3. Mobile navigation wymaga dopracowania.
 
 ### Sprint 2: Operacyjna ergonomia CRM
+
+Cel: listy i strony szczegolow maja pomagac szybko porownywac rekordy, znalezc
+problem i wykonac nastepna akcje.
 
 - Widok listowy ofert i klientow.
 - Szybkie filtry operacyjne.
 - Standard detail page.
 - Pasek `Nastepny krok`.
+- Ujednolicone puste stany dla list, filtrow i powiazanych danych.
+- Chipsy aktywnych filtrow z mozliwoscia szybkiego usuniecia.
+- Lepsze stany braku danych:
+  - brak ofert -> dodaj oferte,
+  - brak klientow -> dodaj/importuj klienta,
+  - brak leadow -> opublikuj oferte albo udostepnij profil,
+  - brak wynikow filtrow -> pokaz aktywne filtry i akcje czyszczenia.
+- Wspolny wzorzec bledu z akcja `Sprobuj ponownie` i informacja, co nie zostalo
+  zaladowane.
+
+Pokrywa obserwacje:
+
+- 4. Listy ofert i klientow sa czytelne, ale moga lepiej wspierac skanowanie.
+- 5. Detail pages powinny miec jeden wspolny wzorzec.
+- 10. Empty states sa dobre, ale moga byc bardziej zadaniowe.
 
 ### Sprint 3: Formularze i publiczne flow
+
+Cel: tworzenie ofert i publiczne flow maja byc prostsze, bardziej przewidywalne
+i mniej stresujace dla osoby, ktora nie zna systemu.
 
 - Tryb `Szybka oferta`.
 - Lepsza walidacja inline.
 - Publiczny katalog mobile-first.
 - Wizard sprzedajacego z mocniejszym poczuciem procesu.
+- Pasek jakosci oferty z konkretnymi brakami do uzupelnienia.
+- Stale widoczny postep w publicznym wizardzie:
+  - dane,
+  - email,
+  - weryfikacja,
+  - publikacja.
+- Sticky sterowanie publicznym katalogiem na mobile:
+  - `Filtry`,
+  - `Mapa`,
+  - `Wyniki`.
+- Jasne komunikaty, co stanie sie po wyslaniu publicznego formularza.
+- Sygnaly zaufania przy publicznych ofertach:
+  - typ kontaktu,
+  - ostatnia aktualizacja,
+  - lokalizacja dokladna/przyblizona.
+
+Pokrywa obserwacje:
+
+- 6. Formularze sa kompletne, ale wymagaja redukcji tarcia.
+- 8. Publiczny katalog powinien byc bardziej `kupujacy-first`.
 
 ### Sprint 4: Polish i decyzje
+
+Cel: interfejs ma byc mniej ciezki wizualnie, bardziej decyzyjny i dawac lepszy
+feedback po kazdej waznej akcji.
 
 - Redukcja nadmiaru kart.
 - Uspojnienie radiusow i gestosci.
 - Raporty z interpretacjami.
 - Mikrointerakcje i lepsze next actions po kazdej waznej akcji.
+- Standard potwierdzen po akcjach:
+  - zapisano,
+  - opublikowano,
+  - utworzono klienta,
+  - zaplanowano spotkanie,
+  - oznaczono zadanie jako wykonane.
+- Po akcjach pokazac kolejny krok zamiast samego toastu.
+- Raporty z trzema wnioskami na gorze ekranu:
+  - najlepsze zrodlo leadow,
+  - oferta wymagajaca uwagi,
+  - najwieksza szansa prowizyjna.
+- Ograniczenie `card-heavy UI` w ekranach operacyjnych:
+  - mniej zagniezdzonych kart,
+  - mniejsze promienie w listach,
+  - wiecej separatorow i ukladow tabelarycznych.
+
+Pokrywa obserwacje:
+
+- 7. Feedback po akcjach powinien byc bardziej widoczny i konkretny.
+- 9. UI system jest spojny, ale miejscami zbyt `card-heavy`.
+- 11. Raporty powinny mniej tlumaczyc, a bardziej pomagac podjac decyzje.
+
+### Sprint 5: Defensywny admin UX
+
+Cel: ekrany administracyjne maja minimalizowac ryzyko kosztownych pomylek i
+pokazywac skutki zmian zanim admin je zatwierdzi.
+
+- Wyrazne oznaczenie trybu admin w shellu albo headerze admin screens.
+- Osobne grupowanie admin navigation.
+- Podsumowanie skutkow przed zmiana planu, limitow albo widocznosci planu.
+- Confirm dialog dla operacji wysokiego wplywu:
+  - zmiana limitow,
+  - reset override'ow,
+  - wymuszenie limit enforcement,
+  - zatwierdzenie/odrzucenie publicznej oferty.
+- Checklisty moderacji publicznych ofert:
+  - dane kontaktowe,
+  - zdjecia,
+  - cena,
+  - opis,
+  - sygnaly abuse.
+- Widoki analytics nastawione na decyzje:
+  - anomalie,
+  - wzrosty,
+  - spadki,
+  - wymaga reakcji.
+- Lepsze empty/error states w admin UI, szczegolnie dla analytics i moderacji.
+
+Pokrywa obserwacje:
+
+- 12. Admin UI powinien byc bardziej defensywny.
+
+## Macierz pokrycia obserwacji przez sprinty
+
+| Obserwacja | Sprint odpowiedzialny | Status pokrycia |
+| --- | --- | --- |
+| 1. Dashboard/hierarchia | Sprint 1 | Pokryte |
+| 2. Sidebar | Sprint 1 | Pokryte |
+| 3. Mobile navigation | Sprint 1 | Pokryte |
+| 4. Listy ofert i klientow | Sprint 2 | Pokryte |
+| 5. Detail pages | Sprint 2 | Pokryte |
+| 6. Formularze | Sprint 3 | Pokryte |
+| 7. Feedback po akcjach | Sprint 4 | Pokryte |
+| 8. Publiczny katalog | Sprint 3 | Pokryte |
+| 9. UI system/card-heavy | Sprint 4 | Pokryte |
+| 10. Empty states | Sprint 2 | Pokryte |
+| 11. Raporty jako decyzje | Sprint 4 | Pokryte |
+| 12. Admin UI defensywny | Sprint 5 | Pokryte |
 
 ## Wniosek
 
