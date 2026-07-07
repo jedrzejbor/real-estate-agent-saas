@@ -1,5 +1,6 @@
 'use client';
 
+/* eslint-disable @next/next/no-img-element */
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Building2, Eye, ImageIcon, Plus } from 'lucide-react';
@@ -359,13 +360,26 @@ function ListingTable({ listings }: { listings: Listing[] }) {
               const area = listing.areaM2 ?? listing.plotAreaM2;
               const metric = area ? formatArea(area) : null;
               const imageCount = listing.images?.length ?? 0;
+              const primaryImage = getPrimaryListingImage(
+                listing.images,
+                listing.shareImageUrl,
+              );
 
               return (
                 <tr key={listing.id} className="hover:bg-muted/20">
                   <td className="max-w-[340px] px-3 py-2.5">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                        <ImageIcon className="h-4 w-4" />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
+                        {primaryImage ? (
+                          <img
+                            src={primaryImage.url}
+                            alt={primaryImage.altText || listing.title}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <ImageIcon className="h-4 w-4" />
+                        )}
                       </div>
                       <div className="min-w-0">
                         <Link
@@ -439,6 +453,27 @@ function ListingTable({ listings }: { listings: Listing[] }) {
       </div>
     </div>
   );
+}
+
+function getPrimaryListingImage(
+  images: Listing['images'],
+  shareImageUrl?: string | null,
+): { url: string; altText?: string | null } | null {
+  const orderedImages = (images ?? []).slice().sort((a, b) => {
+    if (a.isPrimary !== b.isPrimary) {
+      return a.isPrimary ? -1 : 1;
+    }
+
+    return a.order - b.order;
+  });
+
+  const primaryImage = orderedImages[0];
+
+  if (primaryImage?.url) {
+    return primaryImage;
+  }
+
+  return shareImageUrl ? { url: shareImageUrl, altText: null } : null;
 }
 
 function EmptyState({
