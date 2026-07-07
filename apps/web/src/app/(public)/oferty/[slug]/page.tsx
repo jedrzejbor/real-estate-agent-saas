@@ -33,6 +33,7 @@ import { PublicListingAnalytics } from '@/components/listings/public-listing-ana
 import { PublicListingAbuseReport } from '@/components/listings/public-listing-abuse-report';
 import { PublicListingContactForm } from '@/components/listings/public-listing-contact-form';
 import { PublicListingGallery } from '@/components/listings/public-listing-gallery';
+import { APP_NAME } from '@/lib/brand';
 
 interface PublicListingPageProps {
   params: Promise<{ slug: string }>;
@@ -50,7 +51,7 @@ export async function generateMetadata({
 
   if (!listing) {
     return {
-      title: 'Oferta nie znaleziona | EstateFlow',
+      title: `Oferta nie znaleziona | ${APP_NAME}`,
       robots: {
         index: false,
         follow: false,
@@ -62,7 +63,7 @@ export async function generateMetadata({
   const description =
     listing.seoDescription ||
     listing.description ||
-    `${PROPERTY_TYPE_LABELS[listing.propertyType]} ${getLocationLabel(listing)} w EstateFlow.`;
+    `${PROPERTY_TYPE_LABELS[listing.propertyType]} ${getLocationLabel(listing)} w ${APP_NAME}.`;
   const canonicalUrl = absoluteUrl(`/oferty/${listing.slug}`);
   const imageUrl = getSeoImageUrl(listing);
 
@@ -88,7 +89,7 @@ export async function generateMetadata({
       title,
       description,
       url: canonicalUrl,
-      siteName: 'EstateFlow',
+      siteName: APP_NAME,
       type: 'article',
       locale: 'pl_PL',
       publishedTime: listing.publishedAt,
@@ -152,11 +153,11 @@ export default async function PublicListingPage({
               className="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-2 text-sm font-medium text-white backdrop-blur transition-colors hover:bg-white/20"
             >
               <ArrowLeft className="h-4 w-4" />
-              EstateFlow
+              {APP_NAME}
             </Link>
             {listing.estateflowBrandingEnabled ? (
               <div className="rounded-full bg-white/12 px-3 py-2 text-xs font-medium uppercase tracking-[0.12em] text-white/80 backdrop-blur">
-                Powered by EstateFlow
+                Powered by {APP_NAME}
               </div>
             ) : null}
           </div>

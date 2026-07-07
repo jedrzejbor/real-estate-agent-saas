@@ -19,6 +19,7 @@ import {
 } from '@/lib/listings';
 import { PublicListingCatalog } from '@/components/listings/public-listing-catalog';
 import { PublicListingsHeroActions } from '@/components/listings/public-listings-hero-actions';
+import { APP_NAME } from '@/lib/brand';
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -59,15 +60,15 @@ export async function generateMetadata({
     ? getPublicCatalogCityHref(seoCity.name)
     : '/oferty';
   const title = seoCity
-    ? `Oferty nieruchomości ${seoCity.name} | EstateFlow`
+    ? `Oferty nieruchomości ${seoCity.name} | ${APP_NAME}`
     : isBaseCatalog
-      ? 'Oferty nieruchomości | EstateFlow'
-      : 'Wyniki wyszukiwania ofert | EstateFlow';
+      ? `Oferty nieruchomości | ${APP_NAME}`
+      : `Wyniki wyszukiwania ofert | ${APP_NAME}`;
   const description = seoCity
-    ? `Przeglądaj oferty nieruchomości w lokalizacji ${seoCity.name}. Sprawdź mieszkania, domy i działki w publicznym katalogu EstateFlow.`
+    ? `Przeglądaj oferty nieruchomości w lokalizacji ${seoCity.name}. Sprawdź mieszkania, domy i działki w publicznym katalogu ${APP_NAME}.`
     : isBaseCatalog
-      ? 'Przeglądaj publiczne oferty nieruchomości opublikowane w EstateFlow.'
-      : 'Przefiltrowane wyniki publicznego katalogu ofert EstateFlow.';
+      ? `Przeglądaj publiczne oferty nieruchomości opublikowane w ${APP_NAME}.`
+      : `Przefiltrowane wyniki publicznego katalogu ofert ${APP_NAME}.`;
 
   return {
     metadataBase: getSiteUrl(),
@@ -91,7 +92,7 @@ export async function generateMetadata({
       title,
       description,
       url: absoluteUrl(canonicalPath),
-      siteName: 'EstateFlow',
+      siteName: APP_NAME,
       type: 'website',
       locale: 'pl_PL',
     },
@@ -115,7 +116,7 @@ export default async function PublicListingsIndexPage({
             className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
           >
             <ArrowLeft className="h-4 w-4" />
-            EstateFlow
+            {APP_NAME}
           </Link>
 
           <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px] lg:items-end">

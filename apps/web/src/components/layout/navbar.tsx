@@ -4,6 +4,7 @@ import { ThemeToggle } from '@/components/common/theme-toggle';
 import { Container } from '@/components/layout/container';
 import { NavbarAuthActions } from '@/components/layout/navbar-auth-actions';
 import { NavbarMobileMenu } from '@/components/layout/navbar-mobile-menu';
+import { APP_NAME } from '@/lib/brand';
 
 const navLinks = [
   { label: 'Home', href: '/' },
@@ -20,7 +21,7 @@ export function Navbar() {
       <Container className="flex h-16 min-w-0 items-center justify-between gap-2 lg:h-20">
         <Link
           href="/"
-          aria-label="Strona główna EstateFlow"
+          aria-label={`Strona główna ${APP_NAME}`}
           className="shrink-0"
         >
           <Logo />

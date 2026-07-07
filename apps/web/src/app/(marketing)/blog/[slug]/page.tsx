@@ -10,6 +10,7 @@ import {
   formatBlogDate,
   type PublicBlogPost,
 } from '@/lib/blog';
+import { APP_NAME } from '@/lib/brand';
 import { absoluteUrl, compactJsonLd, getSiteUrl } from '@/lib/seo';
 import {
   ArticleCta,
@@ -42,7 +43,7 @@ export async function generateMetadata({
 
   if (!post) {
     return {
-      title: 'Wpis nie znaleziony | EstateFlow',
+      title: `Wpis nie znaleziony | ${APP_NAME}`,
       robots: {
         index: false,
         follow: false,
@@ -50,7 +51,7 @@ export async function generateMetadata({
     };
   }
 
-  const title = post.seoTitle || `${post.title} | EstateFlow`;
+  const title = post.seoTitle || `${post.title} | ${APP_NAME}`;
   const description = post.seoDescription || post.excerpt || post.title;
   const canonicalUrl = post.canonicalUrl || absoluteUrl(`/blog/${post.slug}`);
   const imageUrl = absoluteUrl(post.coverImageUrl || FALLBACK_BLOG_IMAGE);
@@ -77,7 +78,7 @@ export async function generateMetadata({
       title,
       description,
       url: canonicalUrl,
-      siteName: 'EstateFlow',
+      siteName: APP_NAME,
       type: 'article',
       locale: 'pl_PL',
       publishedTime: post.publishedAt,
@@ -182,7 +183,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-2">
                 <UserRound className="h-4 w-4" />
-                {post.author?.displayName ?? 'EstateFlow'}
+                {post.author?.displayName ?? APP_NAME}
               </span>
               {updatedDate && updatedDate !== publishedDate ? (
                 <span>Aktualizacja: {updatedDate}</span>
@@ -268,7 +269,7 @@ function SidebarCta() {
   return (
     <>
       <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <p className="text-sm font-semibold text-foreground">EstateFlow</p>
+        <p className="text-sm font-semibold text-foreground">{APP_NAME}</p>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Zarządzaj ofertami, klientami i leadami z jednego panelu CRM dla rynku
           nieruchomości.
@@ -331,12 +332,12 @@ function buildBlogPostJsonLd(
         }
       : {
           '@type': 'Organization',
-          name: 'EstateFlow',
+          name: APP_NAME,
           url: absoluteUrl('/'),
         },
     publisher: {
       '@type': 'Organization',
-      name: 'EstateFlow',
+      name: APP_NAME,
       url: absoluteUrl('/'),
     },
   });
@@ -350,7 +351,7 @@ function buildBreadcrumbJsonLd(post: PublicBlogPost, canonicalUrl: string) {
       {
         '@type': 'ListItem',
         position: 1,
-        name: 'EstateFlow',
+        name: APP_NAME,
         item: absoluteUrl('/'),
       },
       {

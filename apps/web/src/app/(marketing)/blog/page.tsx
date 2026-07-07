@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowRight, BookOpen, Search } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
 import { fetchPublicBlogPosts } from '@/lib/blog';
+import { APP_NAME } from '@/lib/brand';
 import { absoluteUrl, getSiteUrl } from '@/lib/seo';
 import { BlogPagination, BlogPostCard } from '@/components/blog';
 
@@ -20,8 +21,8 @@ export async function generateMetadata({
   const page = getPageParam((await searchParams).page);
   const isFirstPage = page === 1;
   const title = isFirstPage
-    ? 'Blog EstateFlow | Poradniki nieruchomości i SEO dla agentów'
-    : `Blog EstateFlow, strona ${page} | Poradniki nieruchomości`;
+    ? `Blog ${APP_NAME} | Poradniki nieruchomości i SEO dla agentów`
+    : `Blog ${APP_NAME}, strona ${page} | Poradniki nieruchomości`;
   const description =
     'Praktyczne poradniki o sprzedaży, kupnie i wynajmie nieruchomości oraz pracy agentów i biur nieruchomości.';
 
@@ -44,11 +45,11 @@ export async function generateMetadata({
       },
     },
     openGraph: {
-      title: 'Blog EstateFlow',
+      title: `Blog ${APP_NAME}`,
       description:
         'Poradniki nieruchomości dla właścicieli, kupujących, agentów i biur.',
       url: absoluteUrl('/blog'),
-      siteName: 'EstateFlow',
+      siteName: APP_NAME,
       type: 'website',
       locale: 'pl_PL',
     },
@@ -73,7 +74,7 @@ export default async function BlogIndexPage({
             <div className="min-w-0 max-w-[320px] sm:max-w-none">
               <p className="inline-flex items-center gap-2 text-sm font-semibold uppercase text-primary">
                 <BookOpen className="h-4 w-4" />
-                Blog EstateFlow
+                Blog {APP_NAME}
               </p>
               <h1 className="mt-3 max-w-4xl break-words font-heading text-2xl font-bold leading-tight text-foreground sm:text-5xl">
                 Poradniki nieruchomości dla sprzedających, kupujących i agentów
@@ -96,7 +97,7 @@ export default async function BlogIndexPage({
                   </p>
                   <p className="mt-1 break-words text-sm leading-6 text-muted-foreground">
                     Artykuły są tworzone pod konkretne intencje wyszukiwania i
-                    linkują do ofert, formularzy oraz funkcji EstateFlow.
+                    linkują do ofert, formularzy oraz funkcji {APP_NAME}.
                   </p>
                 </div>
               </div>

@@ -12,6 +12,7 @@ import {
 } from '@/lib/listings';
 import { PublicLeadSource } from '@/lib/public-leads';
 import { PublicListingContactForm } from '@/components/listings/public-listing-contact-form';
+import { APP_NAME } from '@/lib/brand';
 
 interface PublicListingLeadFormPageProps {
   params: Promise<{ slug: string }>;
@@ -27,7 +28,7 @@ export async function generateMetadata({
 
   if (!listing) {
     return {
-      title: 'Formularz nie znaleziony | EstateFlow',
+      title: `Formularz nie znaleziony | ${APP_NAME}`,
       robots: {
         index: false,
         follow: false,
@@ -37,7 +38,7 @@ export async function generateMetadata({
 
   return {
     title: `Kontakt w sprawie oferty: ${listing.title}`,
-    description: 'Publiczny formularz kontaktowy EstateFlow.',
+    description: `Publiczny formularz kontaktowy ${APP_NAME}.`,
     robots: {
       index: false,
       follow: true,
@@ -124,7 +125,7 @@ export default async function PublicListingLeadFormPage({
 
       {listing.estateflowBrandingEnabled ? (
         <p className="mx-auto mt-3 max-w-xl text-center text-xs text-muted-foreground">
-          Powered by EstateFlow
+          Powered by {APP_NAME}
         </p>
       ) : null}
     </main>

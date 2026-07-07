@@ -320,6 +320,8 @@ Wykonano w pierwszej iteracji Sprintu 0:
 Cel: użytkownik w aplikacji i na stronach publicznych widzi już `PodAdresem`
 zamiast `EstateFlow`.
 
+Status: rozpoczęty, pierwsza iteracja wykonana 2026-07-07.
+
 Zakres:
 
 - logo, navbar, footer, auth layout,
@@ -361,12 +363,47 @@ Najważniejsze pliki:
 
 Kryteria akceptacji:
 
-- [ ] główna nawigacja i stopka pokazują `PodAdresem`,
-- [ ] publiczny katalog i publiczna oferta nie pokazują `EstateFlow`,
-- [ ] metadata stron publicznych używają `PodAdresem`,
-- [ ] blog używa `Blog PodAdresem`,
+- [x] główna nawigacja i stopka pokazują `PodAdresem`,
+- [x] publiczny katalog i publiczna oferta nie pokazują `EstateFlow` w zakresie
+  pierwszej iteracji Sprintu 1,
+- [x] metadata stron publicznych używają `PodAdresem` w zakresie katalogu,
+  oferty, formularza, profilu agenta i bloga,
+- [x] blog używa `Blog PodAdresem` w metadanych, nagłówku indeksu i kategoriach,
 - [ ] `rg -n "EstateFlow" apps/web/src` zwraca tylko miejsca świadomie odłożone
   do kolejnych sprintów.
+
+Wykonano w pierwszej iteracji Sprintu 1:
+
+- podpięto logo do centralnej stałej `APP_NAME`:
+  `apps/web/src/components/common/logo.tsx`,
+- zmieniono globalny title aplikacji w `apps/web/src/app/layout.tsx`,
+- zmieniono copyright w footerze i auth layoucie:
+  `apps/web/src/components/layout/footer.tsx`,
+  `apps/web/src/app/(auth)/layout.tsx`,
+- zmieniono aria-label strony głównej w navbarze:
+  `apps/web/src/components/layout/navbar.tsx`,
+- zmieniono publiczny katalog ofert:
+  `apps/web/src/app/(public)/oferty/page.tsx`,
+- zmieniono publiczną stronę oferty, w tym `Powered by PodAdresem`:
+  `apps/web/src/app/(public)/oferty/[slug]/page.tsx`,
+- zmieniono publiczny formularz oferty, w tym `Powered by PodAdresem`:
+  `apps/web/src/app/(public)/formularz/oferty/[slug]/page.tsx`,
+- zmieniono publiczny profil agenta:
+  `apps/web/src/app/(public)/agenci/[id]/page.tsx`,
+- zmieniono indeks bloga, stronę wpisu i stronę kategorii bloga:
+  `apps/web/src/app/(marketing)/blog/page.tsx`,
+  `apps/web/src/app/(marketing)/blog/[slug]/page.tsx`,
+  `apps/web/src/app/(marketing)/blog/kategoria/[slug]/page.tsx`.
+
+Świadomie odłożone poza pierwszą iterację:
+
+- pełna strona marketingowa homepage - wymaga osobnego przejścia przez copy i CTA,
+- cennik, feedback i komponenty CTA poza blogiem,
+- wizard dodawania oferty i panel sprzedającego poza miejscami globalnymi,
+- dashboardowe fallbacki i placeholdery,
+- komponenty QR, nazwy plików i teksty w panelu publikacji,
+- `estateflow-*` storage keys oraz `estateflowBrandingEnabled`, bo to nadal
+  identyfikatory techniczne/legacy.
 
 ### Sprint 2 - legal, kontakt i komunikacja systemowa
 

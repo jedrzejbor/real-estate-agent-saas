@@ -8,6 +8,7 @@ import {
   fetchPublicBlogPosts,
   type PublicBlogCategory,
 } from '@/lib/blog';
+import { APP_NAME } from '@/lib/brand';
 import { absoluteUrl, getSiteUrl } from '@/lib/seo';
 import { BlogPagination, BlogPostCard } from '@/components/blog';
 
@@ -30,7 +31,7 @@ export async function generateMetadata({
 
   if (!category) {
     return {
-      title: 'Kategoria nie znaleziona | EstateFlow',
+      title: `Kategoria nie znaleziona | ${APP_NAME}`,
       robots: {
         index: false,
         follow: false,
@@ -44,12 +45,12 @@ export async function generateMetadata({
   const title =
     category.seoTitle ||
     (isFirstPage
-      ? `${category.name} | Blog EstateFlow`
-      : `${category.name}, strona ${page} | Blog EstateFlow`);
+      ? `${category.name} | Blog ${APP_NAME}`
+      : `${category.name}, strona ${page} | Blog ${APP_NAME}`);
   const description =
     category.seoDescription ||
     category.description ||
-    `Artykuły z kategorii ${category.name} w blogu EstateFlow.`;
+    `Artykuły z kategorii ${category.name} w blogu ${APP_NAME}.`;
 
   return {
     metadataBase: getSiteUrl(),
@@ -73,7 +74,7 @@ export async function generateMetadata({
       title,
       description,
       url: canonicalUrl,
-      siteName: 'EstateFlow',
+      siteName: APP_NAME,
       type: 'website',
       locale: 'pl_PL',
     },

@@ -6,6 +6,7 @@ import { ConfirmProvider } from '@/contexts/confirm-context';
 import { CookieConsentProvider } from '@/contexts/cookie-consent-context';
 import { ThemeProvider } from '@/contexts/theme-context';
 import { ToastProvider } from '@/contexts/toast-context';
+import { APP_NAME } from '@/lib/brand';
 import './globals.css';
 
 const themeInitScript = `
@@ -22,7 +23,7 @@ const themeInitScript = `
 `;
 
 export const metadata: Metadata = {
-  title: 'EstateFlow — Platforma dla agentów nieruchomości',
+  title: `${APP_NAME} — Platforma dla agentów nieruchomości`,
   description:
     'Kompleksowe narzędzie SaaS do zarządzania ofertami, klientami i spotkaniami dla agentów nieruchomości.',
 };

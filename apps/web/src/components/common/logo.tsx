@@ -1,4 +1,5 @@
 import { Building2 } from 'lucide-react';
+import { APP_NAME } from '@/lib/brand';
 import { cn } from '@/lib/utils';
 
 interface LogoProps {
@@ -13,7 +14,7 @@ const sizes = {
   lg: { icon: 'h-10 w-10', text: 'text-2xl' },
 } as const;
 
-/** EstateFlow brand logo — reusable across navbar, sidebar, footer, etc. */
+/** Product logo reused across navbar, sidebar, footer, etc. */
 export function Logo({ className, showText = true, size = 'md' }: LogoProps) {
   const s = sizes[size];
 
@@ -22,7 +23,7 @@ export function Logo({ className, showText = true, size = 'md' }: LogoProps) {
       <Building2 className={cn(s.icon, 'text-primary')} />
       {showText && (
         <span className={cn(s.text, 'font-heading font-bold text-foreground')}>
-          EstateFlow
+          {APP_NAME}
         </span>
       )}
     </div>

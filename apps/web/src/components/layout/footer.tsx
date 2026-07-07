@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Logo } from '@/components/common/logo';
 import { CookieSettingsButton } from '@/components/legal';
 import { Container } from '@/components/layout/container';
+import { APP_NAME } from '@/lib/brand';
 import { LEGAL_LINKS } from '@/lib/legal';
 
 const footerSections = [
@@ -87,7 +88,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 border-t border-border pt-6 text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} EstateFlow. Wszelkie prawa zastrzeżone.
+          © {new Date().getFullYear()} {APP_NAME}. Wszelkie prawa zastrzeżone.
         </div>
       </Container>
     </footer>

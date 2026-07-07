@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Logo } from '@/components/common/logo';
+import { APP_NAME } from '@/lib/brand';
 
 /** Centered card layout for login / register pages. */
 export default function AuthLayout({
@@ -14,7 +15,7 @@ export default function AuthLayout({
       </Link>
       <div className="w-full max-w-6xl">{children}</div>
       <p className="mt-8 text-center text-sm text-muted-foreground">
-        &copy; {new Date().getFullYear()} EstateFlow. Wszelkie prawa
+        &copy; {new Date().getFullYear()} {APP_NAME}. Wszelkie prawa
         zastrzeżone.
       </p>
     </div>

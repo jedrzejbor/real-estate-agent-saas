@@ -14,6 +14,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
+import { APP_NAME } from '@/lib/brand';
 import { absoluteUrl, compactJsonLd, getSiteUrl } from '@/lib/seo';
 import {
   fetchPublicAgentProfile,
@@ -42,7 +43,7 @@ export async function generateMetadata({
 
   if (!profile) {
     return {
-      title: 'Profil nie znaleziony | EstateFlow',
+      title: `Profil nie znaleziony | ${APP_NAME}`,
       robots: {
         index: false,
         follow: false,
@@ -54,7 +55,7 @@ export async function generateMetadata({
   const title = `${profileName} - oferty nieruchomości`;
   const description =
     profile.bio ||
-    `Sprawdź aktywne oferty i skontaktuj się z ${profileName} przez EstateFlow.`;
+    `Sprawdź aktywne oferty i skontaktuj się z ${profileName} przez ${APP_NAME}.`;
   const canonicalUrl = absoluteUrl(`/agenci/${profile.id}`);
   const imageUrl = absoluteUrl(
     profile.avatarUrl || profile.agency?.logoUrl || FALLBACK_LISTING_IMAGE,
@@ -75,7 +76,7 @@ export async function generateMetadata({
       title,
       description,
       url: canonicalUrl,
-      siteName: 'EstateFlow',
+      siteName: APP_NAME,
       type: 'profile',
       locale: 'pl_PL',
       images: [
@@ -118,7 +119,7 @@ export default async function PublicAgentProfilePage({
               className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
             >
               <ArrowLeft className="h-4 w-4" />
-              EstateFlow
+              {APP_NAME}
             </Link>
             <span className="rounded-full bg-muted px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               Profil publiczny
