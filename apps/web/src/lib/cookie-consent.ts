@@ -1,4 +1,8 @@
-export const COOKIE_CONSENT_STORAGE_KEY = 'estateflow-cookie-consent';
+import { readMigratedStorageValue, STORAGE_KEYS } from './storage-keys';
+
+export const COOKIE_CONSENT_STORAGE_KEY = STORAGE_KEYS.cookieConsent;
+export const LEGACY_COOKIE_CONSENT_STORAGE_KEY =
+  STORAGE_KEYS.legacyCookieConsent;
 export const COOKIE_CONSENT_VERSION = '2026-06-10';
 
 export type CookieConsentOptionalCategory =
@@ -133,14 +137,20 @@ export function sanitizeCookieConsentPreferences(
 }
 
 export function readStoredCookieConsent(
-  storage: Pick<Storage, 'getItem'> | null = getBrowserStorage(),
+  storage: Pick<Storage, 'getItem' | 'setItem'> | null = getBrowserStorage(),
 ): CookieConsentPreferences | null {
   if (!storage) {
     return null;
   }
 
   try {
-    return parseStoredCookieConsent(storage.getItem(COOKIE_CONSENT_STORAGE_KEY));
+    return parseStoredCookieConsent(
+      readMigratedStorageValue(
+        storage,
+        COOKIE_CONSENT_STORAGE_KEY,
+        LEGACY_COOKIE_CONSENT_STORAGE_KEY,
+      ),
+    );
   } catch {
     return null;
   }
@@ -171,6 +181,7 @@ export function clearStoredCookieConsent(
 
   try {
     storage.removeItem(COOKIE_CONSENT_STORAGE_KEY);
+    storage.removeItem(LEGACY_COOKIE_CONSENT_STORAGE_KEY);
     return true;
   } catch {
     return false;

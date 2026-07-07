@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  LEGACY_COOKIE_CONSENT_STORAGE_KEY,
   COOKIE_CONSENT_STORAGE_KEY,
   clearStoredCookieConsent,
   createAcceptedAllCookieConsent,
@@ -25,7 +26,7 @@ import {
   type CookieConsentPreferences,
 } from '@/lib/cookie-consent';
 
-const COOKIE_CONSENT_CHANGE_EVENT = 'estateflow-cookie-consent-change';
+const COOKIE_CONSENT_CHANGE_EVENT = 'podadresem-cookie-consent-change';
 
 interface CookieConsentContextValue {
   preferences: CookieConsentPreferences | null;
@@ -162,7 +163,9 @@ function getCookieConsentSnapshot(): CookieConsentPreferences | null {
   let rawConsent: string | null = null;
 
   try {
-    rawConsent = window.localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY);
+    rawConsent =
+      window.localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY) ??
+      window.localStorage.getItem(LEGACY_COOKIE_CONSENT_STORAGE_KEY);
   } catch {
     rawConsent = null;
   }
@@ -182,7 +185,10 @@ function getServerCookieConsentSnapshot(): CookieConsentPreferences | null {
 
 function subscribeToCookieConsent(onStoreChange: () => void): () => void {
   function handleStorage(event: StorageEvent) {
-    if (event.key === COOKIE_CONSENT_STORAGE_KEY) {
+    if (
+      event.key === COOKIE_CONSENT_STORAGE_KEY ||
+      event.key === LEGACY_COOKIE_CONSENT_STORAGE_KEY
+    ) {
       onStoreChange();
     }
   }

@@ -12,7 +12,14 @@ import './globals.css';
 const themeInitScript = `
   (function () {
     try {
-      var theme = window.localStorage.getItem('estateflow-theme') || 'light';
+      var themeKey = 'podadresem-theme';
+      var legacyThemeKey = 'estateflow-theme';
+      var theme = window.localStorage.getItem(themeKey);
+      if (!theme) {
+        theme = window.localStorage.getItem(legacyThemeKey);
+        if (theme) window.localStorage.setItem(themeKey, theme);
+      }
+      theme = theme || 'light';
       if (theme !== 'dark' && theme !== 'light') theme = 'light';
       document.documentElement.classList.toggle('dark', theme === 'dark');
       document.documentElement.dataset.theme = theme;

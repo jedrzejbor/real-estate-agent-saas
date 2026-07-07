@@ -592,6 +592,8 @@ Weryfikacja po pierwszej iteracji Sprintu 3:
 Cel: świadomie zdecydować, które stare identyfikatory zostają, a które dostają
 migrację bez utraty danych użytkowników.
 
+Status: rozpoczęty, pierwsza iteracja wykonana 2026-07-07.
+
 Zakres decyzyjny:
 
 - `estateflowBrandingEnabled`,
@@ -622,11 +624,71 @@ Rekomendowana kolejność:
 
 Kryteria akceptacji:
 
-- [ ] istnieje lista legacy identyfikatorów, które zostają celowo,
-- [ ] migracje localStorage/cookies nie resetują preferencji użytkowników,
-- [ ] webhook billingowy ma plan kompatybilności,
+- [x] istnieje lista legacy identyfikatorów, które zostają celowo,
+- [x] migracje localStorage/cookies nie resetują preferencji użytkowników,
+- [x] webhook billingowy ma plan kompatybilności,
 - [ ] ewentualna zmiana `estateflowBrandingEnabled` ma osobną migrację DB i API,
 - [ ] po sprincie nie ma przypadkowych, niewyjaśnionych wystąpień `estateflow`.
+
+Wykonano w pierwszej iteracji Sprintu 4:
+
+- dodano centralną mapę nowych i legacy kluczy storage:
+  `apps/web/src/lib/storage-keys.ts`,
+- dodano migrację wartości localStorage przez helper `readMigratedStorageValue`;
+  mechanizm najpierw czyta nowy klucz, a jeśli go nie ma, kopiuje wartość ze
+  starego klucza pod nową nazwę,
+- zmigrowano theme storage z `estateflow-theme` na `podadresem-theme` w:
+  `apps/web/src/contexts/theme-context.tsx`,
+  `apps/web/src/app/layout.tsx`,
+- zmigrowano cookie consent storage z `estateflow-cookie-consent` na
+  `podadresem-cookie-consent` w:
+  `apps/web/src/lib/cookie-consent.ts`,
+  `apps/web/src/contexts/cookie-consent-context.tsx`,
+- zmigrowano draft publicznego formularza oferty z
+  `estateflow.publicListingWizard.v1` na `podadresem.publicListingWizard.v1` w:
+  `apps/web/src/app/(public)/dodaj-oferte/page.tsx`,
+- zmigrowano checklistę onboardingu z `estateflow.dashboard-onboarding.*` na
+  `podadresem.dashboard-onboarding.*` w:
+  `apps/web/src/hooks/use-onboarding-progress.ts`,
+- zmigrowano licznik asystenta opisu oferty z
+  `estateflow:listing-description-assistant:*` na
+  `podadresem:listing-description-assistant:*` w:
+  `apps/web/src/lib/listing-description-assistant.ts`,
+- zmieniono nazwy pobieranych plików QR z `estateflow-*.png` na
+  `podadresem-*.png` w:
+  `apps/web/src/components/listings/listing-publication-panel.tsx`,
+  `apps/web/src/components/listings/public-listing-analytics.tsx`,
+- dodano kompatybilny alias webhooka billingowego:
+  nowy `x-podadresem-billing-signature` oraz stary
+  `x-estateflow-billing-signature` są akceptowane w:
+  `apps/api/src/billing/billing-webhooks.controller.ts`,
+- dodano test obsługi nowego nagłówka w:
+  `apps/api/src/billing/billing-webhooks.controller.spec.ts`,
+- zaktualizowano politykę cookies o nowe klucze i informację o legacy migracji:
+  `apps/web/src/app/(marketing)/polityka-cookies/page.tsx`.
+
+Weryfikacja po pierwszej iteracji Sprintu 4:
+
+- `pnpm --filter web type-check` - OK,
+- `pnpm --filter web lint` - OK, bez błędów; pozostały istniejące warningi
+  niezwiązane z rebrandingiem,
+- `pnpm --filter api type-check` - OK,
+- `pnpm --filter api lint` - OK,
+- `pnpm --filter api test -- billing-webhooks.controller.spec.ts` - OK,
+- skan `estateflow-theme|estateflow-cookie-consent|estateflow.publicListingWizard|estateflow.dashboard-onboarding|estateflow:listing-description-assistant|x-estateflow-billing-signature|estateflow-qr`
+  zwraca już tylko jawne legacy constants, inline migrację motywu oraz stary
+  nagłówek billingowy obsługiwany kompatybilnie.
+
+Świadomie odłożone poza pierwszą iterację Sprintu 4:
+
+- `estateflowBrandingEnabled` zostaje bez zmian; wymaga osobnej migracji DB/API
+  albo decyzji o pozostawieniu jako trwały legacy kontrakt,
+- klasy CSS `estateflow-map-*` zostają bez zmian w tej iteracji, bo wymagają
+  atomowej zmiany selektorów CSS i markerów mapy,
+- `estateflow.test` w testach pozostaje techniczną domeną testową,
+- `estateflow.csrf-token` i `x-estateflow-billing-signature` pozostają
+  kompatybilnie obsługiwane w okresie przejściowym,
+- `real_estate_saas` pozostaje nazwą techniczną bazy do osobnej decyzji.
 
 ### Sprint 5 - dokumentacja, design system i materiały operacyjne
 

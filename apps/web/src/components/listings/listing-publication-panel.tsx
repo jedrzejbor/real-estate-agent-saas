@@ -421,7 +421,7 @@ export function ListingPublicationPanel({
           url={publicUrl}
           title={listing.publicTitle || listing.title}
           disabled={!isPublished || !publicUrl}
-          downloadFileName={`estateflow-${listing.publicSlug ?? listing.id}-qr.png`}
+          downloadFileName={`podadresem-${listing.publicSlug ?? listing.id}-qr.png`}
           onDownload={handleQrDownload}
         />
       </div>

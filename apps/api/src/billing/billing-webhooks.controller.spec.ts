@@ -79,6 +79,19 @@ describe('BillingWebhooksController', () => {
     });
   });
 
+  it('accepts the PodAdresem billing signature header alias', async () => {
+    const { controller, service } = buildController('secret');
+
+    const response = await controller.handleSubscriptionEvent(
+      payload,
+      undefined,
+      sign(payload, 'secret'),
+    );
+
+    expect(response).toEqual({ status: 'processed', agencyId: 'agency-1' });
+    expect(service.processSubscriptionEvent).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects invalid signatures before calling the service', async () => {
     const { controller, service } = buildController('secret');
 

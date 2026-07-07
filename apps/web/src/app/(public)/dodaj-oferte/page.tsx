@@ -29,6 +29,7 @@ import { useBulkSelection } from '@/hooks/use-bulk-selection';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { APP_NAME } from '@/lib/brand';
 import { isPrivateSellerUser, type AuthUser } from '@/lib/auth';
+import { readMigratedStorageValue, STORAGE_KEYS } from '@/lib/storage-keys';
 import {
   PROPERTY_TYPE_LABELS,
   PropertyType,
@@ -90,7 +91,8 @@ interface PublicListingWizardDraft {
   website: string;
 }
 
-const STORAGE_KEY = 'estateflow.publicListingWizard.v1';
+const STORAGE_KEY = STORAGE_KEYS.publicListingWizard;
+const LEGACY_STORAGE_KEY = STORAGE_KEYS.legacyPublicListingWizard;
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_IMAGES = 15;
@@ -158,7 +160,11 @@ export default function PublicListingSubmissionWizardPage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   React.useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = readMigratedStorageValue(
+      localStorage,
+      STORAGE_KEY,
+      LEGACY_STORAGE_KEY,
+    );
     const cityFromUrl = getCityFromCurrentUrl();
     let nextDraft = INITIAL_DRAFT;
 
@@ -167,6 +173,7 @@ export default function PublicListingSubmissionWizardPage() {
         nextDraft = { ...INITIAL_DRAFT, ...JSON.parse(stored) };
       } catch {
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
       }
     }
 
@@ -319,6 +326,7 @@ export default function PublicListingSubmissionWizardPage() {
           : createPublicListingSubmission;
       const result = await submit(payload);
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
       const nextParams = new URLSearchParams({
         email: result.emailMasked,
         expiresAt: result.expiresAt,

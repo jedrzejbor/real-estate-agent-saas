@@ -5,6 +5,7 @@ import { useToast } from '@/contexts/toast-context';
 import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import type { AuthUser } from '@/lib/auth';
 import type { DashboardStats } from '@/lib/dashboard';
+import { readMigratedStorageValue, STORAGE_KEYS } from '@/lib/storage-keys';
 import {
   createStoredDashboardOnboardingState,
   getCompletedDashboardOnboardingStepIds,
@@ -15,8 +16,6 @@ import {
   type DashboardOnboardingStep,
   type StoredDashboardOnboardingState,
 } from '@/lib/onboarding';
-
-const DASHBOARD_ONBOARDING_STORAGE_PREFIX = 'estateflow.dashboard-onboarding';
 
 interface UseOnboardingProgressOptions {
   stats: DashboardStats;
@@ -59,6 +58,10 @@ export function useOnboardingProgress({
   const completedStepIdsKey = completedStepIds.join(':');
   const storageKey = useMemo(
     () => getDashboardOnboardingStorageKey(user),
+    [user],
+  );
+  const legacyStorageKey = useMemo(
+    () => getLegacyDashboardOnboardingStorageKey(user),
     [user],
   );
   const [storedState, setStoredState] =
@@ -106,7 +109,13 @@ export function useOnboardingProgress({
       return;
     }
 
-    const rawState = window.localStorage.getItem(storageKey);
+    const rawState = legacyStorageKey
+      ? readMigratedStorageValue(
+          window.localStorage,
+          storageKey,
+          legacyStorageKey,
+        )
+      : window.localStorage.getItem(storageKey);
 
     if (!rawState) {
       const nextState = createStoredDashboardOnboardingState({
@@ -154,7 +163,7 @@ export function useOnboardingProgress({
     } finally {
       setIsHydrated(true);
     }
-  }, [completedStepIds, completedStepIdsKey, storageKey]);
+  }, [completedStepIds, completedStepIdsKey, legacyStorageKey, storageKey]);
 
   useEffect(() => {
     if (!isHydrated) {
@@ -303,5 +312,17 @@ function getDashboardOnboardingStorageKey(
     return null;
   }
 
-  return `${DASHBOARD_ONBOARDING_STORAGE_PREFIX}.${scopeId}`;
+  return `${STORAGE_KEYS.dashboardOnboardingPrefix}.${scopeId}`;
+}
+
+function getLegacyDashboardOnboardingStorageKey(
+  user: AuthUser | null,
+): string | null {
+  const scopeId = user?.agency?.id ?? user?.id;
+
+  if (!scopeId) {
+    return null;
+  }
+
+  return `${STORAGE_KEYS.legacyDashboardOnboardingPrefix}.${scopeId}`;
 }

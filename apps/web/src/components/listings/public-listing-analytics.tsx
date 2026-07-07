@@ -135,7 +135,7 @@ export function PublicListingAnalytics({
       <ListingQrAsset
         url={url}
         title={title}
-        downloadFileName={`estateflow-${slug}-qr.png`}
+        downloadFileName={`podadresem-${slug}-qr.png`}
         onDownload={handleQrDownload}
       />
     </div>

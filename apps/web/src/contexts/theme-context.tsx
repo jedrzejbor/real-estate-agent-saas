@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { readMigratedStorageValue, STORAGE_KEYS } from '@/lib/storage-keys';
 
 type Theme = 'light' | 'dark';
 
@@ -18,7 +19,6 @@ interface ThemeContextValue {
   toggleTheme: () => void;
 }
 
-const THEME_STORAGE_KEY = 'estateflow-theme';
 const DEFAULT_THEME: Theme = 'light';
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -28,7 +28,11 @@ function getStoredTheme(): Theme {
     return DEFAULT_THEME;
   }
 
-  const value = window.localStorage.getItem(THEME_STORAGE_KEY);
+  const value = readMigratedStorageValue(
+    window.localStorage,
+    STORAGE_KEYS.theme,
+    STORAGE_KEYS.legacyTheme,
+  );
   return value === 'dark' || value === 'light' ? value : DEFAULT_THEME;
 }
 
@@ -47,7 +51,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setTheme = useCallback((nextTheme: Theme) => {
     setThemeState(nextTheme);
     applyTheme(nextTheme);
-    window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    window.localStorage.setItem(STORAGE_KEYS.theme, nextTheme);
   }, []);
 
   const toggleTheme = useCallback(() => {

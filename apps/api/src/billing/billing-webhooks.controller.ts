@@ -13,6 +13,8 @@ import { BillingSubscriptionEventsService } from './billing-subscription-events.
 import { BillingSubscriptionWebhookDto } from './dto/billing-subscription-webhook.dto';
 
 const BILLING_SIGNATURE_HEADER = 'x-estateflow-billing-signature';
+const PODADRESEM_BILLING_SIGNATURE_HEADER =
+  'x-podadresem-billing-signature';
 
 @Controller('billing/webhooks')
 export class BillingWebhooksController {
@@ -27,8 +29,10 @@ export class BillingWebhooksController {
   async handleSubscriptionEvent(
     @Body() dto: BillingSubscriptionWebhookDto,
     @Headers(BILLING_SIGNATURE_HEADER) signature?: string,
+    @Headers(PODADRESEM_BILLING_SIGNATURE_HEADER)
+    podAdresemSignature?: string,
   ) {
-    this.verifySignature(dto, signature);
+    this.verifySignature(dto, podAdresemSignature ?? signature);
 
     return this.billingSubscriptionEventsService.processSubscriptionEvent({
       provider: dto.provider,

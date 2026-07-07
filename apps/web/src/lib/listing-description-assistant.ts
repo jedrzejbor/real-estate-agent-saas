@@ -3,6 +3,7 @@ import {
   PropertyType,
   TransactionType,
 } from './listings';
+import { readMigratedStorageValue, STORAGE_KEYS } from './storage-keys';
 
 export interface ListingDescriptionAssistantInput {
   title?: string;
@@ -46,9 +47,6 @@ export const DESCRIPTION_ASSISTANT_MONTHLY_LIMIT = 12;
 
 const LONG_DESCRIPTION_LENGTH = 900;
 const MIN_DESCRIPTION_LENGTH = 280;
-const DESCRIPTION_ASSISTANT_STORAGE_PREFIX =
-  'estateflow:listing-description-assistant';
-
 export function buildListingDescription(
   input: ListingDescriptionAssistantInput,
 ): string {
@@ -204,7 +202,13 @@ export function getStoredDescriptionAssistantUsage(): DescriptionAssistantUsage 
     return buildUsage(key, 0);
   }
 
-  const used = Number(window.localStorage.getItem(key) ?? 0);
+  const used = Number(
+    readMigratedStorageValue(
+      window.localStorage,
+      key,
+      getLegacyDescriptionAssistantStorageKey(),
+    ) ?? 0,
+  );
   return buildUsage(key, used);
 }
 
@@ -348,7 +352,13 @@ function requiresYearBuilt(
 function getDescriptionAssistantStorageKey(): string {
   const now = new Date();
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  return `${DESCRIPTION_ASSISTANT_STORAGE_PREFIX}:${month}`;
+  return `${STORAGE_KEYS.listingDescriptionAssistantPrefix}:${month}`;
+}
+
+function getLegacyDescriptionAssistantStorageKey(): string {
+  const now = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return `${STORAGE_KEYS.legacyListingDescriptionAssistantPrefix}:${month}`;
 }
 
 function buildUsage(key: string, used: number): DescriptionAssistantUsage {

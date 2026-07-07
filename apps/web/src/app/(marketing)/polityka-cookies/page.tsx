@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Container } from '@/components/layout';
 import { APP_NAME } from '@/lib/brand';
 import { LEGAL_META } from '@/lib/legal';
+import { STORAGE_KEYS } from '@/lib/storage-keys';
 
 export const metadata: Metadata = {
   title: `Polityka cookies | ${APP_NAME}`,
@@ -123,7 +124,9 @@ export default function CookiePolicyPage() {
             <p>
               Użytkownik może zmienić wybór w stopce strony przez przycisk
               „Ustawienia cookies”. Preferencje są zapisywane lokalnie w
-              przeglądarce pod kluczem `estateflow-cookie-consent`.
+              przeglądarce pod kluczem `{STORAGE_KEYS.cookieConsent}`. Starszy
+              klucz `{STORAGE_KEYS.legacyCookieConsent}` jest obsługiwany tylko
+              migracyjnie.
             </p>
             <p>
               Wyczyszczenie danych przeglądarki usuwa zapisane preferencje i
@@ -146,7 +149,7 @@ export default function CookiePolicyPage() {
 function StorageTable() {
   const rows = [
     {
-      name: 'estateflow-cookie-consent',
+      name: STORAGE_KEYS.cookieConsent,
       type: 'localStorage',
       category: 'Niezbędne',
       purpose: 'Zapamiętanie wyboru zgód użytkownika.',
@@ -166,23 +169,30 @@ function StorageTable() {
         'Ochrona mutujących requestów zalogowanego użytkownika przed atakami CSRF.',
     },
     {
-      name: 'estateflow-theme',
+      name: STORAGE_KEYS.theme,
       type: 'localStorage',
       category: 'Funkcjonalne',
       purpose: 'Zapamiętanie motywu interfejsu.',
     },
     {
-      name: 'estateflow.publicListingWizard.v1',
+      name: STORAGE_KEYS.publicListingWizard,
       type: 'localStorage',
       category: 'Funkcjonalne',
       purpose:
         'Roboczy draft publicznego formularza dodania oferty, w tym dane wpisane przez użytkownika.',
     },
     {
-      name: 'estateflow.dashboard-onboarding:*',
+      name: `${STORAGE_KEYS.dashboardOnboardingPrefix}.*`,
       type: 'localStorage',
       category: 'Funkcjonalne',
       purpose: 'Zapamiętanie postępu checklisty onboardingowej.',
+    },
+    {
+      name: `${STORAGE_KEYS.listingDescriptionAssistantPrefix}:*`,
+      type: 'localStorage',
+      category: 'Funkcjonalne',
+      purpose:
+        'Zapamiętanie miesięcznego limitu użycia asystenta opisu oferty.',
     },
     {
       name: 'blog-article-viewed:*',
