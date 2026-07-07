@@ -1875,6 +1875,7 @@ export class ListingsService {
       seoDescription:
         listing.seoDescription ?? this.buildDefaultSeoDescription(listing),
       shareImageUrl: listing.shareImageUrl ?? null,
+      platformBrandingEnabled: listing.estateflowBrandingEnabled,
       estateflowBrandingEnabled: listing.estateflowBrandingEnabled,
       showPublicViewCount: listing.showPublicViewCount,
       publicViewCount: listing.showPublicViewCount
@@ -3573,6 +3574,7 @@ export class ListingsService {
       shareImageUrl: listing.shareImageUrl ?? null,
       showPriceOnPublicPage: listing.showPriceOnPublicPage,
       showExactAddressOnPublicPage: listing.showExactAddressOnPublicPage,
+      platformBrandingEnabled: listing.estateflowBrandingEnabled,
       estateflowBrandingEnabled: listing.estateflowBrandingEnabled,
       showPublicViewCount: listing.showPublicViewCount,
       publishedAt: listing.publishedAt?.toISOString() ?? null,

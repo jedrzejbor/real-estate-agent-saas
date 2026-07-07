@@ -23,6 +23,7 @@ import {
   fetchPublicListing,
   formatArea,
   formatPrice,
+  isPlatformBrandingEnabled,
   PROPERTY_TYPE_LABELS,
   shouldShowListingField,
   TRANSACTION_TYPE_LABELS,
@@ -131,6 +132,7 @@ export default async function PublicListingPage({
   const facts = getPublicListingFacts(listing);
   const details = getPublicListingDetails(listing);
   const trustSignals = getPublicListingTrustSignals(listing);
+  const showPlatformBranding = isPlatformBrandingEnabled(listing);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -155,7 +157,7 @@ export default async function PublicListingPage({
               <ArrowLeft className="h-4 w-4" />
               {APP_NAME}
             </Link>
-            {listing.estateflowBrandingEnabled ? (
+            {showPlatformBranding ? (
               <div className="rounded-full bg-white/12 px-3 py-2 text-xs font-medium uppercase tracking-[0.12em] text-white/80 backdrop-blur">
                 Powered by {APP_NAME}
               </div>

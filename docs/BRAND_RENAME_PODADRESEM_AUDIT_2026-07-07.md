@@ -1128,14 +1128,14 @@ Zakres:
 
 Kryteria akceptacji:
 
-- [ ] istnieje migracja albo playbook SQL dla danych istniejących przed
+- [x] istnieje migracja albo playbook SQL dla danych istniejących przed
   rebrandingiem,
-- [ ] nowe pole brandingu publicznego ma nazwę neutralną albo zatwierdzoną
+- [x] nowe pole brandingu publicznego ma nazwę neutralną albo zatwierdzoną
   brandową,
-- [ ] API przez okres przejściowy obsługuje stare i nowe pole,
-- [ ] frontend czyta nowe pole i ma fallback do starego,
-- [ ] testy kontraktowe pokrywają oba pola,
-- [ ] rollback jest opisany i nie wymaga utraty danych.
+- [x] API przez okres przejściowy obsługuje stare i nowe pole,
+- [x] frontend czyta nowe pole i ma fallback do starego,
+- [x] testy kontraktowe pokrywają oba pola,
+- [x] rollback jest opisany i nie wymaga utraty danych.
 
 Rekomendacja techniczna:
 
@@ -1144,6 +1144,55 @@ Rekomendacja techniczna:
 - nie usuwać `estateflowBrandingEnabled` w tym samym release,
 - najpierw dodać nowe pole jako alias, potem przepiąć frontend, a dopiero po
   pełnym cyklu release rozważyć usunięcie starego pola.
+
+Status po pierwszej iteracji Sprintu 8: wykonany w zakresie kompatybilnego
+aliasu API/frontend i migracji istniejących danych bloga. Stara kolumna
+`estateflowBrandingEnabled` pozostaje w bazie jako źródło danych i kontrakt
+legacy.
+
+Wykonano w pierwszej iteracji Sprintu 8:
+
+- dodano neutralny alias `platformBrandingEnabled` do publicznego modelu API:
+  `apps/api/src/listings/public-listing.model.ts`,
+- `apps/api/src/listings/listings.service.ts` zwraca teraz jednocześnie:
+  `platformBrandingEnabled` i `estateflowBrandingEnabled`, mapowane z tej samej
+  wartości DB,
+- dodano frontendowy fallback `isPlatformBrandingEnabled()` w
+  `apps/web/src/lib/listings.ts`,
+- publiczna oferta, publiczny formularz leadowy i panel publikacji używają
+  `isPlatformBrandingEnabled()`, więc preferują nowe pole i zachowują fallback
+  na stare,
+- dodano test kontraktowy w
+  `apps/api/src/listings/listing-public-privacy.spec.ts`, który potwierdza, że
+  API zwraca oba pola z tą samą wartością,
+- dodano idempotentną migrację danych:
+  `apps/api/migrations/20260707_brand_rename_existing_blog_data.sql`, która
+  czyści istniejące rekordy bloga, autorów, SEO i canonical URL ze starego
+  brandu.
+
+Rollback po pierwszej iteracji Sprintu 8:
+
+- frontend nadal może wrócić do `estateflowBrandingEnabled`, bo stare pole jest
+  zwracane bez zmian,
+- API nie usuwa starego pola ani starej kolumny,
+- migracja danych bloga jest idempotentna; w razie potrzeby rollback danych
+  powinien zostać wykonany z backupu bazy, bo zmienia istniejące teksty na nowy
+  brand zgodnie z decyzją produktową.
+
+Weryfikacja po pierwszej iteracji Sprintu 8:
+
+- `pnpm --filter api test -- listing-public-privacy.spec.ts public-listing-submissions.service.spec.ts file-storage.config.spec.ts` - OK,
+- `pnpm --filter api type-check` - OK,
+- `pnpm --filter web type-check` - OK,
+- `pnpm --filter api lint` - OK,
+- `pnpm --filter web lint` - OK, z 11 istniejącymi ostrzeżeniami
+  niezwiązanymi z rebrandingiem,
+- `rg -n "\bEstateFlow\b|estateflow\.pl|estateflow\.test|estateflow-storage-|Real Estate SaaS|Real Estate Agent SaaS" . --glob '!node_modules' --glob '!pnpm-lock.yaml' --glob '!docs/BRAND_RENAME_PODADRESEM_AUDIT_2026-07-07.md'`
+  zwraca tylko oczekiwane literały w migracji danych
+  `20260707_brand_rename_existing_blog_data.sql` oraz centralne
+  `previousName`; migracja zawiera stare wartości celowo, bo używa ich do
+  idempotentnego `replace(...)`,
+- `git diff --check` - OK.
 
 ### Sprint 9 - rollout zewnętrzny, aliasy i wygaszanie fallbacków
 

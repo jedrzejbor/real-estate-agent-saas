@@ -59,6 +59,7 @@ export interface PublicListingView {
   seoTitle?: string | null;
   seoDescription?: string | null;
   shareImageUrl?: string | null;
+  platformBrandingEnabled: boolean;
   estateflowBrandingEnabled: boolean;
   showPublicViewCount: boolean;
   publicViewCount?: number | null;

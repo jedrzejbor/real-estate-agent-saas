@@ -7,6 +7,7 @@ import {
   fetchPublicListing,
   formatArea,
   formatPrice,
+  isPlatformBrandingEnabled,
   PROPERTY_TYPE_LABELS,
   type PublicListing,
 } from '@/lib/listings';
@@ -123,7 +124,7 @@ export default async function PublicListingLeadFormPage({
         </div>
       </section>
 
-      {listing.estateflowBrandingEnabled ? (
+      {isPlatformBrandingEnabled(listing) ? (
         <p className="mx-auto mt-3 max-w-xl text-center text-xs text-muted-foreground">
           Powered by {APP_NAME}
         </p>

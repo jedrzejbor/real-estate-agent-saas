@@ -36,6 +36,7 @@ import {
   LISTING_STATUS_LABELS,
   ListingStatus,
   ListingPublicationStatus,
+  isPlatformBrandingEnabled,
   publicListingSettingsSchema,
   publishListing,
   type Listing,
@@ -528,7 +529,7 @@ export function ListingPublicationPanel({
           />
         </div>
 
-        {listing.estateflowBrandingEnabled ? (
+        {isPlatformBrandingEnabled(listing) ? (
           <p className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
             Branding {APP_NAME} jest aktywny dla tej oferty. Konta z własnym
             brandingiem mogą go ukrywać automatycznie po publikacji.

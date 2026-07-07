@@ -222,6 +222,7 @@ export interface Listing {
   seoTitle?: string | null;
   seoDescription?: string | null;
   shareImageUrl?: string | null;
+  platformBrandingEnabled?: boolean;
   showPriceOnPublicPage: boolean;
   showExactAddressOnPublicPage: boolean;
   estateflowBrandingEnabled: boolean;
@@ -316,6 +317,7 @@ export interface PublicListing {
   seoTitle?: string | null;
   seoDescription?: string | null;
   shareImageUrl?: string | null;
+  platformBrandingEnabled?: boolean;
   estateflowBrandingEnabled: boolean;
   showPublicViewCount: boolean;
   publicViewCount?: number | null;
@@ -326,6 +328,17 @@ export interface PublicListing {
 export interface PublicListingSitemapEntry {
   slug: string;
   updatedAt: string;
+}
+
+export function isPlatformBrandingEnabled(
+  listing: Pick<
+    Listing | PublicListing,
+    'platformBrandingEnabled' | 'estateflowBrandingEnabled'
+  >,
+): boolean {
+  return (
+    listing.platformBrandingEnabled ?? listing.estateflowBrandingEnabled ?? true
+  );
 }
 
 export const PublicListingCatalogSort = {

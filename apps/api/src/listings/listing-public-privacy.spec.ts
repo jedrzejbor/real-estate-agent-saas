@@ -64,6 +64,16 @@ describe('public listing privacy', () => {
     expect(payload).not.toContainMessageRecipientFields();
   });
 
+  it('exposes neutral platform branding alias in public listing detail', () => {
+    const payload = service.toPublicListingView({
+      ...buildListingWithCommission(),
+      estateflowBrandingEnabled: false,
+    }) as Record<string, unknown>;
+
+    expect(payload.platformBrandingEnabled).toBe(false);
+    expect(payload.estateflowBrandingEnabled).toBe(false);
+  });
+
   it('does not expose commission fields in public catalog item', () => {
     const payload = service.toPublicCatalogItem(buildListingWithCommission());
 
