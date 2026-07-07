@@ -1041,8 +1041,157 @@ Weryfikacja po pierwszej iteracji Sprintu 7:
 
 Status po pierwszej iteracji Sprintu 7: w trakcie. Sprint nie jest jeszcze
 zamknięty, bo przełączenie zewnętrznych billing providerów na
-`x-podadresem-billing-signature` wymaga potwierdzenia poza repo. Sprint 8 nie
-został rozpoczęty w tej iteracji.
+`x-podadresem-billing-signature` wymaga potwierdzenia poza repo. Sprint 8-10
+zostały dopisane planistycznie po analizie zabezpieczenia rebrandingu.
+
+## Analiza zabezpieczenia rebrandingu - 2026-07-07
+
+Wniosek: rebranding jest zabezpieczony na poziomie widocznego UI, SEO,
+metadanych, maili aplikacyjnych, dokumentów prawnych, dokumentacji operacyjnej,
+storage/cookie migracji i testowych fixture danych. Aplikacja nie powinna już
+pokazywać starego brandu użytkownikowi w standardowym runtime.
+
+Nie jest jeszcze w pełni domknięty poziom technicznych kontraktów i zależności
+zewnętrznych. Te miejsca zostały celowo zostawione jako legacy, bo ich szybkie
+usunięcie mogłoby zerwać dane, sesje, webhooki, środowiska albo publiczny
+kontrakt API.
+
+### Co jest zabezpieczone
+
+- Centralna nazwa produktu jest w `apps/web/src/lib/brand.ts` i
+  `apps/api/src/common/brand.ts`.
+- UI, dashboard, publiczne oferty, katalog, blog, auth, legal i footer używają
+  `PodAdresem`.
+- SEO metadata, Open Graph, JSON-LD i sitemapowe tytuły korzystają z nowego
+  brandu.
+- Maile resetu hasła, fallback workspace i domyślny `SMTP_FROM` używają
+  `PodAdresem`.
+- Legal/contact wskazują domenę `podadresem.pl`.
+- Storage/cookies mają nowe klucze `podadresem-*` z migracją ze starych
+  `estateflow-*`.
+- CSRF używa `podadresem.csrf-token`, a stary cookie jest tylko fallbackiem.
+- Billing webhook używa `x-podadresem-billing-signature`, a stary nagłówek jest
+  tylko aliasem legacy.
+- Testowe domeny `estateflow.test` i prefix `estateflow-storage-` zostały
+  usunięte ze speców.
+- Skan starej widocznej nazwy poza tym audytem zwraca tylko świadome
+  `previousName` w centralnych konfiguracjach brandu.
+
+### Co nie jest jeszcze domknięte
+
+| Obszar | Status | Ryzyko | Dalsze działanie |
+| --- | --- | --- | --- |
+| `estateflowBrandingEnabled` | Legacy kontrakt API/DB. | Zmiana bez migracji może zerwać publiczne oferty i frontend. | Sprint 8 - kompatybilna migracja pola. |
+| `showEstateFlowBranding`, `agencyWebsiteRemoveEstateFlowBranding` | Legacy nazwy w planie przyszłych stron agencyjnych. | Może wrócić stary brand przy implementacji agency websites. | Sprint 8 albo osobny sprint stron brandowych - nazwy neutralne. |
+| Legacy storage keys i `estateflow.csrf-token` | Akceptowane przejściowo. | Zbyt szybkie usunięcie może skasować preferencje/drafty albo przerwać aktywne sesje. | Sprint 9 - wygaszenie po oknie kompatybilności. |
+| `x-estateflow-billing-signature` | Alias legacy. | Usunięcie przed zmianą konfiguracji providera zatrzyma webhooki. | Sprint 9 - po potwierdzeniu providerów. |
+| `real_estate_saas` | Techniczna nazwa bazy. | Zmiana dotyka lokalnego dev, CI, produkcji i backupów. | Sprint 10 - decyzja infrastrukturalna, nie blokuje rebrandingu produktu. |
+| `real-estate-agent-saas` | Nazwa repo/paczki. | Zmiana dotyka repo, ścieżek, CI, deploy i dokumentacji developerskiej. | Sprint 10 - decyzja organizacyjna, nie blokuje rebrandingu produktu. |
+| Istniejące dane w DB | Kod i seed są poprawione, ale istniejące rekordy mogą mieć stare teksty. | Produkcyjna/stagingowa baza może nadal zawierać stare wpisy bloga, autorów albo SEO. | Sprint 8 - migracja danych albo playbook SQL. |
+| Domeny, DNS, aliasy i skrzynki | Poza repo. | Bez konfiguracji zewnętrznej użytkownicy mogą trafiać na stare domeny albo niedziałające adresy. | Sprint 9 - checklist rollout infra. |
+| Cache SEO / indeks Google / social previews | Poza repo. | Google i social media mogą przez jakiś czas pokazywać stare title/OG. | Sprint 9 - recrawl, sitemap, cache purge. |
+
+### Skan kontrolny analizy
+
+Polecenia użyte do analizy:
+
+```bash
+rg -n "\bEstateFlow\b|estateflow\.pl|estateflow\.test|estateflow-storage-|Real Estate Agent SaaS|Real Estate SaaS|support@estateflow\.pl|abuse@estateflow\.pl|legal@estateflow\.pl|noreply@estateflow\.pl|kontakt@estateflow\.pl|Powered by EstateFlow|Blog EstateFlow" . --glob '!node_modules' --glob '!pnpm-lock.yaml'
+rg -n "estateflow|EstateFlow|real-estate-agent-saas|real_estate_saas" . --glob '!node_modules' --glob '!pnpm-lock.yaml'
+rg -n "APP_NAME|APP_DOMAIN|APP_CONTACT_EMAIL|APP_LEGAL_EMAIL|APP_SUPPORT_EMAIL|APP_ABUSE_EMAIL|SMTP_FROM|EMAIL_FROM|FRONTEND_URL|API_URL|CORS_ORIGIN|podadresem|estateflow" .env.example docker-compose.yml apps/api/src apps/web/src --glob '!node_modules'
+```
+
+Interpretacja wyników:
+
+- wyniki z `EstateFlow` poza audytem są ograniczone do `previousName`,
+- wyniki `estateflow*` w kodzie są świadomymi legacy kontraktami albo
+  fallbackami migracyjnymi,
+- wyniki `real_estate_saas` i `real-estate-agent-saas` są techniczną nazwą
+  bazy/repo, nie widocznym brandem produktu.
+
+### Sprint 8 - migracje danych i kontraktów API/DB
+
+Cel: usunąć ryzyko, że stare nazwy zostaną w istniejących danych albo w
+przyszłych kontraktach API.
+
+Zakres:
+
+- migracja istniejących rekordów bloga, autorów, SEO title/description i
+  potencjalnych treści seeded, które mogły powstać przed rebrandingiem,
+- decyzja, czy `estateflowBrandingEnabled` zmieniamy na nazwę neutralną
+  `platformBrandingEnabled`, czy brandową `podadresemBrandingEnabled`,
+- dodanie compatibility layer API: przez okres przejściowy stare i nowe pole
+  zwracają tę samą wartość,
+- aktualizacja frontendowych typów i odczytów na nowe pole z fallbackiem,
+- plan migracji DB z rollbackiem,
+- aktualizacja dokumentacji API i testów kontraktowych.
+
+Kryteria akceptacji:
+
+- [ ] istnieje migracja albo playbook SQL dla danych istniejących przed
+  rebrandingiem,
+- [ ] nowe pole brandingu publicznego ma nazwę neutralną albo zatwierdzoną
+  brandową,
+- [ ] API przez okres przejściowy obsługuje stare i nowe pole,
+- [ ] frontend czyta nowe pole i ma fallback do starego,
+- [ ] testy kontraktowe pokrywają oba pola,
+- [ ] rollback jest opisany i nie wymaga utraty danych.
+
+Rekomendacja techniczna:
+
+- preferować nazwę neutralną `platformBrandingEnabled`, bo opisuje funkcję
+  niezależnie od przyszłych rebrandingów,
+- nie usuwać `estateflowBrandingEnabled` w tym samym release,
+- najpierw dodać nowe pole jako alias, potem przepiąć frontend, a dopiero po
+  pełnym cyklu release rozważyć usunięcie starego pola.
+
+### Sprint 9 - rollout zewnętrzny, aliasy i wygaszanie fallbacków
+
+Cel: dopiąć elementy, których nie da się potwierdzić samym kodem w repo.
+
+Zakres:
+
+- potwierdzić domenę `podadresem.pl`, `www`, `api`, `cdn` i ewentualnie
+  `status`,
+- skonfigurować aliasy albo redirecty ze starej domeny, jeśli była używana,
+- potwierdzić działanie skrzynek `kontakt@`, `support@`, `legal@`, `abuse`,
+  `noreply`,
+- przepiąć billing providerów na `x-podadresem-billing-signature`,
+- dopiero po potwierdzeniu providerów zaplanować usunięcie
+  `x-estateflow-billing-signature`,
+- zgłosić sitemapę do recrawlu i wyczyścić cache CDN/social previews,
+- po jednym pełnym release sprawdzić, czy legacy storage/cookie fallbacki nadal
+  są używane.
+
+Kryteria akceptacji:
+
+- [ ] DNS i SSL działają dla finalnych domen,
+- [ ] produkcyjne `.env` używa domen i e-maili `podadresem.pl`,
+- [ ] billing webhooki przychodzą na nowym nagłówku,
+- [ ] stary billing header ma zaplanowaną datę usunięcia,
+- [ ] sitemap/robots/Search Console są odświeżone,
+- [ ] legacy storage/cookie fallbacki mają datę wygaszenia albo metrykę użycia.
+
+### Sprint 10 - decyzje infrastrukturalne i repozytoryjne
+
+Cel: zdecydować, czy techniczne nazwy `real_estate_saas` i
+`real-estate-agent-saas` zostają na stałe, czy są migrowane.
+
+Zakres:
+
+- decyzja o nazwie bazy danych lokalnej/produkcyjnej,
+- decyzja o nazwie repozytorium i package name,
+- wpływ na Docker Compose, CI/CD, backupy, deploy path, README i onboarding
+  developerski,
+- plan komunikacji dla zespołu,
+- migracja ścieżek tylko jeśli korzyść przewyższa ryzyko.
+
+Kryteria akceptacji:
+
+- [ ] decyzja `zostawiamy` albo `migrujemy` jest wpisana w audyt,
+- [ ] jeśli migrujemy, istnieje playbook dla lokalnego dev, CI i produkcji,
+- [ ] jeśli zostawiamy, dokumentacja jasno oznacza te nazwy jako techniczne,
+- [ ] zmiana nie blokuje rebrandingu użytkownika końcowego.
 
 ## Podział ryzyka
 
