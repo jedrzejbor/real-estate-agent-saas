@@ -537,9 +537,9 @@ Wykonane w etapie 1:
 Wykonane w etapie 2:
 
 - Dodano double-submit CSRF protection dla requestów mutujących wykonywanych z auth cookies.
-- API ustawia czytelny cookie `estateflow.csrf-token` obok httpOnly `accessToken` i `refreshToken`.
+- API ustawia czytelny cookie `podadresem.csrf-token` obok httpOnly `accessToken` i `refreshToken`; `estateflow.csrf-token` jest akceptowany przejściowo jako legacy.
 - Dodano `GET /api/auth/csrf`, który wydaje token CSRF dla klienta przeglądarkowego.
-- Dodano globalny `CsrfGuard`, który dla metod `POST`, `PATCH`, `PUT`, `DELETE` wymaga zgodności cookie `estateflow.csrf-token` z nagłówkiem `x-csrf-token`, gdy request niesie auth cookies.
+- Dodano globalny `CsrfGuard`, który dla metod `POST`, `PATCH`, `PUT`, `DELETE` wymaga zgodności cookie `podadresem.csrf-token` z nagłówkiem `x-csrf-token`, gdy request niesie auth cookies.
 - Web automatycznie pobiera i dosyła `x-csrf-token` w `apiFetch`, `apiFormDataFetch`, `authFetch` oraz przy `/auth/refresh`.
 - `logout` czyści auth cookies oraz cookie CSRF.
 - Mechanizm nie wymaga zgody cookies, bo chroni sesję użytkownika i jest klasyfikowany jako niezbędny security storage.

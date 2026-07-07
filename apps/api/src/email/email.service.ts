@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { type Transporter } from 'nodemailer';
+import { APP_NAME } from '../common/brand';
 
 interface SendEmailInput {
   to: string;
@@ -41,7 +42,7 @@ export class EmailService {
   private async sendViaSmtp(input: SendEmailInput): Promise<void> {
     const from = this.configService.get(
       'SMTP_FROM',
-      'Real Estate SaaS <noreply@localhost>',
+      `${APP_NAME} <noreply@localhost>`,
     );
 
     await this.getSmtpTransporter().sendMail({

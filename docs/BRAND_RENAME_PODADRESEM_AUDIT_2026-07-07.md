@@ -867,10 +867,10 @@ Kryteria akceptacji:
 
 - [x] publiczne strony nie pokazują starej nazwy w skanie kodu i dokumentacji,
 - [x] dashboard nie pokazuje starej nazwy w skanie kodu i dokumentacji,
-- [ ] legal/contact są spójne z finalną domeną,
+- [x] legal/contact są spójne z finalną domeną,
 - [x] testy i lint przechodzą w pierwszej iteracji Sprintu 6,
 - [x] pozostałe wystąpienia starej nazwy są opisane jako legacy albo historia,
-- [ ] zespół ma decyzję, czy i kiedy usuwać legacy identyfikatory.
+- [x] zespół ma decyzję, czy i kiedy usuwać legacy identyfikatory.
 
 Status po pierwszej iteracji Sprintu 6: rozpoczęty.
 
@@ -898,6 +898,89 @@ Weryfikacja po pierwszej iteracji Sprintu 6:
   niezwiązanymi z rebrandingiem,
 - `git diff --check` - OK.
 
+Status po drugiej iteracji Sprintu 6: zakończony w zakresie automatycznej
+weryfikacji i decyzji technicznych. Ręczny smoke test UI pozostaje po stronie
+weryfikacji użytkownika, zgodnie z decyzją, żeby nie wykonywać zrzutów ekranu.
+
+Wykonano w drugiej iteracji Sprintu 6:
+
+- zweryfikowano konfigurację legal/contact:
+  `apps/web/src/lib/legal.ts` korzysta z `APP_LEGAL_EMAIL`,
+  `APP_ABUSE_EMAIL` i `APP_SUPPORT_EMAIL`, a centralne brand constants wskazują
+  domenę `podadresem.pl`,
+- usunięto ostatni techniczny fallback nadawcy `Real Estate SaaS` w
+  `apps/api/src/email/email.service.ts`; domyślny `SMTP_FROM` używa teraz
+  `APP_NAME`,
+- uporządkowano nazwy stałych w
+  `apps/api/src/billing/billing-webhooks.controller.ts`, tak aby
+  `x-podadresem-billing-signature` był głównym nagłówkiem, a
+  `x-estateflow-billing-signature` jawnie legacy aliasem,
+- zaktualizowano `docs/COOKIE_CONSENT_READINESS_PLAN.md`, żeby etap CSRF
+  opisywał `podadresem.csrf-token` jako główny cookie i
+  `estateflow.csrf-token` jako przejściowy legacy,
+- podjęto decyzję legacy: identyfikatory `estateflowBrandingEnabled`,
+  `showEstateFlowBranding`, `agencyWebsiteRemoveEstateFlowBranding`,
+  `x-estateflow-billing-signature`, `estateflow.test`, legacy storage keys,
+  `real_estate_saas` i `real-estate-agent-saas` zostają na czas rollouttu.
+  Usuwanie albo migracja tych identyfikatorów przechodzi do Sprintu 7.
+
+Weryfikacja po drugiej iteracji Sprintu 6:
+
+- `pnpm --filter api test -- billing-webhooks.controller.spec.ts csrf.guard.spec.ts` - OK,
+- `pnpm --filter api type-check` - OK,
+- `pnpm --filter web type-check` - OK,
+- `pnpm --filter api lint` - OK,
+- `pnpm --filter web lint` - OK, z 11 istniejącymi ostrzeżeniami
+  niezwiązanymi z rebrandingiem,
+- `rg -n "\bEstateFlow\b|estateflow\.pl|support@estateflow\.pl|abuse@estateflow\.pl|legal@estateflow\.pl|noreply@estateflow\.pl|Blog EstateFlow|Powered by EstateFlow|Real Estate Agent SaaS" . --glob '!node_modules' --glob '!pnpm-lock.yaml' --glob '!docs/BRAND_RENAME_PODADRESEM_AUDIT_2026-07-07.md'`
+  zwraca tylko centralne `previousName`,
+- `rg -n "@estateflow\.pl|estateflow\.pl|Real Estate SaaS|noreply@localhost|SMTP_FROM|EMAIL_FROM" apps docs README.md .env.example --glob '!node_modules' --glob '!BRAND_RENAME_PODADRESEM_AUDIT_2026-07-07.md'`
+  nie zwraca starych domen/e-maili; `noreply@localhost` pozostaje wyłącznie
+  lokalnym fallbackiem dev,
+- `git diff --check` - OK.
+
+### Sprint 7 - wygaszanie legacy identyfikatorów po rolloutcie
+
+Cel: zaplanować i wykonać bezpieczne usuwanie albo migrację starych
+identyfikatorów, które w Sprintach 0-6 zostały celowo zachowane ze względu na
+kompatybilność.
+
+Zakres:
+
+- decyzja dla `estateflowBrandingEnabled` w API/DB/frontend,
+- decyzja dla legacy storage keys i cookies,
+- decyzja dla legacy billing header,
+- decyzja dla domen testowych `estateflow.test`,
+- decyzja dla nazw technicznych `real_estate_saas` i `real-estate-agent-saas`,
+- komunikacja zmian w release notes,
+- monitoring po usunięciu fallbacków.
+
+Kryteria akceptacji:
+
+- [x] istnieje lista legacy identyfikatorów i rekomendacja dla każdego,
+- [ ] migracje DB/API mają osobny plan i rollback,
+- [ ] usunięcie legacy storage/cookies ma okno kompatybilności,
+- [ ] billing providerzy mają przełączony nowy nagłówek,
+- [ ] testy nie używają starego brandu poza świadomymi fixture domenami,
+- [ ] po Sprint 7 nie zostają nieopisane wystąpienia `estateflow`.
+
+Status po pierwszej iteracji Sprintu 7: rozpoczęty planistycznie. Nie usuwano
+jeszcze legacy kontraktów z kodu, bo część z nich wymaga migracji danych albo
+koordynacji z zewnętrzną konfiguracją.
+
+Rekomendacja dla legacy identyfikatorów:
+
+| Identyfikator | Decyzja | Uzasadnienie |
+| --- | --- | --- |
+| `estateflowBrandingEnabled` | Zostawić do osobnego sprintu DB/API. | To kolumna bazy i kontrakt API/frontend. Zmiana wymaga migracji DB, DTO kompatybilnego wstecz i testów kontraktowych. |
+| `showEstateFlowBranding`, `agencyWebsiteRemoveEstateFlowBranding` | Zostawić do sprintu stron brandowych. | To nazwy planistyczne w dokumentacji, powiązane z przyszłym modułem agency websites. |
+| Legacy storage keys `estateflow-*` | Zostawić przez co najmniej jeden pełny release po rebrandingu. | Aktualna implementacja migruje dane użytkownika; zbyt szybkie usunięcie może skasować preferencje/drafty. |
+| `estateflow.csrf-token` | Zostawić jako akceptowany fallback przez okres sesji po rolloutcie. | Użytkownicy mogą mieć aktywne sesje ze starym cookie. |
+| `x-estateflow-billing-signature` | Zostawić jako alias do czasu potwierdzenia konfiguracji billing providerów. | Webhooki są zewnętrzne; usunięcie bez koordynacji może blokować billing events. |
+| `estateflow.test` | Zostawić jako techniczną domenę fixture albo zmienić w osobnym porządkującym PR. | Nie wpływa na użytkownika, SEO ani środowiska produkcyjne. |
+| `real_estate_saas` | Zostawić jako nazwę techniczną bazy do decyzji infrastrukturalnej. | Zmiana wymaga migracji środowisk lokalnych, CI i produkcji. |
+| `real-estate-agent-saas` | Zostawić jako nazwę repo/paczki do decyzji organizacyjnej. | Zmiana wpływa na repo, ścieżki, CI i dokumentację developerską. |
+
 ## Podział ryzyka
 
 | Ryzyko | Gdzie występuje | Jak ograniczyć |
@@ -920,5 +1003,5 @@ Weryfikacja po pierwszej iteracji Sprintu 6:
 - [x] Regulamin, polityka prywatności, cookies i zasady publikacji używają nowej nazwy.
 - [x] E-maile kontaktowe są zgodne z finalną domeną.
 - [x] Testy snapshotów/oczekiwań tekstowych zostały zaktualizowane.
-- [ ] Świadomie zdecydowano, czy zostają legacy klucze `estateflow-*`.
+- [x] Świadomie zdecydowano, czy zostają legacy klucze `estateflow-*`.
 - [x] Po zmianach `rg` nie znajduje niechcianych widocznych wystąpień `EstateFlow`.
