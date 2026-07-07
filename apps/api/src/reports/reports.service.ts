@@ -16,6 +16,7 @@ import { Transaction } from '../transactions/entities';
 import { UsersService } from '../users';
 import { AgencyEntitlements } from '../users/agency-plan.service';
 import { FeatureAccessDeniedException } from '../common/exceptions/feature-access-denied.exception';
+import { APP_NAME } from '../common/brand';
 import {
   AppointmentStatus,
   ClientStatus,
@@ -768,7 +769,7 @@ export class ReportsService {
       ctaVariants,
       notes: [
         'Raport Blog agreguje eventy `blog_article_viewed` i `blog_cta_clicked` zapisane w `analytics_events`.',
-        'Centralny blog EstateFlow jest globalny, dlatego raport nie filtruje po agencji ani agencie.',
+        `Centralny blog ${APP_NAME} jest globalny, dlatego raport nie filtruje po agencji ani agencie.`,
         'Kliknięcia prowadzące do formularza dodania oferty są liczone po wariancie CTA `submit-listing`.',
       ],
     };

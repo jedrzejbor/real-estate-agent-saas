@@ -522,6 +522,8 @@ Weryfikacja po pierwszej iteracji Sprintu 2:
 Cel: backend generuje nowe widoczne teksty, a dane startowe nie tworzą nowych
 treści ze starą nazwą.
 
+Status: rozpoczęty, pierwsza iteracja wykonana 2026-07-07.
+
 Zakres:
 
 - opisy SEO generowane w API,
@@ -546,11 +548,44 @@ Najważniejsze pliki:
 
 Kryteria akceptacji:
 
-- [ ] nowe SEO descriptions z API używają `PodAdresem`,
-- [ ] nowe instalacje/seed nie tworzą wpisów `Redakcja EstateFlow`,
-- [ ] fallback workspace nie używa starej nazwy,
-- [ ] healthcheck jest zgodny z decyzją produktową,
-- [ ] testy backendu są zaktualizowane.
+- [x] nowe SEO descriptions z API używają `PodAdresem`,
+- [x] nowe instalacje/seed nie tworzą wpisów `Redakcja EstateFlow`,
+- [x] fallback workspace nie używa starej nazwy,
+- [x] healthcheck jest zgodny z decyzją produktową,
+- [x] testy backendu są zaktualizowane.
+
+Wykonano w pierwszej iteracji Sprintu 3:
+
+- zmieniono domyślny opis SEO publicznej oferty w:
+  `apps/api/src/listings/listings.service.ts`,
+- zmieniono domyślny opis SEO publicznego zgłoszenia oferty w:
+  `apps/api/src/public-listing-submissions/public-listing-submissions.service.ts`,
+- zmieniono notatkę raportu blogowego o centralnym blogu w:
+  `apps/api/src/reports/reports.service.ts`,
+- zmieniono fallback workspace na `PodAdresem Workspace` w:
+  `apps/api/src/users/users.service.ts`,
+- zaktualizowano seed bloga dla nowych instalacji i ponownych uruchomień seeda:
+  `apps/api/migrations/20260604_blog_content_launch_seed.sql`,
+- zaktualizowano fixture testowej agencji w:
+  `apps/api/src/listings/listing-owner-report.spec.ts`.
+
+Weryfikacja po pierwszej iteracji Sprintu 3:
+
+- `pnpm --filter api type-check` - OK,
+- `pnpm --filter api test -- app.controller.spec.ts auth.service.spec.ts public-listing-submissions.service.spec.ts listing-owner-report.spec.ts` - OK,
+- skan widocznych starych tekstów backendu nie zwraca już `EstateFlow Workspace`,
+  `Centralny blog EstateFlow`, `Redakcja EstateFlow` ani opisów SEO z
+  `w EstateFlow`.
+
+Świadomie odłożone poza pierwszą iterację Sprintu 3:
+
+- `estateflowBrandingEnabled` zostaje legacy kontraktem API/DB do Sprintu 4,
+- `estateflow.test` w testach storage/public submission zostaje testową domeną
+  techniczną do ewentualnej decyzji w Sprincie 4,
+- `x-estateflow-billing-signature`, `estateflow.csrf-token` i
+  `real_estate_saas` zostają legacy/konfiguracją techniczną,
+- nie przygotowano migracji istniejących rekordów bloga w bazie produkcyjnej;
+  obecna zmiana aktualizuje seed i jego `ON CONFLICT DO UPDATE`.
 
 ### Sprint 4 - identyfikatory techniczne i migracje legacy
 

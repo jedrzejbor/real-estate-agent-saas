@@ -30,7 +30,7 @@ BEGIN
       'Sprzedaż nieruchomości',
       'sprzedaz-nieruchomosci',
       'Praktyczne poradniki dla właścicieli mieszkań i domów: przygotowanie oferty, wycena, prezentacja, negocjacje i bezpieczna finalizacja sprzedaży.',
-      'Sprzedaż nieruchomości krok po kroku | EstateFlow',
+      'Sprzedaż nieruchomości krok po kroku | PodAdresem',
       'Poradniki o sprzedaży mieszkania i domu: przygotowanie, wycena, opis oferty, zdjęcia, prezentacje i obsługa zapytań.',
       10,
       true
@@ -59,7 +59,7 @@ BEGIN
       'Wycena nieruchomości',
       'wycena-nieruchomosci',
       'Materiały pomagające zrozumieć, jak ustalić cenę mieszkania, domu lub działki przed publikacją ogłoszenia i rozmowami z kupującymi.',
-      'Wycena nieruchomości przed sprzedażą | EstateFlow',
+      'Wycena nieruchomości przed sprzedażą | PodAdresem',
       'Jak wycenić mieszkanie lub dom przed sprzedażą: analiza rynku, porównanie ofert, korekty ceny i najczęstsze błędy.',
       20,
       true
@@ -88,7 +88,7 @@ BEGIN
       'Marketing ofert',
       'marketing-ofert',
       'Wskazówki dotyczące zdjęć, tytułów, opisów, promocji i linkowania ofert nieruchomości, które pomagają zdobywać lepsze zapytania.',
-      'Marketing ofert nieruchomości | EstateFlow',
+      'Marketing ofert nieruchomości | PodAdresem',
       'Jak tworzyć skuteczne ogłoszenia nieruchomości: tytuły, opisy, zdjęcia, CTA, linkowanie i promocja oferty.',
       30,
       true
@@ -117,7 +117,7 @@ BEGIN
       'Kupno i wynajem',
       'kupno-i-wynajem',
       'Poradniki dla osób szukających nieruchomości: analiza ogłoszeń, porównywanie ofert, pytania do właściciela i przygotowanie do oględzin.',
-      'Kupno i wynajem nieruchomości | EstateFlow',
+      'Kupno i wynajem nieruchomości | PodAdresem',
       'Praktyczne poradniki dla kupujących i najemców: jak czytać ogłoszenia, porównywać oferty i zadawać dobre pytania.',
       40,
       true
@@ -146,7 +146,7 @@ BEGIN
       'Praca agenta',
       'praca-agenta',
       'Materiały dla agentów i biur nieruchomości o obsłudze leadów, procesie sprzedaży, CRM, raportowaniu i automatyzacji codziennej pracy.',
-      'Praca agenta nieruchomości i CRM | EstateFlow',
+      'Praca agenta nieruchomości i CRM | PodAdresem',
       'Poradniki dla agentów i biur: obsługa klientów, CRM, publikacja ofert, raportowanie i automatyzacja procesu sprzedaży.',
       50,
       true
@@ -171,9 +171,9 @@ BEGIN
     "sameAsLinks"
   )
   VALUES (
-    'Redakcja EstateFlow',
-    'redakcja-estateflow',
-    'Zespół EstateFlow przygotowuje praktyczne poradniki o sprzedaży, wynajmie i obsłudze ofert nieruchomości. Łączymy perspektywę właściciela, kupującego i agenta, żeby pokazywać proces możliwie konkretnie.',
+    'Redakcja PodAdresem',
+    'redakcja-podadresem',
+    'Zespół PodAdresem przygotowuje praktyczne poradniki o sprzedaży, wynajmie i obsłudze ofert nieruchomości. Łączymy perspektywę właściciela, kupującego i agenta, żeby pokazywać proces możliwie konkretnie.',
     null,
     'Zespół redakcyjny',
     'sprzedaż nieruchomości, marketing ofert, CRM dla agentów, obsługa leadów',

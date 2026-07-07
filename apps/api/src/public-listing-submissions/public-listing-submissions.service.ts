@@ -31,6 +31,7 @@ import {
   PublicListingSubmissionStatus,
   TransactionType,
 } from '../common/enums';
+import { APP_NAME } from '../common/brand';
 import {
   assertPublicFormHoneypot,
   assertPublicFormTiming,
@@ -1924,7 +1925,7 @@ function buildSeoDescription(
   }
 
   const city = getNullableString(address?.city);
-  return `Sprawdź szczegóły publicznej oferty nieruchomości${city ? ` w ${city}` : ''} w EstateFlow.`.slice(
+  return `Sprawdź szczegóły publicznej oferty nieruchomości${city ? ` w ${city}` : ''} w ${APP_NAME}.`.slice(
     0,
     180,
   );

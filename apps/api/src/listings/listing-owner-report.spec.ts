@@ -42,7 +42,7 @@ describe('ListingsService owner report', () => {
       phone: '600700800',
       agency: {
         id: 'agency-1',
-        name: 'EstateFlow Premium',
+        name: 'PodAdresem Premium',
         address: 'Warszawa, Prosta 10',
         logoUrl: 'https://example.com/logo.png',
         plan: 'professional',
@@ -199,7 +199,7 @@ describe('ListingsService owner report', () => {
     });
     expect(report.brand).toEqual({
       agency: {
-        name: 'EstateFlow Premium',
+        name: 'PodAdresem Premium',
         address: 'Warszawa, Prosta 10',
         logoUrl: 'https://example.com/logo.png',
       },

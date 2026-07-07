@@ -17,6 +17,7 @@ import {
   SubscriptionStatus,
   UserRole,
 } from '../common/enums';
+import { APP_NAME } from '../common/brand';
 import { AgencyEntitlements, AgencyPlanService } from './agency-plan.service';
 
 export interface UserAgencyAccessContext {
@@ -393,7 +394,7 @@ export class UsersService {
       return `${emailPrefix} Real Estate`;
     }
 
-    return 'EstateFlow Workspace';
+    return `${APP_NAME} Workspace`;
   }
 
   private normalizeOptional(value: string | undefined | null): string | null {

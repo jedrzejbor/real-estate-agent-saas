@@ -40,6 +40,7 @@ import {
   ListingPublicationStatus,
   ListingStatus,
 } from '../common/enums';
+import { APP_NAME } from '../common/brand';
 import {
   MatchingDismissal,
   MatchingService,
@@ -1790,7 +1791,7 @@ export class ListingsService {
     }
 
     const city = listing.address?.city ? ` w ${listing.address.city}` : '';
-    return `Sprawdź szczegóły oferty nieruchomości${city} w EstateFlow.`.slice(
+    return `Sprawdź szczegóły oferty nieruchomości${city} w ${APP_NAME}.`.slice(
       0,
       180,
     );
