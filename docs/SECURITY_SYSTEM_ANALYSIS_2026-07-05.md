@@ -1,4 +1,4 @@
-# EstateFlow — analiza bezpieczeństwa systemu
+# PodAdresem — analiza bezpieczeństwa systemu
 
 Data analizy: 2026-07-05  
 Zakres: `apps/api`, `apps/web`, konfiguracja uruchomieniowa, publiczne endpointy, auth, uploady, dane osobowe, admin/billing, dokumenty projektowe.

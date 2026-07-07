@@ -62,7 +62,7 @@ Poza release freemium MVP zostaje:
 ### Legal i prywatność
 
 - [ ] Potwierdzono finalnego operatora danych.
-- [ ] Działają skrzynki `legal@estateflow.pl`, `support@estateflow.pl` i `abuse@estateflow.pl` albo ich finalne odpowiedniki.
+- [ ] Działają skrzynki `legal@podadresem.pl`, `support@podadresem.pl` i `abuse@podadresem.pl` albo ich finalne odpowiedniki.
 - [ ] Regulamin, polityka prywatności i zasady publikacji zawierają finalne dane kontaktowe.
 - [ ] Prawnik zaakceptował dokumenty przed publicznym launch'em.
 - [ ] Ustalono, czy wymagane jest DPA / powierzenie danych dla klientów B2B.

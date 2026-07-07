@@ -83,7 +83,7 @@ Dokumenty prawne i zgody są produktowo domknięte, ale wymagają review prawneg
 Rekomendacja dla Sprintu 7:
 
 - dodać formalny punkt w `F7.2`,
-- potwierdzić administratora danych, retencję, podstawy przetwarzania, procedurę usunięcia oferty i DPA, jeśli EstateFlow działa jako procesor.
+- potwierdzić administratora danych, retencję, podstawy przetwarzania, procedurę usunięcia oferty i DPA, jeśli PodAdresem działa jako procesor.
 
 ### 3. Abuse moderation jest ręczna
 

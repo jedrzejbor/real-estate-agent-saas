@@ -1,4 +1,4 @@
-# Plany, limity i entitlementy w EstateFlow
+# Plany, limity i entitlementy w PodAdresem
 
 ## 1. Cel dokumentu
 
@@ -101,7 +101,7 @@ Funkcje:
 - podstawowy raport overview,
 - podstawowy raport ofert,
 - podstawowy raport klientów,
-- branding EstateFlow obowiązkowy,
+- branding PodAdresem obowiązkowy,
 - brak multi-user,
 - brak własnego brandingu,
 - brak własnej domeny,
@@ -113,7 +113,7 @@ Najważniejsze trigger points do upgrade:
 - próba dodania 26. klienta,
 - próba dodania 21. spotkania w miesiącu,
 - potrzeba większej liczby zdjęć,
-- potrzeba usunięcia brandingu EstateFlow,
+- potrzeba usunięcia brandingu PodAdresem,
 - potrzeba pracy zespołowej.
 
 ### 4.2 Starter
@@ -181,7 +181,7 @@ Funkcje:
 - rozbudowany publiczny profil agenta / biura,
 - lepsze CTA i prezentacja publiczna.
 
-Professional powinien być planem rekomendowanym dla użytkownika, który traktuje EstateFlow jako codzienne narzędzie pracy.
+Professional powinien być planem rekomendowanym dla użytkownika, który traktuje PodAdresem jako codzienne narzędzie pracy.
 
 ### 4.4 Enterprise
 

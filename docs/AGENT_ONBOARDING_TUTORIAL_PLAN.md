@@ -1,7 +1,7 @@
 # Samouczek dla agentów nieruchomości — plan produktu i wdrożenia
 
 Dokument opisuje docelowy samouczek dla agentów, którzy rejestrują się w
-EstateFlow. Plan ma być bazą do kolejnych zadań wdrożeniowych: od prostego
+PodAdresem. Plan ma być bazą do kolejnych zadań wdrożeniowych: od prostego
 MVP w dashboardzie po bardziej kontekstowy onboarding prowadzony przez
 konkretne akcje użytkownika.
 
@@ -162,7 +162,7 @@ Cel:
 
 Treść:
 
-- `Witaj w EstateFlow`
+- `Witaj w PodAdresem`
 - `Zacznij od dodania pierwszej oferty. Potem możesz dodać klienta, zaplanować spotkanie i opublikować ofertę.`
 
 CTA:

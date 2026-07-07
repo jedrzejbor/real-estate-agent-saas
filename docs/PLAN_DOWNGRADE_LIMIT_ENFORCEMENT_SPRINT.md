@@ -907,7 +907,9 @@ Wykonano w etapie 2:
   - billing interval,
   - dat `currentPeriodEnd` i `occurredAt`,
   - `rawPayload`,
-- endpoint wymaga podpisu HMAC-SHA256 w nagłówku `x-estateflow-billing-signature`,
+- endpoint wymaga podpisu HMAC-SHA256 w nagłówku `x-podadresem-billing-signature`;
+  `x-estateflow-billing-signature` jest obsługiwany jako legacy alias w okresie
+  przejściowym,
 - podpis jest liczony z kanonicznego JSON payloadu i sekretu `BILLING_WEBHOOK_SECRET`,
 - brak sekretu zwraca kontrolowany błąd konfiguracji `503`,
 - brak albo niepoprawny podpis zwraca `401` i nie wywołuje serwisu domenowego,

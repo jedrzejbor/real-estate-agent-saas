@@ -1,10 +1,10 @@
-# EstateFlow — plan brandowych stron biur nieruchomości
+# PodAdresem — plan brandowych stron biur nieruchomości
 
 > Dokument planistyczny.
 > Data utworzenia: 2026-05-30
-> Cel: opisać, jak EstateFlow ma umożliwić biurom nieruchomości stworzenie
+> Cel: opisać, jak PodAdresem ma umożliwić biurom nieruchomości stworzenie
 > własnej brandowej strony opartej o dane, oferty, agentów, leady i panel CRM
-> EstateFlow.
+> PodAdresem.
 
 ---
 
@@ -19,12 +19,12 @@ Strona ma:
 - publikować oferty wszystkich agentów z danej agencji,
 - publikować wpisy blogowe i poradnikowe,
 - zbierać leady z formularzy ofert, profilu biura i treści blogowych,
-- działać na subdomenie EstateFlow lub własnej domenie biura,
+- działać na subdomenie PodAdresem lub własnej domenie biura,
 - być zarządzana z tego samego panelu, w którym biuro obsługuje oferty,
   klientów, zapytania, agentów i raporty.
 
 To nie ma być osobny kreator stron oderwany od CRM. To ma być publiczna warstwa
-sprzedażowo-marketingowa zasilana danymi z EstateFlow.
+sprzedażowo-marketingowa zasilana danymi z PodAdresem.
 
 ---
 
@@ -117,7 +117,7 @@ korzystać z podobnych komponentów, ale muszą mieć osobny scope danych.
 ### 4.3 Szczegół oferty na stronie biura
 
 Szczegół oferty powinien używać tych samych danych co publiczna oferta
-EstateFlow, ale w brandingu biura:
+PodAdresem, ale w brandingu biura:
 
 - galeria,
 - opis i parametry,
@@ -205,12 +205,12 @@ system sekcji, żeby łatwo utrzymać jakość, SEO, bezpieczeństwo i spójnoś
 
 ## 5. Routing i domeny
 
-### Etap 1 — subdomena / ścieżka EstateFlow
+### Etap 1 — subdomena / ścieżka PodAdresem
 
 Najprostszy start:
 
-- `estateflow.pl/biura/[agencySlug]`
-- albo `agencySlug.estateflow.pl`, jeśli infrastruktura pozwala.
+- `podadresem.pl/biura/[agencySlug]`
+- albo `agencySlug.podadresem.pl`, jeśli infrastruktura pozwala.
 
 Rekomendacja MVP: zacząć od ścieżki `/biura/[agencySlug]`.
 
@@ -221,11 +221,11 @@ Powody:
 - brak obsługi DNS i certyfikatów na starcie,
 - szybszy release.
 
-### Etap 2 — subdomena EstateFlow
+### Etap 2 — subdomena PodAdresem
 
 Docelowo:
 
-- `agencySlug.estateflow.pl`
+- `agencySlug.podadresem.pl`
 
 Wymaga:
 
@@ -433,12 +433,12 @@ Proponowany podział:
 
 | Funkcja | Free | Starter | Professional | Enterprise |
 | --- | --- | --- | --- | --- |
-| Publiczne oferty EstateFlow | Tak | Tak | Tak | Tak |
+| Publiczne oferty PodAdresem | Tak | Tak | Tak | Tak |
 | Profil agenta | Tak | Tak | Tak | Tak |
 | Strona biura na `/biura/[slug]` | Nie | Ograniczona | Tak | Tak |
 | Blog | Nie | Nie / limitowany | Tak | Tak |
 | Custom branding | Nie | Nie | Tak | Tak |
-| Usunięcie brandingu EstateFlow | Nie | Nie | Tak | Tak |
+| Usunięcie brandingu PodAdresem | Nie | Nie | Tak | Tak |
 | Własna domena | Nie | Nie | Nie / add-on | Tak |
 | Wielu agentów | Nie | Nie | Tak | Tak |
 | Zaawansowana analityka strony | Nie | Nie | Tak | Tak |
@@ -482,7 +482,7 @@ Decyzja do podjęcia:
 
 Rekomendacja:
 
-- Free/Starter: canonical na globalny EstateFlow.
+- Free/Starter: canonical na globalny PodAdresem.
 - Professional/Enterprise z brandową stroną: canonical na stronę biura.
 
 ---
@@ -550,7 +550,7 @@ Najważniejsze ryzyka:
 - upload niebezpiecznych assetów,
 - indeksacja preview/draftów,
 - formularze kontaktowe jako wektor spamu,
-- niejasna odpowiedzialność RODO między biurem a EstateFlow,
+- niejasna odpowiedzialność RODO między biurem a PodAdresem,
 - duplikacja treści SEO i konflikty canonical.
 
 Minimalne zabezpieczenia:
@@ -630,7 +630,7 @@ Zakres:
 - więcej presetów motywu,
 - kolor główny i akcent,
 - favicon,
-- ukrywanie brandingu EstateFlow zgodnie z planem,
+- ukrywanie brandingu PodAdresem zgodnie z planem,
 - wybór układu hero,
 - wyróżnione oferty,
 - sekcje zaufania/opinii.

@@ -42,9 +42,9 @@ Publiczne dokumenty pokazują wersję i datę obowiązywania, co ułatwia późn
 
 ### 2. Administrator danych i role
 
-Polityka prywatności doprecyzowuje, że dla danych z publicznych formularzy administratorem jest agent albo biuro obsługujące ofertę/profil, a EstateFlow działa jako dostawca narzędzia.
+Polityka prywatności doprecyzowuje, że dla danych z publicznych formularzy administratorem jest agent albo biuro obsługujące ofertę/profil, a PodAdresem działa jako dostawca narzędzia.
 
-Dopisano też uwagę, że przy produkcyjnym wdrożeniu relacja biuro/agent → EstateFlow powinna zostać opisana w DPA albo równoważnej umowie powierzenia.
+Dopisano też uwagę, że przy produkcyjnym wdrożeniu relacja biuro/agent → PodAdresem powinna zostać opisana w DPA albo równoważnej umowie powierzenia.
 
 ### 3. Retencja i usuwanie danych
 
@@ -65,7 +65,7 @@ Zasady publikacji ofert zawierają teraz procedurę weryfikacji zgłoszeń:
 - weryfikacja danych kontaktowych właściciela/agenta,
 - możliwość ręcznego wycofania oferty do czasu wyjaśnienia.
 
-Komponent `PublicListingAbuseReport` pokazuje również mail `abuse@estateflow.pl` jako kanał dla pilnych zgłoszeń.
+Komponent `PublicListingAbuseReport` pokazuje również mail `abuse@podadresem.pl` jako kanał dla pilnych zgłoszeń.
 
 ### 5. Zgody w publicznych formularzach
 
@@ -103,11 +103,11 @@ Obecne dokumenty są produkcyjną wersją roboczą MVP, ale nie zastępują form
 
 Status: placeholder operacyjny.
 
-Adresy `legal@estateflow.pl`, `abuse@estateflow.pl` i `support@estateflow.pl` powinny zostać potwierdzone przed rolloutem. Jeśli operator ma inną nazwę prawną, dokumenty trzeba uzupełnić o finalne dane.
+Adresy `legal@podadresem.pl`, `abuse@podadresem.pl` i `support@podadresem.pl` powinny zostać potwierdzone przed rolloutem. Jeśli operator ma inną nazwę prawną, dokumenty trzeba uzupełnić o finalne dane.
 
 ### 3. DPA / powierzenie
 
-Status: wymagane, jeśli EstateFlow działa jako procesor dla biur.
+Status: wymagane, jeśli PodAdresem działa jako procesor dla biur.
 
 Trzeba przygotować osobny wzór umowy powierzenia albo załącznik do regulaminu dla klientów B2B.
 

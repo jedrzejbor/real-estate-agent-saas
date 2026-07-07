@@ -2,7 +2,7 @@
 
 Dokument opisuje plan modułu, w którym użytkownicy i odwiedzający mogą zgłaszać
 feedback, błędy, pomysły na funkcje oraz odpowiadać na ankiety dotyczące
-planowanych zmian w EstateFlow.
+planowanych zmian w PodAdresem.
 
 To nie jest system zgłoszeń nadużyć ofert. Abuse flow zostaje osobnym kanałem
 operacyjnym i prawnym. Ten moduł dotyczy produktu: jakości aplikacji,

@@ -518,7 +518,7 @@ Cel: wszystkie moduły korzystają z jednego źródła entitlementów.
 5. Zweryfikowano aktualny stan `limits.users`: nie ma jeszcze endpointu zapraszania/dodawania użytkowników workspace, więc nie ma miejsca, w którym można realnie egzekwować ten limit. Payload limitów został przygotowany na resource `users`.
 6. Zweryfikowano feature gates:
    - `publicListings` blokuje publikację ofert,
-   - `customBranding` wymusza branding EstateFlow, jeśli plan nie pozwala go zdjąć,
+   - `customBranding` wymusza branding PodAdresem, jeśli plan nie pozwala go zdjąć,
    - `reportsAppointmentsBasic` blokuje raport spotkań,
    - `customDomain`, `apiAccess`, `dedicatedSupport` nie mają jeszcze endpointów domenowych do zablokowania.
 7. Ujednolicono `PlanLimitReachedException`: payload zawiera `limit`, `usage`, `currentUsage`, `attemptedUsage`, `resource`, `planCode`, `upgradeRequired`.

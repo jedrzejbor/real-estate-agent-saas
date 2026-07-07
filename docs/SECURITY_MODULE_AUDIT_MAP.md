@@ -1,4 +1,4 @@
-# EstateFlow — mapa modułów do audytu bezpieczeństwa
+# PodAdresem — mapa modułów do audytu bezpieczeństwa
 
 > Dokument żywy. Aktualizuj przy każdej zmianie modułu, dodaniu endpointu,
 > zmianie uprawnień, zmianie danych osobowych, zmianie uploadu, zmianie

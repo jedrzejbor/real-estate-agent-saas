@@ -1,6 +1,6 @@
-# Freemium Growth Plan — EstateFlow
+# Freemium Growth Plan — PodAdresem
 
-Dokument opisuje, jakie funkcje warto udostępnić za darmo w EstateFlow, aby:
+Dokument opisuje, jakie funkcje warto udostępnić za darmo w PodAdresem, aby:
 - obniżyć próg wejścia,
 - szybko pokazać wartość produktu,
 - zwiększyć aktywację użytkowników,
@@ -25,7 +25,7 @@ Powinien robić 3 rzeczy:
 
 W praktyce darmowy plan powinien odpowiadać na pytanie:
 
-> „Czy EstateFlow realnie pomaga mi szybciej ogarniać oferty, klientów i sprzedaż?”
+> „Czy PodAdresem realnie pomaga mi szybciej ogarniać oferty, klientów i sprzedaż?”
 
 A plan płatny powinien odpowiadać na pytanie:
 
@@ -87,12 +87,12 @@ Każda darmowa oferta mogłaby mieć:
 
 Dlaczego to jest dobre:
 - użytkownik od razu widzi wartość biznesową,
-- EstateFlow staje się nie tylko CRM-em, ale też narzędziem prezentacji oferty,
+- PodAdresem staje się nie tylko CRM-em, ale też narzędziem prezentacji oferty,
 - każda publiczna oferta może generować ruch SEO i leady,
 - platforma zaczyna się promować sama przez udostępniane linki.
 
 Potencjalny paywall:
-- darmowy plan: publiczne strony ofert z brandingiem EstateFlow,
+- darmowy plan: publiczne strony ofert z brandingiem PodAdresem,
 - płatny plan: własny branding, własna domena lub white-label, więcej zdjęć, lepszy layout.
 
 ---
@@ -150,7 +150,7 @@ Jeżeli platforma pozwoli:
 - zbierać zapytania,
 - a potem połączyć ją z kontem użytkownika,
 
-to EstateFlow przestaje być wyłącznie narzędziem „po zalogowaniu”, a staje się:
+to PodAdresem przestaje być wyłącznie narzędziem „po zalogowaniu”, a staje się:
 - entry pointem do rynku,
 - narzędziem publikacji,
 - narzędziem pozyskania leada,
@@ -241,7 +241,7 @@ Np.:
 - link do social mediów.
 
 Darmowy plan:
-- branding EstateFlow,
+- branding PodAdresem,
 - ograniczony wygląd,
 - podstawowy profil.
 
@@ -308,7 +308,7 @@ Płatne funkcje powinny być powiązane z:
 
 Rekomendacja:
 - większa liczba ofert / klientów / spotkań,
-- usunięcie brandingu EstateFlow,
+- usunięcie brandingu PodAdresem,
 - raporty zaawansowane,
 - integracje portalowe,
 - automatyzacje leadów i powiadomień,
@@ -580,7 +580,7 @@ Decyzja produktowa:
 
 ## 13. Podsumowanie
 
-EstateFlow może być bardzo atrakcyjnym produktem freemium, jeśli darmowa wersja:
+PodAdresem może być bardzo atrakcyjnym produktem freemium, jeśli darmowa wersja:
 - daje realny efekt,
 - pomaga opublikować i uporządkować oferty,
 - pozwala zebrać pierwsze leady,

@@ -1,13 +1,13 @@
 # Analiza usprawnień UX i produktu dla agentów - 2026-06-23
 
-Cel dokumentu: wskazać, co jeszcze warto usprawnić w EstateFlow, aby aplikacja
+Cel dokumentu: wskazać, co jeszcze warto usprawnić w PodAdresem, aby aplikacja
 była bardziej użyteczna, przyjemna i atrakcyjna dla agentów nieruchomości. To
 nie jest pełny backlog techniczny, tylko priorytety produktowe z perspektywy
 codziennej pracy agenta.
 
 ## Executive summary
 
-EstateFlow ma już solidny fundament: oferty, CRM klientów, kalendarz, publiczne
+PodAdresem ma już solidny fundament: oferty, CRM klientów, kalendarz, publiczne
 oferty, leady, raporty, limity planów, dokumenty i część flow prywatnego
 sprzedającego. Największa szansa produktowa nie polega teraz na dodaniu kolejnej
 dużej sekcji, ale na połączeniu istniejących modułów w bardziej spójne centrum
@@ -176,7 +176,7 @@ Efekt:
 
 - agent ma argument przy pozyskiwaniu ofert,
 - właściciel widzi pracę agenta,
-- EstateFlow staje się narzędziem do budowania zaufania.
+- PodAdresem staje się narzędziem do budowania zaufania.
 
 ## Priorytetowe usprawnienia UX
 
@@ -2374,7 +2374,7 @@ Zrobione:
 2. Sekcje raportu dostały `break-inside-avoid`, żeby ograniczyć nieczytelne
    rozcinanie kart między stronami podczas drukowania.
 3. Dodano stopkę raportu z krótką notą:
-   - raport bazuje na danych operacyjnych z EstateFlow,
+   - raport bazuje na danych operacyjnych z PodAdresem,
    - liczby mają charakter informacyjny,
    - raport wspiera rozmowę o dalszych działaniach sprzedażowych.
 4. Dodano jasną notę prywatności:

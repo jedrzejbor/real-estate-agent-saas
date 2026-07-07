@@ -1,6 +1,6 @@
-# Freemium Sprint Plan — EstateFlow
+# Freemium Sprint Plan — PodAdresem
 
-Dokument operacyjny do wdrożenia wersji freemium EstateFlow.
+Dokument operacyjny do wdrożenia wersji freemium PodAdresem.
 
 Jego celem jest rozpisanie prac na sprinty i konkretne zadania tak, aby:
 
@@ -97,7 +97,7 @@ Jednoznacznie zdefiniowany freemium scope, gotowy do wdrożenia w aplikacji i ko
     - publiczne strony ofert: włączone dla wszystkich ofert w limicie,
     - publiczne leady: bez osobnego limitu w MVP, ale z fair-use i ochroną antyspamową,
     - raporty: tylko `overview` + podstawowy raport ofert + podstawowy raport klientów,
-    - branding EstateFlow: obowiązkowy w planie free,
+    - branding PodAdresem: obowiązkowy w planie free,
     - brak własnej domeny i brak white-label.
   - Wyjątki i zasady interpretacji limitów:
     - limit ofert dotyczy aktywnych ofert, a nie archiwalnych,
@@ -119,13 +119,13 @@ Jednoznacznie zdefiniowany freemium scope, gotowy do wdrożenia w aplikacji i ko
     - podstawowy CRM dla ofert, klientów i spotkań w ramach limitów,
     - podstawowy dashboard,
     - raport `overview`, podstawowy raport ofert i podstawowy raport klientów,
-    - publiczna karta oferty z brandingiem EstateFlow,
+    - publiczna karta oferty z brandingiem PodAdresem,
     - formularz leadowy dla publicznej oferty,
     - podstawowy onboarding i checklista startowa,
     - podstawowy profil agenta / biura tylko jeśli zmieści się w scope po Sprintach 3-5.
   - Zakres płatny od pierwszej wersji monetizacji:
     - większe limity rekordów i większa skala workspace,
-    - usunięcie brandingu EstateFlow,
+    - usunięcie brandingu PodAdresem,
     - własna domena / white-label publicznych stron,
     - raporty premium: funnel, value & sales, zaawansowane porównania i raporty zespołowe,
     - integracje portalowe,
@@ -170,7 +170,7 @@ Jednoznacznie zdefiniowany freemium scope, gotowy do wdrożenia w aplikacji i ko
     - ustawienia publikacji oferty i brandingu.
   - Wstępne komunikaty produktowe:
     - „Osiągnięto limit planu Free — przejdź na plan płatny, aby dodać kolejne rekordy”,
-    - „Usuń branding EstateFlow i publikuj bardziej profesjonalnie w planie płatnym”,
+    - „Usuń branding PodAdresem i publikuj bardziej profesjonalnie w planie płatnym”,
     - „Odblokuj zaawansowane raporty, aby analizować skuteczność i sprzedaż”.
   - Data zakończenia:
   - Wykonano:
@@ -611,14 +611,14 @@ Oferty mogą być publikowane pod publicznym linkiem i stanowią realny asset ac
   - Data zakończenia: 2026-04-29
   - Wykonano:
     - rozdzielono CRM-owy `ListingStatus` od publicznego `ListingPublicationStatus`, aby publikacja strony nie nadpisywała znaczenia statusu operacyjnego oferty,
-    - dodano do modelu oferty pola publiczne: `publicSlug`, `publicationStatus`, publiczny tytuł/opis, SEO title/description, share image, ustawienia pokazywania ceny i dokładnego adresu oraz branding EstateFlow,
+    - dodano do modelu oferty pola publiczne: `publicSlug`, `publicationStatus`, publiczny tytuł/opis, SEO title/description, share image, ustawienia pokazywania ceny i dokładnego adresu oraz branding PodAdresem,
     - dodano `unpublishedAt`, żeby przyszły flow publish/unpublish mógł zachować pełną historię publikacji,
     - zdefiniowano backendowy typ `PublicListingView` jako kontrakt przyszłego publicznego endpointu,
     - rozszerzono frontendowe typy `Listing`, `PublicListing` i schemat ustawień publicznych/SEO.
   - Uwagi / follow-up:
     - F3.2 powinno dodać generowanie unikalnego sluga, publish/unpublish endpointy i walidacje wymaganych pól publicznych,
     - F3.4 powinno wykorzystać pola publiczne w ustawieniach publikacji w panelu agenta,
-    - usuwanie brandingu EstateFlow pozostaje funkcją płatną i powinno być egzekwowane w logice entitlementów przy F3.2/F3.4.
+    - usuwanie brandingu PodAdresem pozostaje funkcją płatną i powinno być egzekwowane w logice entitlementów przy F3.2/F3.4.
 
 - [x] `F3.2` Dodać backend publikacji i unpublish oferty
   - Zakres: endpointy, walidacje, uprawnienia, zasady dla planu free.
@@ -629,7 +629,7 @@ Oferty mogą być publikowane pod publicznym linkiem i stanowią realny asset ac
     - publish generuje unikalny `publicSlug`, uzupełnia domyślne publiczne tytuły/opisy oraz SEO metadata i ustawia `publicationStatus = published`,
     - unpublish ustawia `publicationStatus = unpublished` oraz `unpublishedAt`, bez kasowania sluga i historii publikacji,
     - dodano walidacje publikacji: brak publikacji zarchiwizowanej oferty, wymagane podstawowe dane, uprawnienia właściciela i entitlement `publicListings`,
-    - w planach bez `customBranding` backend wymusza pozostawienie brandingu EstateFlow,
+    - w planach bez `customBranding` backend wymusza pozostawienie brandingu PodAdresem,
     - dodano activity log dla publish/unpublish oraz frontendowe helpery `publishListing`, `unpublishListing` i `fetchPublicListing`.
   - Uwagi / follow-up:
     - F3.3 powinno zbudować publiczną stronę na kontrakcie `GET /api/listings/public/:slug`,
@@ -637,14 +637,14 @@ Oferty mogą być publikowane pod publicznym linkiem i stanowią realny asset ac
     - migracja produkcyjna powinna utworzyć nowe kolumny i indeks unikalny na `publicSlug`.
 
 - [x] `F3.3` Zbudować publiczną stronę oferty
-  - Zakres: hero, galeria, podstawowe informacje, CTA kontaktowe, branding EstateFlow.
+  - Zakres: hero, galeria, podstawowe informacje, CTA kontaktowe, branding PodAdresem.
   - Data zakończenia: 2026-04-29
   - Wykonano:
     - dodano publiczną trasę `/oferty/[slug]`, która pobiera dane z `GET /api/listings/public/:slug` i działa bez logowania,
     - zbudowano pełny widok publicznej oferty: hero ze zdjęciem, lokalizacja, cena, podstawowe parametry, opis, szczegóły i galeria,
     - dodano SEO metadata i Open Graph na podstawie publicznych pól oferty,
     - dodano CTA kontaktowe do telefonu / maila oraz informację, że formularz leadowy pojawi się w Sprincie 4,
-    - dodano branding EstateFlow na publicznej stronie, jeśli backend zwraca `estateflowBrandingEnabled`.
+    - dodano branding PodAdresem na publicznej stronie, jeśli backend zwraca `estateflowBrandingEnabled`.
   - Uwagi / follow-up:
     - F3.4 powinno dodać w panelu agenta link do tej strony, publish toggle, podgląd i kopiowanie URL,
     - F4.2 zastąpi tymczasowe CTA pełnym formularzem leadowym,
@@ -661,7 +661,7 @@ Oferty mogą być publikowane pod publicznym linkiem i stanowią realny asset ac
     - dodano osobny frontendowy helper zapisu ustawień publicznych, który pozwala świadomie wyczyścić pola tekstowe.
   - Uwagi / follow-up:
     - F3.6 powinno dopiąć event copy/share oraz public page view,
-    - przyszłe plany płatne mogą dodać manualne sterowanie brandingiem EstateFlow w tym panelu.
+    - przyszłe plany płatne mogą dodać manualne sterowanie brandingiem PodAdresem w tym panelu.
 
 - [x] `F3.5` Dodać SEO basics dla publicznych ofert
   - Zakres: meta tags, open graph, indeksowalność, sitemap strategy.
@@ -1115,7 +1115,7 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
     - formularz pozwala wybrać powód zgłoszenia, dodać szczegóły i pokazuje stan sukcesu po wysyłce,
     - zgłoszenie zapisuje publiczny event `public_listing_abuse_reported` przez istniejący endpoint public analytics,
     - event zawiera `listingId`, `publicSlug`, tytuł oferty, powód, szczegóły, ścieżkę oraz referrer,
-    - UI pokazuje użytkownikowi, że zgłoszenie trafia do logu operacyjnego EstateFlow.
+    - UI pokazuje użytkownikowi, że zgłoszenie trafia do logu operacyjnego PodAdresem.
   - Uwagi / follow-up:
     - obecny MVP opiera się na logu `analytics_events` i ręcznej reakcji operacyjnej,
     - pełny panel moderation queue oraz automatyczne zdejmowanie ofert pozostają poza MVP,
@@ -1141,7 +1141,7 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
   - Uwagi / follow-up:
     - dokumenty są roboczą wersją produktową MVP i powinny zostać zweryfikowane przez prawnika przed publicznym launch’em,
     - przed produkcją warto uzupełnić dane administratora, kanał kontaktu, retencję danych i formalne podstawy przetwarzania,
-    - jeśli EstateFlow ma działać jako procesor dla biur, trzeba dopiąć osobną umowę powierzenia / DPA poza tym MVP.
+    - jeśli PodAdresem ma działać jako procesor dla biur, trzeba dopiąć osobną umowę powierzenia / DPA poza tym MVP.
 
 - [x] `F6.5.5` Przygotować minimalny dashboard / raport metryk freemium
   - Zakres: widok lub raport bazujący na `analytics_events` i usage.
@@ -1212,7 +1212,7 @@ Po analizie aplikacji przed Sprintem 7 widać, że część fundamentów freemiu
 
 #### Audit przed zamknięciem Sprintu 6.5 — publiczne odkrywanie ofert
 
-Po domknięciu zdjęć, publicznego wizardu, abuse/legal i metryk widać, że publiczne oferty są już użyteczne jako pojedyncze landing pages, ale nie są jeszcze wygodnym katalogiem ofert. To ważne rozróżnienie przed wejściem w Sprint 7: obecny zakres pozwala wysłać konkretny link do oferty, natomiast nie pozwala jeszcze użytkownikowi końcowemu komfortowo przeglądać rynku w EstateFlow.
+Po domknięciu zdjęć, publicznego wizardu, abuse/legal i metryk widać, że publiczne oferty są już użyteczne jako pojedyncze landing pages, ale nie są jeszcze wygodnym katalogiem ofert. To ważne rozróżnienie przed wejściem w Sprint 7: obecny zakres pozwala wysłać konkretny link do oferty, natomiast nie pozwala jeszcze użytkownikowi końcowemu komfortowo przeglądać rynku w PodAdresem.
 
 Stan aplikacji po analizie kodu:
 
@@ -1283,11 +1283,11 @@ Wersja freemium jest gotowa do kontrolowanego udostępnienia użytkownikom.
     - zaktualizowano politykę prywatności o role administrator/procesor, retencję, usuwanie danych, DPA i kanał kontaktu,
     - zaktualizowano regulamin o kontakt, zgłoszenia, usunięcie danych/oferty i ręczną reakcję na naruszenia,
     - zaktualizowano zasady publikacji o procedurę weryfikacji abuse i usunięcie oferty/danych,
-    - widoczny abuse report pokazuje dodatkowy kanał `abuse@estateflow.pl` dla pilnych zgłoszeń.
+    - widoczny abuse report pokazuje dodatkowy kanał `abuse@podadresem.pl` dla pilnych zgłoszeń.
   - Uwagi / follow-up:
     - dokumenty są produktowo domknięte dla MVP, ale publiczny launch wymaga review prawnika,
     - przed rolloutem trzeba potwierdzić finalnego operatora danych i działające skrzynki legal/support/abuse,
-    - jeśli EstateFlow działa jako procesor dla biur, trzeba przygotować DPA / umowę powierzenia,
+    - jeśli PodAdresem działa jako procesor dla biur, trzeba przygotować DPA / umowę powierzenia,
     - decyzje o retencji i cleanupie tymczasowych zdjęć powinny wejść do release checklist.
 
 - [x] `F7.3` Dodać monitoring i alerty dla kluczowych flow

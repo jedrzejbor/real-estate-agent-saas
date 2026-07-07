@@ -870,7 +870,7 @@ które są czytelne, bezpieczne i dobrze linkują do produktu.
     `390x844` dla `/blog`. Test wykrył poziomy overflow w hero i mobilnym
     navbarze; poprawiono rozmiar/łamanie H1, szerokości karty SEO, pusty stan
     listy oraz ukryto nieaktywny placeholder menu na małych telefonach. Finalny
-    screenshot `/tmp/estateflow-blog-mobile-done.png` nie pokazuje
+    screenshot `/tmp/podadresem-blog-mobile-done.png` nie pokazuje
     nachodzenia tekstu ani uciętego CTA w pierwszym widoku. Dla komponentów
     artykułu wykonano dodatkowo type-check, lint, HTTP kompilację publicznej
     trasy i podglądu roboczego; pełny screenshot artykułu wymaga pierwszego

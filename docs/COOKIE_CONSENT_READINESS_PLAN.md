@@ -157,18 +157,18 @@ Wykonane:
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `httpOnly cookie` | `accessToken` | `apps/api/src/auth/auth-token-cookies.ts`, `apps/api/src/auth/strategies/jwt.strategy.ts` | Niezbędne | Utrzymanie sesji i autoryzacja requestów API | JWT użytkownika niedostępny dla JavaScriptu | Do wygaśnięcia, refreshu albo logoutu | Nie |
 | `httpOnly cookie` | `refreshToken` | `apps/api/src/auth/auth-token-cookies.ts`, `apps/api/src/auth/strategies/jwt-refresh.strategy.ts` | Niezbędne | Odświeżanie sesji | JWT refresh niedostępny dla JavaScriptu | Do wygaśnięcia albo logoutu | Nie |
-| `cookie` | `estateflow.csrf-token` | `apps/api/src/auth/auth-token-cookies.ts`, `apps/api/src/auth/guards/csrf.guard.ts`, `apps/web/src/lib/csrf.ts` | Niezbędne | Double-submit CSRF protection dla mutujących requestów z auth cookies | Losowy token bezpieczeństwa czytelny dla JavaScriptu i wysyłany jako `x-csrf-token` | Do wygaśnięcia sesji albo logoutu | Nie |
+| `cookie` | `podadresem.csrf-token` (`estateflow.csrf-token` akceptowany przejściowo jako legacy) | `apps/api/src/auth/auth-token-cookies.ts`, `apps/api/src/auth/guards/csrf.guard.ts`, `apps/web/src/lib/csrf.ts` | Niezbędne | Double-submit CSRF protection dla mutujących requestów z auth cookies | Losowy token bezpieczeństwa czytelny dla JavaScriptu i wysyłany jako `x-csrf-token` | Do wygaśnięcia sesji albo logoutu | Nie |
 | `localStorage` | `accessToken`, `refreshToken` | `apps/web/src/lib/auth.ts` | Legacy cleanup | Czyszczenie tokenów zapisanych przez stary mechanizm | Stare JWT, jeśli istnieją u użytkownika sprzed migracji | Usuwane po login/register/logout w nowym flow | Nie |
 | `request.cookies` | `accessToken` | `apps/web/src/middleware.ts` | Niezbędne | Lekki check middleware dla tras dashboardowych | Token sesji w httpOnly cookie | Zależna od TTL cookie | Nie |
-| `localStorage` | `estateflow.publicListingWizard.v1` | `apps/web/src/app/(public)/dodaj-oferte/page.tsx` | Funkcjonalne albo niezbędne dla rozpoczętego formularza - decyzja otwarta | Zapis draftu publicznego dodania oferty | Dane oferty, adres, zdjęcia jako referencje, dane właściciela, email, telefon, zgody | Do finalnego submitu, ręcznego czyszczenia albo wyczyszczenia storage | Do decyzji w `C6`; rekomendacja: opisać wyraźnie i traktować jako funkcjonalne, chyba że UX wymaga niezbędnego draftu |
-| `localStorage` | `estateflow-theme` | `apps/web/src/app/layout.tsx`, `apps/web/src/contexts/theme-context.tsx` | Funkcjonalne | Zapamiętanie motywu jasny/ciemny | Brak danych osobowych | Bezterminowo do zmiany/wyczyszczenia storage | Tak, jeśli rygorystycznie blokujemy funkcjonalny storage; można też uznać za niski wpływ i opisać |
-| `localStorage` | `estateflow.dashboard-onboarding:{userId}` lub równoważny klucz z prefiksem `estateflow.dashboard-onboarding` | `apps/web/src/hooks/use-onboarding-progress.ts` | Funkcjonalne + analityczne eventy osobno | Zapamiętanie stanu checklisty onboardingu | Identyfikator użytkownika w kluczu, completed step IDs, dismissed/updated timestamps | Bezterminowo do zmiany/wyczyszczenia storage | Tak dla storage funkcjonalnego; eventy wymagają zgody analitycznej |
+| `localStorage` | `podadresem.publicListingWizard.v1` (`estateflow.publicListingWizard.v1` migrowany jako legacy) | `apps/web/src/app/(public)/dodaj-oferte/page.tsx` | Funkcjonalne albo niezbędne dla rozpoczętego formularza - decyzja otwarta | Zapis draftu publicznego dodania oferty | Dane oferty, adres, zdjęcia jako referencje, dane właściciela, email, telefon, zgody | Do finalnego submitu, ręcznego czyszczenia albo wyczyszczenia storage | Do decyzji w `C6`; rekomendacja: opisać wyraźnie i traktować jako funkcjonalne, chyba że UX wymaga niezbędnego draftu |
+| `localStorage` | `podadresem-theme` (`estateflow-theme` migrowany jako legacy) | `apps/web/src/app/layout.tsx`, `apps/web/src/contexts/theme-context.tsx` | Funkcjonalne | Zapamiętanie motywu jasny/ciemny | Brak danych osobowych | Bezterminowo do zmiany/wyczyszczenia storage | Tak, jeśli rygorystycznie blokujemy funkcjonalny storage; można też uznać za niski wpływ i opisać |
+| `localStorage` | `podadresem.dashboard-onboarding:{userId}` lub równoważny klucz z prefiksem `podadresem.dashboard-onboarding` (`estateflow.dashboard-onboarding` migrowany jako legacy) | `apps/web/src/hooks/use-onboarding-progress.ts` | Funkcjonalne + analityczne eventy osobno | Zapamiętanie stanu checklisty onboardingu | Identyfikator użytkownika w kluczu, completed step IDs, dismissed/updated timestamps | Bezterminowo do zmiany/wyczyszczenia storage | Tak dla storage funkcjonalnego; eventy wymagają zgody analitycznej |
 | `localStorage` | Klucz zwracany przez `getDescriptionAssistantStorageKey()` | `apps/web/src/lib/listing-description-assistant.ts` | Funkcjonalne / limit produktowy | Lokalny licznik użyć asystenta opisu | Licznik użyć, prawdopodobnie okresowy klucz limitu | Bezterminowo dla danego klucza, do wyczyszczenia storage | Do decyzji; jeśli egzekwuje limit freemium, może być niezbędne dla limitu usługi |
 | `sessionStorage` | `blog-article-viewed:{slug}` | `apps/web/src/components/blog/blog-article-analytics.tsx` | Analityczne | Deduplikacja eventu widoku artykułu w sesji | Slug artykułu | Do końca sesji przeglądarki | Tak, razem z blog analytics |
 
 Uwagi:
 
-- `estateflow-cookie-consent` jeszcze nie istnieje. Zostanie dodany w `C2` jako niezbędny storage preferencji.
+- `podadresem-cookie-consent` istnieje jako niezbędny storage preferencji; `estateflow-cookie-consent` jest migrowany jako legacy.
 - Draft `/dodaj-oferte` zawiera potencjalnie dane osobowe i lokalizacyjne. To najważniejszy element storage do opisania w polityce cookies/prywatności.
 - Tokeny auth w `localStorage` były istotnym ryzykiem bezpieczeństwa wykrytym w `C1`. W `C6` rozpoczęto migrację do httpOnly cookies; stare klucze są czyszczone jako legacy storage.
 
@@ -240,7 +240,7 @@ Zakres:
   - `rejectOptional`,
   - `savePreferences`,
   - `resetConsent`.
-- Przechowywać preferencje w `localStorage` pod stabilnym kluczem, np. `estateflow-cookie-consent`.
+- Przechowywać preferencje w `localStorage` pod stabilnym kluczem, np. `podadresem-cookie-consent`.
 - Dodać wersjonowanie zgód przez `version`.
 
 Proponowany model:
@@ -275,7 +275,7 @@ Wykonane:
 
 Dodane API:
 
-- `COOKIE_CONSENT_STORAGE_KEY = 'estateflow-cookie-consent'`,
+- `COOKIE_CONSENT_STORAGE_KEY = 'podadresem-cookie-consent'`,
 - `COOKIE_CONSENT_VERSION = '2026-06-10'`,
 - `CookieConsentPreferences`,
 - `CookieConsentChoices`,
@@ -293,7 +293,7 @@ Dodane API:
 
 Decyzje implementacyjne:
 
-- Preferencje są zapisywane w `localStorage` pod kluczem `estateflow-cookie-consent`.
+- Preferencje są zapisywane w `localStorage` pod kluczem `podadresem-cookie-consent`.
 - Odczyt i zapis storage są defensywne: uszkodzony JSON, brak `window` albo błąd storage nie blokują aplikacji.
 - `necessary` nie może zostać wyłączone.
 - Provider synchronizuje stan między kartami przez event `storage`.
@@ -385,7 +385,7 @@ Kryteria akceptacji:
 Wykonane:
 
 - Dodano centralny consent gate w `apps/web/src/lib/analytics.ts`.
-- `trackAnalyticsEvent`, `trackPublicListingEvent` i `trackPublicBlogEvent` sprawdzają teraz zgodę `analytics` z `estateflow-cookie-consent`.
+- `trackAnalyticsEvent`, `trackPublicListingEvent` i `trackPublicBlogEvent` sprawdzają teraz zgodę `analytics` z `podadresem-cookie-consent`.
 - Bez decyzji użytkownika albo po odrzuceniu opcjonalnych zgód eventy pomiarowe nie są wysyłane.
 - Dodano wyjątek operacyjny dla `public_listing_abuse_reported`.
 - Abuse report w `apps/web/src/lib/listings.ts` pozostaje bezpośrednią ścieżką operacyjną przez `apiFetch`, więc nie zależy od zgody analitycznej.
@@ -456,12 +456,12 @@ Wykonane:
   - sposób zmiany zgody przez stopkę,
   - kontakt w sprawach prywatności.
 - Dodano tabelę mechanizmów obejmującą:
-  - `estateflow-cookie-consent`,
+  - `podadresem-cookie-consent`,
   - `accessToken` / `refreshToken`,
-  - `estateflow.csrf-token`,
-  - `estateflow-theme`,
-  - `estateflow.publicListingWizard.v1`,
-  - `estateflow.dashboard-onboarding:*`,
+  - `podadresem.csrf-token`,
+  - `podadresem-theme`,
+  - `podadresem.publicListingWizard.v1`,
+  - `podadresem.dashboard-onboarding:*`,
   - `blog-article-viewed:*`,
   - `analytics_events`.
 - Zaktualizowano `/polityka-prywatnosci` o sekcję `Cookies, storage i analityka`.
@@ -614,8 +614,8 @@ Statusy:
 | ID | Obszar | Scenariusz | Oczekiwany wynik | Status |
 | --- | --- | --- | --- | --- |
 | QA-C7-01 | Consent banner | Wejdź pierwszy raz na publiczną stronę w czystej przeglądarce. | Banner cookie consent jest widoczny, ma akcje `Odrzuć opcjonalne`, `Dostosuj`, `Akceptuję wszystkie` i linki do polityki prywatności/cookies. | TODO |
-| QA-C7-02 | Odrzucenie opcjonalnych | Kliknij `Odrzuć opcjonalne`, odśwież stronę. | Banner nie wraca, `estateflow-cookie-consent` ma `analytics:false`, `functional:false`, `marketing:false`. | TODO |
-| QA-C7-03 | Akceptacja wszystkich | Wyczyść `estateflow-cookie-consent`, kliknij `Akceptuję wszystkie`, odśwież stronę. | Banner nie wraca, wszystkie opcjonalne kategorie są `true`. | TODO |
+| QA-C7-02 | Odrzucenie opcjonalnych | Kliknij `Odrzuć opcjonalne`, odśwież stronę. | Banner nie wraca, `podadresem-cookie-consent` ma `analytics:false`, `functional:false`, `marketing:false`. | TODO |
+| QA-C7-03 | Akceptacja wszystkich | Wyczyść `podadresem-cookie-consent`, kliknij `Akceptuję wszystkie`, odśwież stronę. | Banner nie wraca, wszystkie opcjonalne kategorie są `true`. | TODO |
 | QA-C7-04 | Panel preferencji | Wyczyść zgodę, kliknij `Dostosuj`, zaznacz tylko `Analityczne`, zapisz. | Zapisane preferencje mają `analytics:true`, `functional:false`, `marketing:false`. | TODO |
 | QA-C7-05 | Stopka | Po zapisaniu dowolnej decyzji kliknij `Ustawienia cookies` w stopce. | Otwiera się ten sam panel preferencji, można zmienić decyzję. | TODO |
 | QA-C7-06 | Public listing analytics bez zgody | Odrzuć opcjonalne, otwórz publiczną ofertę i galerię. | Nie ma requestów do `/api/analytics/public-listings/:slug/events` dla eventów pomiarowych. | TODO |

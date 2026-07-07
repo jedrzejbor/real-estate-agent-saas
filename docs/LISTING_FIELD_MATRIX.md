@@ -368,7 +368,7 @@ Docelowo matryca może zostać rozszerzona o kolumny:
 Na obecnym etapie nie wpisujemy jeszcze wymagań portalowych 1:1, ponieważ:
 - nie wszystkie integracje są potwierdzone biznesowo
 - partnerzy mogą mieć różne warunki dostępu do API
-- model ofert EstateFlow będzie jeszcze rozwijany
+- model ofert PodAdresem będzie jeszcze rozwijany
 
 ---
 

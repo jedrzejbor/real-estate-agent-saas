@@ -46,7 +46,7 @@ describe('CsrfGuard', () => {
     expect(guard.canActivate(context)).toBe(true);
   });
 
-  it('accepts the legacy EstateFlow CSRF cookie during migration', () => {
+  it('accepts the legacy CSRF cookie during migration', () => {
     const context = buildContext({
       cookie: `${ACCESS_TOKEN_COOKIE}=access; ${LEGACY_CSRF_TOKEN_COOKIE}=legacy-token`,
       csrfHeader: 'legacy-token',

@@ -1,6 +1,6 @@
 # Integracje Ofert z Portalami Ogłoszeniowymi
 
-Dokument opisuje, jak obecny system EstateFlow może zostać rozszerzony o oficjalne integracje API z portalami ogłoszeniowymi typu Otodom, OLX, Domiporta i podobnymi.
+Dokument opisuje, jak obecny system PodAdresem może zostać rozszerzony o oficjalne integracje API z portalami ogłoszeniowymi typu Otodom, OLX, Domiporta i podobnymi.
 
 Zakres dokumentu:
 - tylko oficjalne integracje API partnerów
@@ -11,7 +11,7 @@ Zakres dokumentu:
 
 ## 1. Stan obecny systemu
 
-Aktualnie EstateFlow posiada własny, wewnętrzny moduł ofert i traktuje go jako główne źródło prawdy dla danych nieruchomości.
+Aktualnie PodAdresem posiada własny, wewnętrzny moduł ofert i traktuje go jako główne źródło prawdy dla danych nieruchomości.
 
 ### Obecne elementy systemu
 
@@ -55,10 +55,10 @@ Wniosek: obecny moduł `listings` jest dobrym punktem startowym, ale publikacja 
 
 ### Główna zasada
 
-`Listing` pozostaje wewnętrznym źródłem prawdy w EstateFlow. Portale zewnętrzne są tylko kanałami dystrybucji oferty.
+`Listing` pozostaje wewnętrznym źródłem prawdy w PodAdresem. Portale zewnętrzne są tylko kanałami dystrybucji oferty.
 
 Oznacza to, że:
-- użytkownik zarządza ofertą w EstateFlow
+- użytkownik zarządza ofertą w PodAdresem
 - system buduje payload partnera na podstawie lokalnego modelu
 - odpowiedź partnera zapisuje się jako stan publikacji, a nie jako osobna główna wersja oferty
 - błędy portalu nie mogą blokować podstawowego działania modułu `listings`
@@ -263,7 +263,7 @@ Dlatego potrzebna jest warstwa:
 
 Przed publikacją system powinien sprawdzić dwa poziomy gotowości:
 
-1. Gotowość ogólna w EstateFlow:
+1. Gotowość ogólna w PodAdresem:
 - oferta istnieje
 - oferta należy do zalogowanego agenta lub jego organizacji
 - oferta nie jest zarchiwizowana
@@ -279,9 +279,9 @@ Jeżeli walidacja portalowa nie przejdzie, system nie powinien wysyłać request
 
 ---
 
-## 5. Proponowane API wewnętrzne EstateFlow
+## 5. Proponowane API wewnętrzne PodAdresem
 
-Poniższe endpointy opisują kontrakt logiczny po stronie EstateFlow. Finalne payloady do partnerów pozostają wewnętrznym szczegółem adapterów.
+Poniższe endpointy opisują kontrakt logiczny po stronie PodAdresem. Finalne payloady do partnerów pozostają wewnętrznym szczegółem adapterów.
 
 ### `POST /api/portal-connections`
 
@@ -359,7 +359,7 @@ Odpowiedź:
 
 ### 6.1. Publikacja nowej oferty
 
-1. Użytkownik zapisuje ofertę w EstateFlow.
+1. Użytkownik zapisuje ofertę w PodAdresem.
 2. Użytkownik wybiera publikację na konkretnym portalu.
 3. API sprawdza uprawnienia i gotowość danych.
 4. System tworzy lub aktualizuje rekord `ListingPublication` ze statusem `pending`.
@@ -448,7 +448,7 @@ Innymi słowy:
 - portal może być wspierany w kodzie
 - ale pozostawać nieaktywny dla klientów do momentu uzyskania oficjalnego dostępu
 
-### Ograniczenia po stronie obecnego modelu EstateFlow
+### Ograniczenia po stronie obecnego modelu PodAdresem
 
 Na obecnym etapie może zabraknąć niektórych pól wymaganych przez konkretne portale, np.:
 - dodatkowych parametrów nieruchomości
@@ -508,7 +508,7 @@ Minimalny zakres testów dla wdrożenia:
 Rekomendowane poziomy testów:
 - testy jednostkowe adapterów
 - testy serwisu orkiestrującego publikacje
-- testy integracyjne endpointów API EstateFlow
+- testy integracyjne endpointów API PodAdresem
 - testy kontraktowe lub sandboxowe z oficjalnym API partnera, jeśli partner to umożliwia
 
 ---
@@ -532,7 +532,7 @@ Na potrzeby tej specyfikacji przyjmujemy następujące decyzje:
 Najbezpieczniejszy kierunek rozwoju to dobudowanie nad obecnym modułem `listings` osobnej warstwy `portal-integrations`, która:
 - przechowuje konfigurację połączeń z partnerami
 - utrzymuje publikacje ofert per portal
-- tłumaczy model EstateFlow na payloady partnerów
+- tłumaczy model PodAdresem na payloady partnerów
 - obsługuje retry, błędy i statusy synchronizacji
 
 Taki model pozwala rozwijać integracje portalowe stopniowo, bez destabilizacji obecnego CRM i bez uzależniania całego systemu od specyfiki jednego partnera.

@@ -1,6 +1,6 @@
 # Raporty — Specyfikacja Modułu
 
-Dokument opisuje, jakie raporty warto wdrożyć w zakładce `Raporty` w EstateFlow, jakie mają cele biznesowe oraz jak powinny zostać zaimplementowane w obecnej architekturze aplikacji.
+Dokument opisuje, jakie raporty warto wdrożyć w zakładce `Raporty` w PodAdresem, jakie mają cele biznesowe oraz jak powinny zostać zaimplementowane w obecnej architekturze aplikacji.
 
 Zakres dokumentu:
 - raporty dla agentów nieruchomości i biur nieruchomości
@@ -912,7 +912,7 @@ Na froncie należy sprawdzić:
 
 ## 11. Podsumowanie
 
-Najbardziej wartościowa zakładka `Raporty` dla EstateFlow to nie zbiór przypadkowych statystyk, tylko zestaw raportów odpowiadających na codzienną pracę agenta i biura:
+Najbardziej wartościowa zakładka `Raporty` dla PodAdresem to nie zbiór przypadkowych statystyk, tylko zestaw raportów odpowiadających na codzienną pracę agenta i biura:
 - ile mam ofert i jak się zmieniają
 - skąd mam leady i jak konwertują
 - ile spotkań przekłada się na wynik

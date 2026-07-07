@@ -761,7 +761,8 @@ Kryteria akceptacji:
 
 - [x] operacyjne dokumenty używają `PodAdresem`,
 - [x] design system opisuje nowy brand,
-- [ ] dokumenty historyczne są świadomie zostawione albo oznaczone,
+- [x] dokumenty historyczne są świadomie zaktualizowane albo pozostawione z
+  opisanym legacy kontekstem technicznym,
 - [x] instrukcje lokalne nie sugerują użytkownikowi starej nazwy produktu.
 
 Status po pierwszej iteracji Sprintu 5: w trakcie. Zmieniono dokumenty, które są
@@ -805,6 +806,39 @@ Weryfikacja po pierwszej iteracji Sprintu 5:
 - `rg -n "estateflow|real-estate-agent-saas|real_estate_saas" README.md docs/LOCAL_SETUP.md docs/PRODUCTION_LAUNCH_CHECKLIST.md`
   zwraca tylko techniczne identyfikatory bazy, repo i kontenera.
 
+Status po drugiej iteracji Sprintu 5: zakończony w zakresie dokumentacji.
+
+Wykonano w drugiej iteracji Sprintu 5:
+
+- zaktualizowano pozostałe dokumenty planistyczne i analityczne w `docs/*.md`,
+  żeby samodzielna nazwa produktu `EstateFlow` została zastąpiona przez
+  `PodAdresem`,
+- zaktualizowano stare przykłady domen i e-maili `estateflow.pl` na wariant
+  `podadresem.pl`,
+- nie zmieniano technicznych identyfikatorów API/DB/legacy, m.in.
+  `estateflowBrandingEnabled`, `showEstateFlowBranding`,
+  `agencyWebsiteRemoveEstateFlowBranding`, `real_estate_saas`,
+  `real-estate-agent-saas`, `estateflow.test`,
+- zaktualizowano `docs/COOKIE_CONSENT_READINESS_PLAN.md` po Sprint 4, tak aby
+  główne klucze storage/cookie wskazywały `podadresem-*`, a stare
+  `estateflow-*` były opisane jako legacy/migrowane,
+- zaktualizowano `docs/PLAN_DOWNGRADE_LIMIT_ENFORCEMENT_SPRINT.md`, żeby
+  nowy nagłówek webhooka `x-podadresem-billing-signature` był główny, a
+  `x-estateflow-billing-signature` opisany jako alias legacy,
+- zmieniono neutralnie opis testu CSRF w
+  `apps/api/src/auth/guards/csrf.guard.spec.ts`, żeby nie generował
+  niepotrzebnego wyniku w skanie widocznej starej nazwy.
+
+Weryfikacja po drugiej iteracji Sprintu 5:
+
+- `rg -n "\bEstateFlow\b|estateflow\.pl|support@estateflow\.pl|abuse@estateflow\.pl|legal@estateflow\.pl|noreply@estateflow\.pl|Blog EstateFlow|Powered by EstateFlow|Real Estate Agent SaaS" . --glob '!node_modules' --glob '!pnpm-lock.yaml' --glob '!docs/BRAND_RENAME_PODADRESEM_AUDIT_2026-07-07.md'`
+  zwraca tylko:
+  `apps/api/src/common/brand.ts: previousName` i
+  `apps/web/src/lib/brand.ts: previousName`,
+- `rg -n "estateflowBrandingEnabled|showEstateFlowBranding|RemoveEstateFlowBranding|estateflow-|estateflow:|estateflow\.test|x-estateflow|real-estate-agent-saas|real_estate_saas" . --glob '!node_modules' --glob '!pnpm-lock.yaml' --glob '!docs/BRAND_RENAME_PODADRESEM_AUDIT_2026-07-07.md'`
+  zwraca wyłącznie świadome legacy/techniczne identyfikatory,
+- `git diff --check` - OK.
+
 ### Sprint 6 - QA, rollout i cleanup po wdrożeniu
 
 Cel: wypuścić zmianę bez regresji i mieć jasny obraz pozostałości starej nazwy.
@@ -831,18 +865,44 @@ pnpm test
 
 Kryteria akceptacji:
 
-- [ ] publiczne strony nie pokazują starej nazwy,
-- [ ] dashboard nie pokazuje starej nazwy,
+- [x] publiczne strony nie pokazują starej nazwy w skanie kodu i dokumentacji,
+- [x] dashboard nie pokazuje starej nazwy w skanie kodu i dokumentacji,
 - [ ] legal/contact są spójne z finalną domeną,
-- [ ] testy i lint przechodzą,
-- [ ] pozostałe wystąpienia starej nazwy są opisane jako legacy albo historia,
+- [x] testy i lint przechodzą w pierwszej iteracji Sprintu 6,
+- [x] pozostałe wystąpienia starej nazwy są opisane jako legacy albo historia,
 - [ ] zespół ma decyzję, czy i kiedy usuwać legacy identyfikatory.
+
+Status po pierwszej iteracji Sprintu 6: rozpoczęty.
+
+Wykonano w pierwszej iteracji Sprintu 6:
+
+- uruchomiono pełny skan widocznej starej nazwy produktu i starych domen poza
+  tym dokumentem audytu,
+- potwierdzono, że jedyne wyniki `EstateFlow` poza audytem to celowe
+  `previousName` w centralnych konfiguracjach brandu:
+  `apps/api/src/common/brand.ts` i `apps/web/src/lib/brand.ts`,
+- uruchomiono skan technicznych legacy identyfikatorów i potwierdzono, że
+  wyniki dotyczą kontraktów/migracji: `estateflowBrandingEnabled`,
+  `estateflow.test`, `x-estateflow-billing-signature`, legacy storage keys,
+  `real_estate_saas` i `real-estate-agent-saas`,
+- uruchomiono test CSRF po zmianie opisu testu,
+- uruchomiono type-check i lint dla API oraz web.
+
+Weryfikacja po pierwszej iteracji Sprintu 6:
+
+- `pnpm --filter api test -- csrf.guard.spec.ts` - OK,
+- `pnpm --filter api type-check` - OK,
+- `pnpm --filter web type-check` - OK,
+- `pnpm --filter api lint` - OK,
+- `pnpm --filter web lint` - OK, z 11 istniejącymi ostrzeżeniami
+  niezwiązanymi z rebrandingiem,
+- `git diff --check` - OK.
 
 ## Podział ryzyka
 
 | Ryzyko | Gdzie występuje | Jak ograniczyć |
 | --- | --- | --- |
-| Utrata zgód cookies albo preferencji | localStorage/cookies `estateflow-*` | migracja kluczy zamiast kasowania |
+| Utrata zgód cookies albo preferencji | localStorage/cookies legacy `estateflow-*` | migracja kluczy zamiast kasowania |
 | Zerwanie API publicznych ofert | `estateflowBrandingEnabled` | zostawić pole legacy na czas przejściowy |
 | Niedziałające webhooki billingowe | `x-estateflow-billing-signature` | dodać alias nowego nagłówka przed wygaszeniem starego |
 | Niespójne legal/contact | `legal.ts`, strony prawne, mailto | najpierw potwierdzić domenę i e-maile |
@@ -851,14 +911,14 @@ Kryteria akceptacji:
 
 ## Szybka checklista akceptacyjna
 
-- [ ] Logo pokazuje `PodAdresem`.
-- [ ] Title i metadata strony głównej pokazują `PodAdresem`.
-- [ ] Publiczny katalog i publiczna oferta pokazują `PodAdresem`.
-- [ ] `Powered by EstateFlow` zostało zmienione na `Powered by PodAdresem`.
-- [ ] Blog używa `Blog PodAdresem`.
-- [ ] Maile resetu hasła używają `PodAdresem`.
-- [ ] Regulamin, polityka prywatności, cookies i zasady publikacji używają nowej nazwy.
-- [ ] E-maile kontaktowe są zgodne z finalną domeną.
-- [ ] Testy snapshotów/oczekiwań tekstowych zostały zaktualizowane.
+- [x] Logo pokazuje `PodAdresem`.
+- [x] Title i metadata strony głównej pokazują `PodAdresem`.
+- [x] Publiczny katalog i publiczna oferta pokazują `PodAdresem`.
+- [x] `Powered by EstateFlow` zostało zmienione na `Powered by PodAdresem`.
+- [x] Blog używa `Blog PodAdresem`.
+- [x] Maile resetu hasła używają `PodAdresem`.
+- [x] Regulamin, polityka prywatności, cookies i zasady publikacji używają nowej nazwy.
+- [x] E-maile kontaktowe są zgodne z finalną domeną.
+- [x] Testy snapshotów/oczekiwań tekstowych zostały zaktualizowane.
 - [ ] Świadomie zdecydowano, czy zostają legacy klucze `estateflow-*`.
-- [ ] Po zmianach `rg` nie znajduje niechcianych widocznych wystąpień `EstateFlow`.
+- [x] Po zmianach `rg` nie znajduje niechcianych widocznych wystąpień `EstateFlow`.

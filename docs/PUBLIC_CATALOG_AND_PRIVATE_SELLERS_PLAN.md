@@ -11,7 +11,7 @@ uzupełniamy status, decyzje i follow-upy.
 
 ## 1. Cel
 
-Chcemy zbudować dwa publiczne wejścia do EstateFlow:
+Chcemy zbudować dwa publiczne wejścia do PodAdresem:
 
 - `Szukający` — osoba, która chce znaleźć nieruchomość w katalogu `/oferty`.
 - `Właściciel` — osoba prywatna, która chce dodać mieszkanie, dom albo działkę
@@ -209,7 +209,7 @@ Potrzebuje:
 Rekomendowane copy:
 
 > Sprzedajesz mieszkanie, dom albo działkę? Dodaj ofertę w kilka minut i pokaż
-> ją w publicznym katalogu EstateFlow.
+> ją w publicznym katalogu PodAdresem.
 
 W komunikacji unikamy słów:
 
@@ -341,7 +341,7 @@ Proponowane limity MVP:
 - `1-3` aktywne oferty,
 - podstawowe zdjęcia,
 - podstawowy formularz kontaktowy,
-- widoczny branding EstateFlow.
+- widoczny branding PodAdresem.
 
 #### `AGENT`
 

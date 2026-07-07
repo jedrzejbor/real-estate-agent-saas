@@ -1,11 +1,11 @@
-# EstateFlow - analiza UX/UI i rekomendacje poprawy odczuc uzytkownika
+# PodAdresem - analiza UX/UI i rekomendacje poprawy odczuc uzytkownika
 
 Data analizy: 2026-07-05  
 Zakres: aplikacja web `apps/web`, dashboard agenta, publiczny katalog ofert, wizard dodawania oferty, panel sprzedajacego, UI system, nawigacja, formularze, feedback i stany aplikacji.
 
 ## Streszczenie
 
-EstateFlow ma juz dobry fundament UX: dashboard, oferty, klienci, zapytania, kalendarz, zadania, raporty, global search, powiadomienia, onboarding, puste stany, dark mode, wizard publicznego dodawania oferty i publiczny katalog. Produkt nie wyglada jak surowy CRUD, tylko jak realne narzedzie pracy.
+PodAdresem ma juz dobry fundament UX: dashboard, oferty, klienci, zapytania, kalendarz, zadania, raporty, global search, powiadomienia, onboarding, puste stany, dark mode, wizard publicznego dodawania oferty i publiczny katalog. Produkt nie wyglada jak surowy CRUD, tylko jak realne narzedzie pracy.
 
 Najwiekszy problem nie polega teraz na braku pojedynczego ekranu. Problemem jest gestosc interfejsu i hierarchia informacji. Uzytkownik widzi wiele modulow, kart, zakladek, statusow i akcji, ale nie zawsze od razu wie, co jest najwazniejsze, co wymaga reakcji teraz i jaki jest nastepny najlepszy krok.
 
@@ -243,7 +243,7 @@ Ryzyko UX:
 - hero i opis zajmuja sporo miejsca przed wynikami,
 - panel filtrow na desktopie jest poprawny, ale moze byc ciezki na mobile,
 - brakuje mocnych sygnalow zaufania przy ofertach,
-- uzytkownik publiczny nie zna EstateFlow i potrzebuje jasnosci, czy kontaktuje sie z agentem, biurem czy sprzedajacym.
+- uzytkownik publiczny nie zna PodAdresem i potrzebuje jasnosci, czy kontaktuje sie z agentem, biurem czy sprzedajacym.
 
 Rekomendacja:
 
@@ -1077,4 +1077,4 @@ Zakres po iteracji 4:
 
 ## Wniosek
 
-EstateFlow ma juz wiekszosc potrzebnych elementow produktu. Najwiekszy wzrost jakosci odczuc uzytkownika nie przyjdzie z kolejnych dekoracji, tylko z lepszej decyzji projektowej: mniej rownorzednych informacji, wiecej prowadzenia przez prace, wyrazniejsze priorytety i szybsze akcje. Aplikacja powinna sprawiac wrazenie asystenta codziennej pracy agenta, nie tylko miejsca, w ktorym przechowuje sie dane.
+PodAdresem ma juz wiekszosc potrzebnych elementow produktu. Najwiekszy wzrost jakosci odczuc uzytkownika nie przyjdzie z kolejnych dekoracji, tylko z lepszej decyzji projektowej: mniej rownorzednych informacji, wiecej prowadzenia przez prace, wyrazniejsze priorytety i szybsze akcje. Aplikacja powinna sprawiac wrazenie asystenta codziennej pracy agenta, nie tylko miejsca, w ktorym przechowuje sie dane.
