@@ -27,6 +27,7 @@ import { useToast } from '@/contexts/toast-context';
 import { useAuth } from '@/contexts/auth-context';
 import { useBulkSelection } from '@/hooks/use-bulk-selection';
 import { getApiErrorMessage } from '@/lib/api-client';
+import { APP_NAME } from '@/lib/brand';
 import { isPrivateSellerUser, type AuthUser } from '@/lib/auth';
 import {
   PROPERTY_TYPE_LABELS,
@@ -366,7 +367,7 @@ export default function PublicListingSubmissionWizardPage() {
           className="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          EstateFlow
+          {APP_NAME}
         </Link>
 
         <PublicListingSubmissionProcess

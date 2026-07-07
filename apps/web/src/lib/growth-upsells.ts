@@ -1,3 +1,5 @@
+import { APP_NAME } from './brand';
+
 export type GrowthUpsellId =
   | 'custom-branding'
   | 'profile-pro'
@@ -21,7 +23,7 @@ export const GROWTH_UPSELLS: Record<GrowthUpsellId, GrowthUpsell> = {
     id: 'custom-branding',
     title: 'Własny branding publicznych stron',
     description:
-      'Ukryj branding EstateFlow i pokaż markę swojego biura na ofertach, profilach, QR i widgetach.',
+      `Ukryj branding ${APP_NAME} i pokaż markę swojego biura na ofertach, profilach, QR i widgetach.`,
     benefit: 'Lepsze zaufanie przy udostępnianiu ofert klientom.',
     ctaLabel: 'Odblokuj branding',
     recommendedPlan: 'professional',

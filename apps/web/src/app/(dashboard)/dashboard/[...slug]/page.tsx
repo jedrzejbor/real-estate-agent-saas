@@ -4,6 +4,7 @@ import {
   CalendarClock,
 } from 'lucide-react';
 import Link from 'next/link';
+import { APP_NAME } from '@/lib/brand';
 
 // Map URL segments to Polish labels for nicer headings
 const ROUTE_LABELS: Record<string, string> = {
@@ -62,6 +63,6 @@ export async function generateMetadata({ params }: ComingSoonPageProps) {
   const label = ROUTE_LABELS[segment] ?? 'Strona';
 
   return {
-    title: `${label} — wkrótce | EstateFlow`,
+    title: `${label} — wkrótce | ${APP_NAME}`,
   };
 }

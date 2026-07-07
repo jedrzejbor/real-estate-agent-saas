@@ -18,6 +18,7 @@ import { z } from 'zod';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { AGENT_DASHBOARD_PATH, isPrivateSellerUser } from '@/lib/auth';
+import { APP_NAME } from '@/lib/brand';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
   PROPERTY_TYPE_LABELS,
@@ -351,7 +352,7 @@ export default function SellerListingEditPage() {
     <main className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
-          <Link href="/seller" aria-label="Panel właściciela EstateFlow">
+          <Link href="/seller" aria-label={`Panel właściciela ${APP_NAME}`}>
             <Logo size="sm" />
           </Link>
           <Link

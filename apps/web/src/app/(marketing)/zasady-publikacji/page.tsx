@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import { Container } from '@/components/layout';
+import { APP_NAME } from '@/lib/brand';
 import { LEGAL_COPY, LEGAL_META } from '@/lib/legal';
 
 export const metadata: Metadata = {
-  title: 'Zasady publikacji ofert | EstateFlow',
-  description:
-    'Zasady dodawania publicznych ofert, zdjęć, danych kontaktowych i zgłaszania nadużyć w EstateFlow.',
+  title: `Zasady publikacji ofert | ${APP_NAME}`,
+  description: `Zasady dodawania publicznych ofert, zdjęć, danych kontaktowych i zgłaszania nadużyć w ${APP_NAME}.`,
 };
 
 export default function PublicationRulesPage() {
@@ -17,7 +17,7 @@ export default function PublicationRulesPage() {
           Zasady publikacji ofert
         </h1>
         <p className="mt-4 text-sm leading-7 text-muted-foreground">
-          Te zasady pomagają utrzymać publiczne oferty w EstateFlow jako
+          Te zasady pomagają utrzymać publiczne oferty w {APP_NAME} jako
           bezpieczne, aktualne i zgodne z oczekiwaniami klientów.
         </p>
         <p className="mt-3 text-xs leading-6 text-muted-foreground">

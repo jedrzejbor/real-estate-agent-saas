@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage } from '@/lib/api-client';
+import { APP_NAME } from '@/lib/brand';
 import {
   ProductFeedbackCategory,
   ProductFeedbackPriority,
@@ -36,7 +37,7 @@ const TYPE_OPTIONS = [
   {
     value: ProductFeedbackType.FEATURE_REQUEST,
     label: 'Zaproponuj funkcję',
-    description: 'Brakuje Ci czegoś w EstateFlow.',
+    description: `Brakuje Ci czegoś w ${APP_NAME}.`,
     icon: Lightbulb,
   },
   {

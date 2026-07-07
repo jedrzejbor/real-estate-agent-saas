@@ -17,6 +17,7 @@ import { useAuthForm } from '@/hooks/use-auth-form';
 import { Button } from '@/components/ui/button';
 import { AuthFormField } from '@/components/auth/auth-form-field';
 import { AuthRedirectLoading } from '@/components/auth/auth-redirect-loading';
+import { APP_NAME } from '@/lib/brand';
 
 export default function LoginPage() {
   return (
@@ -66,7 +67,7 @@ function LoginForm() {
         <p className="mt-1 text-sm text-muted-foreground">
           {claimToken
             ? 'Zaloguj się, aby przejąć ofertę i dokończyć ją w CRM'
-            : 'Zaloguj się do swojego konta EstateFlow'}
+            : `Zaloguj się do swojego konta ${APP_NAME}`}
         </p>
       </div>
 

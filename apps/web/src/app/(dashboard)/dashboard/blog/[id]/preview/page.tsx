@@ -15,6 +15,7 @@ import {
 } from '@/components/blog/blog-markdown';
 import { Badge } from '@/components/ui/badge';
 import { getApiErrorMessage } from '@/lib/api-client';
+import { APP_NAME } from '@/lib/brand';
 import {
   fetchBlogPostAdmin,
   formatBlogDate,
@@ -153,11 +154,11 @@ export default function BlogPreviewPage({ params }: BlogPreviewPageProps) {
           </p>
         ) : null}
 
-        <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-2">
-            <UserRound className="h-4 w-4" />
-            {post.author?.displayName ?? 'EstateFlow'}
-          </span>
+            <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-2">
+                <UserRound className="h-4 w-4" />
+                {post.author?.displayName ?? APP_NAME}
+              </span>
           {publishedDate ? (
             <span className="inline-flex items-center gap-2">
               <CalendarDays className="h-4 w-4" />
@@ -184,7 +185,7 @@ export default function BlogPreviewPage({ params }: BlogPreviewPageProps) {
               shouldShowFeaturedListings ? (
                 <div className="rounded-2xl border border-dashed border-border bg-muted/40 p-5 text-sm leading-6 text-muted-foreground">
                   W tym miejscu publiczny artykuł pokaże blok wyróżnionych ofert
-                  z katalogu EstateFlow.
+                  z katalogu {APP_NAME}.
                 </div>
               ) : null
             }

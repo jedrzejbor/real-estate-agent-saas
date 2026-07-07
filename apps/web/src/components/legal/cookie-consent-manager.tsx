@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCookieConsent } from '@/contexts/cookie-consent-context';
+import { APP_NAME } from '@/lib/brand';
 import { LEGAL_LINKS } from '@/lib/legal';
 import { cn } from '@/lib/utils';
 
@@ -59,7 +60,7 @@ function CookieConsentBanner() {
       <div className="mx-auto flex max-w-6xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="max-w-3xl">
           <p className="text-sm font-semibold text-foreground">
-            EstateFlow używa niezbędnego storage oraz opcjonalnych zgód
+            {APP_NAME} używa niezbędnego storage oraz opcjonalnych zgód
           </p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             Zgody opcjonalne obejmują funkcjonalne ustawienia, własną analitykę

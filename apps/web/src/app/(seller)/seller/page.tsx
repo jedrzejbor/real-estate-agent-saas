@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
+import { APP_NAME } from '@/lib/brand';
 import { AGENT_DASHBOARD_PATH, isPrivateSellerUser } from '@/lib/auth';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
@@ -204,7 +205,7 @@ export default function SellerDashboardPage() {
     <main className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
-          <Link href="/seller" aria-label="Panel właściciela EstateFlow">
+          <Link href="/seller" aria-label={`Panel właściciela ${APP_NAME}`}>
             <Logo size="sm" />
           </Link>
 
@@ -238,7 +239,7 @@ export default function SellerDashboardPage() {
             </h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
               Dodaj ogłoszenie, przejdź weryfikację i pokaż nieruchomość w
-              publicznym katalogu EstateFlow.
+              publicznym katalogu {APP_NAME}.
             </p>
           </div>
 

@@ -36,6 +36,7 @@ import { useAuthForm } from '@/hooks/use-auth-form';
 import { Button } from '@/components/ui/button';
 import { AuthFormField } from '@/components/auth/auth-form-field';
 import { AuthRedirectLoading } from '@/components/auth/auth-redirect-loading';
+import { APP_NAME } from '@/lib/brand';
 import { cn } from '@/lib/utils';
 
 type RegisterPlan = PublicPlan & {
@@ -365,7 +366,7 @@ function RegisterForm() {
                 Dane konta
               </h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Tymi danymi będziesz logować się do EstateFlow.
+                Tymi danymi będziesz logować się do {APP_NAME}.
               </p>
             </div>
 

@@ -5,11 +5,11 @@ import { ArrowLeft, MessageSquare, ShieldCheck } from 'lucide-react';
 import { Container } from '@/components/layout';
 import { FeatureSurveyList } from '@/components/feedback/feature-survey-list';
 import { PublicProductFeedbackForm } from '@/components/feedback/public-product-feedback-form';
+import { APP_NAME } from '@/lib/brand';
 
 export const metadata: Metadata = {
-  title: 'Feedback | EstateFlow',
-  description:
-    'Zgłoś błąd, zaproponuj funkcję albo podziel się opinią o EstateFlow.',
+  title: `Feedback | ${APP_NAME}`,
+  description: `Zgłoś błąd, zaproponuj funkcję albo podziel się opinią o ${APP_NAME}.`,
 };
 
 export default function FeedbackPage() {
@@ -20,7 +20,7 @@ export default function FeedbackPage() {
         className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        Wróć do EstateFlow
+        Wróć do {APP_NAME}
       </Link>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
@@ -32,7 +32,7 @@ export default function FeedbackPage() {
             Feedback produktowy
           </p>
           <h1 className="mt-2 max-w-xl font-heading text-4xl font-bold leading-tight text-foreground sm:text-5xl">
-            Pomóż nam poprawić EstateFlow
+            Pomóż nam poprawić {APP_NAME}
           </h1>
           <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
             Zgłoś błąd, opisz brakującą funkcję albo daj znać, co było niejasne.

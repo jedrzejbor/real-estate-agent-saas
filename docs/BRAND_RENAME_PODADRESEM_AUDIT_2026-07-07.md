@@ -369,7 +369,7 @@ Kryteria akceptacji:
 - [x] metadata stron publicznych używają `PodAdresem` w zakresie katalogu,
   oferty, formularza, profilu agenta i bloga,
 - [x] blog używa `Blog PodAdresem` w metadanych, nagłówku indeksu i kategoriach,
-- [ ] `rg -n "EstateFlow" apps/web/src` zwraca tylko miejsca świadomie odłożone
+- [x] `rg -n "EstateFlow" apps/web/src` zwraca tylko miejsca świadomie odłożone
   do kolejnych sprintów.
 
 Wykonano w pierwszej iteracji Sprintu 1:
@@ -405,9 +405,53 @@ Wykonano w pierwszej iteracji Sprintu 1:
 - `estateflow-*` storage keys oraz `estateflowBrandingEnabled`, bo to nadal
   identyfikatory techniczne/legacy.
 
+Wykonano w drugiej iteracji Sprintu 1:
+
+- zmieniono pozostałe widoczne copy w auth:
+  `apps/web/src/app/(auth)/login/page.tsx`,
+  `apps/web/src/app/(auth)/register/page.tsx`,
+- zmieniono widoczne copy homepage, cennika i feedbacku:
+  `apps/web/src/app/(marketing)/page.tsx`,
+  `apps/web/src/app/(marketing)/cennik/page.tsx`,
+  `apps/web/src/app/(marketing)/feedback/page.tsx`,
+  `apps/web/src/components/marketing/home-pricing-section.tsx`,
+  `apps/web/src/components/feedback/public-product-feedback-form.tsx`,
+- zmieniono wizard publicznego dodawania oferty oraz panel sprzedającego:
+  `apps/web/src/app/(public)/dodaj-oferte/page.tsx`,
+  `apps/web/src/app/(public)/dodaj-oferte/potwierdzono/page.tsx`,
+  `apps/web/src/app/(public)/dodaj-oferte/sprawdz-email/page.tsx`,
+  `apps/web/src/app/(seller)/seller/page.tsx`,
+  `apps/web/src/app/(seller)/seller/listings/[id]/page.tsx`,
+  `apps/web/src/app/(seller)/seller/listings/[id]/edit/page.tsx`,
+- zmieniono dashboardowe fallbacki i podglądy:
+  `apps/web/src/app/(dashboard)/dashboard/[...slug]/page.tsx`,
+  `apps/web/src/app/(dashboard)/dashboard/tutorial/page.tsx`,
+  `apps/web/src/app/(dashboard)/dashboard/blog/[id]/preview/page.tsx`,
+  `apps/web/src/app/(dashboard)/dashboard/listings/[id]/owner-report/page.tsx`,
+- zmieniono blogowe CTA, fallbacki autora i sugestie markdown:
+  `apps/web/src/components/blog/article-cta.tsx`,
+  `apps/web/src/components/blog/blog-post-card.tsx`,
+  `apps/web/src/components/blog/blog-post-form.tsx`,
+  `apps/web/src/components/blog/featured-listings-block.tsx`,
+- zmieniono komponenty ofertowe i publikacyjne:
+  `apps/web/src/components/listings/listing-publication-panel.tsx`,
+  `apps/web/src/components/listings/listing-qr-asset.tsx`,
+  `apps/web/src/components/listings/public-listing-abuse-report.tsx`,
+  `apps/web/src/components/listings/public-listing-catalog.tsx`,
+- zmieniono copy upselli i opisów planu:
+  `apps/web/src/lib/growth-upsells.ts`,
+  `apps/web/src/lib/plan.ts`.
+
+Po drugiej iteracji skan `rg -n "EstateFlow|estateflow.pl" apps/web/src`
+zwraca tylko `apps/web/src/lib/brand.ts: previousName`, co jest celową
+referencją historyczną. Techniczne klucze `estateflow-*` pisane małą literą
+pozostają w Sprincie 4.
+
 ### Sprint 2 - legal, kontakt i komunikacja systemowa
 
 Cel: treści prawne, e-maile i komunikaty systemowe są spójne z nową nazwą.
+
+Status: rozpoczęty, pierwsza iteracja wykonana 2026-07-07.
 
 Zakres:
 
@@ -437,11 +481,41 @@ Najważniejsze pliki:
 
 Kryteria akceptacji:
 
-- [ ] strony legalne używają `PodAdresem`,
-- [ ] e-maile kontaktowe wskazują finalną domenę,
-- [ ] mail resetu hasła ma temat i treść z `PodAdresem`,
-- [ ] test resetu hasła przechodzi po aktualizacji oczekiwanego copy,
-- [ ] dokumenty prawne nie mieszają `EstateFlow` i `PodAdresem`.
+- [x] strony legalne używają `PodAdresem`,
+- [x] e-maile kontaktowe wskazują finalną domenę,
+- [x] mail resetu hasła ma temat i treść z `PodAdresem`,
+- [x] test resetu hasła przechodzi po aktualizacji oczekiwanego copy,
+- [x] dokumenty prawne nie mieszają `EstateFlow` i `PodAdresem`.
+
+Wykonano w pierwszej iteracji Sprintu 2:
+
+- zmieniono regulamin:
+  `apps/web/src/app/(marketing)/regulamin/page.tsx`,
+- zmieniono politykę prywatności:
+  `apps/web/src/app/(marketing)/polityka-prywatnosci/page.tsx`,
+- zmieniono politykę cookies:
+  `apps/web/src/app/(marketing)/polityka-cookies/page.tsx`,
+- zmieniono zasady publikacji ofert:
+  `apps/web/src/app/(marketing)/zasady-publikacji/page.tsx`,
+- zmieniono cookie consent banner:
+  `apps/web/src/components/legal/cookie-consent-manager.tsx`.
+
+Weryfikacja po pierwszej iteracji Sprintu 2:
+
+- `pnpm --filter web type-check` - OK,
+- `pnpm --filter web lint` - OK, bez błędów; pozostały istniejące warningi
+  niezwiązane z rebrandingiem,
+- `pnpm --filter api test -- app.controller.spec.ts auth.service.spec.ts` - OK,
+- `pnpm --filter api type-check` - OK,
+- `rg -n "EstateFlow|estateflow.pl" apps/web/src` zwraca tylko
+  `apps/web/src/lib/brand.ts: previousName`.
+
+Świadomie odłożone poza pierwszą iterację Sprintu 2:
+
+- finalna weryfikacja prawna treści i danych operatora wymaga decyzji
+  biznesowo-prawnej,
+- techniczne nazwy storage w polityce cookies, np. `estateflow-theme` i
+  `estateflow-cookie-consent`, zostają do Sprintu 4 jako legacy/migracje.
 
 ### Sprint 3 - backend, seed danych i publiczne payloady
 

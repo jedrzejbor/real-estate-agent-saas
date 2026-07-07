@@ -1,24 +1,24 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Container } from '@/components/layout';
+import { APP_NAME } from '@/lib/brand';
 import { LEGAL_META, LEGAL_LINKS } from '@/lib/legal';
 
 export const metadata: Metadata = {
-  title: 'Regulamin | EstateFlow',
-  description:
-    'Podstawowe zasady korzystania z EstateFlow, publicznych formularzy i funkcji freemium.',
+  title: `Regulamin | ${APP_NAME}`,
+  description: `Podstawowe zasady korzystania z ${APP_NAME}, publicznych formularzy i funkcji freemium.`,
 };
 
 export default function TermsPage() {
   return (
     <LegalDocument
-      title="Regulamin EstateFlow"
-      lead="Ten dokument opisuje podstawowe zasady korzystania z aplikacji EstateFlow oraz publicznych formularzy dostępnych bez logowania."
+      title={`Regulamin ${APP_NAME}`}
+      lead={`Ten dokument opisuje podstawowe zasady korzystania z aplikacji ${APP_NAME} oraz publicznych formularzy dostępnych bez logowania.`}
       sections={[
         {
           title: 'Zakres usługi',
           body: [
-            'EstateFlow jest narzędziem SaaS dla agentów i biur nieruchomości. Aplikacja pomaga zarządzać ofertami, klientami, spotkaniami, publicznymi stronami ofert oraz zapytaniami z formularzy.',
+            `${APP_NAME} jest narzędziem SaaS dla agentów i biur nieruchomości. Aplikacja pomaga zarządzać ofertami, klientami, spotkaniami, publicznymi stronami ofert oraz zapytaniami z formularzy.`,
             'Publiczne funkcje, takie jak karta oferty, profil agenta, formularz kontaktowy i publiczne dodanie oferty, służą do prezentacji nieruchomości i obsługi zapytań.',
           ],
         },
@@ -33,7 +33,7 @@ export default function TermsPage() {
           title: 'Treści i materiały',
           body: [
             'Użytkownik odpowiada za to, aby publikowane treści, zdjęcia i dane ofert były prawdziwe, aktualne oraz publikowane zgodnie z prawem i posiadanymi uprawnieniami.',
-            'EstateFlow może ograniczyć widoczność lub usunąć treści, które naruszają zasady publikacji, prawa osób trzecich albo bezpieczeństwo użytkowników.',
+            `${APP_NAME} może ograniczyć widoczność lub usunąć treści, które naruszają zasady publikacji, prawa osób trzecich albo bezpieczeństwo użytkowników.`,
           ],
         },
         {
@@ -41,7 +41,7 @@ export default function TermsPage() {
           body: [
             'Zasady przetwarzania danych osobowych opisuje Polityka prywatności.',
             'W przypadku formularzy publicznych dane są wykorzystywane przede wszystkim do obsługi zapytania, kontaktu zwrotnego i ochrony przed nadużyciami.',
-            'Użytkownik korzystający z EstateFlow jako biuro lub agent powinien upewnić się, że ma właściwą podstawę do przetwarzania danych klientów, leadów i osób kontaktowych.',
+            `Użytkownik korzystający z ${APP_NAME} jako biuro lub agent powinien upewnić się, że ma właściwą podstawę do przetwarzania danych klientów, leadów i osób kontaktowych.`,
           ],
           links: [{ label: 'Polityka prywatności', href: LEGAL_LINKS.privacy }],
         },
@@ -49,7 +49,7 @@ export default function TermsPage() {
           title: 'Zasady publikacji ofert',
           body: [
             'Publiczne oferty muszą spełniać dodatkowe zasady dotyczące poprawności danych, praw do zdjęć, ochrony prywatności i zakazu spamu.',
-            'EstateFlow może ręcznie zweryfikować, ograniczyć widoczność lub wycofać publiczną ofertę po zgłoszeniu nadużycia albo wykryciu ryzyka naruszenia zasad.',
+            `${APP_NAME} może ręcznie zweryfikować, ograniczyć widoczność lub wycofać publiczną ofertę po zgłoszeniu nadużycia albo wykryciu ryzyka naruszenia zasad.`,
           ],
           links: [
             {

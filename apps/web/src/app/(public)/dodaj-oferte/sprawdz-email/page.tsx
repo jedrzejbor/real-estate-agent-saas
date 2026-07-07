@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight, MailCheck, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PublicListingSubmissionProcess } from '@/components/listings/public-listing-submission-process';
+import { APP_NAME } from '@/lib/brand';
 
 interface CheckEmailPageProps {
   searchParams: Promise<{
@@ -25,7 +26,7 @@ export default async function PublicListingSubmissionCheckEmailPage({
           href="/"
           className="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
-          EstateFlow
+          {APP_NAME}
           <ArrowRight className="h-4 w-4" />
         </Link>
 

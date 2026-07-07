@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowRight, Home, Mail, PlusCircle, UserPlus } from 'lucide-react';
 import { AnalyticsEventName, trackPublicBlogEvent } from '@/lib/analytics';
+import { APP_CONTACT_EMAIL, APP_NAME } from '@/lib/brand';
 
 export type ArticleCtaVariant =
   | 'register'
@@ -21,7 +22,7 @@ interface ArticleCtaProps {
 const ctaCopy = {
   register: {
     icon: UserPlus,
-    title: 'Zarządzaj nieruchomościami w EstateFlow',
+    title: `Zarządzaj nieruchomościami w ${APP_NAME}`,
     description:
       'Prowadź oferty, klientów i zapytania z jednego panelu stworzonego dla rynku nieruchomości.',
     href: '/register',
@@ -29,17 +30,17 @@ const ctaCopy = {
   },
   contact: {
     icon: Mail,
-    title: 'Porozmawiajmy o wdrożeniu EstateFlow',
+    title: `Porozmawiajmy o wdrożeniu ${APP_NAME}`,
     description:
-      'Napisz do nas, jeśli chcesz dopasować EstateFlow do pracy Twojego biura lub zespołu sprzedaży.',
-    href: 'mailto:legal@estateflow.pl',
+      `Napisz do nas, jeśli chcesz dopasować ${APP_NAME} do pracy Twojego biura lub zespołu sprzedaży.`,
+    href: `mailto:${APP_CONTACT_EMAIL}`,
     label: 'Skontaktuj się',
   },
   listings: {
     icon: Home,
     title: 'Sprawdź aktualne oferty nieruchomości',
     description:
-      'Przejdź do publicznego katalogu i zobacz mieszkania, domy oraz działki opublikowane w EstateFlow.',
+      `Przejdź do publicznego katalogu i zobacz mieszkania, domy oraz działki opublikowane w ${APP_NAME}.`,
     href: '/oferty',
     label: 'Zobacz oferty',
   },

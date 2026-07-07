@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { ArrowRight, CalendarDays, UserRound } from 'lucide-react';
 import { formatBlogDate, type PublicBlogPostListItem } from '@/lib/blog';
+import { APP_NAME } from '@/lib/brand';
 
 interface BlogPostCardProps {
   post: PublicBlogPostListItem;
@@ -60,7 +61,7 @@ export function BlogPostCard({ post, priority = false }: BlogPostCardProps) {
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
             <UserRound className="h-4 w-4" />
-            <span>{post.author?.displayName ?? 'EstateFlow'}</span>
+            <span>{post.author?.displayName ?? APP_NAME}</span>
           </div>
           <Link
             href={`/blog/${post.slug}`}

@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import { Container } from '@/components/layout';
+import { APP_NAME } from '@/lib/brand';
 import { LEGAL_META } from '@/lib/legal';
 
 export const metadata: Metadata = {
-  title: 'Polityka cookies | EstateFlow',
-  description:
-    'Informacje o cookies, localStorage, sessionStorage i zgodach opcjonalnych w EstateFlow.',
+  title: `Polityka cookies | ${APP_NAME}`,
+  description: `Informacje o cookies, localStorage, sessionStorage i zgodach opcjonalnych w ${APP_NAME}.`,
 };
 
 export default function CookiePolicyPage() {
@@ -17,7 +17,7 @@ export default function CookiePolicyPage() {
           Polityka cookies
         </h1>
         <p className="mt-4 text-sm leading-7 text-muted-foreground">
-          Ten dokument opisuje, jak EstateFlow używa cookies, localStorage,
+          Ten dokument opisuje, jak {APP_NAME} używa cookies, localStorage,
           sessionStorage, httpOnly cookies oraz podobnych technologii w
           przeglądarce.
         </p>
@@ -37,7 +37,7 @@ export default function CookiePolicyPage() {
               Cookies, localStorage i sessionStorage to technologie
               przeglądarki, które pozwalają zapamiętać stan aplikacji,
               preferencje użytkownika, informacje techniczne albo zgodę na
-              opcjonalne kategorie. W EstateFlow sesja użytkownika jest
+              opcjonalne kategorie. W {APP_NAME} sesja użytkownika jest
               obsługiwana przez httpOnly cookies ustawiane przez API, a
               preferencje i wybrane funkcje mogą korzystać z localStorage albo
               sessionStorage.
@@ -46,7 +46,7 @@ export default function CookiePolicyPage() {
 
           <Section title="Kategorie">
             <p>
-              EstateFlow rozróżnia technologie niezbędne, funkcjonalne,
+              {APP_NAME} rozróżnia technologie niezbędne, funkcjonalne,
               analityczne i marketingowe. Niezbędne mechanizmy są wymagane do
               działania aplikacji, bezpieczeństwa, obsługi sesji i zapamiętania
               wyboru zgód.

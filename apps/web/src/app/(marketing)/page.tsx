@@ -25,6 +25,7 @@ import {
 } from '@/components/marketing';
 import { HeroPhotoGrid } from '@/components/marketing/hero-photo-grid';
 import type { HeroImage } from '@/components/marketing/hero-photo-grid';
+import { APP_NAME } from '@/lib/brand';
 
 /* ──────────────────────────── Data ──────────────────────────── */
 
@@ -134,7 +135,7 @@ const ownerSellerSteps = [
 const testimonials = [
   {
     quote:
-      'EstateFlow zmienił sposób, w jaki zarządzam swoimi ofertami. Oszczędzam minimum 2 godziny dziennie.',
+      `${APP_NAME} zmienił sposób, w jaki zarządzam swoimi ofertami. Oszczędzam minimum 2 godziny dziennie.`,
     authorName: 'Anna Kowalska',
     authorRole: 'Agent nieruchomości, Warszawa',
     rating: 5,
@@ -222,7 +223,7 @@ export default function Home() {
                 Przeglądaj oferty na liście i mapie
               </h2>
               <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
-                EstateFlow ma publiczną wyszukiwarkę nieruchomości dla osób,
+                {APP_NAME} ma publiczną wyszukiwarkę nieruchomości dla osób,
                 które chcą szybko znaleźć mieszkanie, dom albo działkę. Oferty z
                 poprawną lokalizacją trafiają do katalogu i na mapę.
               </p>
@@ -423,7 +424,7 @@ export default function Home() {
           <SectionHeader
             badge="✨ Funkcje"
             title="Wszystko czego potrzebujesz"
-            description="EstateFlow zastępuje arkusze, notatniki, kalendarze i osobne strony internetowe — wszystko w jednym narzędziu."
+            description={`${APP_NAME} zastępuje arkusze, notatniki, kalendarze i osobne strony internetowe — wszystko w jednym narzędziu.`}
           />
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature) => (
@@ -439,7 +440,7 @@ export default function Home() {
           <SectionHeader
             badge="🚀 Jak to działa"
             title="Zacznij w 3 prostych krokach"
-            description="Konfiguracja EstateFlow jest szybka i bezbolesna."
+            description={`Konfiguracja ${APP_NAME} jest szybka i bezbolesna.`}
           />
           <div className="grid gap-10 md:grid-cols-3">
             {steps.map((step, index) => (
@@ -459,7 +460,7 @@ export default function Home() {
           <SectionHeader
             badge="💬 Opinie"
             title="Zaufali nam agenci z całej Polski"
-            description="Dołącz do rosnącej społeczności agentów, którzy już korzystają z EstateFlow."
+            description={`Dołącz do rosnącej społeczności agentów, którzy już korzystają z ${APP_NAME}.`}
           />
           <div className="grid gap-6 md:grid-cols-3">
             {testimonials.map((testimonial) => (
@@ -488,7 +489,7 @@ export default function Home() {
             Gotowy, by zwiększyć swoją efektywność?
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-            Dołącz do tysięcy agentów, którzy już korzystają z EstateFlow.
+            Dołącz do tysięcy agentów, którzy już korzystają z {APP_NAME}.
             Pierwsze 14 dni za darmo.
           </p>
           <Link

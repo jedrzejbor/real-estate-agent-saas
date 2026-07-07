@@ -9,6 +9,7 @@ import { InlineSelect } from '@/components/ui/inline-select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage } from '@/lib/api-client';
+import { APP_NAME } from '@/lib/brand';
 import { getMarkdownContentIssues } from './blog-markdown';
 import {
   BlogContentFormat,
@@ -543,7 +544,7 @@ function InternalLinkSuggestions({
     },
     {
       label: 'Rejestracja',
-      markdown: '[załóż konto w EstateFlow](/register)',
+      markdown: `[załóż konto w ${APP_NAME}](/register)`,
     },
     ...(category
       ? [

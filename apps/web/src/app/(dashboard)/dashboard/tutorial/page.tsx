@@ -19,6 +19,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DashboardPageHeader } from '@/components/dashboard/page-header';
+import { APP_NAME } from '@/lib/brand';
 import { cn } from '@/lib/utils';
 
 type TutorialSectionId =
@@ -273,7 +274,7 @@ export default function DashboardTutorialPage() {
     <div className="space-y-6">
       <DashboardPageHeader
         title="Samouczek"
-        description="Krótki przewodnik po EstateFlow: co gdzie jest, jak zacząć pracę i do których ekranów przejść, gdy chcesz wykonać konkretną akcję."
+        description={`Krótki przewodnik po ${APP_NAME}: co gdzie jest, jak zacząć pracę i do których ekranów przejść, gdy chcesz wykonać konkretną akcję.`}
         icon={BookOpenCheck}
         badge={{ label: 'Przewodnik systemu', variant: 'brand' }}
         actions={

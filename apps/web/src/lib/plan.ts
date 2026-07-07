@@ -1,4 +1,5 @@
 import type { AuthUser } from './auth';
+import { APP_NAME } from './brand';
 
 type UsageMetricKey = 'activeListings' | 'clients' | 'monthlyAppointments' | 'users';
 type FeatureKey = keyof AuthUser['entitlements']['features'];
@@ -86,7 +87,7 @@ const featureConfig: FeatureConfig[] = [
   {
     key: 'customBranding',
     label: 'Własny branding',
-    description: 'Usunięcie brandingu EstateFlow i pełniejsze dopasowanie do marki biura.',
+    description: `Usunięcie brandingu ${APP_NAME} i pełniejsze dopasowanie do marki biura.`,
   },
   {
     key: 'multiUser',

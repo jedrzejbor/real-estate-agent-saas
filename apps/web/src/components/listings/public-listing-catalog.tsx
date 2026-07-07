@@ -18,6 +18,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
+import { APP_NAME } from '@/lib/brand';
 import {
   fetchPublicListingCatalog,
   formatArea,
@@ -572,7 +573,7 @@ function ListingCard({
 
           <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3">
             <p className="truncate text-xs text-muted-foreground">
-              {agencyName || 'EstateFlow'}
+              {agencyName || APP_NAME}
             </p>
             <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
               Szczegóły

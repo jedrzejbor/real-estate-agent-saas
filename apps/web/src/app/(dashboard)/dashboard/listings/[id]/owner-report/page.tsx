@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/contexts/toast-context';
 import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
+import { APP_NAME } from '@/lib/brand';
 import {
   fetchListingOwnerReport,
   formatArea,
@@ -205,7 +206,7 @@ export default function ListingOwnerReportPage() {
 
   const listing = report.listing;
   const address = formatReportAddress(listing.address);
-  const agencyName = report.brand.agency?.name ?? 'EstateFlow';
+  const agencyName = report.brand.agency?.name ?? APP_NAME;
   const agentLine = [report.brand.agent?.name, report.brand.agent?.phone]
     .filter(Boolean)
     .join(' · ');
@@ -495,7 +496,7 @@ export default function ListingOwnerReportPage() {
         <footer className="break-inside-avoid border-t border-border pt-5 text-xs leading-5 text-muted-foreground print:border-black/20 print:text-black/60">
           <p>
             Raport przygotowano na podstawie danych operacyjnych zapisanych w
-            EstateFlow dla wybranej oferty i okresu. Liczby mają charakter
+            {APP_NAME} dla wybranej oferty i okresu. Liczby mają charakter
             informacyjny i wspierają rozmowę o dalszych działaniach
             sprzedażowych.
           </p>

@@ -4,6 +4,7 @@ import * as React from 'react';
 import { toDataURL } from 'qrcode';
 import { Download, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { APP_NAME } from '@/lib/brand';
 
 interface ListingQrAssetProps {
   url: string;
@@ -21,7 +22,7 @@ export function ListingQrAsset({
   url,
   title,
   disabled,
-  downloadFileName = 'estateflow-qr.png',
+  downloadFileName = 'podadresem-qr.png',
   onDownload,
 }: ListingQrAssetProps) {
   const [qrDataUrl, setQrDataUrl] = React.useState<string | null>(null);
@@ -145,7 +146,7 @@ async function buildPrintableQrAsset({
 
   ctx.fillStyle = '#1C1917';
   ctx.font = '700 44px Inter, Arial, sans-serif';
-  ctx.fillText('EstateFlow', 160, 190);
+  ctx.fillText(APP_NAME, 160, 190);
 
   ctx.fillStyle = '#57534E';
   ctx.font = '500 28px Inter, Arial, sans-serif';

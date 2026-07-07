@@ -9,6 +9,7 @@ import {
   TRANSACTION_TYPE_LABELS,
   type PublicListingCatalogItem,
 } from '@/lib/listings';
+import { APP_NAME } from '@/lib/brand';
 
 const FALLBACK_LIMIT = 3;
 
@@ -27,7 +28,7 @@ export async function FeaturedListingsBlock() {
             Wyróżnione oferty
           </h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Sprawdź aktualne nieruchomości opublikowane w katalogu EstateFlow.
+            Sprawdź aktualne nieruchomości opublikowane w katalogu {APP_NAME}.
           </p>
         </div>
         <Link

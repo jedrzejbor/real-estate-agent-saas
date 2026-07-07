@@ -27,6 +27,7 @@ import {
   getGrowthUpsells,
   PUBLICATION_GROWTH_UPSELL_IDS,
 } from '@/lib/growth-upsells';
+import { APP_NAME } from '@/lib/brand';
 import { getResolvedReleaseFlags } from '@/lib/release-flags';
 import { cn } from '@/lib/utils';
 import { ListingQrAsset } from './listing-qr-asset';
@@ -96,7 +97,7 @@ export function ListingPublicationPanel({
     : '';
   const leadFormUrl = origin && leadFormPath ? `${origin}${leadFormPath}` : '';
   const embedCode = leadFormUrl
-    ? `<iframe src="${leadFormUrl}" title="Formularz kontaktowy EstateFlow" width="100%" height="720" style="border:0;border-radius:16px;overflow:hidden" loading="lazy"></iframe>`
+    ? `<iframe src="${leadFormUrl}" title="Formularz kontaktowy ${APP_NAME}" width="100%" height="720" style="border:0;border-radius:16px;overflow:hidden" loading="lazy"></iframe>`
     : '';
 
   async function handleSettingsSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -529,7 +530,7 @@ export function ListingPublicationPanel({
 
         {listing.estateflowBrandingEnabled ? (
           <p className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            Branding EstateFlow jest aktywny dla tej oferty. Konta z własnym
+            Branding {APP_NAME} jest aktywny dla tej oferty. Konta z własnym
             brandingiem mogą go ukrywać automatycznie po publikacji.
           </p>
         ) : null}

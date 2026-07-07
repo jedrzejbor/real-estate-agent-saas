@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Container } from '@/components/layout';
+import { APP_NAME } from '@/lib/brand';
 import {
   LEGAL_COPY,
   LEGAL_LINKS,
@@ -9,9 +10,8 @@ import {
 } from '@/lib/legal';
 
 export const metadata: Metadata = {
-  title: 'Polityka prywatności | EstateFlow',
-  description:
-    'Informacje o przetwarzaniu danych w EstateFlow, publicznych formularzach, leadach i zgłoszeniach ofert.',
+  title: `Polityka prywatności | ${APP_NAME}`,
+  description: `Informacje o przetwarzaniu danych w ${APP_NAME}, publicznych formularzach, leadach i zgłoszeniach ofert.`,
 };
 
 export default function PrivacyPolicyPage() {
@@ -23,7 +23,7 @@ export default function PrivacyPolicyPage() {
           Polityka prywatności
         </h1>
         <p className="mt-4 text-sm leading-7 text-muted-foreground">
-          Ten dokument opisuje, jakie dane mogą być przetwarzane w EstateFlow
+          Ten dokument opisuje, jakie dane mogą być przetwarzane w {APP_NAME}
           oraz w publicznych formularzach ofert i profili.
         </p>
         <p className="mt-3 text-xs leading-6 text-muted-foreground">
@@ -47,11 +47,11 @@ export default function PrivacyPolicyPage() {
             <p>
               W przypadku danych przekazywanych przez formularze publiczne
               administratorem danych jest agent lub biuro obsługujące ofertę
-              albo profil. EstateFlow działa jako dostawca narzędzia do obsługi
+              albo profil. {APP_NAME} działa jako dostawca narzędzia do obsługi
               formularzy, leadów i zgłoszeń.
             </p>
             <p>
-              Jeżeli EstateFlow przetwarza dane na zlecenie biura lub agenta,
+              Jeżeli {APP_NAME} przetwarza dane na zlecenie biura lub agenta,
               docelowo relacja powinna zostać opisana w umowie powierzenia
               przetwarzania danych albo równoważnym załączniku DPA.
             </p>
@@ -77,7 +77,7 @@ export default function PrivacyPolicyPage() {
 
           <Section title="Cookies, storage i analityka">
             <p>
-              EstateFlow używa localStorage, sessionStorage oraz podobnych
+              {APP_NAME} używa localStorage, sessionStorage oraz podobnych
               technologii przeglądarki do obsługi sesji, ochrony requestów
               przed CSRF, zapamiętania zgód, ustawień interfejsu, roboczych
               formularzy i własnej analityki produktu.
@@ -127,7 +127,7 @@ export default function PrivacyPolicyPage() {
               albo profil.
             </p>
             <p>
-              {LEGAL_COPY.rightsContact} Kontakt pomocniczy EstateFlow:{' '}
+              {LEGAL_COPY.rightsContact} Kontakt pomocniczy {APP_NAME}:{' '}
               <a
                 href={`mailto:${LEGAL_META.contactEmail}`}
                 className="font-medium text-primary hover:underline"

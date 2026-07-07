@@ -13,6 +13,7 @@ import {
   getPriceHelper,
   type BillingInterval,
 } from '@/lib/public-pricing';
+import { APP_CONTACT_EMAIL, APP_NAME } from '@/lib/brand';
 import { cn } from '@/lib/utils';
 
 export default function PricingPage() {
@@ -26,6 +27,7 @@ export default function PricingPage() {
     () => plans.filter((plan) => plan.code !== 'custom'),
     [plans],
   );
+  const enterpriseContactHref = `mailto:${APP_CONTACT_EMAIL}?subject=${encodeURIComponent(`${APP_NAME} Enterprise`)}`;
 
   useEffect(() => {
     let isMounted = true;
@@ -59,7 +61,7 @@ export default function PricingPage() {
         <div className="max-w-3xl">
           <Badge variant="gold">Cennik</Badge>
           <h1 className="mt-4 font-heading text-4xl font-bold tracking-normal text-foreground sm:text-5xl">
-            EstateFlow
+            {APP_NAME}
           </h1>
           <p className="mt-4 text-base leading-7 text-muted-foreground sm:text-lg">
             Plany dla agentów i biur nieruchomości, które chcą prowadzić CRM,
@@ -179,7 +181,7 @@ export default function PricingPage() {
                       <Link
                         href={
                           isEnterprise
-                            ? 'mailto:kontakt@estateflow.pl?subject=EstateFlow%20Enterprise'
+                            ? enterpriseContactHref
                             : `/register?plan=${plan.code}&billing=${billingInterval}`
                         }
                       />

@@ -13,6 +13,7 @@ import {
   getPriceHelper,
   type BillingInterval,
 } from '@/lib/public-pricing';
+import { APP_CONTACT_EMAIL, APP_NAME } from '@/lib/brand';
 import { cn } from '@/lib/utils';
 
 export function HomePricingSection() {
@@ -133,6 +134,7 @@ function HomePricingCard({
 }) {
   const isPopular = plan.code === 'professional';
   const isEnterprise = plan.code === 'enterprise';
+  const enterpriseContactHref = `mailto:${APP_CONTACT_EMAIL}?subject=${encodeURIComponent(`${APP_NAME} Enterprise`)}`;
 
   return (
     <article
@@ -187,7 +189,7 @@ function HomePricingCard({
           <Link
             href={
               isEnterprise
-                ? 'mailto:kontakt@estateflow.pl?subject=EstateFlow%20Enterprise'
+                ? enterpriseContactHref
                 : `/register?plan=${plan.code}&billing=${billingInterval}`
             }
           />

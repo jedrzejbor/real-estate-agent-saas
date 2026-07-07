@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PublicListingSubmissionProcess } from '@/components/listings/public-listing-submission-process';
+import { APP_NAME } from '@/lib/brand';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { isPrivateSellerUser, PRIVATE_SELLER_HOME_PATH } from '@/lib/auth';
@@ -132,7 +133,7 @@ function VerificationShell({ state }: { state: VerificationState }) {
           href="/"
           className="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
-          EstateFlow
+          {APP_NAME}
           <ArrowRight className="h-4 w-4" />
         </Link>
 
