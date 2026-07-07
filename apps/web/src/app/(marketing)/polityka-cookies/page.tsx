@@ -162,11 +162,11 @@ function StorageTable() {
         'Utrzymanie i odświeżanie sesji użytkownika bez udostępniania tokenów JavaScriptowi.',
     },
     {
-      name: 'estateflow.csrf-token',
+      name: 'podadresem.csrf-token',
       type: 'cookie',
       category: 'Niezbędne',
       purpose:
-        'Ochrona mutujących requestów zalogowanego użytkownika przed atakami CSRF.',
+        'Ochrona mutujących requestów zalogowanego użytkownika przed atakami CSRF. Starszy cookie estateflow.csrf-token jest akceptowany tylko w okresie przejściowym.',
     },
     {
       name: STORAGE_KEYS.theme,

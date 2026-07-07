@@ -1,4 +1,4 @@
-# EstateFlow — Specyfikacja Projektu
+# PodAdresem — Specyfikacja Projektu
 
 > Dokument żywy — aktualizowany przy każdym kroku rozwoju aplikacji.
 > Ostatnia aktualizacja: 2026-04-21 (Krok 12)
@@ -26,9 +26,9 @@
 
 ### 1.1 Wizja produktu
 
-**EstateFlow** to platforma SaaS (Software as a Service) zaprojektowana specjalnie dla **agentów nieruchomości** i **biur nieruchomości** w Polsce. Umożliwia zarządzanie całym cyklem pracy agenta — od pozyskania oferty, przez obsługę klienta, aż po zamknięcie transakcji.
+**PodAdresem** to platforma SaaS (Software as a Service) zaprojektowana specjalnie dla **agentów nieruchomości** i **biur nieruchomości** w Polsce. Umożliwia zarządzanie całym cyklem pracy agenta — od pozyskania oferty, przez obsługę klienta, aż po zamknięcie transakcji.
 
-**Jedno narzędzie zamiast pięciu** — EstateFlow zastępuje:
+**Jedno narzędzie zamiast pięciu** — PodAdresem zastępuje:
 - Arkusze kalkulacyjne (Excel/Google Sheets) do śledzenia ofert
 - Notatniki / CRM-y (do zarządzania kontaktami z klientami)
 - Kalendarze (do planowania spotkań i wizyt)
@@ -49,7 +49,7 @@
 
 ### 1.3 Problemy do rozwiązania
 
-| # | Problem | Jak EstateFlow rozwiązuje |
+| # | Problem | Jak PodAdresem rozwiązuje |
 |---|---------|--------------------------|
 | 1 | Rozproszone dane ofert (Excel, papier, różne portale) | Centralna baza ofert z jednym źródłem prawdy |
 | 2 | Brak historii kontaktu z klientem | CRM z timeline: kto dzwonił, kiedy, o czym rozmowa |
@@ -1156,4 +1156,4 @@ Każdy krok będzie aktualizował ten dokument o nową sekcję.
 
 ---
 
-*Dokument zarządzany przez zespół EstateFlow. Każda zmiana powinna być oznaczona datą i numerem kroku.*
+*Dokument zarządzany przez zespół PodAdresem. Każda zmiana powinna być oznaczona datą i numerem kroku.*

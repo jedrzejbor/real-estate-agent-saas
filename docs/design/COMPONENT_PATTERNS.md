@@ -1,6 +1,6 @@
-# EstateFlow — Wzorce komponentów
+# PodAdresem — Wzorce komponentów
 
-Dokument opisuje wzorce implementacji kluczowych komponentów UI aplikacji EstateFlow. Wszystkie komponenty bazują na **shadcn/ui** z customowym theme „Light Luxury Warm" (Koncept B).
+Dokument opisuje wzorce implementacji kluczowych komponentów UI aplikacji PodAdresem. Wszystkie komponenty bazują na **shadcn/ui** z customowym theme „Light Luxury Warm" (Koncept B).
 
 ## Spis treści
 

@@ -1,4 +1,4 @@
-# EstateFlow — Real Estate Agent SaaS
+# PodAdresem — platforma dla agentów nieruchomości
 
 Platforma SaaS dla agentów nieruchomości do zarządzania ofertami, klientami i spotkaniami.
 

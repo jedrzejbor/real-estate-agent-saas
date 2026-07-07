@@ -627,8 +627,8 @@ Kryteria akceptacji:
 - [x] istnieje lista legacy identyfikatorów, które zostają celowo,
 - [x] migracje localStorage/cookies nie resetują preferencji użytkowników,
 - [x] webhook billingowy ma plan kompatybilności,
-- [ ] ewentualna zmiana `estateflowBrandingEnabled` ma osobną migrację DB i API,
-- [ ] po sprincie nie ma przypadkowych, niewyjaśnionych wystąpień `estateflow`.
+- [x] ewentualna zmiana `estateflowBrandingEnabled` ma osobną migrację DB i API,
+- [x] po sprincie nie ma przypadkowych, niewyjaśnionych wystąpień `estateflow`.
 
 Wykonano w pierwszej iteracji Sprintu 4:
 
@@ -690,6 +690,44 @@ Weryfikacja po pierwszej iteracji Sprintu 4:
   kompatybilnie obsługiwane w okresie przejściowym,
 - `real_estate_saas` pozostaje nazwą techniczną bazy do osobnej decyzji.
 
+Wykonano w drugiej iteracji Sprintu 4:
+
+- zmieniono klasy mapy z `estateflow-map-*` na `podadresem-map-*` atomowo w:
+  `apps/web/src/app/globals.css`,
+  `apps/web/src/components/listings/public-listing-catalog-map.tsx`,
+- zmieniono CSRF cookie z `estateflow.csrf-token` na
+  `podadresem.csrf-token`, zachowując akceptację starego cookie podczas
+  migracji w:
+  `apps/api/src/auth/auth-token-cookies.ts`,
+  `apps/api/src/auth/guards/csrf.guard.ts`,
+  `apps/web/src/lib/csrf.ts`,
+- dodano czyszczenie legacy CSRF cookie przy czyszczeniu auth cookies,
+- dodano testy guardu CSRF dla nowego cookie, legacy cookie i błędnego tokena:
+  `apps/api/src/auth/guards/csrf.guard.spec.ts`,
+- zaktualizowano politykę cookies o nowy cookie `podadresem.csrf-token` oraz
+  informację, że `estateflow.csrf-token` jest akceptowany przejściowo.
+
+Decyzje po drugiej iteracji Sprintu 4:
+
+- `estateflowBrandingEnabled` zostaje trwałym legacy kontraktem API/DB na ten
+  etap. Nie zmieniamy nazwy pola bez osobnej migracji bazy, kompatybilnego
+  DTO/API i planu rolloutowego, ponieważ pole jest publicznym kontraktem między
+  API i frontendem oraz istnieje jako kolumna w migracji.
+- `x-estateflow-billing-signature` zostaje obsługiwany jako legacy alias obok
+  `x-podadresem-billing-signature`.
+- `estateflow.test` zostaje techniczną domeną testową w specach; nie wpływa na
+  użytkownika ani SEO.
+- `real_estate_saas` zostaje techniczną nazwą bazy lokalnej/konfiguracyjnej.
+
+Weryfikacja po drugiej iteracji Sprintu 4:
+
+- `pnpm --filter api test -- csrf.guard.spec.ts billing-webhooks.controller.spec.ts` - OK,
+- `pnpm --filter api type-check` - OK,
+- `pnpm --filter web type-check` - OK,
+- `pnpm --filter api lint` - OK,
+- `pnpm --filter web lint` - OK, z istniejącymi wcześniej ostrzeżeniami
+  niezwiązanymi ze zmianą brandu.
+
 ### Sprint 5 - dokumentacja, design system i materiały operacyjne
 
 Cel: dokumenty, checklisty i instrukcje dla zespołu opisują już `PodAdresem`.
@@ -721,10 +759,51 @@ Najważniejsze pliki:
 
 Kryteria akceptacji:
 
-- [ ] operacyjne dokumenty używają `PodAdresem`,
-- [ ] design system opisuje nowy brand,
+- [x] operacyjne dokumenty używają `PodAdresem`,
+- [x] design system opisuje nowy brand,
 - [ ] dokumenty historyczne są świadomie zostawione albo oznaczone,
-- [ ] instrukcje lokalne nie sugerują użytkownikowi starej nazwy produktu.
+- [x] instrukcje lokalne nie sugerują użytkownikowi starej nazwy produktu.
+
+Status po pierwszej iteracji Sprintu 5: w trakcie. Zmieniono dokumenty, które są
+najbardziej narażone na bieżące użycie przez zespół, wdrożenie i dalsze prace
+produktowe. Historyczne plany i analizy z nazwą `EstateFlow` pozostają do
+drugiej iteracji Sprintu 5, gdzie trzeba zdecydować, czy aktualizujemy je
+merytorycznie, czy oznaczamy jako archiwalne.
+
+Wykonano w pierwszej iteracji Sprintu 5:
+
+- zaktualizowano nazwę projektu w `README.md` na
+  `PodAdresem — platforma dla agentów nieruchomości`,
+- zaktualizowano dokumenty design systemu:
+  `docs/design/DESIGN_SYSTEM.md`,
+  `docs/design/COMPONENT_PATTERNS.md`,
+  `docs/design/AI_GUIDE.md`,
+- zaktualizowano dokumenty produktowe i redakcyjne:
+  `docs/PROJECT_SPEC.md`,
+  `docs/BLOG_POST_PUBLISHING_GUIDE.md`,
+  `docs/BLOG_SEO_PLAN.md`,
+- zaktualizowano dokument privacy/cookies readiness:
+  `docs/COOKIE_CONSENT_READINESS_PLAN.md`,
+- zaktualizowano instrukcję lokalną `docs/LOCAL_SETUP.md`, w tym nazwę
+  serwera pgAdmin na `PodAdresem Local`,
+- zaktualizowano produkcyjną checklistę launchu
+  `docs/PRODUCTION_LAUNCH_CHECKLIST.md`, w tym przykładowe domeny, e-maile,
+  bucket R2, ścieżkę Nginx i ścieżkę deployu na wariant `podadresem`.
+
+Świadomie zostawiono w pierwszej iteracji Sprintu 5:
+
+- `real_estate_saas` jako techniczną nazwę bazy danych w przykładach
+  lokalnych i produkcyjnych,
+- `real-estate-agent-saas` jako nazwę repozytorium/ścieżki developerskiej,
+- historyczne dokumenty planistyczne i analityczne, które wymagają osobnej
+  decyzji: aktualizacja treści vs oznaczenie jako archiwum.
+
+Weryfikacja po pierwszej iteracji Sprintu 5:
+
+- `rg -n "EstateFlow|estateflow\\.pl|api\\.estateflow\\.pl|cdn\\.estateflow\\.pl|status\\.estateflow\\.pl|support@estateflow\\.pl|abuse@estateflow\\.pl|legal@estateflow\\.pl|noreply@estateflow\\.pl|Real Estate Agent SaaS" README.md docs/design docs/BLOG_POST_PUBLISHING_GUIDE.md docs/PROJECT_SPEC.md docs/LOCAL_SETUP.md docs/PRODUCTION_LAUNCH_CHECKLIST.md docs/BLOG_SEO_PLAN.md docs/COOKIE_CONSENT_READINESS_PLAN.md`
+  - OK, brak wyników,
+- `rg -n "estateflow|real-estate-agent-saas|real_estate_saas" README.md docs/LOCAL_SETUP.md docs/PRODUCTION_LAUNCH_CHECKLIST.md`
+  zwraca tylko techniczne identyfikatory bazy, repo i kontenera.
 
 ### Sprint 6 - QA, rollout i cleanup po wdrożeniu
 

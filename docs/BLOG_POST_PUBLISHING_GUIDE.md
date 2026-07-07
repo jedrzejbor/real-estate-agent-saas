@@ -1,4 +1,4 @@
-# EstateFlow — instrukcja dodawania wpisów blogowych
+# PodAdresem — instrukcja dodawania wpisów blogowych
 
 Dokument opisuje, gdzie dodawać wpisy blogowe, jak wypełniać pola edytora i co
 sprawdzić przed publikacją, żeby wpis wspierał SEO oraz konwersję.
@@ -105,7 +105,7 @@ Dodawaj linki w treści jako Markdown:
 ```md
 [aktualne oferty nieruchomości](/oferty)
 [dodaj ofertę nieruchomości](/dodaj-oferte)
-[załóż konto w EstateFlow](/register)
+[załóż konto w PodAdresem](/register)
 [Sprzedaż nieruchomości](/blog/kategoria/sprzedaz-nieruchomosci)
 ```
 
@@ -271,4 +271,3 @@ oferty i jakość zdjęć.
 Tak, jeśli klatka jest zadbana i wspiera pozytywny odbiór nieruchomości.
 :::
 ```
-

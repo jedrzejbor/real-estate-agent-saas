@@ -290,7 +290,7 @@
   }
 }
 
-.estateflow-map-marker {
+.podadresem-map-marker {
   display: flex;
   height: 34px;
   width: 34px;
@@ -301,7 +301,7 @@
   box-shadow: 0 10px 24px rgb(28 25 23 / 0.22);
 }
 
-.estateflow-map-marker span {
+.podadresem-map-marker span {
   display: block;
   height: 12px;
   width: 12px;
@@ -309,7 +309,7 @@
   background: #ffffff;
 }
 
-.estateflow-map-marker strong {
+.podadresem-map-marker strong {
   display: flex;
   min-width: 18px;
   height: 18px;
@@ -323,42 +323,42 @@
   line-height: 1;
 }
 
-.estateflow-map-marker.is-exact {
+.podadresem-map-marker.is-exact {
   background: #059669;
 }
 
-.estateflow-map-marker.is-approximate {
+.podadresem-map-marker.is-approximate {
   background: #d4a853;
 }
 
-.estateflow-map-is-drawing,
-.estateflow-map-is-drawing .leaflet-interactive {
+.podadresem-map-is-drawing,
+.podadresem-map-is-drawing .leaflet-interactive {
   cursor: crosshair;
 }
 
-.estateflow-map-popup .leaflet-popup-content-wrapper {
+.podadresem-map-popup .leaflet-popup-content-wrapper {
   overflow: hidden;
   border-radius: 14px;
   padding: 0;
 }
 
-.estateflow-map-popup .leaflet-popup-content {
+.podadresem-map-popup .leaflet-popup-content {
   width: 240px;
   margin: 0;
 }
 
-.estateflow-map-popup .leaflet-popup-close-button {
+.podadresem-map-popup .leaflet-popup-close-button {
   top: 8px;
   right: 8px;
   z-index: 20;
 }
 
-.estateflow-map-popup-card {
+.podadresem-map-popup-card {
   background: #ffffff;
   color: #1c1917;
 }
 
-.estateflow-map-popup-switcher {
+.podadresem-map-popup-switcher {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -371,7 +371,7 @@
   font-weight: 700;
 }
 
-.estateflow-map-popup-switcher button {
+.podadresem-map-popup-switcher button {
   display: inline-flex;
   height: 24px;
   width: 24px;
@@ -384,22 +384,22 @@
   cursor: pointer;
 }
 
-.estateflow-map-popup-switcher button:hover {
+.podadresem-map-popup-switcher button:hover {
   background: #f5f5f4;
 }
 
-.estateflow-map-popup-card img {
+.podadresem-map-popup-card img {
   display: block;
   height: 112px;
   width: 100%;
   object-fit: cover;
 }
 
-.estateflow-map-popup-body {
+.podadresem-map-popup-body {
   padding: 12px;
 }
 
-.estateflow-map-popup-card h3 {
+.podadresem-map-popup-card h3 {
   margin-top: 4px;
   display: -webkit-box;
   overflow: hidden;
@@ -410,21 +410,21 @@
   -webkit-line-clamp: 2;
 }
 
-.estateflow-map-popup-price {
+.podadresem-map-popup-price {
   color: #059669;
   font-size: 13px;
   font-weight: 700;
 }
 
-.estateflow-map-popup-location,
-.estateflow-map-popup-precision {
+.podadresem-map-popup-location,
+.podadresem-map-popup-precision {
   margin-top: 6px;
   color: #78716c;
   font-size: 12px;
   line-height: 1.4;
 }
 
-.estateflow-map-popup-card a {
+.podadresem-map-popup-card a {
   margin-top: 10px;
   display: inline-flex;
   align-items: center;

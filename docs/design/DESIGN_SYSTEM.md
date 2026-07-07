@@ -1,4 +1,4 @@
-# EstateFlow — Design System
+# PodAdresem — Design System
 
 > **Koncept B: ☀️ „Light Luxury Warm"**
 >
@@ -24,7 +24,7 @@
 
 ## Kontekst projektu
 
-**EstateFlow** to platforma SaaS dla agentów nieruchomości do zarządzania:
+**PodAdresem** to platforma SaaS dla agentów nieruchomości do zarządzania:
 - **Ofertami** nieruchomości (CRUD, statusy, zdjęcia)
 - **Klientami** (CRM, leady, historia kontaktów)
 - **Spotkaniami** (kalendarz, planowanie, przypomnienia)

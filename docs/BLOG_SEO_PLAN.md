@@ -1,10 +1,10 @@
-# EstateFlow — plan strony blogowej i SEO content hub
+# PodAdresem — plan strony blogowej i SEO content hub
 
 > Dokument planistyczny.
 > Data utworzenia: 2026-06-03
 > Cel: rozpisać zadania potrzebne do przygotowania bloga, który będzie
 > wspierał pozyskiwanie ruchu organicznego, budowanie topical authority i
-> konwersję użytkowników na leady oraz rejestracje w EstateFlow.
+> konwersję użytkowników na leady oraz rejestracje w PodAdresem.
 
 ---
 
@@ -14,14 +14,14 @@ Blog nie ma być tylko listą aktualności. Ma działać jako content hub SEO dl
 rynku nieruchomości i wspierać trzy cele:
 
 - pozyskiwanie ruchu z Google na frazy poradnikowe i lokalne,
-- budowanie wiarygodności EstateFlow jako narzędzia dla agentów, biur i
+- budowanie wiarygodności PodAdresem jako narzędzia dla agentów, biur i
   właścicieli nieruchomości,
 - kierowanie czytelników do ofert, formularzy kontaktowych, rejestracji i
   modułów produktowych.
 
 Zakładany rytm publikacji: minimum 1 artykuł tygodniowo.
 
-Na start budujemy blog centralny EstateFlow pod domeną główną. Blogi agencji na
+Na start budujemy blog centralny PodAdresem pod domeną główną. Blogi agencji na
 stronach brandowych powinny wykorzystywać tę samą bazową infrastrukturę CMS, ale
 mogą zostać włączone jako kolejny etap.
 
@@ -222,7 +222,7 @@ Wymagania:
 
 ### Lista bloga
 
-- [ ] 🔴 H1: `Blog EstateFlow` lub docelowa nazwa content hubu
+- [ ] 🔴 H1: `Blog PodAdresem` lub docelowa nazwa content hubu
 - [ ] 🔴 Intro tekstowe opisujące tematykę bloga, bez przesadnego marketingu
 - [ ] 🔴 Karty wpisów: title, excerpt, kategoria, data, cover image, autor
 - [ ] 🟠 Sekcja wyróżnionego wpisu
@@ -350,7 +350,7 @@ Wymagania:
 - [ ] 🟠 Tydzień 12: `Jak mierzyć skuteczność ogłoszeń nieruchomości`
 
 Każdy artykuł powinien linkować do minimum 2-4 innych wpisów lub stron
-EstateFlow, gdy takie treści już istnieją.
+PodAdresem, gdy takie treści już istnieją.
 
 ---
 
@@ -488,7 +488,7 @@ Zakres:
 - [ ] 🟡 Sitemap stron brandowych uwzględnia wpisy tylko opublikowanych stron
       agencji
 - [ ] 🟠 Canonical musi wskazywać domenę/ścieżkę danej agencji, nie centralny
-      blog EstateFlow
+      blog PodAdresem
 
 Ryzyko:
 
@@ -499,7 +499,7 @@ Ryzyko:
 
 Rekomendacja:
 
-- najpierw blog centralny EstateFlow,
+- najpierw blog centralny PodAdresem,
 - potem blog agencji tylko dla planów płatnych,
 - na starcie blog agencji z limitem publikacji i ręcznym review SEO.
 
@@ -683,7 +683,7 @@ canonicalami, schema i sitemapą.
     description, image, datami, autorem i publisherem.
 - [x] 🔴 Dodać schema `BreadcrumbList`
   - Wykonano: 2026-06-03 — dodano JSON-LD breadcrumbs:
-    EstateFlow → Blog → tytuł wpisu.
+    PodAdresem → Blog → tytuł wpisu.
 - [x] 🔴 Dodać opublikowane wpisy do `apps/web/src/app/sitemap.ts`
   - Wykonano: 2026-06-03 — sitemap zawiera `/blog` i opublikowane wpisy z
     `fetchPublicBlogSitemapEntries()`. Pobieranie ofert i bloga używa
@@ -982,7 +982,7 @@ nie intuicji.
 ### Sprint 7 — Blogi agencji
 
 Cel sprintu: rozszerzyć mechanizm bloga na brandowe strony biur, ale dopiero po
-stabilnym uruchomieniu bloga centralnego EstateFlow.
+stabilnym uruchomieniu bloga centralnego PodAdresem.
 
 - [ ] 🟡 Podjąć decyzję, czy rozszerzamy `BlogPost` o `agencyId`, czy tworzymy
       osobne `AgencyBlogPost`

@@ -5,7 +5,8 @@ import { randomBytes } from 'crypto';
 
 export const ACCESS_TOKEN_COOKIE = 'accessToken';
 export const REFRESH_TOKEN_COOKIE = 'refreshToken';
-export const CSRF_TOKEN_COOKIE = 'estateflow.csrf-token';
+export const CSRF_TOKEN_COOKIE = 'podadresem.csrf-token';
+export const LEGACY_CSRF_TOKEN_COOKIE = 'estateflow.csrf-token';
 export const CSRF_TOKEN_HEADER = 'x-csrf-token';
 
 const DEFAULT_ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000;
@@ -73,6 +74,10 @@ export function clearCsrfTokenCookie(
 ): void {
   response.clearCookie(
     CSRF_TOKEN_COOKIE,
+    buildReadableCookieOptions(configService),
+  );
+  response.clearCookie(
+    LEGACY_CSRF_TOKEN_COOKIE,
     buildReadableCookieOptions(configService),
   );
 }

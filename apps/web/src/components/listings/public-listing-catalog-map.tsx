@@ -137,7 +137,7 @@ export function PublicListingCatalogMap({
               : getMarkerTitle(firstMarker),
         })
         .bindPopup(popupContainer, {
-          className: 'estateflow-map-popup',
+          className: 'podadresem-map-popup',
           maxWidth: 280,
         })
         .addTo(markerLayer);
@@ -170,7 +170,7 @@ export function PublicListingCatalogMap({
 
     map.dragging.disable();
     map.doubleClickZoom.disable();
-    map.getContainer().classList.add('estateflow-map-is-drawing');
+    map.getContainer().classList.add('podadresem-map-is-drawing');
 
     const handleMouseDown = (event: Leaflet.LeafletMouseEvent) => {
       dragStartRef.current = event.latlng;
@@ -226,7 +226,7 @@ export function PublicListingCatalogMap({
       map.off('mouseup', handleMouseUp);
       map.dragging.enable();
       map.doubleClickZoom.enable();
-      map.getContainer().classList.remove('estateflow-map-is-drawing');
+      map.getContainer().classList.remove('podadresem-map-is-drawing');
       dragStartRef.current = null;
     };
   }, [isDrawingArea, isMapReady]);
@@ -450,7 +450,7 @@ function createMarkerIcon(
 
   return leaflet.divIcon({
     className: '',
-    html: `<span class="estateflow-map-marker ${isExact ? 'is-exact' : 'is-approximate'}">${countLabel}</span>`,
+    html: `<span class="podadresem-map-marker ${isExact ? 'is-exact' : 'is-approximate'}">${countLabel}</span>`,
     iconSize: [34, 34],
     iconAnchor: [17, 17],
     popupAnchor: [0, -18],
@@ -503,9 +503,9 @@ function MapListingPopup({
   const hasMultipleListings = markers.length > 1;
 
   return (
-    <article className="estateflow-map-popup-card">
+    <article className="podadresem-map-popup-card">
       {hasMultipleListings ? (
-        <div className="estateflow-map-popup-switcher">
+        <div className="podadresem-map-popup-switcher">
           <button
             type="button"
             aria-label="Poprzednia oferta w tym punkcie"
@@ -538,13 +538,13 @@ function MapListingPopup({
         className="h-28"
         compact
       />
-      <div className="estateflow-map-popup-body">
-        <p className="estateflow-map-popup-price">{price}</p>
+      <div className="podadresem-map-popup-body">
+        <p className="podadresem-map-popup-price">{price}</p>
         <h3>{marker.title}</h3>
         {location ? (
-          <p className="estateflow-map-popup-location">{location}</p>
+          <p className="podadresem-map-popup-location">{location}</p>
         ) : null}
-        <p className="estateflow-map-popup-precision">{precisionLabel}</p>
+        <p className="podadresem-map-popup-precision">{precisionLabel}</p>
         <a href={`/oferty/${encodeURIComponent(marker.slug)}`}>
           Zobacz ofertę
         </a>

@@ -1,6 +1,6 @@
-# EstateFlow — AI Development Guide
+# PodAdresem — AI Development Guide
 
-> Ten dokument służy jako instrukcja dla AI asystentów kodowania (Copilot, Cursor, Claude, Gemini, itp.), aby konsekwentnie implementowały UI EstateFlow zgodnie z wybranym design systemem.
+> Ten dokument służy jako instrukcja dla AI asystentów kodowania (Copilot, Cursor, Claude, Gemini, itp.), aby konsekwentnie implementowały UI PodAdresem zgodnie z wybranym design systemem.
 
 ## ⚡ Quick Reference
 

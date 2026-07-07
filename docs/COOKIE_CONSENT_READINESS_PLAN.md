@@ -4,7 +4,7 @@ Data utworzenia: 2026-06-10
 
 ## Cel
 
-Przygotować EstateFlow do produkcyjnego uruchomienia pod kątem cookies, browser storage, zgód na analitykę i dokumentacji prywatnościowej.
+Przygotować PodAdresem do produkcyjnego uruchomienia pod kątem cookies, browser storage, zgód na analitykę i dokumentacji prywatnościowej.
 
 Sprint ma doprowadzić aplikację do stanu, w którym:
 
@@ -425,7 +425,7 @@ Zakres:
 Polityka cookies powinna opisać:
 
 - czym są cookies, `localStorage` i `sessionStorage`,
-- jakie kategorie stosuje EstateFlow,
+- jakie kategorie stosuje PodAdresem,
 - które mechanizmy są niezbędne,
 - które są funkcjonalne,
 - które są analityczne,

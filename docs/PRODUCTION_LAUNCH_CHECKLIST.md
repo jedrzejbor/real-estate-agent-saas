@@ -21,12 +21,12 @@
 > **Decyzja (3.06.2026):** VPS Linux na **home.pl**, min. 4 GB RAM / 2 vCPU / 40 GB SSD, system Ubuntu 22.04 LTS.
 
 - [ ] 🔴 Wykupić VPS na home.pl (min. 4 GB RAM, Ubuntu 22.04 LTS)
-- [ ] 🔴 Wykupić domenę produkcyjną na home.pl (np. `estateflow.pl`) lub przenieść z innego rejestratora
+- [ ] 🔴 Wykupić domenę produkcyjną na home.pl (np. `podadresem.pl`) lub przenieść z innego rejestratora
 - [ ] 🔴 Skonfigurować DNS w panelu home.pl: A record → IP serwera, MX → skrzynki email
 - [ ] 🔴 Certyfikat SSL/TLS — Certbot + Let's Encrypt (bezpłatny), odnawiany automatycznie
 - [ ] 🔴 Nginx jako reverse proxy (port 80/443 → kontenery Docker na portach 3000/4000)
 - [ ] 🟠 Cloudflare przed domeną — darmowy CDN, DDoS protection, cache statycznych plików
-- [ ] 🟡 Subdomena `api.estateflow.pl` oddzielona od frontendu w konfiguracji Nginx
+- [ ] 🟡 Subdomena `api.podadresem.pl` oddzielona od frontendu w konfiguracji Nginx
 - [ ] 🟡 Subdomena `mailpit` → zablokować w prod (usunąć kontener mailpit z `docker-compose.prod.yml`)
 
 ### Docker i deployment
@@ -36,7 +36,7 @@
 - [ ] 🔴 Skonfigurować `docker-compose.prod.yml` — bez kontenera `mailpit`, bez lokalnych `volumes` na upload
 - [ ] 🔴 Plik `.env.production` stworzony bezpośrednio na serwerze — NIE commitować do gita
 - [ ] 🔴 Zmienić `NODE_ENV=production` w kontenerach API i Web
-- [ ] 🔴 Skonfigurować Nginx (`/etc/nginx/sites-available/estateflow`) z proxy do kontenerów
+- [ ] 🔴 Skonfigurować Nginx (`/etc/nginx/sites-available/podadresem`) z proxy do kontenerów
 - [ ] 🟠 Skrypt deploy: `git pull && docker compose -f docker-compose.prod.yml up --build -d`
 - [ ] 🟠 CI/CD pipeline (GitHub Actions) — automatyczny deploy na VPS po push do `main` przez SSH
 - [ ] 🟠 Health check endpoint `/api/health` sprawdzony i monitorowany
@@ -63,19 +63,19 @@
 > **Decyzja:** Cloudflare R2 — brak opłat za transfer, darmowy tier do 10 GB, S3-kompatybilne API, CDN Cloudflare gratis.
 
 - [ ] 🔴 Założyć konto Cloudflare i aktywować R2 (free tier: 10 GB storage, 1M operacji/mies.)
-- [ ] 🔴 Stworzyć bucket `estateflow-uploads` w R2
+- [ ] 🔴 Stworzyć bucket `podadresem-uploads` w R2
 - [ ] 🔴 Wygenerować R2 API token (Access Key + Secret Key)
 - [ ] 🔴 Skonfigurować zmienne w `.env.production`:
   ```env
   STORAGE_DRIVER=s3
   S3_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
-  S3_BUCKET=estateflow-uploads
+  S3_BUCKET=podadresem-uploads
   S3_REGION=auto
   S3_ACCESS_KEY=<r2-access-key>
   S3_SECRET_KEY=<r2-secret-key>
-  S3_PUBLIC_URL=https://cdn.estateflow.pl
+  S3_PUBLIC_URL=https://cdn.podadresem.pl
   ```
-- [ ] 🔴 Podpiąć domenę `cdn.estateflow.pl` pod R2 bucket w Cloudflare
+- [ ] 🔴 Podpiąć domenę `cdn.podadresem.pl` pod R2 bucket w Cloudflare
 - [ ] 🟠 Automatyczne czyszczenie tymczasowych zdjęć z niepotwierdzonych submissionów (lifecycle rule w R2)
 
 ---
@@ -90,10 +90,10 @@
 - [ ] 🔴 Skonfigurować `EMAIL_DRIVER=smtp` zamiast log-providera
 - [ ] 🔴 Przetestować wysyłkę emaili weryfikacyjnych i powiadomień o zapytaniach
 - [ ] 🔴 Skonfigurować skrzynki:
-  - `support@estateflow.pl` — obsługa klientów
-  - `abuse@estateflow.pl` — zgłoszenia naruszeń
-  - `legal@estateflow.pl` — sprawy prawne / RODO
-  - `noreply@estateflow.pl` — emaile systemowe
+  - `support@podadresem.pl` — obsługa klientów
+  - `abuse@podadresem.pl` — zgłoszenia naruszeń
+  - `legal@podadresem.pl` — sprawy prawne / RODO
+  - `noreply@podadresem.pl` — emaile systemowe
 - [ ] 🟠 Szablony emaili w HTML (aktualnie plain text)
 - [ ] 🟡 Bounce handling i unsubscribe dla marketingowych emaili
 
@@ -250,7 +250,7 @@
 - [ ] 🔴 Procedura obsługi żądań RODO (usunięcie danych, dostęp, sprostowanie — SLA 30 dni)
 - [ ] 🟠 Gotowe odpowiedzi na najczęstsze pytania support (FAQ lub baza wiedzy)
 - [ ] 🟠 Kanał wewnętrzny dla błędów/alertów (Slack, Discord lub email)
-- [ ] 🟡 Status page (np. `status.estateflow.pl`) — BetterStack oferuje za darmo
+- [ ] 🟡 Status page (np. `status.podadresem.pl`) — BetterStack oferuje za darmo
 
 ---
 
@@ -298,13 +298,13 @@ Krok 6 — Monetyzacja (po launch)
 
 ## 12. Zmienne środowiskowe do ustawienia na produkcji
 
-> Plik `.env.production` tworzony **bezpośrednio na VPS** (`/opt/estateflow/.env.production`), nigdy nie commitowany do gita.
+> Plik `.env.production` tworzony **bezpośrednio na VPS** (`/opt/podadresem/.env.production`), nigdy nie commitowany do gita.
 
 ```env
 # App
 NODE_ENV=production
-FRONTEND_URL=https://estateflow.pl
-API_URL=https://api.estateflow.pl
+FRONTEND_URL=https://podadresem.pl
+API_URL=https://api.podadresem.pl
 
 # Database (PostgreSQL w kontenerze na tym samym VPS)
 DATABASE_HOST=db
@@ -324,19 +324,19 @@ SMTP_HOST=smtp.resend.com
 SMTP_PORT=465
 SMTP_USER=resend
 SMTP_PASS=<resend-api-key>
-EMAIL_FROM=noreply@estateflow.pl
+EMAIL_FROM=noreply@podadresem.pl
 
 # Storage — Cloudflare R2
 STORAGE_DRIVER=s3
 S3_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
-S3_BUCKET=estateflow-uploads
+S3_BUCKET=podadresem-uploads
 S3_REGION=auto
 S3_ACCESS_KEY=<r2-access-key>
 S3_SECRET_KEY=<r2-secret-key>
-S3_PUBLIC_URL=https://cdn.estateflow.pl
+S3_PUBLIC_URL=https://cdn.podadresem.pl
 
 # CORS
-CORS_ORIGIN=https://estateflow.pl
+CORS_ORIGIN=https://podadresem.pl
 
 # Monitoring (Sentry — free tier)
 SENTRY_DSN=<dsn>
@@ -345,20 +345,20 @@ SENTRY_DSN=<dsn>
 ## 13. Konfiguracja Nginx na VPS (przykład)
 
 ```nginx
-# /etc/nginx/sites-available/estateflow
+# /etc/nginx/sites-available/podadresem
 
 server {
     listen 80;
-    server_name estateflow.pl www.estateflow.pl;
+    server_name podadresem.pl www.podadresem.pl;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl;
-    server_name estateflow.pl www.estateflow.pl;
+    server_name podadresem.pl www.podadresem.pl;
 
-    ssl_certificate /etc/letsencrypt/live/estateflow.pl/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/estateflow.pl/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/podadresem.pl/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/podadresem.pl/privkey.pem;
 
     location / {
         proxy_pass http://localhost:3000;
@@ -369,10 +369,10 @@ server {
 
 server {
     listen 443 ssl;
-    server_name api.estateflow.pl;
+    server_name api.podadresem.pl;
 
-    ssl_certificate /etc/letsencrypt/live/api.estateflow.pl/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.estateflow.pl/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/api.podadresem.pl/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.podadresem.pl/privkey.pem;
 
     location / {
         proxy_pass http://localhost:4000;
@@ -389,7 +389,7 @@ server {
 apt update && apt install -y docker.io docker-compose-plugin nginx certbot python3-certbot-nginx
 
 # 2. Klon repo
-mkdir -p /opt/estateflow && cd /opt/estateflow
+mkdir -p /opt/podadresem && cd /opt/podadresem
 git clone https://github.com/jedrzejbor/real-estate-agent-saas.git .
 
 # 3. Stwórz .env.production (uzupełnij wartości)
@@ -406,7 +406,7 @@ docker exec real-estate-api pnpm --filter api migration:run
 docker exec real-estate-api pnpm --filter api import:locations:prng --source=prng
 
 # 7. SSL
-certbot --nginx -d estateflow.pl -d www.estateflow.pl -d api.estateflow.pl
+certbot --nginx -d podadresem.pl -d www.podadresem.pl -d api.podadresem.pl
 
 # 8. Nginx
 nginx -t && systemctl reload nginx

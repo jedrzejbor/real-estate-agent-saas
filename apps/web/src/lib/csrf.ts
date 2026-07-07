@@ -1,4 +1,5 @@
-const CSRF_TOKEN_COOKIE = 'estateflow.csrf-token';
+const CSRF_TOKEN_COOKIE = 'podadresem.csrf-token';
+const LEGACY_CSRF_TOKEN_COOKIE = 'estateflow.csrf-token';
 const CSRF_TOKEN_HEADER = 'x-csrf-token';
 
 const SERVER_API_BASE_URL =
@@ -31,7 +32,8 @@ export async function appendCsrfHeader(
 }
 
 async function ensureCsrfToken(): Promise<string> {
-  const existingToken = readCookie(CSRF_TOKEN_COOKIE);
+  const existingToken =
+    readCookie(CSRF_TOKEN_COOKIE) ?? readCookie(LEGACY_CSRF_TOKEN_COOKIE);
   if (existingToken) {
     return existingToken;
   }
@@ -54,7 +56,8 @@ async function ensureCsrfToken(): Promise<string> {
           return body.token;
         }
 
-        const cookieToken = readCookie(CSRF_TOKEN_COOKIE);
+        const cookieToken =
+          readCookie(CSRF_TOKEN_COOKIE) ?? readCookie(LEGACY_CSRF_TOKEN_COOKIE);
         if (cookieToken) {
           return cookieToken;
         }

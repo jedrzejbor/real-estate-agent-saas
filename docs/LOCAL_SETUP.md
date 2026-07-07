@@ -1,4 +1,4 @@
-# EstateFlow — Instrukcja uruchomienia lokalnego
+# PodAdresem — Instrukcja uruchomienia lokalnego
 
 > Przewodnik krok po kroku do uruchomienia pełnego środowiska dev (frontend + backend + baza danych) na macOS.
 
@@ -239,7 +239,7 @@ Kliknij prawym przyciskiem na **Servers** → **Register** → **Server...**
 
 | Pole     | Wartość            |
 | -------- | ------------------ |
-| **Name** | `EstateFlow Local` |
+| **Name** | `PodAdresem Local` |
 
 ### 4. Zakładka „Connection"
 
@@ -256,7 +256,7 @@ Kliknij prawym przyciskiem na **Servers** → **Register** → **Server...**
 
 Powinieneś zobaczyć:
 
-- **Servers** → **EstateFlow Local** → **Databases** → **real_estate_saas**
+- **Servers** → **PodAdresem Local** → **Databases** → **real_estate_saas**
 
 > **Uwaga:** TypeORM z opcją `synchronize: true` (w trybie dev) automatycznie tworzy tabele na podstawie entity. Na razie baza będzie pusta — tabele pojawią się gdy zostaną zaimplementowane entity (User, Listing itd.).
 
@@ -278,7 +278,7 @@ Otwórz **http://localhost:3000** w przeglądarce — powinna załadować się s
 
 ### Baza danych
 
-W pgAdmin 4 → **EstateFlow Local** → **Databases** → **real_estate_saas** → kliknij prawym → **Query Tool** → wpisz:
+W pgAdmin 4 → **PodAdresem Local** → **Databases** → **real_estate_saas** → kliknij prawym → **Query Tool** → wpisz:
 
 ```sql
 SELECT version();
