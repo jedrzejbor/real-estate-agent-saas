@@ -137,7 +137,7 @@ function buildService(submission: PublicListingSubmission) {
     send: jest.fn().mockResolvedValue(undefined),
   };
   const configService = {
-    get: jest.fn().mockReturnValue('https://estateflow.test'),
+    get: jest.fn().mockReturnValue('https://podadresem.test'),
   };
   const dataSource = {
     transaction: jest.fn(async (callback: (manager: unknown) => unknown) =>
@@ -229,7 +229,7 @@ describe('PublicListingSubmissionsService admin moderation', () => {
         to: submission.email,
         subject: 'Twoje ogłoszenie zostało opublikowane',
         text: expect.stringContaining(
-          'https://estateflow.test/oferty/mieszkanie-testowe-warszawa',
+          'https://podadresem.test/oferty/mieszkanie-testowe-warszawa',
         ),
       }),
     );
@@ -295,7 +295,7 @@ describe('PublicListingSubmissionsService admin moderation', () => {
     expect(emailService.send).toHaveBeenCalledWith(
       expect.objectContaining({
         text: expect.stringContaining(
-          'Możesz je poprawić w panelu właściciela i wysłać ponownie do weryfikacji: https://estateflow.test/seller',
+          'Możesz je poprawić w panelu właściciela i wysłać ponownie do weryfikacji: https://podadresem.test/seller',
         ),
       }),
     );
@@ -411,7 +411,7 @@ describe('PublicListingSubmissionsService admin moderation', () => {
         },
         images: [
           {
-            url: 'https://estateflow.test/uploads/photo.webp',
+            url: 'https://podadresem.test/uploads/photo.webp',
             altText: 'Salon',
             order: 0,
           },
@@ -524,7 +524,7 @@ describe('PublicListingSubmissionsService admin moderation', () => {
         to: submission.email,
         subject: 'Twoje ogłoszenie wygaśnie za 7 dni',
         text: expect.stringContaining(
-          'Odnów je tutaj: https://estateflow.test/seller/listings/submission-1',
+          'Odnów je tutaj: https://podadresem.test/seller/listings/submission-1',
         ),
       }),
     );

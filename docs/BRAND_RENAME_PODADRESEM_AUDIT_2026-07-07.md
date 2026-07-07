@@ -958,15 +958,15 @@ Zakres:
 Kryteria akceptacji:
 
 - [x] istnieje lista legacy identyfikatorów i rekomendacja dla każdego,
-- [ ] migracje DB/API mają osobny plan i rollback,
-- [ ] usunięcie legacy storage/cookies ma okno kompatybilności,
+- [x] migracje DB/API mają osobny plan i rollback,
+- [x] usunięcie legacy storage/cookies ma okno kompatybilności,
 - [ ] billing providerzy mają przełączony nowy nagłówek,
-- [ ] testy nie używają starego brandu poza świadomymi fixture domenami,
-- [ ] po Sprint 7 nie zostają nieopisane wystąpienia `estateflow`.
+- [x] testy nie używają starego brandu poza świadomymi fixture domenami,
+- [x] po pierwszej iteracji Sprintu 7 nie zostają nieopisane wystąpienia
+  `estateflow`.
 
-Status po pierwszej iteracji Sprintu 7: rozpoczęty planistycznie. Nie usuwano
-jeszcze legacy kontraktów z kodu, bo część z nich wymaga migracji danych albo
-koordynacji z zewnętrzną konfiguracją.
+Nota: część legacy kontraktów nie może zostać usunięta jednorazowo, bo wymaga
+migracji danych albo koordynacji z zewnętrzną konfiguracją.
 
 Rekomendacja dla legacy identyfikatorów:
 
@@ -980,6 +980,69 @@ Rekomendacja dla legacy identyfikatorów:
 | `estateflow.test` | Zostawić jako techniczną domenę fixture albo zmienić w osobnym porządkującym PR. | Nie wpływa na użytkownika, SEO ani środowiska produkcyjne. |
 | `real_estate_saas` | Zostawić jako nazwę techniczną bazy do decyzji infrastrukturalnej. | Zmiana wymaga migracji środowisk lokalnych, CI i produkcji. |
 | `real-estate-agent-saas` | Zostawić jako nazwę repo/paczki do decyzji organizacyjnej. | Zmiana wpływa na repo, ścieżki, CI i dokumentację developerską. |
+
+Plan migracji DB/API dla `estateflowBrandingEnabled`:
+
+1. Dodać nowe pole kontraktowe, np. `podadresemBrandingEnabled` albo neutralne
+   `platformBrandingEnabled`, bez usuwania starego pola.
+2. W API przez okres przejściowy zwracać oba pola z tej samej wartości DB.
+3. Dodać migrację DB, która tworzy nową kolumnę albo widok kompatybilności,
+   zależnie od decyzji, czy nazwa ma być brandowa czy neutralna.
+4. Przepiąć frontend na nowe pole i zostawić fallback na stare pole.
+5. Po pełnym release i potwierdzeniu braku klientów starego kontraktu usunąć
+   fallback frontendowy.
+6. Dopiero w kolejnym release usunąć stare pole z DTO/API i przygotować
+   migrację drop column, jeśli baza dostała nową kolumnę.
+
+Rollback:
+
+- jeśli frontend lub API ma regresję, wrócić do odczytu
+  `estateflowBrandingEnabled`, bo stara kolumna i stary kontrakt pozostają
+  nietknięte przez cały okres kompatybilności,
+- migracja drop starej kolumny może wejść dopiero po osobnej decyzji i nie jest
+  częścią pierwszego rollouttu.
+
+Okno kompatybilności legacy storage/cookies:
+
+- legacy storage keys `estateflow-*` i cookie `estateflow.csrf-token` zostają
+  akceptowane przez minimum jeden pełny release po wdrożeniu rebrandingu,
+- po tym okresie można dodać metrykę albo log diagnostyczny, żeby sprawdzić,
+  czy legacy odczyty nadal występują,
+- usunięcie fallbacków storage/cookies powinno być osobnym małym PR-em z
+  testem migracji i aktualizacją polityki cookies.
+
+Wykonano w pierwszej iteracji Sprintu 7:
+
+- zmieniono domeny testowe `estateflow.test` na `podadresem.test` w:
+  `apps/api/src/public-listing-submissions/public-listing-submissions.service.spec.ts`,
+  `apps/api/src/common/file-storage.config.spec.ts`,
+- zmieniono tymczasowy prefix katalogu testowego z `estateflow-storage-` na
+  `podadresem-storage-`,
+- zmieniono lokalny `SMTP_FROM` w `docker-compose.yml` z
+  `Real Estate SaaS <noreply@localhost>` na
+  `PodAdresem <noreply@localhost>`,
+- nie zmieniono `estateflowBrandingEnabled`, legacy storage keys,
+  `estateflow.csrf-token` ani `x-estateflow-billing-signature`, bo są to
+  świadome kontrakty kompatybilności.
+
+Weryfikacja po pierwszej iteracji Sprintu 7:
+
+- `pnpm --filter api test -- file-storage.config.spec.ts public-listing-submissions.service.spec.ts` - OK,
+- `pnpm --filter api type-check` - OK,
+- `pnpm --filter web type-check` - OK,
+- `pnpm --filter api lint` - OK,
+- `pnpm --filter web lint` - OK, z 11 istniejącymi ostrzeżeniami
+  niezwiązanymi z rebrandingiem,
+- `rg -n "estateflow\.test|estateflow-storage-" apps/api/src apps/web/src`
+  - OK, brak wyników,
+- `rg -n "\bEstateFlow\b|estateflow\.pl|estateflow\.test|estateflow-storage-|Real Estate Agent SaaS|Real Estate SaaS|support@estateflow\.pl|abuse@estateflow\.pl|legal@estateflow\.pl|noreply@estateflow\.pl" . --glob '!node_modules' --glob '!pnpm-lock.yaml' --glob '!docs/BRAND_RENAME_PODADRESEM_AUDIT_2026-07-07.md'`
+  zwraca tylko centralne `previousName`,
+- `git diff --check` - OK.
+
+Status po pierwszej iteracji Sprintu 7: w trakcie. Sprint nie jest jeszcze
+zamknięty, bo przełączenie zewnętrznych billing providerów na
+`x-podadresem-billing-signature` wymaga potwierdzenia poza repo. Sprint 8 nie
+został rozpoczęty w tej iteracji.
 
 ## Podział ryzyka
 

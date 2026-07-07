@@ -15,7 +15,7 @@ describe('file-storage config', () => {
     const config = getFileStorageConfig(
       {
         NODE_ENV: 'test',
-        API_PUBLIC_URL: 'https://api.estateflow.test/',
+        API_PUBLIC_URL: 'https://api.podadresem.test/',
       },
       '/app',
     );
@@ -25,7 +25,7 @@ describe('file-storage config', () => {
       nodeEnv: 'test',
       localPublicRoot: '/app/uploads',
       localPrivateRoot: '/app/private-uploads',
-      publicBaseUrl: 'https://api.estateflow.test/',
+      publicBaseUrl: 'https://api.podadresem.test/',
       allowLocalInProduction: false,
     });
   });
@@ -34,9 +34,9 @@ describe('file-storage config', () => {
     expect(
       buildPublicUploadUrl('listings', 'photo.webp', {
         NODE_ENV: 'test',
-        FILE_STORAGE_PUBLIC_BASE_URL: 'https://cdn.estateflow.test/',
+        FILE_STORAGE_PUBLIC_BASE_URL: 'https://cdn.podadresem.test/',
       }),
-    ).toBe('https://cdn.estateflow.test/uploads/listings/photo.webp');
+    ).toBe('https://cdn.podadresem.test/uploads/listings/photo.webp');
   });
 
   it('resolves local public and private roots from explicit env values', () => {
@@ -90,7 +90,7 @@ describe('file-storage config', () => {
   });
 
   it('registers the local public upload directory as static assets', () => {
-    const root = mkdtempSync(join(tmpdir(), 'estateflow-storage-'));
+    const root = mkdtempSync(join(tmpdir(), 'podadresem-storage-'));
     const app = {
       useStaticAssets: jest.fn(),
     };
