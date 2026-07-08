@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { InlineSelect } from '@/components/ui/inline-select';
@@ -34,6 +35,11 @@ export function ClientForm({ client, initialValues }: ClientFormProps) {
   const { user } = useAuth();
   const { success: showSuccessToast } = useToast();
   const isEdit = !!client;
+  const [preferredCity, setPreferredCity] = React.useState(
+    client?.preference?.preferredCity ??
+      initialValues?.preference?.preferredCity ??
+      '',
+  );
 
   const clientsUsage = user?.usage.clients ?? 0;
   const clientsLimit = user?.entitlements.limits.clients ?? null;
@@ -310,11 +316,14 @@ export function ClientForm({ client, initialValues }: ClientFormProps) {
             name="preference.preferredCity"
             error={getFieldError('preference.preferredCity')}
           >
-            <Input
+            <CityAutocomplete
               name="preference.preferredCity"
-              defaultValue={client?.preference?.preferredCity ?? ''}
+              value={preferredCity}
               placeholder="np. Warszawa"
-              className="h-10 rounded-xl"
+              error={getFieldError('preference.preferredCity') ?? undefined}
+              inputClassName="h-10 rounded-xl"
+              onValueChange={setPreferredCity}
+              onLocationSelect={(location) => setPreferredCity(location.name)}
             />
           </FormField>
 
