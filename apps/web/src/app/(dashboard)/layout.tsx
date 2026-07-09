@@ -86,7 +86,7 @@ export default function DashboardLayout({
                 source="dashboard_global_limit_state"
               />
             ) : null}
-            {isAdminRoute ? <AdminModeBanner pathname={pathname} /> : null}
+            {isAdminRoute ? <AdminModeBanner /> : null}
             {children}
           </div>
         </main>
@@ -96,20 +96,19 @@ export default function DashboardLayout({
   );
 }
 
-function AdminModeBanner({ pathname }: { pathname: string }) {
+function AdminModeBanner() {
   return (
-    <div className="flex flex-col gap-2 border-y border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+    <div className="border-y border-status-warning/30 bg-status-warning-bg px-4 py-3 text-sm text-foreground">
       <div className="flex items-start gap-2">
-        <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+        <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" />
         <div>
           <p className="font-semibold">Tryb administratora</p>
-          <p className="text-xs leading-5 text-amber-800">
+          <p className="text-xs leading-5 text-muted-foreground">
             Zmiany w tym obszarze mogą wpływać na plany, limity, widoczność
             publiczną albo dane użytkowników.
           </p>
         </div>
       </div>
-      <span className="text-xs font-medium text-amber-800">{pathname}</span>
     </div>
   );
 }
