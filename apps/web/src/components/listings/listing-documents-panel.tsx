@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
   Download,
@@ -51,6 +51,7 @@ export function ListingDocumentsPanel({
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [category, setCategory] = useState<ListingDocumentCategory>(
     ListingDocumentCategory.AGENCY_AGREEMENT,
   );
@@ -97,6 +98,9 @@ export function ListingDocumentsPanel({
         displayName: displayName || selectedFile.name,
       });
       setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       setDisplayName('');
       await load();
       onActivityChanged?.();
@@ -264,6 +268,7 @@ export function ListingDocumentsPanel({
             Plik PDF/JPG/PNG
           </span>
           <Input
+            ref={fileInputRef}
             type="file"
             accept="application/pdf,image/jpeg,image/png"
             onChange={(event) =>
