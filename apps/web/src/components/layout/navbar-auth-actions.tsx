@@ -17,7 +17,7 @@ export function NavbarAuthActions() {
       <div className="hidden items-center gap-2 md:flex">
         <Link
           href="/dodaj-oferte"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <PlusCircle className="h-4 w-4" />
           Dodaj ofertę
@@ -48,7 +48,7 @@ export function NavbarAuthActions() {
       <div className="flex items-center gap-2">
         <Link
           href="/dodaj-oferte"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <PlusCircle className="h-4 w-4" />
           Dodaj ofertę
