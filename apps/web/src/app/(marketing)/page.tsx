@@ -198,7 +198,7 @@ export default function Home() {
                   href="/register"
                   className="inline-flex items-center justify-center rounded-full border border-border bg-card px-7 py-3 text-sm font-semibold text-foreground transition-colors hover:border-border hover:bg-muted"
                 >
-                  Darmowe konto agenta
+                  Otwórz konto agenta
                 </Link>
               </div>
             </div>

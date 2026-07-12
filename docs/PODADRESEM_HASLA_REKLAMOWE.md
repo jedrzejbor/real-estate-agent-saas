@@ -263,3 +263,173 @@ Główna obietnica marki:
 - Dla kupujących i najemców akcentować: wygodne szukanie, konkretne informacje, szybki kontakt.
 - Unikać obietnic typu "sprzedasz szybciej na pewno" albo "gwarantujemy klienta". Lepiej mówić o lepszym procesie i większej kontroli.
 
+## Rekomendowane użycie na widokach
+
+Ta sekcja wskazuje, które hasła warto realnie wykorzystać w aplikacji. Zasada: hero może mieć mocniejsze hasło, ale formularze i panele powinny pozostać konkretne i zadaniowe.
+
+### Strona główna - hero
+
+Obecny kierunek: platforma dla szukających, właścicieli i agentów.
+
+Rekomendowany H1:
+
+> Nieruchomości pod kontrolą - od oferty do decyzji
+
+Alternatywy:
+
+- Znajdź, dodaj i prowadź nieruchomość PodAdresem
+- Wszystko, co ważne przy nieruchomości, w jednym miejscu
+- Prostsza droga od ogłoszenia do transakcji
+
+Rekomendowany podtytuł:
+
+> Przeglądaj oferty, dodaj własną nieruchomość albo prowadź sprzedaż w panelu dla agentów. PodAdresem porządkuje proces od pierwszego kliknięcia do kolejnego kroku.
+
+CTA:
+
+- Szukaj nieruchomości
+- Dodaj ofertę bez konta
+- Otwórz konto agenta
+
+Uwaga: na stronie głównej nie warto mówić tylko do agentów, bo produkt ma też katalog publiczny i formularz dla właścicieli.
+
+### Strona główna - sekcja publicznego katalogu
+
+Obecny kierunek: lista i mapa ofert.
+
+Rekomendowany nagłówek:
+
+> Znajdź ofertę pod dobrym adresem
+
+Alternatywy:
+
+- Szukaj ofert w prostym, czytelnym katalogu
+- Mniej przewijania, więcej konkretnych ofert
+- Sprawdź oferty, porównaj szczegóły, zapytaj wygodnie
+
+Rekomendowany opis:
+
+> Przeglądaj mieszkania, domy i działki, filtruj po lokalizacji, cenie i parametrach, a potem przejdź prosto do szczegółów wybranej nieruchomości.
+
+CTA:
+
+- Przeglądaj oferty
+- Dodaj swoją ofertę
+
+### Strona `/oferty` - katalog publiczny
+
+Obecny H1 jest dobry zadaniowo: "Znajdź ofertę nieruchomości".
+
+Rekomendacja: zostawić H1 prosty, a hasło użyć w podtytule lub małym tekście nad wynikami.
+
+Propozycja podtytułu:
+
+> Szukaj miejsca, które naprawdę pasuje. Filtruj oferty po lokalizacji, cenie i parametrach, a potem przejdź do szczegółów wybranej nieruchomości.
+
+Alternatywa krótsza:
+
+> Dobry adres zaczyna się od dobrej informacji. Porównuj oferty i pytaj o szczegóły bez zbędnego chaosu.
+
+### Strona `/dodaj-oferte` - formularz publiczny
+
+Obecny H1 jest bardzo użytkowy: "Dodaj ogłoszenie nieruchomości". W formularzu to jest dobre, bo użytkownik musi od razu wiedzieć, co robi.
+
+Rekomendacja: zostawić H1, a pod spodem użyć łagodnego hasła.
+
+Propozycja podtytułu:
+
+> Sprzedajesz lub wynajmujesz? Zacznij PodAdresem. Dodaj podstawowe informacje, zdjęcia i kontakt, a my przeprowadzimy zgłoszenie przez kolejne kroki.
+
+Alternatywy:
+
+- Twoja nieruchomość ma adres. Daj jej też czytelne zgłoszenie.
+- Wystaw nieruchomość prościej i bez chaosu.
+- Dodaj nieruchomość i zobacz, co dalej.
+
+### Navbar
+
+Rekomendacja: nie używać haseł reklamowych. Navbar powinien być krótki i użytkowy.
+
+Zostawić:
+
+- Dodaj ofertę
+- Panel
+- Oferty
+- Cennik
+
+Nie zmieniać na:
+
+- Zacznij PodAdresem
+- Zrób pierwszy krok pod właściwym adresem
+
+Powód: w nawigacji użytkownik szybciej rozumie konkretne akcje niż hasła.
+
+### Widok po zalogowaniu - dashboard agenta
+
+Rekomendowane użycie w pustych stanach, onboardingach i tutorialach.
+
+Hasła:
+
+- Mniej przełączania. Więcej sprzedawania.
+- Każda oferta, każdy klient, każdy kolejny krok - PodAdresem.
+- Dobra oferta potrzebuje dobrego procesu.
+- Nie trać leadów przez chaos w obsłudze.
+
+Przykład pustego stanu ofert:
+
+> Dobra oferta potrzebuje dobrego procesu. Dodaj pierwszą nieruchomość i prowadź jej status, dokumenty oraz klientów w jednym miejscu.
+
+Przykład pustego stanu klientów:
+
+> Każdy kontakt może być początkiem transakcji. Dodaj klienta i zapisuj preferencje, aktywność oraz kolejne kroki.
+
+### Strony cenowe i rejestracja
+
+Rekomendowany kierunek: agent i biuro nieruchomości.
+
+Hasła:
+
+- Panel agenta, który pomaga dowozić transakcje.
+- Jeden standard pracy dla całego biura.
+- Mniej administracji, więcej rozmów z klientami.
+- CRM dla agentów, którzy chcą mieć kontrolę.
+
+Przykład nagłówka sekcji:
+
+> Wybierz plan dla sposobu, w jaki pracujesz z nieruchomościami
+
+Przykład opisu:
+
+> Od pojedynczego agenta po zespół biura - PodAdresem pomaga uporządkować oferty, klientów, dokumenty i raporty.
+
+### Blog i artykuły
+
+Rekomendacja: używać marki delikatnie w CTA pod artykułem, nie w każdym nagłówku.
+
+CTA pod artykułem:
+
+> Sprzedajesz, wynajmujesz albo prowadzisz oferty klientów? Zrób pierwszy krok PodAdresem.
+
+Buttony:
+
+- Dodaj ofertę
+- Sprawdź panel agenta
+- Przeglądaj oferty
+
+### Najlepszy zestaw startowy do wdrożenia
+
+Jeśli zmieniać copy w aplikacji, zacząć od tych 5 miejsc:
+
+1. Strona główna hero: wzmocnić H1 i podtytuł.
+2. Sekcja katalogu na stronie głównej: dodać hasło "Znajdź ofertę pod dobrym adresem".
+3. Formularz `/dodaj-oferte`: zostawić H1, poprawić podtytuł na bardziej markowy.
+4. Katalog `/oferty`: dodać bardziej ludzki podtytuł dla klientów.
+5. Puste stany dashboardu: użyć haseł dla agentów, ale tylko jako wsparcie konkretnej akcji.
+
+### Czego nie robić
+
+- Nie zamieniać wszystkich nagłówków na hasła reklamowe.
+- Nie używać "PodAdresem" w każdym zdaniu.
+- Nie obiecywać szybszej sprzedaży jako pewnika.
+- Nie zmieniać etykiet akcji w nawigacji na kreatywne hasła.
+- Nie mieszać w jednym hero komunikatu wyłącznie dla agentów z komunikatem wyłącznie dla kupujących bez jasnej struktury CTA.
