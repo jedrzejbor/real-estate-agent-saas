@@ -110,31 +110,39 @@ chyba że decyzja produktowa zmieni ten zakres.
 
 ## 5. Decyzje produktowe do potwierdzenia
 
-- [ ] `D1` Czy MVP wymaga logowania do dodania oferty do ulubionych?
+- [x] `D1` Czy MVP wymaga logowania do dodania oferty do ulubionych?
   - Rekomendacja: tak, a niezalogowany użytkownik po kliknięciu widzi prompt
     logowania/rejestracji.
-  - Data decyzji:
-  - Decyzja: taka jak rekomendacja 
+  - Data decyzji: 2026-07-12
+  - Decyzja: MVP wymaga logowania. Użytkownik anonimowy widzi prompt
+    logowania/rejestracji z powrotem do aktualnej strony lub wyników
+    wyszukiwania.
 
-- [ ] `D2` Gdzie dokładnie znajduje się "profil użytkownika"?
+- [x] `D2` Gdzie dokładnie znajduje się "profil użytkownika"?
   - Opcja A: nowa zakładka w `dashboard/settings` obok danych konta.
   - Opcja B: osobna trasa `dashboard/profile/favorites`.
   - Opcja C: nowa pozycja nawigacji dashboardu `Ulubione`.
   - Rekomendacja: osobna pozycja w profilu/kontekście konta, ale z URL-em
     możliwym do linkowania, np. `/dashboard/profile/favorites`.
-  - Data decyzji:
-  - Decyzja:taka jak w rekomendacji
+  - Data decyzji: 2026-07-12
+  - Decyzja: implementujemy linkowalną trasę
+    `/dashboard/profile/favorites`. W nawigacji dashboardu funkcja może wejść
+    jako dolna pozycja konta/profilu albo element grupy użytkownika, ale nie
+    powinna być mieszana z prywatnym CRM agenta.
 
-- [ ] `D3` Czy właściciel/agent może dodawać własne oferty do ulubionych?
+- [x] `D3` Czy właściciel/agent może dodawać własne oferty do ulubionych?
   - Rekomendacja: technicznie tak, ale bez specjalnego wyróżniania w MVP.
-  - Data decyzji:
-  - Decyzja:rez moze dodawac do ulubionych, jak w rekomendacji
+  - Data decyzji: 2026-07-12
+  - Decyzja: agent/właściciel może dodać własną ofertę do ulubionych. MVP nie
+    dodaje specjalnego wyróżnika ani blokady dla własnych ofert.
 
-- [ ] `D4` Co pokazać, jeśli ulubiona oferta przestanie być publiczna?
+- [x] `D4` Co pokazać, jeśli ulubiona oferta przestanie być publiczna?
   - Rekomendacja: zostawić rekord ulubienia, ale w UI pokazać uproszczony stan
     "Oferta nie jest już dostępna" i umożliwić usunięcie.
-  - Data decyzji:
-  - Decyzja:tak jak rekomendacja
+  - Data decyzji: 2026-07-12
+  - Decyzja: rekord ulubienia zostaje, ale lista profilu pokazuje stan
+    niedostępności i akcję usunięcia. Publiczny katalog oraz szczegóły nadal
+    pokazują tylko oferty aktywne, opublikowane i niewygasłe.
 
 ---
 
@@ -193,12 +201,27 @@ Alternatywa dla `GET /ids`:
   użytkownika, jeśli request ma ważną sesję/JWT. To zmniejsza liczbę requestów,
   ale wymaga ostrożnego utrzymania cache i prywatnego wariantu odpowiedzi.
 
-Rekomendacja dla MVP:
+Rekomendacja dla MVP po discovery FL-0:
 
-- dodać `isFavorite` do odpowiedzi katalogu, gdy użytkownik jest zalogowany,
-- zachować osobny endpoint `GET /favorite-listings` dla zakładki profilu,
-- dodać lekki helper w serwisie backendowym do masowego sprawdzania ulubionych
-  po `listingIds`.
+- publiczny katalog ofert pozostaje publiczny i cache-friendly,
+- nie zmieniamy `GET /api/listings/public/catalog` w endpoint zależny od
+  prywatnej sesji użytkownika w pierwszej iteracji,
+- stan ulubionych dla widocznych wyników pobieramy osobnym autoryzowanym
+  endpointem `GET /api/favorite-listings/ids?listingIds=...`,
+- zakładka profilu korzysta z `GET /api/favorite-listings`,
+- backendowy serwis ulubionych udostępnia metodę masowego sprawdzania po
+  `listingIds`, aby uniknąć N+1 queries,
+- typ `isFavorite?: boolean` może zostać dodany do frontendowego modelu karty
+  jako stan UI, ale nie musi być częścią publicznego payloadu katalogu w MVP.
+
+Uzasadnienie:
+
+- obecny kontroler katalogu jest oznaczony jako `@Public()`,
+- frontendowe `fetchPublicListingCatalog` używa `skipAuth: true`,
+- w projekcie nie ma jeszcze ustalonego wzorca dla publicznych endpointów z
+  opcjonalnym użytkownikiem,
+- rozdzielenie publicznego katalogu od prywatnego stanu ulubionych zmniejsza
+  ryzyko problemów z cache, hydratacją i wyciekiem danych.
 
 ---
 
@@ -215,39 +238,81 @@ wyszukiwarki ofert.
 
 #### Zadania
 
-- [ ] `FL0.1` Potwierdzić zakres MVP i decyzje z sekcji 5.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+- [x] `FL0.1` Potwierdzić zakres MVP i decyzje z sekcji 5.
+  - Data zakończenia: 2026-07-12
+  - Wykonano: potwierdzono MVP dla użytkowników zalogowanych, trasę
+    `/dashboard/profile/favorites`, możliwość dodawania własnych ofert oraz
+    zachowanie rekordu ulubienia po wycofaniu oferty z publicznego katalogu.
+  - Uwagi / follow-up: anonimowe ulubione i synchronizacja po logowaniu zostają
+    poza MVP.
 
-- [ ] `FL0.2` Sprawdzić obecny kontrakt publicznego katalogu ofert.
+- [x] `FL0.2` Sprawdzić obecny kontrakt publicznego katalogu ofert.
   - Zakres: `apps/api/src/listings`, `apps/web/src/lib/listings.ts`,
     `apps/web/src/components/listings/public-listing-catalog.tsx`.
-  - Data zakończenia:
+  - Data zakończenia: 2026-07-12
   - Wykonano:
-  - Uwagi / follow-up:
+    - backend: `GET /api/listings/public/catalog` jest publiczny i zwraca
+      `PublicListingCatalogResponse` z `data`, `mapMarkers` oraz `meta`,
+    - backend: katalog filtruje oferty do aktywnych, opublikowanych,
+      niewygasłych i posiadających `publicSlug`,
+    - backend: mapper `toPublicCatalogItem` nie ma dziś pola `isFavorite`,
+    - frontend: `fetchPublicListingCatalog` wywołuje katalog z `skipAuth: true`,
+    - frontend: `PublicListingCatalogItem` nie ma pola `isFavorite`,
+    - UI: karta katalogu jest zbudowana wokół linku do szczegółów oferty.
+  - Uwagi / follow-up: dla MVP nie dokładamy prywatnego stanu do publicznego
+    payloadu katalogu. Dodajemy osobny autoryzowany endpoint po `listingIds` i
+    składamy stan w komponencie katalogu.
 
-- [ ] `FL0.3` Zdefiniować docelowe typy TypeScript dla listy ulubionych.
+- [x] `FL0.3` Zdefiniować docelowe typy TypeScript dla listy ulubionych.
   - Przykładowe typy:
     - `FavoriteListingListItem`,
     - `FavoriteListingSummary`,
     - `ToggleFavoriteListingResult`.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-12
+  - Wykonano: ustalono docelowe typy frontendowe i backendowe:
+    - `FavoriteListingSummary`:
+      `id`, `listingId`, `createdAt`, `isAvailable`,
+    - `FavoriteListingListItem`:
+      `id`, `listingId`, `createdAt`, `isAvailable`, `listing`,
+    - `FavoriteListingUnavailableItem`:
+      `id`, `listingId`, `createdAt`, `isAvailable: false`,
+      `unavailableReason`,
+    - `ToggleFavoriteListingResult`:
+      `listingId`, `isFavorite`, `favoriteId?: string`, `createdAt?: string`,
+    - `FavoriteListingIdsResponse`:
+      `listingIds: string[]`.
+  - Uwagi / follow-up: `listing` w `FavoriteListingListItem` powinien używać
+    bezpiecznego publicznego kształtu zgodnego z kartą katalogu, np.
+    `PublicListingCatalogItem`, aby nie dublować formatu oferty.
 
-- [ ] `FL0.4` Ustalić miejsce zakładki profilu i nazwę w nawigacji.
+- [x] `FL0.4` Ustalić miejsce zakładki profilu i nazwę w nawigacji.
   - Proponowana etykieta: `Ulubione`.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-12
+  - Wykonano: ustalono trasę `/dashboard/profile/favorites` i etykietę
+    `Ulubione`. Obecnie `/dashboard/profile/*` trafia do catch-all strony
+    "w trakcie przygotowania", więc Sprint FL-5 powinien dodać konkretną trasę
+    przed catch-all.
+  - Uwagi / follow-up: nawigację najlepiej dodać w `DashboardSidebar` jako
+    element konta/profilu obok `Ustawienia`, nie jako moduł CRM.
 
-- [ ] `FL0.5` Spisać wymagania dostępności UI.
+- [x] `FL0.5` Spisać wymagania dostępności UI.
   - Zakres: `aria-pressed`, czytelny label, stan loading, focus state,
     komunikaty błędu bez przesuwania layoutu.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-12
+  - Wykonano: wymagania dostępności i layoutu dla `FavoriteListingButton`:
+    - przycisk serca jest elementem `button`, nie linkiem,
+    - ma `aria-pressed` i dynamiczny `aria-label`,
+    - ma stabilny rozmiar minimum `44px x 44px`,
+    - stan loading nie zmienia szerokości ani wysokości,
+    - kliknięcie nie uruchamia linku karty oferty,
+    - przycisk w katalogu musi być poza obszarem `PublicListingCatalogResultLink`
+      albo musi jawnie zatrzymywać propagację zdarzenia,
+    - focus ring jest widoczny na desktopie i mobile,
+    - komunikat błędu używa toastu albo stałego slotu, bez przesuwania układu
+      karty,
+    - ikona serca powinna pochodzić z `lucide-react`.
+  - Uwagi / follow-up: w Sprint FL-3 komponent powinien mieć wariant `compact`
+    dla kart i `default` dla szczegółów oferty/profilu.
 
 ### Sprint FL-1 - Backend: model, migracja i serwis domenowy
 
