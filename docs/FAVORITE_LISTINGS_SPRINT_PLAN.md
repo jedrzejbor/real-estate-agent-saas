@@ -325,55 +325,76 @@ katalog ofert.
 
 #### Zadania
 
-- [ ] `FL1.1` Dodać encję `FavoriteListing`.
+- [x] `FL1.1` Dodać encję `FavoriteListing`.
   - Zakres:
     - relacja do `User`,
     - relacja do `Listing`,
     - indeksy,
     - unique constraint `(user_id, listing_id)`.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-12
+  - Wykonano: dodano encję `FavoriteListing` w
+    `apps/api/src/favorite-listings/entities/favorite-listing.entity.ts` z
+    relacjami do `User` i `Listing`, indeksem unikalnym po `userId + listingId`
+    oraz indeksem `userId + createdAt` dla listy profilu.
+  - Uwagi / follow-up: encja jest rejestrowana przez
+    `FavoriteListingsModule`.
 
-- [ ] `FL1.2` Dodać migrację bazy danych.
+- [x] `FL1.2` Dodać migrację bazy danych.
   - Wymagania:
     - tworzy tabelę i indeksy,
     - ma bezpieczny rollback,
     - nie modyfikuje istniejących danych ofert.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-12
+  - Wykonano: dodano migrację
+    `apps/api/migrations/20260712_favorite_listings.sql`, która tworzy tabelę
+    `favorite_listings`, constraint `uq_favorite_listings_user_listing`,
+    indeks `idx_favorite_listings_user_created` i indeks
+    `idx_favorite_listings_listing_id`.
+  - Uwagi / follow-up: projektowe migracje są plikami SQL bez sekcji rollback,
+    więc utrzymano obecny standard repo.
 
-- [ ] `FL1.3` Utworzyć moduł `favorite-listings`.
+- [x] `FL1.3` Utworzyć moduł `favorite-listings`.
   - Zakres:
     - `favorite-listings.module.ts`,
     - `favorite-listings.service.ts`,
     - `favorite-listings.controller.ts`,
     - DTO i mappery odpowiedzi.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-12
+  - Wykonano: dodano moduł `FavoriteListingsModule`, kontroler, serwis, DTO
+    query, typy odpowiedzi i eksport modułu. Moduł został podpięty w
+    `AppModule`.
+  - Uwagi / follow-up: mapper listy profilu zwraca bezpieczny publiczny kształt
+    oferty zgodny z `PublicListingCatalogItem` albo stan niedostępności bez
+    prywatnych danych.
 
-- [ ] `FL1.4` Wydzielić metody serwisowe zamiast logiki w kontrolerze.
+- [x] `FL1.4` Wydzielić metody serwisowe zamiast logiki w kontrolerze.
   - Metody:
     - `findUserFavorites(userId, query)`,
     - `addFavorite(userId, listingId)`,
     - `removeFavorite(userId, listingId)`,
     - `findFavoriteListingIds(userId, listingIds)`.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-12
+  - Wykonano: cała logika biznesowa znajduje się w
+    `FavoriteListingsService`; kontroler jedynie przekazuje `CurrentUser`,
+    parametry i query do serwisu.
+  - Uwagi / follow-up: `addFavorite` i `removeFavorite` są idempotentne, a
+    `addFavorite` obsługuje race condition na unikalnym constraincie Postgresa.
 
-- [ ] `FL1.5` Dodać walidację publiczności oferty.
+- [x] `FL1.5` Dodać walidację publiczności oferty.
   - Wymagania:
     - można dodać tylko ofertę publicznie opublikowaną,
     - endpoint profilu nie ujawnia pól prywatnych,
     - brak oferty zwraca kontrolowany błąd.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-12
+  - Wykonano: `addFavorite` akceptuje tylko oferty aktywne, opublikowane,
+    posiadające `publicSlug`, `publishedAt` i niewygasłe. Brak takiej oferty
+    zwraca `NotFoundException`. Lista profilu nie pokazuje prywatnych pól i dla
+    niepublicznych ofert zwraca `isAvailable: false`.
+  - Uwagi / follow-up: dokładny `mapPoint` nie jest odtwarzany w module
+    ulubionych w FL-1; lista profilu go nie potrzebuje. Jeśli UI będzie tego
+    wymagać, warto wydzielić wspólny publiczny mapper z `ListingsService`.
 
-- [ ] `FL1.6` Dodać testy jednostkowe serwisu.
+- [x] `FL1.6` Dodać testy jednostkowe serwisu.
   - Przypadki:
     - dodanie nowej ulubionej oferty,
     - ponowne dodanie tej samej oferty,
@@ -381,27 +402,34 @@ katalog ofert.
     - niepubliczna oferta,
     - brak autoryzacji,
     - lista użytkownika nie pokazuje cudzych ulubionych.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-12
+  - Wykonano: dodano `favorite-listings.service.spec.ts` z testami dodania,
+    ponownego dodania tej samej oferty, odrzucenia niepublicznej oferty,
+    idempotentnego usunięcia, pobierania ID ulubionych dla bieżącego użytkownika
+    oraz stanu niedostępnej oferty na liście profilu.
+  - Uwagi / follow-up: brak autoryzacji jest wymuszany globalnym
+    `JwtAuthGuard`, więc w FL-1 nie dodano osobnego testu kontrolera dla 401.
+    Test E2E autoryzacji powinien wejść w Sprint FL-6.
 
-### Sprint FL-2 - Backend: integracja z publicznym katalogiem
+### Sprint FL-2 - Backend: integracja stanu ulubionych dla katalogu
 
 **Cel sprintu:**
-Pokazać stan ulubienia w wynikach wyszukiwania bez kosztownego odpytywania API
-dla każdej karty osobno.
+Udostępnić lekki, autoryzowany kontrakt do oznaczania ulubionych w wynikach
+wyszukiwania bez zmiany publicznego katalogu ofert w endpoint zależny od sesji.
 
 **Rezultat sprintu:**
-Publiczny katalog ofert potrafi zwrócić `isFavorite` dla zalogowanego
-użytkownika, a anonimowi użytkownicy dostają stabilny publiczny kontrakt.
+Frontend może pobrać publiczny katalog ofert tak jak dotychczas, a następnie
+jednym requestem sprawdzić, które widoczne `listingIds` są ulubione dla
+zalogowanego użytkownika.
 
 #### Zadania
 
-- [ ] `FL2.1` Rozszerzyć model odpowiedzi katalogu o opcjonalne `isFavorite`.
+- [ ] `FL2.1` Ustabilizować endpoint `GET /api/favorite-listings/ids`.
   - Wymagania:
-    - `false` dla zalogowanego użytkownika, jeśli oferta nie jest ulubiona,
-    - brak danych prywatnych,
-    - zgodność z istniejącymi typami w `apps/web/src/lib/listings.ts`.
+    - przyjmuje maksymalnie `100` `listingIds`,
+    - zwraca wyłącznie ID należące do bieżącego użytkownika,
+    - nie ujawnia danych ofert,
+    - działa idempotentnie dla duplikatów w query.
   - Data zakończenia:
   - Wykonano:
   - Uwagi / follow-up:
@@ -415,21 +443,22 @@ użytkownika, a anonimowi użytkownicy dostają stabilny publiczny kontrakt.
   - Wykonano:
   - Uwagi / follow-up:
 
-- [ ] `FL2.3` Zapewnić tryb anonymous-safe.
+- [ ] `FL2.3` Zapewnić tryb anonymous-safe po stronie kontraktu.
   - Wymagania:
     - katalog nadal działa bez tokenu,
-    - brak błędów hydratacji na froncie,
+    - endpoint `favorite-listings/ids` pozostaje autoryzowany,
+    - frontend może pominąć request dla użytkownika anonimowego,
     - UI może pokazać prompt logowania przy kliknięciu.
   - Data zakończenia:
   - Wykonano:
   - Uwagi / follow-up:
 
-- [ ] `FL2.4` Dodać testy integracyjne dla katalogu.
+- [ ] `FL2.4` Dodać testy backendowe dla lekkiego endpointu ID.
   - Przypadki:
     - użytkownik zalogowany z jedną ulubioną ofertą,
     - użytkownik zalogowany bez ulubionych,
-    - użytkownik anonimowy,
-    - oferta niepubliczna.
+    - duplikaty `listingIds` w query,
+    - ID należące do cudzych ulubionych nie są zwracane.
   - Data zakończenia:
   - Wykonano:
   - Uwagi / follow-up:

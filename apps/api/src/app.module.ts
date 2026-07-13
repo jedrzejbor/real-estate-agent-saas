@@ -29,6 +29,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { MessageTemplatesModule } from './message-templates';
 import { MatchingModule } from './matching';
 import { InsightsModule } from './insights';
+import { FavoriteListingsModule } from './favorite-listings';
 
 function getBooleanConfig(
   configService: ConfigService,
@@ -75,6 +76,7 @@ function getBooleanConfig(
     MessageTemplatesModule,
     MatchingModule,
     InsightsModule,
+    FavoriteListingsModule,
     ReportsModule,
     SearchModule,
     NotificationsModule,
