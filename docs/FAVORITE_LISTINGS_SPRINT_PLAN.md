@@ -439,24 +439,32 @@ zalogowanego użytkownika.
   - Uwagi / follow-up: endpoint pozostaje autoryzowany przez globalny
     `JwtAuthGuard`; anonimowy katalog nie powinien go wywoływać.
 
-- [ ] `FL2.2` Dodać masowe sprawdzanie ulubionych po wynikach katalogu.
+- [x] `FL2.2` Dodać masowe sprawdzanie ulubionych po wynikach katalogu.
   - Wymagania:
     - jeden query po `listingIds`,
     - brak zapytań N+1,
     - działanie z paginacją i filtrami.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-14
+  - Wykonano: potwierdzono kontrakt endpointu `GET /api/favorite-listings/ids`
+    na poziomie kontrolera. Kontroler deleguje sprawdzenie wielu `listingIds`
+    do jednej metody serwisowej `findFavoriteListingIds(userId, listingIds)`,
+    bez logiki per karta i bez dotykania publicznego katalogu ofert.
+  - Uwagi / follow-up: frontendowe wywołanie tego endpointu dla aktualnej strony
+    wyników katalogu należy do FL-3, razem z klientem API i hookiem.
 
-- [ ] `FL2.3` Zapewnić tryb anonymous-safe po stronie kontraktu.
+- [x] `FL2.3` Zapewnić tryb anonymous-safe po stronie kontraktu.
   - Wymagania:
     - katalog nadal działa bez tokenu,
     - endpoint `favorite-listings/ids` pozostaje autoryzowany,
     - frontend może pominąć request dla użytkownika anonimowego,
     - UI może pokazać prompt logowania przy kliknięciu.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-14
+  - Wykonano: dodano test kontrolera potwierdzający, że endpoint
+    `favorite-listings/ids` nie jest oznaczony jako `@Public()`. Publiczny
+    katalog `/listings/public/catalog` pozostaje niezależny od prywatnej sesji,
+    a stan ulubionych jest osobnym autoryzowanym kontraktem.
+  - Uwagi / follow-up: faktyczne pominięcie requestu po stronie anonimowego UI
+    oraz prompt logowania należy wdrożyć w FL-3/FL-4.
 
 - [x] `FL2.4` Dodać testy backendowe dla lekkiego endpointu ID.
   - Przypadki:
@@ -471,7 +479,9 @@ zalogowanego użytkownika.
     powtórzonych parametrów query, limitu `100` ID oraz błędnych/brakujących
     wartości.
   - Uwagi / follow-up: testy kontrolera/E2E 401 zostają w FL-6 zgodnie z
-    wcześniejszą decyzją, bo autoryzację wymusza globalny guard.
+    wcześniejszą decyzją, bo autoryzację wymusza globalny guard. W FL-2 dodano
+    natomiast test kontrolera, który pilnuje braku `@Public()` na endpointcie
+    `ids` oraz jednego zbiorczego wywołania serwisu.
 
 ### Sprint FL-3 - Frontend: API client, hook i reużywalny przycisk
 
