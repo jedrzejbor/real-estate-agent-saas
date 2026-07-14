@@ -77,8 +77,14 @@ export class FavoriteListingsService {
       })
       .getRawMany<{ listingId: string }>();
 
+    const favoriteListingIds = new Set(
+      favorites.map((favorite) => favorite.listingId),
+    );
+
     return {
-      listingIds: favorites.map((favorite) => favorite.listingId),
+      listingIds: uniqueListingIds.filter((listingId) =>
+        favoriteListingIds.has(listingId),
+      ),
     };
   }
 

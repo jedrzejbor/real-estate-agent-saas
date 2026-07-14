@@ -424,15 +424,20 @@ zalogowanego użytkownika.
 
 #### Zadania
 
-- [ ] `FL2.1` Ustabilizować endpoint `GET /api/favorite-listings/ids`.
+- [x] `FL2.1` Ustabilizować endpoint `GET /api/favorite-listings/ids`.
   - Wymagania:
     - przyjmuje maksymalnie `100` `listingIds`,
     - zwraca wyłącznie ID należące do bieżącego użytkownika,
     - nie ujawnia danych ofert,
     - działa idempotentnie dla duplikatów w query.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-13
+  - Wykonano: doprecyzowano kontrakt serwisu dla `findFavoriteListingIds`.
+    Endpoint bazuje na DTO z limitem `100` ID, deduplikuje wejście i zwraca
+    tylko `listingIds` znalezione dla bieżącego `userId`. Odpowiedź zachowuje
+    kolejność pierwszego wystąpienia ID z requestu, dzięki czemu frontend może
+    stabilnie składać stan kart katalogu.
+  - Uwagi / follow-up: endpoint pozostaje autoryzowany przez globalny
+    `JwtAuthGuard`; anonimowy katalog nie powinien go wywoływać.
 
 - [ ] `FL2.2` Dodać masowe sprawdzanie ulubionych po wynikach katalogu.
   - Wymagania:
@@ -453,15 +458,20 @@ zalogowanego użytkownika.
   - Wykonano:
   - Uwagi / follow-up:
 
-- [ ] `FL2.4` Dodać testy backendowe dla lekkiego endpointu ID.
+- [x] `FL2.4` Dodać testy backendowe dla lekkiego endpointu ID.
   - Przypadki:
     - użytkownik zalogowany z jedną ulubioną ofertą,
     - użytkownik zalogowany bez ulubionych,
     - duplikaty `listingIds` w query,
     - ID należące do cudzych ulubionych nie są zwracane.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-13
+  - Wykonano: rozszerzono testy serwisu o pusty wynik dla zalogowanego
+    użytkownika bez pasujących ulubionych oraz stabilną kolejność odpowiedzi.
+    Dodano testy DTO `FavoriteListingIdsQueryDto` dla comma-separated query,
+    powtórzonych parametrów query, limitu `100` ID oraz błędnych/brakujących
+    wartości.
+  - Uwagi / follow-up: testy kontrolera/E2E 401 zostają w FL-6 zgodnie z
+    wcześniejszą decyzją, bo autoryzację wymusza globalny guard.
 
 ### Sprint FL-3 - Frontend: API client, hook i reużywalny przycisk
 

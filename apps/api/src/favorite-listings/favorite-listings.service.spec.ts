@@ -89,8 +89,9 @@ describe('FavoriteListingsService', () => {
     });
   });
 
-  it('returns only requested favorite listing ids for the current user', async () => {
+  it('returns requested favorite listing ids in input order for the current user', async () => {
     const queryBuilder = createFavoriteIdsQueryBuilder([
+      { listingId: OTHER_LISTING_ID },
       { listingId: LISTING_ID },
     ]);
     favoriteRepo.createQueryBuilder.mockReturnValue(queryBuilder);
@@ -101,7 +102,7 @@ describe('FavoriteListingsService', () => {
         LISTING_ID,
         OTHER_LISTING_ID,
       ]),
-    ).resolves.toEqual({ listingIds: [LISTING_ID] });
+    ).resolves.toEqual({ listingIds: [LISTING_ID, OTHER_LISTING_ID] });
 
     expect(queryBuilder.where).toHaveBeenCalledWith(
       'favorite.userId = :userId',
@@ -111,6 +112,25 @@ describe('FavoriteListingsService', () => {
       'favorite.listingId IN (:...listingIds)',
       { listingIds: [LISTING_ID, OTHER_LISTING_ID] },
     );
+  });
+
+  it('returns an empty id list when current user has no requested favorites', async () => {
+    const queryBuilder = createFavoriteIdsQueryBuilder([]);
+    favoriteRepo.createQueryBuilder.mockReturnValue(queryBuilder);
+
+    await expect(
+      service.findFavoriteListingIds(USER_ID, [LISTING_ID]),
+    ).resolves.toEqual({
+      listingIds: [],
+    });
+  });
+
+  it('returns an empty favorite id list without querying when input is empty', async () => {
+    await expect(service.findFavoriteListingIds(USER_ID, [])).resolves.toEqual({
+      listingIds: [],
+    });
+
+    expect(favoriteRepo.createQueryBuilder).not.toHaveBeenCalled();
   });
 
   it('marks unavailable favorites in the profile list without exposing listing data', async () => {
