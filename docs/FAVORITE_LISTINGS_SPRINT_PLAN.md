@@ -463,6 +463,9 @@ zalogowanego użytkownika.
     `favorite-listings/ids` nie jest oznaczony jako `@Public()`. Publiczny
     katalog `/listings/public/catalog` pozostaje niezależny od prywatnej sesji,
     a stan ulubionych jest osobnym autoryzowanym kontraktem.
+  - Aktualizacja 2026-07-15: dodano test regresji
+    `listings.controller.spec.ts`, który pilnuje, że publiczny katalog ofert i
+    publiczne szczegóły oferty pozostają oznaczone jako `@Public()`.
   - Uwagi / follow-up: faktyczne pominięcie requestu po stronie anonimowego UI
     oraz prompt logowania należy wdrożyć w FL-3/FL-4.
 
@@ -482,6 +485,9 @@ zalogowanego użytkownika.
     wcześniejszą decyzją, bo autoryzację wymusza globalny guard. W FL-2 dodano
     natomiast test kontrolera, który pilnuje braku `@Public()` na endpointcie
     `ids` oraz jednego zbiorczego wywołania serwisu.
+  - Aktualizacja 2026-07-15: rozszerzono testy kontraktu o publiczny katalog i
+    publiczne szczegóły oferty, żeby zabezpieczyć rozdział publicznego katalogu
+    od prywatnego stanu ulubionych.
 
 ### Sprint FL-3 - Frontend: API client, hook i reużywalny przycisk
 
