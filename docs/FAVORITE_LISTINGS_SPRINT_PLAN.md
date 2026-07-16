@@ -501,7 +501,7 @@ katalogu, szczegółach oferty i profilu.
 
 #### Zadania
 
-- [ ] `FL3.1` Dodać klienta API w `apps/web/src/lib/favorite-listings.ts`.
+- [x] `FL3.1` Dodać klienta API w `apps/web/src/lib/favorite-listings.ts`.
   - Funkcje:
     - `fetchFavoriteListings`,
     - `addFavoriteListing`,
@@ -509,20 +509,35 @@ katalogu, szczegółach oferty i profilu.
   - Wymagania:
     - spójna obsługa błędów z resztą `lib`,
     - typy eksportowane z jednego miejsca.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-15
+  - Wykonano: dodano `apps/web/src/lib/favorite-listings.ts` z typami
+    `FavoriteListingListEntry`, `FavoriteListingsPage`,
+    `FavoriteListingIdsResponse` i `ToggleFavoriteListingResult` oraz funkcjami
+    `fetchFavoriteListings`, `fetchFavoriteListingIds`, `addFavoriteListing` i
+    `removeFavoriteListing`. Moduł używa istniejącego `apiFetch`, wspólnego
+    `PaginationMeta` i publicznego kształtu oferty `PublicListingCatalogItem`,
+    żeby nie dublować modeli.
+  - Uwagi / follow-up: `fetchFavoriteListingIds` zwraca lokalnie pustą listę
+    bez requestu, gdy dostanie pusty input. Hook z `FL3.2` powinien używać tego
+    klienta i obsłużyć stan anonimowego użytkownika przed wywołaniem API.
 
-- [ ] `FL3.2` Dodać hook `useFavoriteListing`.
+- [x] `FL3.2` Dodać hook `useFavoriteListing`.
   - Odpowiedzialność:
     - stan lokalny,
     - optimistic update,
     - rollback po błędzie,
     - komunikat logowania dla użytkownika anonimowego,
     - callback `onChanged`.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-16
+  - Wykonano: dodano `apps/web/src/hooks/use-favorite-listing.ts`.
+    Hook przyjmuje `listingId`, `initialIsFavorite`, opcjonalny `loginHref`,
+    `onAuthRequired` i `onChanged`. Udostępnia `isFavorite`, `isPending`,
+    `error`, `add`, `remove`, `toggle` i `setIsFavorite`. Aktualizacja jest
+    optimistic, a przy błędzie następuje rollback do poprzedniego stanu oraz
+    komunikat toast z `getApiErrorMessage`.
+  - Uwagi / follow-up: użytkownik anonimowy nie wykonuje requestu do API; hook
+    pokazuje toast z akcją logowania. Testy hooka i komponentu pozostają w
+    `FL3.4`; web app nie ma obecnie osobnego runnera testów React hooków.
 
 - [ ] `FL3.3` Dodać komponent `FavoriteListingButton`.
   - Wymagania:
