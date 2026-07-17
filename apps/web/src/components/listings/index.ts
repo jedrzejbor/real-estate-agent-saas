@@ -1,5 +1,6 @@
 export { ListingCard } from './listing-card';
 export { ListingDescriptionAssistant } from './listing-description-assistant';
+export { FavoriteListingButton } from './favorite-listing-button';
 export { ListingFiltersBar } from './listing-filters';
 export { ListingForm } from './listing-form';
 export { ListingImageManager } from './listing-image-manager';

@@ -539,16 +539,24 @@ katalogu, szczegółach oferty i profilu.
     pokazuje toast z akcją logowania. Testy hooka i komponentu pozostają w
     `FL3.4`; web app nie ma obecnie osobnego runnera testów React hooków.
 
-- [ ] `FL3.3` Dodać komponent `FavoriteListingButton`.
+- [x] `FL3.3` Dodać komponent `FavoriteListingButton`.
   - Wymagania:
     - wariant compact dla kart,
     - wariant full dla szczegółów oferty,
     - ikona serca z biblioteki używanej w projekcie,
     - `aria-pressed`,
     - stabilne wymiary, żeby karta nie przeskakiwała.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-17
+  - Wykonano: dodano
+    `apps/web/src/components/listings/favorite-listing-button.tsx` i eksport w
+    `components/listings/index.ts`. Komponent używa `useFavoriteListing`,
+    istniejącego `Button`, `Tooltip` dla wariantu `compact` i ikony `Heart` z
+    `lucide-react`. Obsługuje warianty `compact` oraz `default`, stabilne
+    wymiary `44px`, `aria-pressed`, `aria-busy`, stan pending, aktywne
+    wypełnienie serca i callback `onChanged`.
+  - Uwagi / follow-up: komponent nie jest jeszcze podpięty do katalogu ani
+    szczegółów oferty; integracja widoków zostaje w `FL-4`. Testy komponentu i
+    hooka pozostają w `FL3.4`.
 
 - [ ] `FL3.4` Dodać testy komponentu i hooka.
   - Przypadki:
