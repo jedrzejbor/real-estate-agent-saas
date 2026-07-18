@@ -558,16 +558,25 @@ katalogu, szczegółach oferty i profilu.
     szczegółów oferty; integracja widoków zostaje w `FL-4`. Testy komponentu i
     hooka pozostają w `FL3.4`.
 
-- [ ] `FL3.4` Dodać testy komponentu i hooka.
+- [!] `FL3.4` Dodać testy komponentu i hooka.
   - Przypadki:
     - render stanu aktywnego i nieaktywnego,
     - kliknięcie dodaje do ulubionych,
     - kliknięcie usuwa z ulubionych,
     - błąd API cofa optimistic update,
     - użytkownik anonimowy nie wykonuje niedozwolonej akcji bez obsługi.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data próby: 2026-07-18
+  - Wykonano: sprawdzono, że `apps/web` nie ma obecnie runnera testów Reacta
+    ani istniejących testów `.spec` / `.test`. Podjęto próbę dodania minimalnej
+    infrastruktury testowej:
+    `pnpm --filter web add -D vitest jsdom @testing-library/react @testing-library/user-event @testing-library/jest-dom`.
+  - Blokada: instalacja zależności nie powiodła się przez brak dostępu do
+    `registry.npmjs.org` (`getaddrinfo ENOTFOUND registry.npmjs.org`). Nie
+    oznaczamy zadania jako wykonane, bo `FL3.4` wymaga realnych testów hooka i
+    komponentu, a nie samego `type-check`.
+  - Uwagi / follow-up: po odzyskaniu dostępu do npm dodać zależności testowe,
+    skonfigurować skrypt `test` dla weba i dopiero wtedy dodać testy dla
+    `useFavoriteListing` oraz `FavoriteListingButton`.
 
 ### Sprint FL-4 - Wyszukiwarka ofert i szczegóły oferty
 
