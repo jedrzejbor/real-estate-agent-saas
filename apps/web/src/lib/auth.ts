@@ -223,6 +223,28 @@ export function getAuthenticatedRedirectPath(
   return preferredPath;
 }
 
+export function getSafeReturnToPath(value?: string | null): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+    return null;
+  }
+
+  return value;
+}
+
+export function buildAuthReturnToPath(
+  authPath: '/login' | '/register',
+  returnTo?: string | null,
+): string {
+  const safeReturnTo = getSafeReturnToPath(returnTo);
+
+  if (!safeReturnTo) {
+    return authPath;
+  }
+
+  const params = new URLSearchParams({ returnTo: safeReturnTo });
+  return `${authPath}?${params.toString()}`;
+}
+
 // ── Auth cookie helpers ──
 
 const ACCESS_TOKEN_KEY = 'accessToken';
