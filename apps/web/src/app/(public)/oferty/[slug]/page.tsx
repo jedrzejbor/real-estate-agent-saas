@@ -33,6 +33,7 @@ import { ApiError } from '@/lib/api-client';
 import { PublicListingAnalytics } from '@/components/listings/public-listing-analytics';
 import { PublicListingAbuseReport } from '@/components/listings/public-listing-abuse-report';
 import { PublicListingContactForm } from '@/components/listings/public-listing-contact-form';
+import { PublicListingFavoriteAction } from '@/components/listings/public-listing-favorite-action';
 import { PublicListingGallery } from '@/components/listings/public-listing-gallery';
 import { APP_NAME } from '@/lib/brand';
 
@@ -268,6 +269,10 @@ export default async function PublicListingPage({
               ))}
             </div>
             <div className="mt-5 space-y-3">
+              <PublicListingFavoriteAction
+                listingId={listing.id}
+                listingSlug={listing.slug}
+              />
               {listing.agent?.id ? (
                 <Link
                   href={`/agenci/${listing.agent.id}`}

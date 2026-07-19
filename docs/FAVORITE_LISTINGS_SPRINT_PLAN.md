@@ -611,15 +611,24 @@ szczegółów.
     requestu do API. Pełny test wizualny desktop/mobile oraz stany focus/loading
     pozostają w `FL4.5`.
 
-- [ ] `FL4.2` Dodać przycisk ulubienia na stronie szczegółów oferty.
+- [x] `FL4.2` Dodać przycisk ulubienia na stronie szczegółów oferty.
   - Zakres: `apps/web/src/app/(public)/oferty/[slug]/page.tsx`.
   - Wymagania:
     - widoczny w sekcji akcji,
     - nie konkuruje z głównym CTA kontaktowym,
     - stan zgodny z katalogiem.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-19
+  - Wykonano: dodano klientowy komponent
+    `PublicListingFavoriteAction`, który używa istniejącego
+    `FavoriteListingButton` i pobiera początkowy stan ulubienia lekkim
+    requestem `fetchFavoriteListingIds([listingId])`. Komponent został
+    podpięty w bocznym panelu akcji na stronie
+    `apps/web/src/app/(public)/oferty/[slug]/page.tsx`, jako drugorzędna akcja
+    przed CTA kontaktowymi, żeby nie konkurować z kontaktem do opiekuna oferty.
+  - Uwagi / follow-up: przycisk korzysta z istniejącego promptu logowania z
+    `useFavoriteListing`. Pełna obsługa powrotu po logowaniu przez ogólny
+    parametr `returnTo` zostaje w `FL4.3`, bo obecny ekran logowania obsługuje
+    dziś tylko specjalny flow `claimToken`.
 
 - [ ] `FL4.3` Dodać prompt logowania dla użytkownika anonimowego.
   - Wymagania:
