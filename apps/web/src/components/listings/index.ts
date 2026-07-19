@@ -8,6 +8,7 @@ export { ListingPublicationPanel } from './listing-publication-panel';
 export { PublicListingAnalytics } from './public-listing-analytics';
 export { PublicListingAbuseReport } from './public-listing-abuse-report';
 export { PublicListingContactForm } from './public-listing-contact-form';
+export { PublicListingFavoriteAction } from './public-listing-favorite-action';
 export { ListingQrAsset } from './listing-qr-asset';
 export { ListingPagination } from './listing-pagination';
 export { ListingStatusBadge } from './listing-status-badge';
