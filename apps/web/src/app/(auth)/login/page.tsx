@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
+  buildAuthReturnToPath,
   getAuthenticatedRedirectPath,
+  getSafeReturnToPath,
   loginSchema,
   type LoginFormData,
 } from '@/lib/auth';
@@ -35,12 +37,16 @@ function LoginForm() {
   const claimRedirectPath = claimToken
     ? buildClaimRedirectPath(claimToken)
     : undefined;
+  const returnToPath = claimToken
+    ? null
+    : getSafeReturnToPath(searchParams.get('returnTo'));
+  const redirectPath = claimRedirectPath ?? returnToPath;
 
   useEffect(() => {
     if (isAuthLoading || !user) return;
 
-    router.replace(getAuthenticatedRedirectPath(user, claimRedirectPath));
-  }, [claimRedirectPath, isAuthLoading, router, user]);
+    router.replace(getAuthenticatedRedirectPath(user, redirectPath));
+  }, [isAuthLoading, redirectPath, router, user]);
 
   const {
     handleSubmit,
@@ -50,7 +56,7 @@ function LoginForm() {
   } = useAuthForm<typeof loginSchema>({
     schema: loginSchema,
     onSubmit: async (data: LoginFormData) => {
-      await login(data, { redirectTo: claimRedirectPath });
+      await login(data, { redirectTo: redirectPath ?? undefined });
     },
   });
 
@@ -129,7 +135,7 @@ function LoginForm() {
           href={
             claimToken
               ? buildClaimAuthPath('/register', claimToken)
-              : '/register'
+              : buildAuthReturnToPath('/register', returnToPath)
           }
           className="font-medium text-primary hover:underline"
         >

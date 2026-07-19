@@ -12,7 +12,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import {
+  buildAuthReturnToPath,
   getAuthenticatedRedirectPath,
+  getSafeReturnToPath,
   PRIVATE_SELLER_HOME_PATH,
   registerSchema,
   type RegisterFormData,
@@ -56,6 +58,9 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const claimToken = searchParams.get('claimToken');
+  const returnToPath = claimToken
+    ? null
+    : getSafeReturnToPath(searchParams.get('returnTo'));
   const initialPlan = getRegisterPlan(searchParams.get('plan'));
   const initialAccountType = claimToken ? 'private_seller' : 'agent';
   const hasClaimedAuthenticatedTokenRef = useRef(false);
@@ -128,8 +133,8 @@ function RegisterForm() {
       return;
     }
 
-    router.replace(getAuthenticatedRedirectPath(user));
-  }, [claimToken, isAuthLoading, router, user]);
+    router.replace(getAuthenticatedRedirectPath(user, returnToPath));
+  }, [claimToken, isAuthLoading, returnToPath, router, user]);
 
   const {
     handleSubmit,
@@ -158,8 +163,8 @@ function RegisterForm() {
       await register(data, {
         redirectTo:
           data.accountType === 'private_seller'
-            ? PRIVATE_SELLER_HOME_PATH
-            : undefined,
+            ? (returnToPath ?? PRIVATE_SELLER_HOME_PATH)
+            : (returnToPath ?? undefined),
       });
     },
   });
@@ -422,7 +427,9 @@ function RegisterForm() {
         Masz już konto?{' '}
         <Link
           href={
-            claimToken ? buildClaimAuthPath('/login', claimToken) : '/login'
+            claimToken
+              ? buildClaimAuthPath('/login', claimToken)
+              : buildAuthReturnToPath('/login', returnToPath)
           }
           className="font-medium text-primary hover:underline"
         >

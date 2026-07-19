@@ -29,6 +29,7 @@ interface PublicListingCatalogMapProps {
   activeBbox?: string | null;
   onBboxChange?: (bbox: string | null) => void;
   favoriteListingIds?: ReadonlySet<string>;
+  favoriteLoginHref?: string;
   onFavoriteChanged?: (result: ToggleFavoriteListingResult) => void;
 }
 
@@ -48,6 +49,7 @@ export function PublicListingCatalogMap({
   activeBbox: controlledActiveBbox,
   onBboxChange,
   favoriteListingIds,
+  favoriteLoginHref,
   onFavoriteChanged,
 }: PublicListingCatalogMapProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -131,6 +133,7 @@ export function PublicListingCatalogMap({
         <MapListingPopup
           markers={markerGroup.markers}
           favoriteListingIds={favoriteListingIds}
+          favoriteLoginHref={favoriteLoginHref}
           onFavoriteChanged={onFavoriteChanged}
         />,
       );
@@ -170,7 +173,14 @@ export function PublicListingCatalogMap({
       popupRootsRef.current.forEach((root) => root.unmount());
       popupRootsRef.current = [];
     };
-  }, [favoriteListingIds, isMapReady, mapMeta.bbox, markers, onFavoriteChanged]);
+  }, [
+    favoriteListingIds,
+    favoriteLoginHref,
+    isMapReady,
+    mapMeta.bbox,
+    markers,
+    onFavoriteChanged,
+  ]);
 
   useEffect(() => {
     const leaflet = leafletRef.current;
@@ -492,10 +502,12 @@ function groupMarkersByPoint(
 
 function MapListingPopup({
   favoriteListingIds,
+  favoriteLoginHref,
   markers,
   onFavoriteChanged,
 }: {
   favoriteListingIds?: ReadonlySet<string>;
+  favoriteLoginHref?: string;
   markers: PublicListingCatalogMapMarker[];
   onFavoriteChanged?: (result: ToggleFavoriteListingResult) => void;
 }) {
@@ -559,6 +571,7 @@ function MapListingPopup({
           listingId={marker.id}
           initialIsFavorite={favoriteListingIds?.has(marker.id) ?? false}
           variant="compact"
+          loginHref={favoriteLoginHref}
           stopPropagation
           onChanged={onFavoriteChanged}
           className="h-9 w-9 border-background/80 bg-card/95 shadow-sm backdrop-blur hover:bg-card"

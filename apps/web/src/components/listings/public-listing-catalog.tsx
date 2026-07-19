@@ -20,6 +20,7 @@ import {
 import { ApiError } from '@/lib/api-client';
 import { APP_NAME } from '@/lib/brand';
 import { useAuth } from '@/contexts/auth-context';
+import { buildAuthReturnToPath } from '@/lib/auth';
 import {
   fetchFavoriteListingIds,
   type ToggleFavoriteListingResult,
@@ -108,6 +109,7 @@ function PublicListingCatalogContent({
     () => buildSearchAnalyticsProperties(filters),
     [filters],
   );
+  const loginHref = useCatalogLoginHref(filters);
   const formKey = buildCatalogQueryString(filters) || 'base-catalog';
 
   useEffect(() => {
@@ -482,6 +484,7 @@ function PublicListingCatalogContent({
                 onBboxChange={changeBbox}
                 favoriteListingIds={effectiveFavoriteListingIds}
                 onFavoriteChanged={handleFavoriteChanged}
+                favoriteLoginHref={loginHref}
               />
             </div>
 
@@ -497,6 +500,7 @@ function PublicListingCatalogContent({
                       }
                       searchProperties={searchProperties}
                       isFavorite={effectiveFavoriteListingIds.has(listing.id)}
+                      loginHref={loginHref}
                       onFavoriteChanged={handleFavoriteChanged}
                     />
                   ))}
@@ -566,12 +570,14 @@ function ListingCard({
   position,
   searchProperties,
   isFavorite,
+  loginHref,
   onFavoriteChanged,
 }: {
   listing: PublicListingCatalogItem;
   position: number;
   searchProperties: AnalyticsProperties;
   isFavorite: boolean;
+  loginHref: string;
   onFavoriteChanged: (result: ToggleFavoriteListingResult) => void;
 }) {
   const location = [listing.address?.district, listing.address?.city]
@@ -593,6 +599,7 @@ function ListingCard({
           listingId={listing.id}
           initialIsFavorite={isFavorite}
           variant="compact"
+          loginHref={loginHref}
           stopPropagation
           onChanged={onFavoriteChanged}
           className="border-background/80 bg-card/95 shadow-sm backdrop-blur hover:bg-card"
@@ -679,6 +686,17 @@ function ListingCard({
         </div>
       </PublicListingCatalogResultLink>
     </article>
+  );
+}
+
+function useCatalogLoginHref(filters: PublicListingCatalogFilters): string {
+  return useMemo(
+    () =>
+      buildAuthReturnToPath(
+        '/login',
+        `/oferty${buildCatalogQueryString(filters)}`,
+      ),
+    [filters],
   );
 }
 

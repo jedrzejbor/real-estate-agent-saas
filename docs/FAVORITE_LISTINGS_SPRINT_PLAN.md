@@ -630,14 +630,25 @@ szczegółów.
     parametr `returnTo` zostaje w `FL4.3`, bo obecny ekran logowania obsługuje
     dziś tylko specjalny flow `claimToken`.
 
-- [ ] `FL4.3` Dodać prompt logowania dla użytkownika anonimowego.
+- [x] `FL4.3` Dodać prompt logowania dla użytkownika anonimowego.
   - Wymagania:
     - krótki komunikat,
     - link do logowania z powrotem do aktualnej strony,
     - brak utraty filtrów wyszukiwarki.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-19
+  - Wykonano: rozszerzono flow auth o bezpieczny parametr `returnTo` dla
+    zwykłego logowania i rejestracji, bez naruszania istniejącego flow
+    `claimToken`. Dodano helpery `getSafeReturnToPath` i
+    `buildAuthReturnToPath` w `apps/web/src/lib/auth.ts`, podpięto je w
+    ekranach `/login` i `/register`, w akcji szczegółów oferty oraz w
+    katalogu ofert. Katalog buduje `returnTo` z aktualnych filtrów
+    (`/oferty?...`), więc kliknięcie serca przez anonimowego użytkownika nie
+    gubi stanu wyszukiwarki.
+  - Uwagi / follow-up: sam komunikat promptu pozostaje w
+    `useFavoriteListing`, więc wszystkie miejsca używające
+    `FavoriteListingButton` mają spójne zachowanie. `returnTo` akceptuje tylko
+    bezpieczne ścieżki wewnętrzne zaczynające się od `/` i odrzuca URL-e
+    zewnętrzne oraz `//...`.
 
 - [ ] `FL4.4` Dodać tracking eventów.
   - Eventy:
