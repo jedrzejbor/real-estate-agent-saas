@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { FavoriteListingButton } from '@/components/listings/favorite-listing-button';
+import { buildAuthReturnToPath } from '@/lib/auth';
 import { fetchFavoriteListingIds } from '@/lib/favorite-listings';
 
 interface PublicListingFavoriteActionProps {
@@ -17,7 +18,7 @@ export function PublicListingFavoriteAction({
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [fetchedIsFavorite, setFetchedIsFavorite] = useState(false);
   const loginHref = useMemo(
-    () => `/login?returnTo=${encodeURIComponent(`/oferty/${listingSlug}`)}`,
+    () => buildAuthReturnToPath('/login', `/oferty/${listingSlug}`),
     [listingSlug],
   );
   const initialIsFavorite = isAuthenticated ? fetchedIsFavorite : false;
