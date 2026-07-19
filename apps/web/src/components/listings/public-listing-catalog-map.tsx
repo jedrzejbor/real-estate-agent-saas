@@ -17,7 +17,9 @@ import {
   type PublicListingCatalogMapMarker,
   type PublicListingCatalogResponse,
 } from '@/lib/listings';
+import type { ToggleFavoriteListingResult } from '@/lib/favorite-listings';
 import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
+import { FavoriteListingButton } from '@/components/listings/favorite-listing-button';
 import { PublicListingImageCarousel } from '@/components/listings/public-listing-image-carousel';
 import type * as Leaflet from 'leaflet';
 
@@ -26,6 +28,8 @@ interface PublicListingCatalogMapProps {
   mapMeta: PublicListingCatalogResponse['meta']['map'];
   activeBbox?: string | null;
   onBboxChange?: (bbox: string | null) => void;
+  favoriteListingIds?: ReadonlySet<string>;
+  onFavoriteChanged?: (result: ToggleFavoriteListingResult) => void;
 }
 
 const DEFAULT_CENTER: [number, number] = [52.0693, 19.4803];
@@ -43,6 +47,8 @@ export function PublicListingCatalogMap({
   mapMeta,
   activeBbox: controlledActiveBbox,
   onBboxChange,
+  favoriteListingIds,
+  onFavoriteChanged,
 }: PublicListingCatalogMapProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const leafletRef = useRef<typeof Leaflet | null>(null);
@@ -121,7 +127,13 @@ export function PublicListingCatalogMap({
       const popupContainer = document.createElement('div');
       const popupRoot = createRoot(popupContainer);
       popupRootsRef.current.push(popupRoot);
-      popupRoot.render(<MapListingPopup markers={markerGroup.markers} />);
+      popupRoot.render(
+        <MapListingPopup
+          markers={markerGroup.markers}
+          favoriteListingIds={favoriteListingIds}
+          onFavoriteChanged={onFavoriteChanged}
+        />,
+      );
 
       leaflet
         .marker([firstMarker.mapPoint.lat, firstMarker.mapPoint.lng], {
@@ -158,7 +170,7 @@ export function PublicListingCatalogMap({
       popupRootsRef.current.forEach((root) => root.unmount());
       popupRootsRef.current = [];
     };
-  }, [isMapReady, mapMeta.bbox, markers]);
+  }, [favoriteListingIds, isMapReady, mapMeta.bbox, markers, onFavoriteChanged]);
 
   useEffect(() => {
     const leaflet = leafletRef.current;
@@ -479,9 +491,13 @@ function groupMarkersByPoint(
 }
 
 function MapListingPopup({
+  favoriteListingIds,
   markers,
+  onFavoriteChanged,
 }: {
+  favoriteListingIds?: ReadonlySet<string>;
   markers: PublicListingCatalogMapMarker[];
+  onFavoriteChanged?: (result: ToggleFavoriteListingResult) => void;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const marker = markers[activeIndex] ?? markers[0];
@@ -538,6 +554,16 @@ function MapListingPopup({
         className="h-28"
         compact
       />
+      <div className="absolute right-2 top-2 z-20">
+        <FavoriteListingButton
+          listingId={marker.id}
+          initialIsFavorite={favoriteListingIds?.has(marker.id) ?? false}
+          variant="compact"
+          stopPropagation
+          onChanged={onFavoriteChanged}
+          className="h-9 w-9 border-background/80 bg-card/95 shadow-sm backdrop-blur hover:bg-card"
+        />
+      </div>
       <div className="podadresem-map-popup-body">
         <p className="podadresem-map-popup-price">{price}</p>
         <h3>{marker.title}</h3>

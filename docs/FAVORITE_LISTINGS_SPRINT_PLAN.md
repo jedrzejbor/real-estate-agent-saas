@@ -589,7 +589,7 @@ szczegółów.
 
 #### Zadania
 
-- [ ] `FL4.1` Dodać przycisk ulubienia do kart w wyszukiwarce ofert.
+- [x] `FL4.1` Dodać przycisk ulubienia do kart w wyszukiwarce ofert.
   - Zakres:
     - `PublicListingCatalog`,
     - karta wyniku/listy,
@@ -598,9 +598,18 @@ szczegółów.
     - przycisk nie zasłania kluczowych danych,
     - nie psuje układu mobile,
     - działa z paginacją i filtrami.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-19
+  - Wykonano: podpięto `FavoriteListingButton` do kart wyników w
+    `PublicListingCatalog` oraz do kart w popupie mapy
+    `PublicListingCatalogMap`. Katalog pobiera stan ulubionych jednym lekkim
+    requestem `fetchFavoriteListingIds` dla unikalnych ofert z listy wyników
+    oraz markerów mapy i przekazuje ten sam stan do listy oraz mapy. Callback
+    `onFavoriteChanged` aktualizuje wspólny `Set` identyfikatorów, więc stan
+    pozostaje spójny po dodaniu i usunięciu bez odświeżania katalogu.
+  - Uwagi / follow-up: przycisk dla anonimowego użytkownika korzysta z
+    zachowania z `FavoriteListingButton` / `useFavoriteListing` i nie wykonuje
+    requestu do API. Pełny test wizualny desktop/mobile oraz stany focus/loading
+    pozostają w `FL4.5`.
 
 - [ ] `FL4.2` Dodać przycisk ulubienia na stronie szczegółów oferty.
   - Zakres: `apps/web/src/app/(public)/oferty/[slug]/page.tsx`.

@@ -1,7 +1,7 @@
 'use client';
 
 import type { FormEvent, ReactNode } from 'react';
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -19,6 +19,11 @@ import {
 } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
 import { APP_NAME } from '@/lib/brand';
+import { useAuth } from '@/contexts/auth-context';
+import {
+  fetchFavoriteListingIds,
+  type ToggleFavoriteListingResult,
+} from '@/lib/favorite-listings';
 import {
   fetchPublicListingCatalog,
   formatArea,
@@ -34,6 +39,7 @@ import {
 } from '@/lib/listings';
 import { PublicListingCatalogMap } from '@/components/listings/public-listing-catalog-map';
 import { PublicListingCatalogResultLink } from '@/components/listings/public-listing-catalog-result-link';
+import { FavoriteListingButton } from '@/components/listings/favorite-listing-button';
 import { PublicListingImageCarousel } from '@/components/listings/public-listing-image-carousel';
 import { PublicListingCityFilterField } from '@/components/listings/public-listing-city-filter-field';
 import { DistrictAutocomplete } from '@/components/locations/district-autocomplete';
@@ -47,6 +53,7 @@ interface PublicListingCatalogProps {
 
 const FALLBACK_LISTING_IMAGE = '/images/hero/house-2.jpg';
 const DEFAULT_LIMIT = 24;
+const EMPTY_FAVORITE_LISTING_IDS = new Set<string>();
 
 export function PublicListingCatalog({
   initialFilters,
@@ -71,19 +78,90 @@ function PublicListingCatalogContent({
   initialCatalog,
   initialError,
 }: PublicListingCatalogProps) {
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [filters, setFilters] = useState(initialFilters);
   const [formCity, setFormCity] = useState(initialFilters.city ?? '');
   const [formDistrict, setFormDistrict] = useState(
     initialFilters.district ?? '',
   );
   const [catalog, setCatalog] = useState(initialCatalog);
+  const [favoriteListingIds, setFavoriteListingIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [error, setError] = useState(initialError);
   const [isPending, startTransition] = useTransition();
+  const catalogListingIds = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...(catalog?.data.map((listing) => listing.id) ?? []),
+          ...(catalog?.mapMarkers.map((marker) => marker.id) ?? []),
+        ]),
+      ),
+    [catalog],
+  );
+  const effectiveFavoriteListingIds =
+    isAuthenticated && catalogListingIds.length > 0
+      ? favoriteListingIds
+      : EMPTY_FAVORITE_LISTING_IDS;
   const searchProperties = useMemo(
     () => buildSearchAnalyticsProperties(filters),
     [filters],
   );
   const formKey = buildCatalogQueryString(filters) || 'base-catalog';
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    if (isAuthLoading) {
+      return () => {
+        isCurrent = false;
+      };
+    }
+
+    if (!isAuthenticated || catalogListingIds.length === 0) {
+      return () => {
+        isCurrent = false;
+      };
+    }
+
+    async function loadFavoriteListingIds() {
+      try {
+        const response = await fetchFavoriteListingIds(catalogListingIds);
+
+        if (isCurrent) {
+          setFavoriteListingIds(new Set(response.listingIds));
+        }
+      } catch {
+        if (isCurrent) {
+          setFavoriteListingIds(new Set());
+        }
+      }
+    }
+
+    loadFavoriteListingIds();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [catalogListingIds, isAuthenticated, isAuthLoading]);
+
+  const handleFavoriteChanged = useCallback(
+    (result: ToggleFavoriteListingResult) => {
+      setFavoriteListingIds((current) => {
+        const next = new Set(current);
+
+        if (result.isFavorite) {
+          next.add(result.listingId);
+        } else {
+          next.delete(result.listingId);
+        }
+
+        return next;
+      });
+    },
+    [],
+  );
 
   function loadCatalog(
     nextFilters: PublicListingCatalogFilters,
@@ -402,6 +480,8 @@ function PublicListingCatalogContent({
                 mapMeta={catalog.meta.map}
                 activeBbox={filters.bbox}
                 onBboxChange={changeBbox}
+                favoriteListingIds={effectiveFavoriteListingIds}
+                onFavoriteChanged={handleFavoriteChanged}
               />
             </div>
 
@@ -416,6 +496,8 @@ function PublicListingCatalogContent({
                         (catalog.meta.page - 1) * catalog.meta.limit + index + 1
                       }
                       searchProperties={searchProperties}
+                      isFavorite={effectiveFavoriteListingIds.has(listing.id)}
+                      onFavoriteChanged={handleFavoriteChanged}
                     />
                   ))}
                 </div>
@@ -483,10 +565,14 @@ function ListingCard({
   listing,
   position,
   searchProperties,
+  isFavorite,
+  onFavoriteChanged,
 }: {
   listing: PublicListingCatalogItem;
   position: number;
   searchProperties: AnalyticsProperties;
+  isFavorite: boolean;
+  onFavoriteChanged: (result: ToggleFavoriteListingResult) => void;
 }) {
   const location = [listing.address?.district, listing.address?.city]
     .filter(Boolean)
@@ -501,7 +587,17 @@ function ListingCard({
   const trustSignals = getCatalogTrustSignals(listing);
 
   return (
-    <article className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <article className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+      <div className="absolute right-3 top-3 z-20">
+        <FavoriteListingButton
+          listingId={listing.id}
+          initialIsFavorite={isFavorite}
+          variant="compact"
+          stopPropagation
+          onChanged={onFavoriteChanged}
+          className="border-background/80 bg-card/95 shadow-sm backdrop-blur hover:bg-card"
+        />
+      </div>
       <PublicListingImageCarousel
         images={images}
         fallbackImage={FALLBACK_LISTING_IMAGE}

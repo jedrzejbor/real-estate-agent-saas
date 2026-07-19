@@ -354,6 +354,7 @@
 }
 
 .podadresem-map-popup-card {
+  position: relative;
   background: #ffffff;
   color: #1c1917;
 }
