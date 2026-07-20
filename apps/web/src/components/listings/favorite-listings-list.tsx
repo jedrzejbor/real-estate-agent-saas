@@ -38,6 +38,19 @@ export function FavoriteListingsList() {
   const [error, setError] = useState<string | null>(null);
   const entries = favoritesPage?.data ?? [];
   const meta = favoritesPage?.meta;
+  const isCorrectingEmptyPage =
+    !isLoading &&
+    Boolean(meta) &&
+    entries.length === 0 &&
+    page > 1 &&
+    Number(meta?.total) > 0;
+  const statusMessage = isLoading
+    ? favoritesPage
+      ? 'Aktualizacja listy ulubionych ofert'
+      : 'Ładowanie ulubionych ofert'
+    : meta
+      ? `Załadowano ${meta.total} ${formatOfferCount(meta.total)}`
+      : 'Lista ulubionych ofert jest gotowa';
 
   const loadFavorites = useCallback(async (nextPage: number) => {
     setIsLoading(true);
@@ -70,10 +83,10 @@ export function FavoriteListingsList() {
   }, [loadFavorites, page]);
 
   useEffect(() => {
-    if (!isLoading && meta && entries.length === 0 && meta.total > 0 && page > 1) {
+    if (isCorrectingEmptyPage) {
       setPage(page - 1);
     }
-  }, [entries.length, isLoading, meta, page]);
+  }, [isCorrectingEmptyPage, page]);
 
   const handleFavoriteRemoved = useCallback((listingId: string) => {
     setFavoritesPage((current) => {
@@ -120,7 +133,11 @@ export function FavoriteListingsList() {
 
   if (isLoading && !favoritesPage) {
     return (
-      <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-border bg-card">
+      <div
+        className="flex min-h-[320px] items-center justify-center rounded-2xl border border-border bg-card"
+        role="status"
+        aria-live="polite"
+      >
         <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
           Ładowanie ulubionych ofert
@@ -131,7 +148,10 @@ export function FavoriteListingsList() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-destructive/20 bg-card p-6 shadow-sm">
+      <div
+        className="rounded-2xl border border-destructive/20 bg-card p-6 shadow-sm"
+        role="alert"
+      >
         <p className="font-semibold text-destructive">
           Nie udało się pobrać ulubionych
         </p>
@@ -148,12 +168,34 @@ export function FavoriteListingsList() {
     );
   }
 
+  if (isCorrectingEmptyPage) {
+    return (
+      <div
+        className="flex min-h-[220px] items-center justify-center rounded-2xl border border-border bg-card"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          Aktualizacja strony ulubionych ofert
+        </div>
+      </div>
+    );
+  }
+
   if (entries.length === 0) {
     return <FavoriteListingsEmptyState />;
   }
 
   return (
-    <section className="space-y-5">
+    <section
+      className="space-y-5"
+      aria-busy={isLoading}
+      aria-live="polite"
+    >
+      <p className="sr-only" role="status">
+        {statusMessage}
+      </p>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium text-muted-foreground">
@@ -301,8 +343,12 @@ function FavoriteListingUnavailableCard({
 
   async function handleRemove() {
     setIsRemoving(true);
-    await onRemove(entry.listingId);
-    setIsRemoving(false);
+
+    try {
+      await onRemove(entry.listingId);
+    } finally {
+      setIsRemoving(false);
+    }
   }
 
   return (

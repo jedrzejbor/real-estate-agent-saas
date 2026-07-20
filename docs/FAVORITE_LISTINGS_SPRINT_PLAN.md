@@ -742,6 +742,11 @@ ofert z listy.
     cofa paginację do poprzedniej strony zamiast pokazywać fałszywy empty
     state. Pełne testy komponentu wymagają dodania runnera testów Reacta,
     opisanego wcześniej przy `FL3.4`.
+  - Aktualizacja 2026-07-20: utwardzono edge case po usunięciu ostatniej
+    pozycji na dalszej stronie. Komponent pokazuje teraz stan aktualizacji
+    zamiast chwilowego empty state, dopóki paginacja cofa użytkownika do
+    poprzedniej strony. Dodano też komunikat `aria-live` dla loadingu,
+    aktualizacji listy i liczby załadowanych ulubionych.
 
 - [x] `FL5.3` Dodać empty state.
   - Treść:
@@ -768,6 +773,9 @@ ofert z listy.
   - Uwagi / follow-up: usuwanie niedostępnej oferty używa
     `removeFavoriteListing`, pokazuje lokalny spinner oraz toast sukcesu lub
     błędu.
+  - Aktualizacja 2026-07-20: obsługę spinnera usuwania zabezpieczono blokiem
+    `try/finally`, żeby przycisk zawsze wracał do stabilnego stanu po
+    zakończeniu akcji.
 
 - [x] `FL5.5` Dodać wejście do zakładki w profilu/nawigacji.
   - Zakres zależny od decyzji `D2`.
