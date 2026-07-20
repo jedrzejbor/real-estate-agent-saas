@@ -18,6 +18,7 @@ import {
   Newspaper,
   CreditCard,
   BookOpenCheck,
+  Heart,
   X,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -210,6 +211,7 @@ const mobileBottomItems: DashboardNavItem[] = [
 ] as const;
 
 const bottomItems = [
+  { label: 'Ulubione', href: '/dashboard/profile/favorites', icon: Heart },
   { label: 'Ustawienia', href: '/dashboard/settings', icon: Settings },
 ] as const;
 

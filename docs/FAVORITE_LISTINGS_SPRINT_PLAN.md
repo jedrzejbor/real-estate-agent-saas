@@ -650,7 +650,7 @@ szczegółów.
     bezpieczne ścieżki wewnętrzne zaczynające się od `/` i odrzuca URL-e
     zewnętrzne oraz `//...`.
 
-- [-] `FL4.4` Dodać tracking eventów.
+- [x] `FL4.4` Dodać tracking eventów.
   - Eventy:
     - `favorite_listing_added`,
     - `favorite_listing_removed`,
@@ -667,11 +667,12 @@ szczegółów.
     opcjonalny kontekst analityczny (`listingSlug`, `analyticsSource`,
     `analyticsProperties`), a katalog, popup mapy i szczegóły oferty przekazują
     źródło interakcji oraz identyfikator/slug oferty.
+  - Data zakończenia: 2026-07-20
   - Uwagi / follow-up: `favorite_login_prompt_shown` dla publicznych ofert jest
     wysyłany publicznym kanałem `trackPublicListingEvent`, aby działał bez
-    sesji użytkownika. `favorites_profile_opened` ma już nazwę w kontrakcie,
-    ale faktyczne wywołanie zostaje do `FL-5`, bo trasa/zakładka profilu
-    ulubionych nie istnieje jeszcze w aplikacji.
+    sesji użytkownika. Event `favorites_profile_opened` został podpięty w
+    komponencie listy profilu z kontekstem `dashboard_profile_favorites` po
+    dodaniu trasy w `FL-5`.
 
 - [-] `FL4.5` Sprawdzić UI na desktopie i mobile.
   - Zakres:
@@ -705,52 +706,79 @@ ofert z listy.
 
 #### Zadania
 
-- [ ] `FL5.1` Dodać trasę zakładki ulubionych.
+- [x] `FL5.1` Dodać trasę zakładki ulubionych.
   - Propozycja: `/dashboard/profile/favorites` albo uzgodniona trasa z decyzji
     `D2`.
   - Wymagania:
     - chroniona autoryzacją,
     - spójna z layoutem dashboardu,
     - linkowalna z nawigacji profilu.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-20
+  - Wykonano: dodano linkowalną stronę
+    `apps/web/src/app/(dashboard)/dashboard/profile/favorites/page.tsx` dla
+    trasy `/dashboard/profile/favorites`. Strona używa layoutu dashboardu,
+    metadanych z nazwą aplikacji i renderuje dedykowany komponent listy
+    ulubionych.
+  - Uwagi / follow-up: trasa jest chroniona przez istniejący dashboard layout i
+    middleware. Dla użytkowników prywatnych dodano wyjątek od redirectu do
+    upgrade, bo ulubione są funkcją profilu, nie modułem CRM agenta.
 
-- [ ] `FL5.2` Dodać komponent listy `FavoriteListingsList`.
+- [x] `FL5.2` Dodać komponent listy `FavoriteListingsList`.
   - Wymagania:
     - korzysta z istniejącej karty oferty albo wspólnego komponentu prezentacji,
     - pokazuje datę dodania do ulubionych,
     - pozwala usunąć ofertę,
     - ma paginację lub infinite load, jeśli API ją zwraca.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-20
+  - Wykonano: dodano
+    `apps/web/src/components/listings/favorite-listings-list.tsx` i eksport w
+    `components/listings/index.ts`. Komponent pobiera dane przez istniejący
+    klient `fetchFavoriteListings`, pokazuje loading/error, datę dodania,
+    cenę, lokalizację, metraż, liczbę pokoi, link do szczegółów oraz paginację
+    opartą o istniejący `ListingPagination`. Usunięcie aktywnej oferty korzysta
+    z reużywalnego `FavoriteListingButton`, a stan listy jest aktualizowany bez
+    odświeżania strony.
+  - Uwagi / follow-up: po usunięciu ostatniej pozycji na dalszej stronie lista
+    cofa paginację do poprzedniej strony zamiast pokazywać fałszywy empty
+    state. Pełne testy komponentu wymagają dodania runnera testów Reacta,
+    opisanego wcześniej przy `FL3.4`.
 
-- [ ] `FL5.3` Dodać empty state.
+- [x] `FL5.3` Dodać empty state.
   - Treść:
     - krótka informacja, że użytkownik nie ma jeszcze ulubionych,
     - CTA do `/oferty`.
   - Wymagania:
     - bez marketingowego nadmiaru,
     - spójne z dashboardem.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-20
+  - Wykonano: dodano stan pusty z krótkim komunikatem i CTA do `/oferty`.
+    Empty state jest prosty, dashboardowy i nie dodaje marketingowego bloku.
+  - Uwagi / follow-up: CTA korzysta z istniejącego stylu `buttonVariants`, bez
+    używania nieobsługiwanego `asChild` w lokalnym komponencie `Button`.
 
-- [ ] `FL5.4` Obsłużyć oferty niedostępne.
+- [x] `FL5.4` Obsłużyć oferty niedostępne.
   - Wymagania:
     - informacja "Oferta nie jest już publicznie dostępna",
     - możliwość usunięcia z ulubionych,
     - brak linku do niedostępnych szczegółów.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-20
+  - Wykonano: dodano osobny stan karty dla `isAvailable: false` z komunikatem
+    "Oferta nie jest już publicznie dostępna", datą dodania i przyciskiem
+    usunięcia. Karta niedostępnej oferty nie linkuje do publicznych szczegółów.
+  - Uwagi / follow-up: usuwanie niedostępnej oferty używa
+    `removeFavoriteListing`, pokazuje lokalny spinner oraz toast sukcesu lub
+    błędu.
 
-- [ ] `FL5.5` Dodać wejście do zakładki w profilu/nawigacji.
+- [x] `FL5.5` Dodać wejście do zakładki w profilu/nawigacji.
   - Zakres zależny od decyzji `D2`.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data zakończenia: 2026-07-20
+  - Wykonano: dodano pozycję `Ulubione` z ikoną serca do dolnej części
+    `DashboardSidebar`, obok ustawień konta. Link prowadzi do
+    `/dashboard/profile/favorites` i korzysta z istniejącej logiki aktywnego
+    stanu nawigacji.
+  - Uwagi / follow-up: nie dodawano pozycji do mobilnego dolnego paska, żeby
+    nie wypychać najczęściej używanych modułów pracy; na mobile link jest
+    dostępny przez otwierany sidebar.
 
 ### Sprint FL-6 - Testy E2E, performance i bezpieczeństwo
 
