@@ -820,16 +820,29 @@ na to pozwala.
   - Wykonano:
   - Uwagi / follow-up:
 
-- [ ] `FL6.3` Sprawdzić brak N+1 queries.
+- [-] `FL6.3` Sprawdzić brak N+1 queries.
   - Zakres:
     - katalog ofert,
     - lista ulubionych,
     - szczegóły oferty.
   - Kryterium:
     - stan ulubionych jest pobierany masowo, nie per karta.
-  - Data zakończenia:
+  - Data iteracji: 2026-07-20
   - Wykonano:
-  - Uwagi / follow-up:
+    - backend: dodano test kontrolera potwierdzający, że lista profilu deleguje
+      do jednego paginowanego wywołania serwisu,
+    - backend: rozszerzono test lekkiego endpointu ID o gwarancję jednego
+      bulk query po `listingIds` i brak dodatkowych zapytań do repo ofert,
+    - backend: dodano test listy profilu, który pilnuje jednego query buildera
+      z joinami do `listing`, `address`, `images`, `agent` i `agency`,
+      paginacji przez `skip/take` oraz pojedynczego `getManyAndCount`,
+    - frontend: przejrzano integrację katalogu i szczegółów oferty; katalog
+      składa unikalne ID z wyników oraz markerów mapy i wywołuje
+      `fetchFavoriteListingIds(catalogListingIds)` raz dla aktualnego payloadu,
+      a szczegóły oferty sprawdzają tylko pojedyncze ID bieżącej oferty.
+  - Uwagi / follow-up: automatyczny test przeglądarkowy dla liczby requestów w
+    katalogu zostaje do `FL6.1`/`FL6.2` albo osobnej konfiguracji Playwright,
+    bo web app nadal nie ma runnera E2E UI.
 
 - [-] `FL6.4` Sprawdzić autoryzację i izolację danych.
   - Przypadki:

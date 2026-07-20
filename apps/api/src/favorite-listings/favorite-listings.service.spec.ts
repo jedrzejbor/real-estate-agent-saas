@@ -148,6 +148,8 @@ describe('FavoriteListingsService', () => {
       'favorite.listingId IN (:...listingIds)',
       { listingIds: [LISTING_ID, OTHER_LISTING_ID] },
     );
+    expect(favoriteRepo.createQueryBuilder).toHaveBeenCalledTimes(1);
+    expect(listingRepo.createQueryBuilder).not.toHaveBeenCalled();
   });
 
   it('returns an empty id list when current user has no requested favorites', async () => {
@@ -240,6 +242,44 @@ describe('FavoriteListingsService', () => {
       'favorite.userId = :userId',
       { userId: USER_ID },
     );
+  });
+
+  it('loads profile favorites with one joined paginated query', async () => {
+    const favorite = buildFavorite({ id: 'favorite-current-user' });
+    const queryBuilder = createFavoritesListQueryBuilder(
+      [favorite as FavoriteListing],
+      1,
+    );
+    favoriteRepo.createQueryBuilder.mockReturnValue(queryBuilder);
+
+    await service.findUserFavorites(USER_ID, { page: 2, limit: 12 });
+
+    expect(favoriteRepo.createQueryBuilder).toHaveBeenCalledTimes(1);
+    expect(queryBuilder.leftJoinAndSelect).toHaveBeenCalledWith(
+      'favorite.listing',
+      'listing',
+    );
+    expect(queryBuilder.leftJoinAndSelect).toHaveBeenCalledWith(
+      'listing.address',
+      'address',
+    );
+    expect(queryBuilder.leftJoinAndSelect).toHaveBeenCalledWith(
+      'listing.images',
+      'images',
+    );
+    expect(queryBuilder.leftJoinAndSelect).toHaveBeenCalledWith(
+      'listing.agent',
+      'agent',
+    );
+    expect(queryBuilder.leftJoinAndSelect).toHaveBeenCalledWith(
+      'agent.agency',
+      'agency',
+    );
+    expect(queryBuilder.skip).toHaveBeenCalledWith(12);
+    expect(queryBuilder.take).toHaveBeenCalledWith(12);
+    expect(queryBuilder.getManyAndCount).toHaveBeenCalledTimes(1);
+    expect(favoriteRepo.findOne).not.toHaveBeenCalled();
+    expect(listingRepo.createQueryBuilder).not.toHaveBeenCalled();
   });
 
   function mockPublicListingLookup(listing: Listing | null) {

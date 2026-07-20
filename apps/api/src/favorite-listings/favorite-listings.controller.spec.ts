@@ -41,6 +41,22 @@ describe('FavoriteListingsController', () => {
     ]);
   });
 
+  it('delegates profile list lookup to one paginated service call', async () => {
+    const query = { page: 2, limit: 12 };
+    service.findUserFavorites.mockResolvedValue({
+      data: [],
+      meta: { total: 0, page: 2, limit: 12, totalPages: 0 },
+    });
+
+    await expect(controller.findAll(USER_ID, query)).resolves.toEqual({
+      data: [],
+      meta: { total: 0, page: 2, limit: 12, totalPages: 0 },
+    });
+
+    expect(service.findUserFavorites).toHaveBeenCalledTimes(1);
+    expect(service.findUserFavorites).toHaveBeenCalledWith(USER_ID, query);
+  });
+
   it('keeps favorite id lookup authenticated', () => {
     expect(
       Reflect.getMetadata(
