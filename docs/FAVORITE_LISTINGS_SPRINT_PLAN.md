@@ -831,14 +831,28 @@ na to pozwala.
   - Wykonano:
   - Uwagi / follow-up:
 
-- [ ] `FL6.4` Sprawdzić autoryzację i izolację danych.
+- [-] `FL6.4` Sprawdzić autoryzację i izolację danych.
   - Przypadki:
     - użytkownik A nie widzi ulubionych użytkownika B,
     - anonimowy użytkownik nie odczytuje listy ulubionych,
     - nie można dodać niepublicznej oferty.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data iteracji: 2026-07-20
+  - Wykonano: dodano regresyjne testy backendowe dla modułu ulubionych:
+    - kontroler pilnuje, że wszystkie endpointy `favorite-listings`
+      (`findAll`, `findIds`, `add`, `remove`) nie są oznaczone jako publiczne,
+    - lista profilu używa filtra `favorite.userId = :userId`, więc bazuje na
+      bieżącym użytkowniku,
+    - lekkie sprawdzanie ID zwraca tylko `listingIds` znalezione dla bieżącego
+      użytkownika,
+    - dodanie ulubionej oferty wymaga pełnego zestawu warunków publiczności
+      oferty: published, active, public slug, `publishedAt` i brak wygaśnięcia,
+    - niedostępna oferta na liście profilu nie zwraca obiektu `listing`, tylko
+      bezpieczny stan `isAvailable: false`.
+  - Uwagi / follow-up: w tej iteracji użyto istniejącego runnera Jest dla API,
+    ponieważ projekt nie ma obecnie skonfigurowanego Playwrighta ani innego
+    runnera E2E UI. Pełna weryfikacja anonimowego requestu i izolacji przez
+    realne HTTP powinna zostać domknięta po dodaniu infrastruktury E2E albo w
+    osobnym teście integracyjnym Nest.
 
 - [ ] `FL6.5` Przejść checklistę UI.
   - Zakres:

@@ -52,6 +52,28 @@ describe('FavoriteListingsController', () => {
       Reflect.getMetadata(IS_PUBLIC_KEY, FavoriteListingsController),
     ).toBeUndefined();
   });
+
+  it('keeps all favorite listing endpoints authenticated', () => {
+    const protectedHandlers: Array<keyof FavoriteListingsController> = [
+      'findAll',
+      'findIds',
+      'add',
+      'remove',
+    ];
+
+    for (const handler of protectedHandlers) {
+      expect(
+        Reflect.getMetadata(
+          IS_PUBLIC_KEY,
+          FavoriteListingsController.prototype[handler],
+        ),
+      ).toBeUndefined();
+    }
+
+    expect(
+      Reflect.getMetadata(IS_PUBLIC_KEY, FavoriteListingsController),
+    ).toBeUndefined();
+  });
 });
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';

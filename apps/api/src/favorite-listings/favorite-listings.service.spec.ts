@@ -73,6 +73,42 @@ describe('FavoriteListingsService', () => {
     expect(favoriteRepo.create).not.toHaveBeenCalled();
   });
 
+  it('validates public listing availability before adding a favorite', async () => {
+    const queryBuilder = mockPublicListingLookup(buildPublicListing());
+    favoriteRepo.findOne.mockResolvedValue(null);
+    favoriteRepo.create.mockReturnValue(
+      buildFavorite({ id: 'favorite-1' }) as FavoriteListing,
+    );
+    favoriteRepo.save.mockResolvedValue(
+      buildFavorite({ id: 'favorite-1' }) as FavoriteListing,
+    );
+
+    await service.addFavorite(USER_ID, LISTING_ID);
+
+    expect(queryBuilder.where).toHaveBeenCalledWith(
+      'listing.id = :listingId',
+      { listingId: LISTING_ID },
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'listing.publicationStatus = :publicationStatus',
+      { publicationStatus: ListingPublicationStatus.PUBLISHED },
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'listing.status = :status',
+      { status: ListingStatus.ACTIVE },
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'listing.publicSlug IS NOT NULL',
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'listing.publishedAt IS NOT NULL',
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      '(listing.expiresAt IS NULL OR listing.expiresAt > :now)',
+      expect.objectContaining({ now: expect.any(Date) }),
+    );
+  });
+
   it('removes favorite idempotently', async () => {
     favoriteRepo.delete.mockResolvedValue({ affected: 0, raw: [] });
 
@@ -125,6 +161,25 @@ describe('FavoriteListingsService', () => {
     });
   });
 
+  it('does not return listing ids that are not favorites of the current user', async () => {
+    const queryBuilder = createFavoriteIdsQueryBuilder([
+      { listingId: LISTING_ID },
+    ]);
+    favoriteRepo.createQueryBuilder.mockReturnValue(queryBuilder);
+
+    await expect(
+      service.findFavoriteListingIds(USER_ID, [
+        LISTING_ID,
+        OTHER_LISTING_ID,
+      ]),
+    ).resolves.toEqual({ listingIds: [LISTING_ID] });
+
+    expect(queryBuilder.where).toHaveBeenCalledWith(
+      'favorite.userId = :userId',
+      { userId: USER_ID },
+    );
+  });
+
   it('returns an empty favorite id list without querying when input is empty', async () => {
     await expect(service.findFavoriteListingIds(USER_ID, [])).resolves.toEqual({
       listingIds: [],
@@ -147,9 +202,12 @@ describe('FavoriteListingsService', () => {
     );
     favoriteRepo.createQueryBuilder.mockReturnValue(queryBuilder);
 
-    await expect(
-      service.findUserFavorites(USER_ID, { page: 1, limit: 24 }),
-    ).resolves.toMatchObject({
+    const result = await service.findUserFavorites(USER_ID, {
+      page: 1,
+      limit: 24,
+    });
+
+    expect(result).toMatchObject({
       data: [
         {
           id: 'favorite-unavailable',
@@ -165,12 +223,29 @@ describe('FavoriteListingsService', () => {
         totalPages: 1,
       },
     });
+    expect(result.data[0]).not.toHaveProperty('listing');
+  });
+
+  it('queries the profile favorites list for the current user only', async () => {
+    const favorite = buildFavorite({ id: 'favorite-current-user' });
+    const queryBuilder = createFavoritesListQueryBuilder(
+      [favorite as FavoriteListing],
+      1,
+    );
+    favoriteRepo.createQueryBuilder.mockReturnValue(queryBuilder);
+
+    await service.findUserFavorites(USER_ID, { page: 1, limit: 24 });
+
+    expect(queryBuilder.where).toHaveBeenCalledWith(
+      'favorite.userId = :userId',
+      { userId: USER_ID },
+    );
   });
 
   function mockPublicListingLookup(listing: Listing | null) {
-    listingRepo.createQueryBuilder.mockReturnValue(
-      createPublicListingLookupQueryBuilder(listing),
-    );
+    const queryBuilder = createPublicListingLookupQueryBuilder(listing);
+    listingRepo.createQueryBuilder.mockReturnValue(queryBuilder);
+    return queryBuilder;
   }
 });
 
