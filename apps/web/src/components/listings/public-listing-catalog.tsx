@@ -597,9 +597,12 @@ function ListingCard({
       <div className="absolute right-3 top-3 z-20">
         <FavoriteListingButton
           listingId={listing.id}
+          listingSlug={listing.slug}
           initialIsFavorite={isFavorite}
           variant="compact"
           loginHref={loginHref}
+          analyticsSource="public_listing_catalog_card"
+          analyticsProperties={searchProperties}
           stopPropagation
           onChanged={onFavoriteChanged}
           className="border-background/80 bg-card/95 shadow-sm backdrop-blur hover:bg-card"

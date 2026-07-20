@@ -5,14 +5,18 @@ import { Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useFavoriteListing } from '@/hooks/use-favorite-listing';
+import type { AnalyticsProperties } from '@/lib/analytics';
 import type { ToggleFavoriteListingResult } from '@/lib/favorite-listings';
 import { cn } from '@/lib/utils';
 
 interface FavoriteListingButtonProps {
   listingId: string;
+  listingSlug?: string;
   initialIsFavorite?: boolean;
   variant?: 'compact' | 'default';
   loginHref?: string;
+  analyticsSource?: string;
+  analyticsProperties?: AnalyticsProperties;
   disabled?: boolean;
   className?: string;
   stopPropagation?: boolean;
@@ -22,9 +26,12 @@ interface FavoriteListingButtonProps {
 
 export function FavoriteListingButton({
   listingId,
+  listingSlug,
   initialIsFavorite = false,
   variant = 'default',
   loginHref,
+  analyticsSource,
+  analyticsProperties,
   disabled = false,
   className,
   stopPropagation = false,
@@ -35,6 +42,11 @@ export function FavoriteListingButton({
     listingId,
     initialIsFavorite,
     loginHref,
+    analytics: {
+      listingSlug,
+      source: analyticsSource,
+      properties: analyticsProperties,
+    },
     onAuthRequired,
     onChanged,
   });

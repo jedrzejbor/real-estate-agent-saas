@@ -27,6 +27,10 @@ export const ANALYTICS_EVENT_NAMES = [
   'public_listing_catalog_result_clicked',
   'public_listing_map_search_used',
   'public_listing_abuse_reported',
+  'favorite_listing_added',
+  'favorite_listing_removed',
+  'favorite_login_prompt_shown',
+  'favorites_profile_opened',
   'public_lead_submitted',
   'public_lead_accepted',
   'public_listing_claim_started',
@@ -65,6 +69,7 @@ export const PUBLIC_LISTING_ANALYTICS_EVENT_NAMES = [
   'public_listing_gallery_image_viewed',
   'public_listing_catalog_result_clicked',
   'public_listing_abuse_reported',
+  'favorite_login_prompt_shown',
   'public_lead_submitted',
 ] as const;
 

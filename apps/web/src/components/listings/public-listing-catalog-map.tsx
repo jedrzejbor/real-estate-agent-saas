@@ -569,9 +569,11 @@ function MapListingPopup({
       <div className="absolute right-2 top-2 z-20">
         <FavoriteListingButton
           listingId={marker.id}
+          listingSlug={marker.slug}
           initialIsFavorite={favoriteListingIds?.has(marker.id) ?? false}
           variant="compact"
           loginHref={favoriteLoginHref}
+          analyticsSource="public_listing_catalog_map_popup"
           stopPropagation
           onChanged={onFavoriteChanged}
           className="h-9 w-9 border-background/80 bg-card/95 shadow-sm backdrop-blur hover:bg-card"

@@ -6,6 +6,12 @@ import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
+  AnalyticsEventName,
+  trackAnalyticsEvent,
+  trackPublicListingEvent,
+  type AnalyticsProperties,
+} from '@/lib/analytics';
+import {
   addFavoriteListing,
   removeFavoriteListing,
   type ToggleFavoriteListingResult,
@@ -16,8 +22,15 @@ interface UseFavoriteListingOptions {
   initialIsFavorite?: boolean;
   loginHref?: string;
   showErrorToast?: boolean;
+  analytics?: FavoriteListingAnalyticsContext;
   onAuthRequired?: () => void;
   onChanged?: (result: ToggleFavoriteListingResult) => void;
+}
+
+interface FavoriteListingAnalyticsContext {
+  listingSlug?: string;
+  source?: string;
+  properties?: AnalyticsProperties;
 }
 
 export function useFavoriteListing({
@@ -25,6 +38,7 @@ export function useFavoriteListing({
   initialIsFavorite = false,
   loginHref = '/login',
   showErrorToast = true,
+  analytics,
   onAuthRequired,
   onChanged,
 }: UseFavoriteListingOptions) {
@@ -42,6 +56,7 @@ export function useFavoriteListing({
 
   const requireAuth = useCallback(() => {
     onAuthRequired?.();
+    trackFavoriteLoginPromptShown(listingId, analytics);
 
     toast.warning({
       title: 'Zaloguj się, aby zapisać ofertę',
@@ -51,7 +66,7 @@ export function useFavoriteListing({
         onClick: () => router.push(loginHref),
       },
     });
-  }, [loginHref, onAuthRequired, router, toast]);
+  }, [analytics, listingId, loginHref, onAuthRequired, router, toast]);
 
   const setFavorite = useCallback(
     async (nextIsFavorite: boolean) => {
@@ -75,6 +90,7 @@ export function useFavoriteListing({
           : await removeFavoriteListing(listingId);
 
         setIsFavorite(result.isFavorite);
+        trackFavoriteListingChanged(result, analytics);
         onChanged?.(result);
 
         return result;
@@ -100,6 +116,7 @@ export function useFavoriteListing({
       isAuthLoading,
       isFavorite,
       isPending,
+      analytics,
       listingId,
       onChanged,
       requireAuth,
@@ -123,5 +140,50 @@ export function useFavoriteListing({
     remove,
     toggle,
     setIsFavorite,
+  };
+}
+
+function trackFavoriteLoginPromptShown(
+  listingId: string,
+  analytics?: FavoriteListingAnalyticsContext,
+): void {
+  const properties = buildFavoriteAnalyticsProperties(listingId, analytics);
+
+  if (analytics?.listingSlug) {
+    trackPublicListingEvent({
+      slug: analytics.listingSlug,
+      name: AnalyticsEventName.FAVORITE_LOGIN_PROMPT_SHOWN,
+      properties,
+    });
+    return;
+  }
+
+  trackAnalyticsEvent({
+    name: AnalyticsEventName.FAVORITE_LOGIN_PROMPT_SHOWN,
+    properties,
+  });
+}
+
+function trackFavoriteListingChanged(
+  result: ToggleFavoriteListingResult,
+  analytics?: FavoriteListingAnalyticsContext,
+): void {
+  trackAnalyticsEvent({
+    name: result.isFavorite
+      ? AnalyticsEventName.FAVORITE_LISTING_ADDED
+      : AnalyticsEventName.FAVORITE_LISTING_REMOVED,
+    properties: buildFavoriteAnalyticsProperties(result.listingId, analytics),
+  });
+}
+
+function buildFavoriteAnalyticsProperties(
+  listingId: string,
+  analytics?: FavoriteListingAnalyticsContext,
+): AnalyticsProperties {
+  return {
+    listingId,
+    listingSlug: analytics?.listingSlug,
+    source: analytics?.source,
+    ...analytics?.properties,
   };
 }

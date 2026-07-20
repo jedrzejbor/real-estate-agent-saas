@@ -650,15 +650,28 @@ szczegółów.
     bezpieczne ścieżki wewnętrzne zaczynające się od `/` i odrzuca URL-e
     zewnętrzne oraz `//...`.
 
-- [ ] `FL4.4` Dodać tracking eventów.
+- [-] `FL4.4` Dodać tracking eventów.
   - Eventy:
     - `favorite_listing_added`,
     - `favorite_listing_removed`,
     - `favorite_login_prompt_shown`,
     - `favorites_profile_opened`.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data iteracji: 2026-07-20
+  - Wykonano: dodano nazwy eventów `favorite_listing_added`,
+    `favorite_listing_removed`, `favorite_login_prompt_shown` i
+    `favorites_profile_opened` do frontendowego kontraktu analytics oraz
+    backendowego DTO `CreateAnalyticsEventDto`. Hook `useFavoriteListing`
+    wysyła `favorite_listing_added` i `favorite_listing_removed` po udanej
+    zmianie stanu ulubienia oraz `favorite_login_prompt_shown` przy próbie
+    kliknięcia przez użytkownika anonimowego. `FavoriteListingButton` przyjmuje
+    opcjonalny kontekst analityczny (`listingSlug`, `analyticsSource`,
+    `analyticsProperties`), a katalog, popup mapy i szczegóły oferty przekazują
+    źródło interakcji oraz identyfikator/slug oferty.
+  - Uwagi / follow-up: `favorite_login_prompt_shown` dla publicznych ofert jest
+    wysyłany publicznym kanałem `trackPublicListingEvent`, aby działał bez
+    sesji użytkownika. `favorites_profile_opened` ma już nazwę w kontrakcie,
+    ale faktyczne wywołanie zostaje do `FL-5`, bo trasa/zakładka profilu
+    ulubionych nie istnieje jeszcze w aplikacji.
 
 - [ ] `FL4.5` Sprawdzić UI na desktopie i mobile.
   - Zakres:

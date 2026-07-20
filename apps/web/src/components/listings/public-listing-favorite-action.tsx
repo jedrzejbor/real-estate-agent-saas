@@ -56,8 +56,10 @@ export function PublicListingFavoriteAction({
   return (
     <FavoriteListingButton
       listingId={listingId}
+      listingSlug={listingSlug}
       initialIsFavorite={initialIsFavorite}
       loginHref={loginHref}
+      analyticsSource="public_listing_detail"
       disabled={isAuthLoading}
       onChanged={(result) => setFetchedIsFavorite(result.isFavorite)}
       className="w-full justify-center"
