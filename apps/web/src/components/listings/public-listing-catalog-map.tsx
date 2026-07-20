@@ -566,7 +566,7 @@ function MapListingPopup({
         className="h-28"
         compact
       />
-      <div className="absolute right-2 top-2 z-20">
+      <div className="absolute right-2 top-[72px] z-20">
         <FavoriteListingButton
           listingId={marker.id}
           listingSlug={marker.slug}

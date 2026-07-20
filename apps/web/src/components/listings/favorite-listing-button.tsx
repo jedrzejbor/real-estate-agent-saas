@@ -77,7 +77,7 @@ export function FavoriteListingButton({
         'h-11 shrink-0 rounded-xl',
         isCompact
           ? 'w-11 p-0'
-          : 'min-w-[148px] gap-2 px-3 text-sm font-semibold',
+          : 'min-w-[168px] gap-2 px-4 text-sm font-semibold',
         isFavorite &&
           'border-primary/20 bg-primary/10 text-primary hover:bg-primary/15',
         className,

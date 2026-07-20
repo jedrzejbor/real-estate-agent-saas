@@ -673,15 +673,26 @@ szczegółów.
     ale faktyczne wywołanie zostaje do `FL-5`, bo trasa/zakładka profilu
     ulubionych nie istnieje jeszcze w aplikacji.
 
-- [ ] `FL4.5` Sprawdzić UI na desktopie i mobile.
+- [-] `FL4.5` Sprawdzić UI na desktopie i mobile.
   - Zakres:
     - brak nakładania tekstu,
     - stabilny layout kart,
     - poprawne focus states,
     - czytelny stan loading.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data iteracji: 2026-07-20
+  - Wykonano: wykonano statyczny przegląd miejsc renderowania przycisku
+    ulubienia w katalogu, popupie mapy i szczegółach oferty. Poprawiono
+    stabilność pełnego wariantu `FavoriteListingButton` przez zwiększenie
+    minimalnej szerokości i paddingu, żeby dłuższa etykieta
+    `Usuń z ulubionych` nie była ściśnięta. Przesunięto kompaktowy przycisk w
+    popupie mapy z rogu zamykania na obszar zdjęcia, aby nie nachodził na
+    przycisk zamknięcia Leafleta ani przełącznik wielu ofert w tym samym
+    punkcie.
+  - Uwagi / follow-up: `Button` bazowy ma już `focus-visible` ring, więc nie
+    dodawano lokalnych stylów focus. W tej iteracji wykonano `type-check` i
+    `lint`; pełny screenshotowy test desktop/mobile zostaje jako follow-up,
+    ponieważ projekt nie ma obecnie skonfigurowanego runnera wizualnego ani
+    Playwright/Storybook dla web UI.
 
 ### Sprint FL-5 - Zakładka profilu: lista ulubionych
 
