@@ -79,10 +79,83 @@ describe('FavoriteListingsService flow', () => {
       },
     });
   });
+
+  it('keeps favorite lists isolated between users through add, list and remove flow', async () => {
+    const listings = [
+      buildPublicListing(),
+      buildPublicListing({
+        id: OTHER_LISTING_ID,
+        publicSlug: 'inna-testowa-oferta',
+        title: 'Inna testowa oferta',
+        publicTitle: 'Inna publiczna testowa oferta',
+      }),
+    ];
+    const favorites: FavoriteListing[] = [];
+    const favoriteRepo = createFavoriteListingRepository(favorites, listings);
+    const listingRepo = createListingRepository(listings);
+    const service = new FavoriteListingsService(
+      favoriteRepo as unknown as Repository<FavoriteListing>,
+      listingRepo as unknown as Repository<Listing>,
+    );
+
+    await service.addFavorite(USER_ID, LISTING_ID);
+    await service.addFavorite(OTHER_USER_ID, OTHER_LISTING_ID);
+
+    await expect(
+      service.findFavoriteListingIds(USER_ID, [LISTING_ID, OTHER_LISTING_ID]),
+    ).resolves.toEqual({
+      listingIds: [LISTING_ID],
+    });
+    await expect(
+      service.findUserFavorites(USER_ID, { page: 1, limit: 24 }),
+    ).resolves.toMatchObject({
+      data: [
+        {
+          listingId: LISTING_ID,
+          listing: {
+            id: LISTING_ID,
+            slug: 'testowa-oferta',
+          },
+        },
+      ],
+      meta: {
+        total: 1,
+      },
+    });
+
+    await service.removeFavorite(USER_ID, LISTING_ID);
+
+    await expect(
+      service.findFavoriteListingIds(OTHER_USER_ID, [
+        LISTING_ID,
+        OTHER_LISTING_ID,
+      ]),
+    ).resolves.toEqual({
+      listingIds: [OTHER_LISTING_ID],
+    });
+    await expect(
+      service.findUserFavorites(OTHER_USER_ID, { page: 1, limit: 24 }),
+    ).resolves.toMatchObject({
+      data: [
+        {
+          listingId: OTHER_LISTING_ID,
+          listing: {
+            id: OTHER_LISTING_ID,
+            slug: 'inna-testowa-oferta',
+          },
+        },
+      ],
+      meta: {
+        total: 1,
+      },
+    });
+  });
 });
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
+const OTHER_USER_ID = '99999999-9999-4999-8999-999999999999';
 const LISTING_ID = '22222222-2222-4222-8222-222222222222';
+const OTHER_LISTING_ID = '33333333-3333-4333-8333-333333333333';
 
 function createFavoriteListingRepository(
   favorites: FavoriteListing[],
@@ -225,7 +298,7 @@ function createListingQueryBuilder(listings: Listing[]) {
   return queryBuilder;
 }
 
-function buildPublicListing(): Listing {
+function buildPublicListing(overrides: Partial<Listing> = {}): Listing {
   return {
     id: LISTING_ID,
     publicSlug: 'testowa-oferta',
@@ -280,6 +353,7 @@ function buildPublicListing(): Listing {
         logoUrl: null,
       },
     },
+    ...overrides,
   } as unknown as Listing;
 }
 

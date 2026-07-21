@@ -880,6 +880,12 @@ na to pozwala.
     runnera E2E UI. Pełna weryfikacja anonimowego requestu i izolacji przez
     realne HTTP powinna zostać domknięta po dodaniu infrastruktury E2E albo w
     osobnym teście integracyjnym Nest.
+  - Aktualizacja 2026-07-21: rozszerzono
+    `favorite-listings.flow.spec.ts` o przepływ dwóch użytkowników. Test
+    dodaje różne oferty do ulubionych dla użytkownika A i B, potwierdza, że
+    `findFavoriteListingIds` oraz `findUserFavorites` użytkownika A nie
+    zwracają danych użytkownika B, a usunięcie ulubionej oferty użytkownika A
+    nie narusza listy użytkownika B.
 
 - [-] `FL6.5` Przejść checklistę UI.
   - Zakres:
