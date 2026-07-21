@@ -91,6 +91,14 @@ export function useFavoriteListing({
 
         setIsFavorite(result.isFavorite);
         trackFavoriteListingChanged(result, analytics);
+
+        if (result.isFavorite) {
+          toast.success({
+            title: 'Dodano do ulubionych',
+            description: 'Oferta została zapisana na Twojej liście ulubionych.',
+          });
+        }
+
         onChanged?.(result);
 
         return result;
