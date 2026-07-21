@@ -482,15 +482,136 @@ Nowe widoki:
 **Cel sprintu:**
 Domknac nazewnictwo, statusy, tryb wielu agentow, uprawnienia i zakres MVP.
 
+**Rezultat sprintu:**
+Zakres MVP, nazewnictwo, punkty integracji, zasady planow platnych i eventy
+analityczne sa doprecyzowane na tyle, zeby Sprint AT-1 mogl zaczac sie od modelu
+danych bez przebudowy zalozen domenowych.
+
 #### Zadania
 
-- [ ] `AT0.1` Potwierdzic decyzje `ATD1`-`ATD6`.
-- [ ] `AT0.2` Przejrzec obecny flow `/dodaj-oferte`, `/seller` i
+- [x] `AT0.1` Potwierdzic decyzje `ATD1`-`ATD6`.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: potwierdzono wszystkie decyzje produktowe z sekcji 4.
+  - Decyzje:
+    - wlasciciel moze wybrac wielu agentow tylko po jawnym wlaczeniu trybu
+      `multi_agent`,
+    - zaakceptowany agent tworzy powiazana kopie oferty w swoim CRM i nie edytuje
+      oryginalu wlasciciela,
+    - `single_agent` zamyka nabor po akceptacji, a `multi_agent` moze przyjmowac
+      kolejne propozycje do limitu albo recznego zamkniecia,
+    - przed akceptacja agent widzi tylko dane juz udostepnione publicznie w
+      ogloszeniu,
+    - funkcja jest dostepna w platnych planach agentow, a plan Free dostaje
+      najwyzej teaser/CTA upgrade,
+    - nazwy UI: `Wspolpraca z agentami`, `Oferty szukajace agenta`, `Oferta
+      wspolpracy`.
+
+- [x] `AT0.2` Przejrzec obecny flow `/dodaj-oferte`, `/seller` i
   `public-listing-submissions`, aby wskazac dokladne miejsca integracji.
-- [ ] `AT0.3` Ustalic finalne nazwy endpointow i encji.
-- [ ] `AT0.4` Sprawdzic obecny system planow i zdecydowac, czy MVP limituje
+  - Data zakonczenia: 2026-07-22
+  - Wykonano:
+    - publiczny wizard `/dodaj-oferte` korzysta z
+      `CreatePublicListingSubmissionInput` i wysyla dane do
+      `POST /api/public-listing-submissions`,
+    - zalogowany wlasciciel tworzy submission przez
+      `POST /api/public-listing-submissions/seller`,
+    - panel `/seller` pobiera i edytuje oferty wlasciciela przez endpointy
+      `GET/PATCH /api/public-listing-submissions/seller/:id`,
+    - backend trzyma wlasciciela w `PublicListingSubmission.ownerUserId` oraz
+      `Listing.ownerUserId`,
+    - opublikowana oferta wlasciciela ma `publishedListingId`, wiec przyszly
+      model propozycji powinien laczyc sie docelowo z `Listing`, a panel
+      wlasciciela moze agregowac licznik propozycji po `publishedListingId`,
+    - obecny flow claim/publikacji tworzy `Listing` z danych submission, wiec
+      pola wspolpracy trzeba utrzymac zarowno na submission/payload, jak i na
+      finalnej encji `Listing`.
+  - Decyzja techniczna: nie tworzymy osobnego modelu "seller listing" dla tej
+    funkcji. Integrujemy sie z istniejacym `PublicListingSubmission` i
+    `Listing.ownerUserId`, a logike propozycji trzymamy w osobnym module
+    domenowym.
+
+- [x] `AT0.3` Ustalic finalne nazwy endpointow i encji.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: ustalono nazwy techniczne na MVP.
+  - Encje:
+    - `ListingAgentProposal`,
+    - `ListingAgentProposalMessage`,
+    - `ListingAgentAssignment`.
+  - Moduly:
+    - `listing-agent-proposals` - propozycje, decyzje wlasciciela i czat,
+    - `agent-listing-market` - wyszukiwarka ofert szukajacych agenta,
+    - opcjonalnie osobny `listing-agent-assignments`, jesli serwis assignmentow
+      zacznie rosnac poza akceptacje i tworzenie kopii.
+  - Endpointy MVP:
+    - `GET /api/agent-listing-market`,
+    - `POST /api/listing-agent-proposals/listings/:listingId`,
+    - `GET /api/listing-agent-proposals/agent`,
+    - `GET /api/listing-agent-proposals/agent/:id`,
+    - `PATCH /api/listing-agent-proposals/agent/:id`,
+    - `POST /api/listing-agent-proposals/agent/:id/withdraw`,
+    - `GET /api/listing-agent-proposals/seller`,
+    - `GET /api/listing-agent-proposals/seller/:id`,
+    - `POST /api/listing-agent-proposals/seller/:id/accept`,
+    - `POST /api/listing-agent-proposals/seller/:id/reject`,
+    - `GET /api/listing-agent-proposals/:id/messages`,
+    - `POST /api/listing-agent-proposals/:id/messages`,
+    - `POST /api/listing-agent-assignments/:id/create-listing-copy`.
+  - Uwagi / follow-up: endpointy `seller` musza byc scope'owane po
+    `ownerUserId`, a endpointy `agent` po `agentId` wyliczonym z biezacego
+    uzytkownika. Nie przekazujemy `agentId` ani `ownerUserId` z frontendu jako
+    zrodla uprawnien.
+
+- [x] `AT0.4` Sprawdzic obecny system planow i zdecydowac, czy MVP limituje
   liczbe propozycji dla agentow.
-- [ ] `AT0.5` Przygotowac eventy analityczne i metryki sukcesu.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano:
+    - system planow ma `AgencyPlanFeatures` i `AgencyPlanLimits`,
+    - obecne feature checks uzywaja `access.entitlements.features.*` oraz
+      `FeatureAccessDeniedException`,
+    - Free ma aktualnie czesc funkcji publicznych wlaczonych, dlatego tej nowej
+      funkcji nie nalezy sprawdzac po samym `publicListings`,
+    - release flags sa osobnym mechanizmem i powinny sluzyc do rollout'u, a nie
+      do docelowego rozliczania planow.
+  - Decyzja techniczna: dodajemy nowe entitlement feature
+    `agentListingMarket`. Dla `free` ustawiamy `false`, dla platnych planow
+    `true`, z mozliwoscia override w `PlanCatalog`.
+  - Decyzja MVP: w pierwszej implementacji blokujemy dostep w planie Free, ale
+    nie wprowadzamy jeszcze twardego miesiecznego limitu liczby propozycji.
+    Licznik propozycji i eventy analityczne dodajemy od razu, zeby pozniej moc
+    bezpiecznie wprowadzic limit per plan.
+
+- [x] `AT0.5` Przygotowac eventy analityczne i metryki sukcesu.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: ustalono minimalny zestaw eventow i metryk.
+  - Eventy do dodania po stronie web i API:
+    - `agent_collaboration_enabled`,
+    - `agent_collaboration_disabled`,
+    - `agent_listing_market_viewed`,
+    - `agent_listing_market_result_opened`,
+    - `listing_agent_proposal_started`,
+    - `listing_agent_proposal_submitted`,
+    - `listing_agent_proposal_updated`,
+    - `listing_agent_proposal_withdrawn`,
+    - `listing_agent_proposal_viewed_by_seller`,
+    - `listing_agent_proposal_message_sent`,
+    - `listing_agent_proposal_accepted`,
+    - `listing_agent_proposal_rejected`,
+    - `listing_agent_assignment_listing_copy_created`,
+    - `agent_listing_market_upgrade_cta_clicked`.
+  - Metryki sukcesu:
+    - liczba ofert z wlaczona wspolpraca,
+    - procent publicznych ofert wlascicieli z wlaczona wspolpraca,
+    - liczba agentow odwiedzajacych rynek ofert,
+    - liczba wyslanych propozycji,
+    - srednia liczba propozycji na oferte,
+    - acceptance rate propozycji,
+    - czas od publikacji oferty do pierwszej propozycji,
+    - czas od pierwszej propozycji do akceptacji,
+    - liczba utworzonych kopii w CRM po akceptacji,
+    - upgrade CTA clicks z planu Free.
+  - Uwagi / follow-up: API waliduje eventy przez zamknieta liste
+    `ANALYTICS_EVENT_NAMES`, wiec Sprint AT-9 musi rozszerzyc liste eventow po
+    stronie API i web jednoczesnie.
 
 ### Sprint AT-1 - Model danych, migracje i statusy
 
@@ -507,7 +628,15 @@ Zbudowac fundament domenowy bez UI.
 - [ ] `AT1.5` Dodac encje `ListingAgentAssignment`.
 - [ ] `AT1.6` Przygotowac migracje SQL z indeksami i constraintami.
 - [ ] `AT1.7` Dodac enumy statusow w `common/enums`.
-- [ ] `AT1.8` Dodac testy jednostkowe przejsc statusow.
+- [ ] `AT1.8` Dodac entitlement feature `agentListingMarket` do
+  `AgencyPlanFeatures`, domyslnego katalogu planow, `PlanCatalog`, odpowiedzi
+  auth i typow web.
+  - Wymagania:
+    - `free: false`,
+    - platne plany: `true`,
+    - zachowac override'y planow z panelu admina,
+    - dodac testy fallbacku i katalogu planow.
+- [ ] `AT1.9` Dodac testy jednostkowe przejsc statusow.
 
 ### Sprint AT-2 - Backend: rynek ofert dla agentow
 
@@ -521,7 +650,8 @@ Udostepnic agentom liste ofert, ktore szukaja wspolpracy.
 - [ ] `AT2.3` Uzyc bezpiecznego mappera publicznego bez danych kontaktowych
   wlasciciela.
 - [ ] `AT2.4` Dodac informacje, czy biezacy agent juz wyslal propozycje.
-- [ ] `AT2.5` Zabezpieczyc endpoint rola `agent`.
+- [ ] `AT2.5` Zabezpieczyc endpoint rola `agent` oraz entitlementem
+  `agentListingMarket`.
 - [ ] `AT2.6` Dodac testy: brak autoryzacji, zla rola, tylko otwarte oferty,
   brak prywatnych danych.
 
