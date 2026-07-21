@@ -539,9 +539,10 @@ katalogu, szczegółach oferty i profilu.
     pokazuje toast z akcją logowania. Testy hooka i komponentu pozostają w
     `FL3.4`; web app nie ma obecnie osobnego runnera testów React hooków.
   - Aktualizacja 2026-07-21: po udanym dodaniu oferty do ulubionych hook
-    pokazuje toast sukcesu `Dodano do ulubionych`. Komunikat jest podpięty w
-    `useFavoriteListing`, więc działa spójnie w katalogu, mapie i szczegółach
-    oferty bez duplikowania logiki w widokach.
+    pokazuje toast sukcesu `Dodano do ulubionych`, a po udanym usunięciu
+    `Usunięto z ulubionych`. Komunikaty są podpięte w `useFavoriteListing`,
+    więc działają spójnie w katalogu, mapie, szczegółach oferty i liście
+    profilu bez duplikowania logiki w widokach.
 
 - [x] `FL3.3` Dodać komponent `FavoriteListingButton`.
   - Wymagania:

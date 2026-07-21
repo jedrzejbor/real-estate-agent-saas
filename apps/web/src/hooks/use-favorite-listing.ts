@@ -97,6 +97,11 @@ export function useFavoriteListing({
             title: 'Dodano do ulubionych',
             description: 'Oferta została zapisana na Twojej liście ulubionych.',
           });
+        } else {
+          toast.success({
+            title: 'Usunięto z ulubionych',
+            description: 'Oferta została usunięta z Twojej listy ulubionych.',
+          });
         }
 
         onChanged?.(result);
