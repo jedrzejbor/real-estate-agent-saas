@@ -103,40 +103,68 @@ Agent powinien moc:
 
 ---
 
-## 4. Decyzje produktowe do potwierdzenia
+## 4. Decyzje produktowe
 
-- [ ] `ATD1` Czy wlasciciel moze wybrac wielu agentow?
+- [x] `ATD1` Czy wlasciciel moze wybrac wielu agentow?
   - Rekomendacja: tak, ale jako jawny tryb wspolpracy. Domyslnie wybiera jednego
     agenta, a opcja wielu agentow musi byc wlaczona przez wlasciciela.
+  - Data decyzji: 2026-07-22
+  - Decyzja: wdrazamy zgodnie z rekomendacja. Domyslny tryb to wybor jednego
+    agenta, a wybor wielu agentow jest osobna, jawna opcja po stronie
+    wlasciciela.
 
-- [ ] `ATD2` Czy zaakceptowany agent dostaje prawo edycji oryginalnej oferty, czy
+- [x] `ATD2` Czy zaakceptowany agent dostaje prawo edycji oryginalnej oferty, czy
   tworzy wlasna kopie?
   - Rekomendacja: w MVP tworzyc powiazana kopie w CRM agenta. Oryginalna oferta
     wlasciciela pozostaje zrodlem prawdy i nie jest edytowana bezposrednio przez
     agenta.
+  - Data decyzji: 2026-07-22
+  - Decyzja: zaakceptowany agent tworzy powiazana kopie oferty w swoim CRM.
+    Zmiany agenta dotycza tylko jego kopii i nie modyfikuja oryginalnej oferty
+    wlasciciela.
 
-- [ ] `ATD3` Czy oferta po akceptacji agenta nadal przyjmuje nowe propozycje?
+- [x] `ATD3` Czy oferta po akceptacji agenta nadal przyjmuje nowe propozycje?
   - Rekomendacja: zalezy od trybu:
     - `single_agent`: po akceptacji zamykamy nabor,
     - `multi_agent`: nabor moze pozostac otwarty do limitu zaakceptowanych
       agentow albo recznego zamkniecia.
+  - Data decyzji: 2026-07-22
+  - Decyzja: wdrazamy zgodnie z rekomendacja. W trybie `single_agent`
+    akceptacja zamyka nabor. W trybie `multi_agent` nabor moze zostac otwarty do
+    limitu zaakceptowanych agentow albo recznego zamkniecia przez wlasciciela.
 
-- [ ] `ATD4` Czy agenci widza dane kontaktowe wlasciciela przed akceptacja?
+- [x] `ATD4` Czy agenci widza dane kontaktowe wlasciciela przed akceptacja?
   - Rekomendacja: nie. Przed akceptacja komunikacja idzie przez platforme, a dane
     kontaktowe sa ujawniane dopiero po akceptacji albo pozostaja ukryte, jesli
     wlasciciel tak wybierze.
+  - Data decyzji: 2026-07-22
+  - Decyzja: przed akceptacja agent widzi tylko informacje juz udostepnione w
+    publicznym ogloszeniu. Prywatne dane kontaktowe wlasciciela nie sa ujawniane
+    przez formularz, rynek ofert ani propozycje.
 
-- [ ] `ATD5` Czy ta funkcja ma byc elementem planow platnych dla agentow?
+- [x] `ATD5` Czy ta funkcja ma byc elementem planow platnych dla agentow?
   - Rekomendacja: katalog ofert otwartych na wspolprace jako value prop dla
     agentow, ale limity skladanych propozycji powiazac z planem.
+  - Data decyzji: 2026-07-22
+  - Decyzja: funkcja jest value proposition dla platnych planow agentow. Plan
+    Free nie daje dostepu do skladania propozycji wspolpracy ani pelnego rynku
+    ofert szukajacych agenta. UI moze pokazac zablokowany teaser/CTA upgrade, ale
+    backend musi egzekwowac brak dostepu w planie Free.
 
-- [ ] `ATD6` Jak nazwac funkcje w UI?
+- [x] `ATD6` Jak nazwac funkcje w UI?
   - Propozycje:
     - dla wlasciciela: `Wspolpraca z agentami`,
     - dla agenta: `Oferty szukajace agenta`,
     - dla propozycji: `Oferta wspolpracy`,
     - unikac slowa `przejecie` w glownym UI, bo moze brzmiec zbyt agresywnie dla
       wlasciciela. W dokumentacji technicznej mozemy uzywac `takeover`.
+  - Data decyzji: 2026-07-22
+  - Decyzja: uzywamy proponowanych nazw:
+    - wlasciciel: `Wspolpraca z agentami`,
+    - agent: `Oferty szukajace agenta`,
+    - propozycja: `Oferta wspolpracy`.
+    W glownym UI unikamy slowa `przejecie`; moze zostac w nazwach technicznych,
+    jesli bedzie czytelne dla zespolu.
 
 ---
 
