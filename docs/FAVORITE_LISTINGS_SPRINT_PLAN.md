@@ -799,26 +799,40 @@ na to pozwala.
 
 #### Zadania
 
-- [ ] `FL6.1` Dodać test E2E: dodanie z katalogu i widoczność w profilu.
+- [-] `FL6.1` Dodać test E2E: dodanie z katalogu i widoczność w profilu.
   - Flow:
     - użytkownik loguje się,
     - wchodzi na `/oferty`,
     - dodaje ofertę do ulubionych,
     - przechodzi do zakładki `Ulubione`,
     - widzi dodaną ofertę.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data iteracji: 2026-07-20
+  - Wykonano: dodano test przepływu domenowego
+    `favorite-listings.flow.spec.ts`, który używa pamięciowych repozytoriów i
+    sprawdza sekwencję:
+    - dodanie publicznej oferty do ulubionych przez `addFavorite`,
+    - widoczność ID przez `findFavoriteListingIds`,
+    - widoczność oferty w liście profilu przez `findUserFavorites` wraz z
+      bezpiecznym publicznym kształtem `listing`.
+  - Uwagi / follow-up: nie oznaczamy jako zakończone, bo to nie jest pełny E2E
+    przeglądarkowy z logowaniem i przejściem z `/oferty` do
+    `/dashboard/profile/favorites`. Do domknięcia potrzebny jest Playwright lub
+    inny runner UI E2E.
 
-- [ ] `FL6.2` Dodać test E2E: usunięcie z ulubionych.
+- [-] `FL6.2` Dodać test E2E: usunięcie z ulubionych.
   - Flow:
     - użytkownik ma ulubioną ofertę,
     - usuwa ją z zakładki profilu,
     - oferta znika z listy,
     - katalog pokazuje stan nieaktywny.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data iteracji: 2026-07-20
+  - Wykonano: ten sam test przepływu domenowego sprawdza usunięcie przez
+    `removeFavorite`, po którym:
+    - `findFavoriteListingIds` zwraca pustą listę,
+    - `findUserFavorites` zwraca pustą stronę profilu z `total: 0`.
+  - Uwagi / follow-up: nie oznaczamy jako zakończone, bo nadal brakuje
+    automatycznego testu UI potwierdzającego kliknięcie z poziomu zakładki
+    profilu i odświeżenie stanu w katalogu.
 
 - [-] `FL6.3` Sprawdzić brak N+1 queries.
   - Zakres:
