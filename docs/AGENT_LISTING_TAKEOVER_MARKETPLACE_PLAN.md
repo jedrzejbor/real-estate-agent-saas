@@ -1,0 +1,654 @@
+# Gielda przejec ofert przez agentow - plan sprintow
+
+Dokument operacyjny do wdrozenia funkcjonalnosci, w ktorej wlasciciel prywatny
+moze oznaczyc oferte jako otwarta na wspolprace z agentem nieruchomosci, a
+agenci moga skladac propozycje przejecia lub obslugi tej oferty.
+
+Funkcja ma byc jedna z glownych wartosci dla kont agentow: daje im rynek
+aktywnych wlascicieli bez cold callingu, a wlascicielom pozwala porownac
+konkretne warunki wspolpracy i wybrac jednego albo kilku agentow.
+
+---
+
+## 1. Jak pracujemy z tym dokumentem
+
+### Statusy
+
+- `[ ]` - nie rozpoczeto
+- `[-]` - w trakcie
+- `[x]` - zakonczone
+- `[!]` - zablokowane / wymaga decyzji
+
+### Zasada aktualizacji
+
+Po zakonczeniu zadania uzupelniamy:
+
+- status checkboxa,
+- date wykonania,
+- krotki opis zakresu,
+- decyzje / follow-upy.
+
+---
+
+## 2. Cel funkcjonalnosci
+
+### Wlasciciel prywatny
+
+Uzytkownik zwykly / wlasciciel powinien moc:
+
+- podczas tworzenia albo edycji ogloszenia zaznaczyc, ze jest otwarty na
+  wspolprace z agentami,
+- opcjonalnie doprecyzowac preferencje wspolpracy, np. czy dopuszcza wylacznosc,
+  wielu agentow, widełki prowizji albo oczekiwania dotyczace kontaktu,
+- zobaczyc w panelu wlasciciela liste propozycji otrzymanych dla konkretnej
+  oferty,
+- wejsc w szczegoly propozycji i porownac warunki,
+- prowadzic rozmowe z agentem w kontekscie danej propozycji,
+- zaakceptowac jedna lub kilka propozycji, jesli model wspolpracy to dopuszcza,
+- odrzucic propozycje albo zamknac nabor agentow dla oferty.
+
+### Agent nieruchomosci
+
+Agent powinien moc:
+
+- wejsc do nowej zakladki dashboardu z ofertami szukajacymi agenta,
+- filtrowac oferty wedlug lokalizacji, typu nieruchomosci, transakcji, ceny,
+  daty dodania, oczekiwan wlasciciela i statusu,
+- zobaczyc na publicznej stronie oferty informacje, ze wlasciciel jest otwarty
+  na przejecie / wspolprace,
+- po zalogowaniu jako agent zlozyc propozycje wspolpracy przez dedykowany
+  formularz,
+- edytowac wyslana propozycje do momentu akceptacji, odrzucenia albo zamkniecia
+  naboru,
+- prowadzic czat z wlascicielem w kontekscie propozycji,
+- po akceptacji zobaczyc oferte w dashboardzie w sposob zblizony do wlasnych
+  ofert,
+- utworzyc z zaakceptowanej propozycji robocza kopie oferty w swoim CRM,
+  opublikowac ja ze swojego konta i edytowac w ramach przyznanych uprawnien.
+
+---
+
+## 3. Zakres MVP
+
+### Wchodzi w MVP
+
+- pole na ofercie/submission: `agentCollaborationEnabled`,
+- podstawowe preferencje wlasciciela dotyczace wspolpracy,
+- publiczny znacznik na ofercie: "Wlasciciel jest otwarty na wspolprace z
+  agentem",
+- ochrona formularza skladania propozycji: widoczny tylko dla kont agentow,
+- nowy modul backendowy dla propozycji wspolpracy,
+- endpointy dla agenta: lista otwartych ofert, zlozenie propozycji, lista i
+  edycja wlasnych propozycji,
+- endpointy dla wlasciciela: lista propozycji dla jego ofert, szczegoly,
+  akceptacja, odrzucenie,
+- prosty czat tekstowy w kontekscie propozycji,
+- powiadomienia email / in-app dla nowej propozycji, nowej wiadomosci i decyzji,
+- widok zaakceptowanych przejec po stronie agenta,
+- akcja "Utworz oferte w CRM" z zaakceptowanej wspolpracy,
+- testy backendowe dla uprawnien, statusow i zakresu danych.
+
+### Poza MVP
+
+- platne promowanie ofert szukajacych agentow,
+- ranking agentow i automatyczne rekomendacje,
+- automatyczne generowanie umowy posrednictwa,
+- podpis elektroniczny,
+- escrow / platnosci za lead,
+- rozbudowane SLA odpowiedzi,
+- zalaczniki w czacie,
+- grupowy czat z wieloma agentami w jednym watku,
+- automatyczna publikacja na portalach zewnetrznych,
+- system ocen wlascicieli i agentow.
+
+---
+
+## 4. Decyzje produktowe do potwierdzenia
+
+- [ ] `ATD1` Czy wlasciciel moze wybrac wielu agentow?
+  - Rekomendacja: tak, ale jako jawny tryb wspolpracy. Domyslnie wybiera jednego
+    agenta, a opcja wielu agentow musi byc wlaczona przez wlasciciela.
+
+- [ ] `ATD2` Czy zaakceptowany agent dostaje prawo edycji oryginalnej oferty, czy
+  tworzy wlasna kopie?
+  - Rekomendacja: w MVP tworzyc powiazana kopie w CRM agenta. Oryginalna oferta
+    wlasciciela pozostaje zrodlem prawdy i nie jest edytowana bezposrednio przez
+    agenta.
+
+- [ ] `ATD3` Czy oferta po akceptacji agenta nadal przyjmuje nowe propozycje?
+  - Rekomendacja: zalezy od trybu:
+    - `single_agent`: po akceptacji zamykamy nabor,
+    - `multi_agent`: nabor moze pozostac otwarty do limitu zaakceptowanych
+      agentow albo recznego zamkniecia.
+
+- [ ] `ATD4` Czy agenci widza dane kontaktowe wlasciciela przed akceptacja?
+  - Rekomendacja: nie. Przed akceptacja komunikacja idzie przez platforme, a dane
+    kontaktowe sa ujawniane dopiero po akceptacji albo pozostaja ukryte, jesli
+    wlasciciel tak wybierze.
+
+- [ ] `ATD5` Czy ta funkcja ma byc elementem planow platnych dla agentow?
+  - Rekomendacja: katalog ofert otwartych na wspolprace jako value prop dla
+    agentow, ale limity skladanych propozycji powiazac z planem.
+
+- [ ] `ATD6` Jak nazwac funkcje w UI?
+  - Propozycje:
+    - dla wlasciciela: `Wspolpraca z agentami`,
+    - dla agenta: `Oferty szukajace agenta`,
+    - dla propozycji: `Oferta wspolpracy`,
+    - unikac slowa `przejecie` w glownym UI, bo moze brzmiec zbyt agresywnie dla
+      wlasciciela. W dokumentacji technicznej mozemy uzywac `takeover`.
+
+---
+
+## 5. Zasady architektury i jakosci
+
+1. Oryginalna oferta wlasciciela pozostaje pod kontrola wlasciciela.
+2. Agent nie moze edytowac oryginalnej oferty tylko dlatego, ze wyslal
+   propozycje.
+3. Akceptacja propozycji tworzy osobny byt uprawnieniowy, np.
+   `ListingAgentAssignment`, a nie tylko zmienia status propozycji.
+4. Kopia oferty w CRM agenta powinna miec relacje do oryginalnej oferty:
+   `sourceListingId` albo `agentAssignmentId`.
+5. Nie dublujemy mapperow publicznych ofert. Lista ofert szukajacych agentow
+   powinna uzywac bezpiecznego kształtu zblizonego do `PublicListingCatalogItem`
+   plus pola rynku wspolpracy.
+6. Dane kontaktowe wlasciciela nie moga trafic do publicznych payloadow ani do
+   listy rynku dla agentow.
+7. Formularz propozycji jest endpointem chronionym i wymaga roli `agent`.
+8. Konto `viewer` / private seller widzi tylko swoje oferty i propozycje
+   dotyczace swoich ofert.
+9. Statusy propozycji powinny byc jednoznaczne i nie wynikac z kilku booli.
+10. Czat powinien byc powiazany z propozycja wspolpracy, nie z sama oferta, zeby
+    zachowac izolacje rozmow z roznymi agentami.
+11. Wiadomosci i decyzje powinny miec audit trail: kto, kiedy, jaki status.
+12. Akceptacja propozycji musi byc transakcyjna: zmiana statusu, utworzenie
+    assignmentu i powiadomienie nie moga rozjechac stanu.
+13. Wszystkie limity ofert/propozycji po stronie planow powinny byc egzekwowane
+    na backendzie, nie tylko ukrywane w UI.
+14. Wdrozenie powinno isc za feature flaga, np. `agentListingTakeover`.
+
+---
+
+## 6. Proponowany model domenowy
+
+### Rozszerzenie `Listing`
+
+Pola:
+
+- `agentCollaborationEnabled: boolean`
+- `agentCollaborationMode: 'single_agent' | 'multi_agent' | null`
+- `agentCollaborationStatus: 'open' | 'paused' | 'closed' | 'assigned' | null`
+- `agentCollaborationPreferences: jsonb | null`
+- `agentCollaborationOpenedAt: Date | null`
+- `agentCollaborationClosedAt: Date | null`
+
+`agentCollaborationPreferences` w MVP:
+
+- `allowsExclusiveAgreement?: boolean`
+- `allowsMultipleAgents?: boolean`
+- `preferredCommissionType?: 'percentage' | 'fixed' | null`
+- `preferredCommissionValue?: number | null`
+- `expectedServices?: string[]`
+- `notes?: string`
+- `preferredContactChannel?: 'platform_chat' | 'phone_after_acceptance'`
+
+Te pola powinny byc ustawiane z `PublicListingSubmission` i panelu wlasciciela.
+Jesli oferta powstaje z wizardu `/dodaj-oferte`, checkbox powinien zapisac dane
+w submission payload/kolumnach, a mapowanie do `Listing` powinno przeniesc je na
+opublikowana oferte.
+
+### `ListingAgentProposal`
+
+Reprezentuje propozycje zlozona przez agenta dla oferty wlasciciela.
+
+Pola:
+
+- `id`
+- `listingId`
+- `ownerUserId`
+- `agentId`
+- `agencyId`
+- `status`: `draft`, `sent`, `updated`, `accepted`, `rejected`,
+  `withdrawn`, `expired`, `closed`
+- `commissionType`: `percentage` / `fixed` / `mixed` / `none`
+- `commissionValue`
+- `minimumContractMonths`
+- `exclusivity`: `exclusive`, `open`, `flexible`
+- `services`: lista zakresow obslugi
+- `marketingPlan`
+- `valuationOpinion`
+- `proposedPrice`
+- `availability`
+- `message`
+- `validUntil`
+- `acceptedAt`
+- `rejectedAt`
+- `withdrawnAt`
+- `createdAt`
+- `updatedAt`
+
+Ograniczenia:
+
+- unikalny aktywny rekord `(listing_id, agent_id)` dla statusow roboczych /
+  wyslanych,
+- indeks `(agent_id, status, created_at)` dla zakladki wyslanych propozycji,
+- indeks `(owner_user_id, status, created_at)` dla panelu wlasciciela,
+- indeks `(listing_id, status, created_at)` dla szczegolow oferty.
+
+### `ListingAgentProposalMessage`
+
+Czat w kontekscie jednej propozycji.
+
+Pola:
+
+- `id`
+- `proposalId`
+- `senderUserId`
+- `body`
+- `createdAt`
+- `readAt`
+- opcjonalnie `metadata`
+
+MVP: tylko tekst, bez zalacznikow. Nadawca musi byc wlascicielem oferty albo
+uzytkownikiem przypisanym do agenta, ktory zlozyl propozycje.
+
+### `ListingAgentAssignment`
+
+Powstaje po akceptacji propozycji.
+
+Pola:
+
+- `id`
+- `listingId`
+- `proposalId`
+- `ownerUserId`
+- `agentId`
+- `agencyId`
+- `status`: `active`, `revoked`, `completed`
+- `acceptedTermsSnapshot: jsonb`
+- `agentListingId: uuid | null`
+- `createdAt`
+- `revokedAt`
+- `completedAt`
+
+To jest docelowe zrodlo uprawnien po akceptacji. Nie nalezy sprawdzac dostepu
+agenta wylacznie po `ListingAgentProposal.status = accepted`.
+
+---
+
+## 7. Formularz skladania oferty wspolpracy
+
+### Widocznosc
+
+Na publicznej stronie oferty:
+
+- anonimowy uzytkownik widzi tylko informacje, ze wlasciciel jest otwarty na
+  wspolprace z agentem oraz CTA do logowania/rejestracji jako agent,
+- konto `viewer` / private seller nie widzi formularza skladania propozycji,
+- konto `agent` widzi formularz, jesli oferta jest otwarta na wspolprace i agent
+  nie jest wlascicielem tej oferty,
+- agent z juz wyslana propozycja widzi status i CTA do edycji / rozmowy.
+
+### Pola MVP
+
+Sekcja `Warunki finansowe`:
+
+- typ prowizji: procent / kwota / do ustalenia,
+- wartosc prowizji,
+- informacja, czy prowizja jest brutto/netto, jesli bedzie to wymagane
+  produktowo,
+- kto placi prowizje: wlasciciel / kupujacy / do ustalenia.
+
+Sekcja `Zakres uslug`:
+
+- przygotowanie opisu i zdjec,
+- home staging / rekomendacje przygotowania,
+- publikacja na portalach,
+- obsluga telefonow i leadow,
+- prezentacje nieruchomosci,
+- negocjacje,
+- dokumenty i finalizacja transakcji,
+- inne.
+
+Sekcja `Model wspolpracy`:
+
+- umowa na wylacznosc / otwarta / elastyczna,
+- minimalny czas umowy,
+- obszar dzialania agenta,
+- dostepnosc pierwszego kontaktu.
+
+Sekcja `Propozycja agenta`:
+
+- krotka wiadomosc do wlasciciela,
+- proponowana strategia sprzedazy / wynajmu,
+- opcjonalna sugerowana cena,
+- opcjonalne uzasadnienie wyceny,
+- termin waznosci propozycji.
+
+Walidacja:
+
+- wiadomosc 20-2000 znakow,
+- prowizja procentowa 0-100,
+- kwota prowizji >= 0,
+- termin waznosci nie w przeszlosci,
+- lista uslug nie moze byc pusta,
+- agent nie moze wyslac propozycji do wlasnej oferty,
+- agent nie moze wyslac drugiej aktywnej propozycji do tej samej oferty.
+
+---
+
+## 8. Kontrakt API
+
+### Publiczne / mieszane
+
+- `GET /api/listings/public/:slug`
+  - dodaje bezpieczne pola:
+    - `agentCollaborationEnabled`,
+    - `agentCollaborationStatus`,
+    - ewentualnie lekki tekst CTA,
+  - nie zwraca danych prywatnych wlasciciela ani propozycji agentow.
+
+### Agent
+
+- `GET /api/agent-listing-market`
+  - lista ofert otwartych na wspolprace,
+  - filtry: lokalizacja, typ, transakcja, cena, data, tryb wspolpracy,
+  - zwraca publiczny kształt oferty plus metadane wspolpracy.
+
+- `POST /api/listing-agent-proposals/listings/:listingId`
+  - sklada propozycje dla oferty,
+  - wymaga roli `agent`.
+
+- `GET /api/listing-agent-proposals/agent`
+  - lista propozycji wyslanych przez biezacego agenta.
+
+- `GET /api/listing-agent-proposals/agent/:id`
+  - szczegoly propozycji, wiadomosci, decyzje.
+
+- `PATCH /api/listing-agent-proposals/agent/:id`
+  - edycja propozycji, tylko w statusach `sent` / `updated`.
+
+- `POST /api/listing-agent-proposals/agent/:id/withdraw`
+  - wycofanie propozycji.
+
+- `POST /api/listing-agent-assignments/:id/create-listing-copy`
+  - tworzy dashboardowa oferte agenta na bazie zaakceptowanego assignmentu.
+
+### Wlasciciel
+
+- `GET /api/listing-agent-proposals/seller`
+  - lista propozycji otrzymanych dla ofert biezacego wlasciciela.
+
+- `GET /api/listing-agent-proposals/seller/:id`
+  - szczegoly propozycji i czat.
+
+- `POST /api/listing-agent-proposals/seller/:id/accept`
+  - akceptuje propozycje i tworzy assignment.
+
+- `POST /api/listing-agent-proposals/seller/:id/reject`
+  - odrzuca propozycje.
+
+- `POST /api/listings/seller/:id/collaboration/open`
+  - wlacza nabor agentow dla oferty wlasciciela.
+
+- `POST /api/listings/seller/:id/collaboration/close`
+  - zamyka nabor agentow.
+
+### Czat
+
+- `GET /api/listing-agent-proposals/:id/messages`
+- `POST /api/listing-agent-proposals/:id/messages`
+
+Kontroler moze byc wspolny, ale serwis musi jednoznacznie sprawdzac, czy
+uzytkownik jest wlascicielem oferty albo agentem powiazanym z propozycja.
+
+---
+
+## 9. UX i nawigacja
+
+### Publiczna strona oferty
+
+Jesli `agentCollaborationEnabled = true`:
+
+- pokazac spokojny panel informacyjny:
+  `Wlasciciel jest otwarty na wspolprace z agentem nieruchomosci`,
+- dla anonimowego uzytkownika pokazac CTA:
+  `Zaloguj sie jako agent, aby zlozyc propozycje`,
+- dla konta agenta pokazac formularz albo CTA:
+  `Zloz oferte wspolpracy`,
+- dla pozostalych kont pokazac tylko informacje bez formularza.
+
+### Dashboard agenta
+
+Nowe pozycje w nawigacji:
+
+- `Oferty szukajace agenta` - rynek ofert,
+- `Wyslane propozycje` - propozycje agenta z mozliwoscia edycji,
+- opcjonalnie pozniej `Przejete oferty` - zaakceptowane assignmenty i kopie w
+  CRM.
+
+Widok rynku powinien byc bardziej operacyjny niz marketingowy:
+
+- tabela/lista z kartami ofert,
+- szybkie filtry,
+- status czy agent juz wyslal propozycje,
+- CTA do szczegolow i skladania propozycji,
+- zachowanie publicznej prywatnosci danych wlasciciela.
+
+### Panel wlasciciela `/seller`
+
+Nowe widoki:
+
+- zakladka / sekcja `Wspolpraca z agentami`,
+- przy kazdej ofercie licznik propozycji,
+- szczegoly propozycji z porownywalnymi warunkami,
+- czat,
+- akcje: `Akceptuj`, `Odrzuc`, `Popros o doprecyzowanie`, `Zamknij nabor`.
+
+---
+
+## 10. Sprinty
+
+### Sprint AT-0 - Discovery i decyzje produktowe
+
+**Cel sprintu:**
+Domknac nazewnictwo, statusy, tryb wielu agentow, uprawnienia i zakres MVP.
+
+#### Zadania
+
+- [ ] `AT0.1` Potwierdzic decyzje `ATD1`-`ATD6`.
+- [ ] `AT0.2` Przejrzec obecny flow `/dodaj-oferte`, `/seller` i
+  `public-listing-submissions`, aby wskazac dokladne miejsca integracji.
+- [ ] `AT0.3` Ustalic finalne nazwy endpointow i encji.
+- [ ] `AT0.4` Sprawdzic obecny system planow i zdecydowac, czy MVP limituje
+  liczbe propozycji dla agentow.
+- [ ] `AT0.5` Przygotowac eventy analityczne i metryki sukcesu.
+
+### Sprint AT-1 - Model danych, migracje i statusy
+
+**Cel sprintu:**
+Zbudowac fundament domenowy bez UI.
+
+#### Zadania
+
+- [ ] `AT1.1` Dodac pola wspolpracy na `Listing`.
+- [ ] `AT1.2` Dodac pola wspolpracy do `PublicListingSubmission` albo jego
+  `payload`, zgodnie z obecnym standardem migracji.
+- [ ] `AT1.3` Dodac encje `ListingAgentProposal`.
+- [ ] `AT1.4` Dodac encje `ListingAgentProposalMessage`.
+- [ ] `AT1.5` Dodac encje `ListingAgentAssignment`.
+- [ ] `AT1.6` Przygotowac migracje SQL z indeksami i constraintami.
+- [ ] `AT1.7` Dodac enumy statusow w `common/enums`.
+- [ ] `AT1.8` Dodac testy jednostkowe przejsc statusow.
+
+### Sprint AT-2 - Backend: rynek ofert dla agentow
+
+**Cel sprintu:**
+Udostepnic agentom liste ofert, ktore szukaja wspolpracy.
+
+#### Zadania
+
+- [ ] `AT2.1` Dodac modul `agent-listing-market`.
+- [ ] `AT2.2` Zbudowac query listy ofert z filtrami i paginacja.
+- [ ] `AT2.3` Uzyc bezpiecznego mappera publicznego bez danych kontaktowych
+  wlasciciela.
+- [ ] `AT2.4` Dodac informacje, czy biezacy agent juz wyslal propozycje.
+- [ ] `AT2.5` Zabezpieczyc endpoint rola `agent`.
+- [ ] `AT2.6` Dodac testy: brak autoryzacji, zla rola, tylko otwarte oferty,
+  brak prywatnych danych.
+
+### Sprint AT-3 - Backend: propozycje wspolpracy
+
+**Cel sprintu:**
+Pozwolic agentowi skladac, edytowac i wycofywac propozycje.
+
+#### Zadania
+
+- [ ] `AT3.1` Dodac DTO formularza propozycji z walidacja.
+- [ ] `AT3.2` Dodac endpoint skladania propozycji.
+- [ ] `AT3.3` Dodac endpoint listy wyslanych propozycji agenta.
+- [ ] `AT3.4` Dodac endpoint szczegolow propozycji agenta.
+- [ ] `AT3.5` Dodac edycje propozycji tylko dla dozwolonych statusow.
+- [ ] `AT3.6` Dodac wycofanie propozycji.
+- [ ] `AT3.7` Dodac transakcyjne eventy/powiadomienia dla wlasciciela.
+- [ ] `AT3.8` Dodac testy race condition i duplikatu aktywnej propozycji.
+
+### Sprint AT-4 - Backend: panel wlasciciela i decyzje
+
+**Cel sprintu:**
+Pozwolic wlascicielowi porownywac propozycje i podejmowac decyzje.
+
+#### Zadania
+
+- [ ] `AT4.1` Dodac endpoint listy propozycji otrzymanych przez wlasciciela.
+- [ ] `AT4.2` Dodac szczegoly propozycji dla wlasciciela.
+- [ ] `AT4.3` Dodac akceptacje propozycji z utworzeniem
+  `ListingAgentAssignment`.
+- [ ] `AT4.4` Dodac odrzucenie propozycji.
+- [ ] `AT4.5` Obsluzyc tryb `single_agent` i `multi_agent`.
+- [ ] `AT4.6` Dodac zamykanie i ponowne otwieranie naboru agentow.
+- [ ] `AT4.7` Dodac powiadomienia do agenta po akceptacji/odrzuceniu.
+- [ ] `AT4.8` Dodac testy uprawnien: wlasciciel widzi tylko swoje oferty.
+
+### Sprint AT-5 - Czat propozycji
+
+**Cel sprintu:**
+Umozliwic negocjacje i doprecyzowanie warunkow bez wychodzenia poza platforme.
+
+#### Zadania
+
+- [ ] `AT5.1` Dodac endpoint listy wiadomosci.
+- [ ] `AT5.2` Dodac endpoint wyslania wiadomosci.
+- [ ] `AT5.3` Dodac oznaczanie przeczytania albo minimalny licznik
+  nieprzeczytanych.
+- [ ] `AT5.4` Zabezpieczyc uczestnikow watku.
+- [ ] `AT5.5` Dodac notyfikacje o nowej wiadomosci.
+- [ ] `AT5.6` Dodac testy: obcy agent, obcy wlasciciel, pusta wiadomosc,
+  wiadomosc po zamknieciu propozycji.
+
+### Sprint AT-6 - Frontend: wlasciciel i publiczny wizard
+
+**Cel sprintu:**
+Pozwolic wlascicielowi wlaczyc wspolprace i zarzadzac propozycjami.
+
+#### Zadania
+
+- [ ] `AT6.1` Dodac checkbox i preferencje wspolpracy w `/dodaj-oferte`.
+- [ ] `AT6.2` Dodac te same ustawienia w edycji oferty wlasciciela w `/seller`.
+- [ ] `AT6.3` Dodac liste propozycji w panelu wlasciciela.
+- [ ] `AT6.4` Dodac szczegoly propozycji i porownywalne warunki.
+- [ ] `AT6.5` Dodac akcje akceptacji, odrzucenia i zamkniecia naboru.
+- [ ] `AT6.6` Dodac UI czatu dla wlasciciela.
+- [ ] `AT6.7` Dodac empty/loading/error states.
+
+### Sprint AT-7 - Frontend: agent
+
+**Cel sprintu:**
+Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
+
+#### Zadania
+
+- [ ] `AT7.1` Dodac klienta API i typy w `apps/web/src/lib`.
+- [ ] `AT7.2` Dodac zakladke `Oferty szukajace agenta` w dashboardzie agenta.
+- [ ] `AT7.3` Dodac filtry i liste ofert rynku.
+- [ ] `AT7.4` Dodac formularz propozycji wspolpracy.
+- [ ] `AT7.5` Dodac zakladke `Wyslane propozycje`.
+- [ ] `AT7.6` Dodac edycje i wycofanie propozycji.
+- [ ] `AT7.7` Dodac UI czatu dla agenta.
+- [ ] `AT7.8` Dodac stany braku uprawnien i CTA do logowania/rejestracji.
+
+### Sprint AT-8 - Akceptacja i kopia oferty w CRM agenta
+
+**Cel sprintu:**
+Po akceptacji dac agentowi praktyczna mozliwosc pracy na ofercie w swoim CRM.
+
+#### Zadania
+
+- [ ] `AT8.1` Dodac widok zaakceptowanych assignmentow po stronie agenta.
+- [ ] `AT8.2` Dodac akcje `Utworz kopie w CRM`.
+- [ ] `AT8.3` Mapowac dane oryginalnej oferty do nowej oferty agenta bez
+  przenoszenia prywatnych danych wlasciciela, ktore nie sa potrzebne.
+- [ ] `AT8.4` Zachowac relacje `agentAssignmentId` / `sourceListingId`.
+- [ ] `AT8.5` Oznaczyc w UI, ze oferta pochodzi ze wspolpracy z wlascicielem.
+- [ ] `AT8.6` Upewnic sie, ze limity planu aktywnych ofert sa respektowane.
+- [ ] `AT8.7` Dodac testy: brak akceptacji, ponowne tworzenie kopii,
+  przekroczenie limitu planu.
+
+### Sprint AT-9 - Powiadomienia, analityka i jakosc
+
+**Cel sprintu:**
+Domknac funkcje produkcyjnie: monitoring, analityka, testy E2E i edge case'y.
+
+#### Zadania
+
+- [ ] `AT9.1` Dodac eventy analityczne:
+  - wlaczenie wspolpracy,
+  - wyswietlenie rynku ofert,
+  - wyslanie propozycji,
+  - otwarcie propozycji przez wlasciciela,
+  - akceptacja / odrzucenie,
+  - utworzenie kopii w CRM.
+- [ ] `AT9.2` Dodac powiadomienia in-app/email dla krytycznych zdarzen.
+- [ ] `AT9.3` Dodac testy E2E glownej sciezki:
+  wlasciciel publikuje oferte -> agent sklada propozycje -> wlasciciel
+  akceptuje -> agent tworzy kopie w CRM.
+- [ ] `AT9.4` Dodac testy regresji prywatnosci publicznych payloadow.
+- [ ] `AT9.5` Dodac metryki administracyjne i logi bledow.
+- [ ] `AT9.6` Przygotowac rollout za feature flaga.
+
+---
+
+## 11. Kryteria akceptacji MVP
+
+- Wlasciciel moze wlaczyc i wylaczyc nabor agentow dla swojej oferty.
+- Publiczna oferta pokazuje tylko bezpieczna informacje o otwartosci na
+  wspolprace.
+- Formularz propozycji nie jest widoczny ani dostepny dla anonimowych
+  uzytkownikow i kont nie-agentowych.
+- Agent moze znalezc oferty szukajace agenta w dashboardzie.
+- Agent moze wyslac tylko jedna aktywna propozycje dla jednej oferty.
+- Agent moze edytowac propozycje przed decyzja wlasciciela.
+- Wlasciciel widzi propozycje tylko dla swoich ofert.
+- Wlasciciel moze zaakceptowac albo odrzucic propozycje.
+- Czat dziala tylko miedzy wlascicielem a agentem przypisanym do propozycji.
+- Akceptacja tworzy assignment i umozliwia agentowi utworzenie kopii oferty w
+  CRM.
+- Publiczne API nie ujawnia danych kontaktowych wlasciciela ani warunkow
+  propozycji.
+
+---
+
+## 12. Ryzyka i uwagi
+
+- Funkcja ma wysoka wartosc biznesowa, ale wymaga bardzo ostrej kontroli
+  uprawnien, bo dotyka danych wlasciciela i relacji handlowej.
+- Najwieksze ryzyko techniczne to pomieszanie oryginalnej oferty wlasciciela z
+  kopia operacyjna agenta. Dlatego rekomendowany jest osobny
+  `ListingAgentAssignment` i powiazana kopia w CRM.
+- Najwieksze ryzyko UX to zbyt agresywny jezyk "przejecia". W UI lepiej mowic o
+  "wspolpracy z agentami", a techniczne `takeover` zostawic dla kodu, jesli
+  zespol uzna to za czytelne.
+- Czat w MVP powinien byc prosty. Zalaczniki, umowy i podpisywanie dokumentow
+  powinny wejsc dopiero po ustabilizowaniu podstawowego flow.
+- Dla planow platnych warto od poczatku liczyc wyslane propozycje i skutecznosc,
+  nawet jesli limity zostana wlaczone dopiero pozniej.
