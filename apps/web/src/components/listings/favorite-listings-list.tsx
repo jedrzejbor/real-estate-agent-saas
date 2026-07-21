@@ -190,6 +190,7 @@ export function FavoriteListingsList() {
   return (
     <section
       className="space-y-5"
+      aria-label="Lista ulubionych ofert"
       aria-busy={isLoading}
       aria-live="polite"
     >
@@ -301,6 +302,7 @@ function FavoriteListingAvailableCard({
             listingSlug={listing.slug}
             initialIsFavorite
             analyticsSource="dashboard_profile_favorites"
+            className="w-full justify-center lg:w-auto"
             onChanged={(result) => {
               if (!result.isFavorite) {
                 onRemoved(result.listingId);
@@ -366,7 +368,8 @@ function FavoriteListingUnavailableCard({
         <Button
           type="button"
           variant="outline"
-          className="rounded-xl"
+          className="w-full rounded-xl sm:w-auto"
+          aria-label="Usuń niedostępną ofertę z ulubionych"
           disabled={isRemoving}
           onClick={() => void handleRemove()}
         >

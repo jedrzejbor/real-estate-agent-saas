@@ -867,7 +867,7 @@ na to pozwala.
     realne HTTP powinna zostać domknięta po dodaniu infrastruktury E2E albo w
     osobnym teście integracyjnym Nest.
 
-- [ ] `FL6.5` Przejść checklistę UI.
+- [-] `FL6.5` Przejść checklistę UI.
   - Zakres:
     - desktop,
     - mobile,
@@ -875,9 +875,23 @@ na to pozwala.
     - error,
     - empty state,
     - focus i keyboard navigation.
-  - Data zakończenia:
-  - Wykonano:
-  - Uwagi / follow-up:
+  - Data iteracji: 2026-07-20
+  - Wykonano: wykonano statyczny przegląd zakładki
+    `/dashboard/profile/favorites` i komponentu `FavoriteListingsList`:
+    - loading i korekta pustej strony mają `role="status"` oraz `aria-live`,
+    - error state ma `role="alert"` i akcję ponowienia requestu,
+    - lista ma `aria-label`, `aria-busy` i ukryty komunikat statusu dla
+      technologii asystujących,
+    - empty state ma krótką treść oraz CTA do `/oferty`,
+    - akcje usuwania są pełnej szerokości na mobile i wracają do kompaktowej
+      szerokości na większych ekranach,
+    - przycisk usuwania niedostępnej oferty ma jednoznaczny `aria-label`,
+    - `FavoriteListingButton` utrzymuje `aria-pressed`, `aria-busy`, stabilne
+      wymiary i focus ring z bazowego komponentu `Button`.
+  - Uwagi / follow-up: nie oznaczamy checklisty jako zakończonej, bo projekt
+    nadal nie ma screenshotów/Playwrighta do realnego potwierdzenia desktop,
+    mobile i keyboard navigation w przeglądarce. W tej iteracji wykonano
+    walidację statyczną i poprawki dostępności/layoutu.
 
 ### Sprint FL-7 - Rollout, metryki i follow-upy
 
