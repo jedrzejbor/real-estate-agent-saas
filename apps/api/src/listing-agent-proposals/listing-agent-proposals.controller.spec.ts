@@ -15,6 +15,10 @@ describe('ListingAgentProposalsController', () => {
     findOneForAgent: jest.Mock;
     updateForAgent: jest.Mock;
     withdrawForAgent: jest.Mock;
+    findForSeller: jest.Mock;
+    findOneForSeller: jest.Mock;
+    acceptForSeller: jest.Mock;
+    rejectForSeller: jest.Mock;
   };
 
   beforeEach(() => {
@@ -24,6 +28,10 @@ describe('ListingAgentProposalsController', () => {
       findOneForAgent: jest.fn(),
       updateForAgent: jest.fn(),
       withdrawForAgent: jest.fn(),
+      findForSeller: jest.fn(),
+      findOneForSeller: jest.fn(),
+      acceptForSeller: jest.fn(),
+      rejectForSeller: jest.fn(),
     };
     controller = new ListingAgentProposalsController(
       service as unknown as ListingAgentProposalsService,
@@ -104,7 +112,52 @@ describe('ListingAgentProposalsController', () => {
     );
   });
 
-  it('requires authenticated agent role', () => {
+  it('delegates seller proposal list lookup to the service', async () => {
+    const query = { listingId: LISTING_ID };
+    const response = { data: [], meta: { total: 0 } };
+    service.findForSeller.mockResolvedValue(response);
+
+    await expect(controller.findForSeller(USER_ID, query)).resolves.toBe(
+      response,
+    );
+
+    expect(service.findForSeller).toHaveBeenCalledWith(USER_ID, query);
+  });
+
+  it('delegates seller proposal detail lookup to the service', async () => {
+    const response = { id: PROPOSAL_ID };
+    service.findOneForSeller.mockResolvedValue(response);
+
+    await expect(
+      controller.findOneForSeller(USER_ID, PROPOSAL_ID),
+    ).resolves.toBe(response);
+
+    expect(service.findOneForSeller).toHaveBeenCalledWith(USER_ID, PROPOSAL_ID);
+  });
+
+  it('delegates seller accept decision to the service', async () => {
+    const response = { id: PROPOSAL_ID, assignment: { id: 'assignment-1' } };
+    service.acceptForSeller.mockResolvedValue(response);
+
+    await expect(
+      controller.acceptForSeller(USER_ID, PROPOSAL_ID),
+    ).resolves.toBe(response);
+
+    expect(service.acceptForSeller).toHaveBeenCalledWith(USER_ID, PROPOSAL_ID);
+  });
+
+  it('delegates seller reject decision to the service', async () => {
+    const response = { id: PROPOSAL_ID, assignment: null };
+    service.rejectForSeller.mockResolvedValue(response);
+
+    await expect(
+      controller.rejectForSeller(USER_ID, PROPOSAL_ID),
+    ).resolves.toBe(response);
+
+    expect(service.rejectForSeller).toHaveBeenCalledWith(USER_ID, PROPOSAL_ID);
+  });
+
+  it('requires authenticated scoped roles', () => {
     expect(
       Reflect.getMetadata(IS_PUBLIC_KEY, ListingAgentProposalsController),
     ).toBeUndefined();
@@ -115,8 +168,17 @@ describe('ListingAgentProposalsController', () => {
       ),
     ).toBeUndefined();
     expect(
-      Reflect.getMetadata(ROLES_KEY, ListingAgentProposalsController),
+      Reflect.getMetadata(
+        ROLES_KEY,
+        ListingAgentProposalsController.prototype.createForListing,
+      ),
     ).toEqual([UserRole.AGENT]);
+    expect(
+      Reflect.getMetadata(
+        ROLES_KEY,
+        ListingAgentProposalsController.prototype.findForSeller,
+      ),
+    ).toEqual([UserRole.OWNER]);
   });
 });
 

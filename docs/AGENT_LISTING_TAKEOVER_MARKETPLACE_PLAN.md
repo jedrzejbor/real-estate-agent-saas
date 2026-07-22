@@ -962,15 +962,100 @@ Pozwolic wlascicielowi porownywac propozycje i podejmowac decyzje.
 
 #### Zadania
 
-- [ ] `AT4.1` Dodac endpoint listy propozycji otrzymanych przez wlasciciela.
-- [ ] `AT4.2` Dodac szczegoly propozycji dla wlasciciela.
-- [ ] `AT4.3` Dodac akceptacje propozycji z utworzeniem
+- [x] `AT4.1` Dodac endpoint listy propozycji otrzymanych przez wlasciciela.
+  - Data zakonczenia: 2026-07-22
+  - Endpoint:
+    - `GET /api/listing-agent-proposals/seller`.
+  - Wykonano: lista jest scope'owana po `proposal.ownerUserId = currentUser.id`.
+  - Filtry query:
+    - `status`,
+    - `listingId`,
+    - `page`,
+    - `limit`,
+    - `sortBy`,
+    - `sortOrder`.
+
+- [x] `AT4.2` Dodac szczegoly propozycji dla wlasciciela.
+  - Data zakonczenia: 2026-07-22
+  - Endpoint:
+    - `GET /api/listing-agent-proposals/seller/:id`.
+  - Bezpieczenstwo: wlasciciel moze pobrac tylko propozycje, gdzie
+    `proposal.ownerUserId` zgadza sie z biezacym uzytkownikiem.
+
+- [x] `AT4.3` Dodac akceptacje propozycji z utworzeniem
   `ListingAgentAssignment`.
-- [ ] `AT4.4` Dodac odrzucenie propozycji.
-- [ ] `AT4.5` Obsluzyc tryb `single_agent` i `multi_agent`.
+  - Data zakonczenia: 2026-07-22
+  - Endpoint:
+    - `POST /api/listing-agent-proposals/seller/:id/accept`.
+  - Wykonano: akceptacja dziala transakcyjnie przez `DataSource.transaction`.
+  - W ramach transakcji:
+    - propozycja jest pobierana z blokada `pessimistic_write`,
+    - walidowany jest wlasciciel, status propozycji i wygasniecie
+      `validUntil`,
+    - walidowany jest otwarty nabor agentow na ofercie,
+    - propozycja przechodzi na `accepted`,
+    - tworzony jest `ListingAgentAssignment`,
+    - zapisywany jest `acceptedTermsSnapshot`, czyli snapshot zaakceptowanych
+      warunkow wspolpracy.
+  - Race condition: unikalny konflikt assignmentu/propozycji z bazy jest
+    mapowany na `ConflictException`.
+
+- [x] `AT4.4` Dodac odrzucenie propozycji.
+  - Data zakonczenia: 2026-07-22
+  - Endpoint:
+    - `POST /api/listing-agent-proposals/seller/:id/reject`.
+  - Wykonano: odrzucenie sprawdza dozwolone przejscie statusu, ustawia
+    `rejectedAt` i zwraca odpowiedz bez assignmentu.
+
+- [x] `AT4.5` Obsluzyc tryb `single_agent` i `multi_agent`.
+  - Data zakonczenia: 2026-07-22
+  - `single_agent`:
+    - po akceptacji listing przechodzi na
+      `agentCollaborationStatus = assigned`,
+    - ustawiane jest `agentCollaborationClosedAt`,
+    - pozostale aktywne propozycje dla tej oferty przechodza na `closed`.
+  - `multi_agent`:
+    - akceptacja tworzy assignment, ale nabor pozostaje otwarty,
+    - pozostale aktywne propozycje nie sa automatycznie zamykane.
+
 - [ ] `AT4.6` Dodac zamykanie i ponowne otwieranie naboru agentow.
-- [ ] `AT4.7` Dodac powiadomienia do agenta po akceptacji/odrzuceniu.
-- [ ] `AT4.8` Dodac testy uprawnien: wlasciciel widzi tylko swoje oferty.
+  - Status: poza zakresem pierwszej iteracji AT-4.
+  - Uzasadnienie: akceptacja `single_agent` zamyka nabor automatycznie, ale
+    osobne reczne akcje ownera wymagaja osobnych endpointow i UI.
+
+- [x] `AT4.7` Dodac powiadomienia do agenta po akceptacji/odrzuceniu.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: po decyzji wlasciciela serwis wysyla minimalny email do agenta
+    przez istniejacy `EmailService`.
+  - Uwagi / follow-up: trwale notyfikacje in-app i analytics warto dodac w
+    AT-9 razem z pelnym instrumentation.
+
+- [x] `AT4.8` Dodac testy uprawnien: wlasciciel widzi tylko swoje oferty.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano:
+    - rozszerzono `listing-agent-proposals.controller.spec.ts`,
+    - rozszerzono `listing-agent-proposals.service.spec.ts`.
+  - Zakres testow:
+    - seller endpoints deleguja do serwisu,
+    - endpointy agenta maja role `agent`,
+    - endpointy wlasciciela maja role `owner`,
+    - lista wlasciciela filtruje po `ownerUserId`,
+    - szczegoly wlasciciela pobieraja tylko propozycje danego ownera,
+    - akceptacja tworzy assignment i snapshot warunkow,
+    - `single_agent` zamyka nabor i pozostale aktywne propozycje,
+    - `multi_agent` zostawia nabor otwarty,
+    - odrzucenie ustawia status i powiadamia agenta.
+
+#### Weryfikacja
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter api test -- listing-agent-proposals.service.spec.ts listing-agent-proposals.controller.spec.ts listing-agent-proposal-status.spec.ts` - przechodzi.
+
+#### Poza zakresem pierwszej iteracji AT-4
+
+- Reczne zamykanie i ponowne otwieranie naboru agentow (`AT4.6`).
+- UI porownywania propozycji po stronie wlasciciela zostaje w Sprint AT-6.
+- Czat propozycji zostaje w Sprint AT-5.
 
 ### Sprint AT-5 - Czat propozycji
 

@@ -7,6 +7,7 @@ import { QueryFailedError } from 'typeorm';
 import { FeatureAccessDeniedException } from '../common/exceptions/feature-access-denied.exception';
 import {
   AgencyPlan,
+  ListingAgentAssignmentStatus,
   ListingAgentCollaborationMode,
   ListingAgentCollaborationStatus,
   ListingAgentProposalCommissionType,
@@ -27,6 +28,10 @@ function buildAccess(agentListingMarket = true) {
       id: AGENT_ID,
       firstName: 'Jan',
       lastName: 'Agent',
+      user: {
+        id: USER_ID,
+        email: 'agent@example.test',
+      },
       agency: {
         id: AGENCY_ID,
         name: 'Dobra Agencja',
@@ -101,6 +106,7 @@ function buildListing(overrides: Partial<Listing> = {}): Listing {
       city: 'Warszawa',
       district: 'Mokotow',
     },
+    ...overrides,
   } as Listing;
 }
 
@@ -158,6 +164,9 @@ function createProposalQueryBuilder(
     addOrderBy: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    set: jest.fn().mockReturnThis(),
+    execute: jest.fn().mockResolvedValue({ affected: 1 }),
     getManyAndCount: jest.fn().mockResolvedValue([proposals, total]),
   };
 }
@@ -194,6 +203,33 @@ function buildService({
   };
   const listingRepo = {
     createQueryBuilder: jest.fn().mockReturnValue(listingQb),
+    save: jest.fn(async (entity) => entity),
+  };
+  const assignmentRepo = {
+    create: jest.fn((input) => input),
+    save: jest.fn(async (assignment) => ({
+      ...assignment,
+      id: 'assignment-1',
+      createdAt: new Date('2026-07-05T00:00:00.000Z'),
+      revokedAt: null,
+      completedAt: null,
+    })),
+  };
+  const dataSource = {
+    transaction: jest.fn(async (callback) =>
+      callback({
+        getRepository: (entity: unknown) => {
+          if (entity === ListingAgentProposal) return proposalRepo;
+          if (
+            typeof entity === 'function' &&
+            entity.name === 'Listing'
+          ) {
+            return listingRepo;
+          }
+          return assignmentRepo;
+        },
+      }),
+    ),
   };
   const usersService = {
     getAgencyAccessContext: jest.fn().mockResolvedValue(access),
@@ -207,6 +243,8 @@ function buildService({
   const service = new ListingAgentProposalsService(
     proposalRepo as never,
     listingRepo as never,
+    assignmentRepo as never,
+    dataSource as never,
     usersService as never,
     emailService as never,
     configService as never,
@@ -216,6 +254,8 @@ function buildService({
     service,
     proposalRepo,
     listingRepo,
+    assignmentRepo,
+    dataSource,
     usersService,
     emailService,
     listingQb,
@@ -430,6 +470,125 @@ describe('ListingAgentProposalsService', () => {
       }),
     );
     expect(result.status).toBe(ListingAgentProposalStatus.WITHDRAWN);
+  });
+
+  it('lists proposals received by the current seller', async () => {
+    const { service, proposalQb } = buildService({
+      queryProposals: [buildProposal()],
+    });
+
+    const result = await service.findForSeller(OWNER_ID, {
+      listingId: LISTING_ID,
+      page: 1,
+      limit: 20,
+    });
+
+    expect(proposalQb.where).toHaveBeenCalledWith(
+      'proposal.ownerUserId = :ownerUserId',
+      { ownerUserId: OWNER_ID },
+    );
+    expect(proposalQb.andWhere).toHaveBeenCalledWith(
+      'proposal.listingId = :listingId',
+      { listingId: LISTING_ID },
+    );
+    expect(result.data).toHaveLength(1);
+  });
+
+  it('shows only seller-owned proposal details', async () => {
+    const proposal = buildProposal();
+    const { service, proposalRepo } = buildService({ ownedProposal: proposal });
+
+    const result = await service.findOneForSeller(OWNER_ID, PROPOSAL_ID);
+
+    expect(proposalRepo.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: PROPOSAL_ID, ownerUserId: OWNER_ID },
+      }),
+    );
+    expect(result.id).toBe(PROPOSAL_ID);
+  });
+
+  it('accepts seller proposal, creates assignment and closes single-agent recruitment', async () => {
+    const proposal = buildProposal({
+      listing: buildListing({
+        agentCollaborationMode: ListingAgentCollaborationMode.SINGLE_AGENT,
+      }),
+    });
+    const { service, proposalRepo, listingRepo, assignmentRepo, proposalQb } =
+      buildService({ ownedProposal: proposal });
+
+    const result = await service.acceptForSeller(OWNER_ID, PROPOSAL_ID);
+
+    expect(assignmentRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        listingId: LISTING_ID,
+        proposalId: PROPOSAL_ID,
+        ownerUserId: OWNER_ID,
+        agentId: AGENT_ID,
+        agencyId: AGENCY_ID,
+        status: ListingAgentAssignmentStatus.ACTIVE,
+        acceptedTermsSnapshot: expect.objectContaining({
+          proposalId: PROPOSAL_ID,
+          services: ['Zdjecia', 'Portale'],
+        }),
+      }),
+    );
+    expect(proposalRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: ListingAgentProposalStatus.ACCEPTED,
+        acceptedAt: expect.any(Date),
+      }),
+    );
+    expect(listingRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentCollaborationStatus: ListingAgentCollaborationStatus.ASSIGNED,
+        agentCollaborationClosedAt: expect.any(Date),
+      }),
+    );
+    expect(proposalQb.update).toHaveBeenCalledWith(ListingAgentProposal);
+    expect(result.assignment).toMatchObject({
+      proposalId: PROPOSAL_ID,
+      status: ListingAgentAssignmentStatus.ACTIVE,
+    });
+  });
+
+  it('keeps multi-agent recruitment open after accepting a proposal', async () => {
+    const proposal = buildProposal({
+      listing: buildListing({
+        agentCollaborationMode: ListingAgentCollaborationMode.MULTI_AGENT,
+      }),
+    });
+    const { service, listingRepo, proposalQb } = buildService({
+      ownedProposal: proposal,
+    });
+
+    await service.acceptForSeller(OWNER_ID, PROPOSAL_ID);
+
+    expect(listingRepo.save).not.toHaveBeenCalled();
+    expect(proposalQb.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects seller proposal and notifies the agent', async () => {
+    const proposal = buildProposal();
+    const { service, proposalRepo, emailService } = buildService({
+      ownedProposal: proposal,
+    });
+
+    const result = await service.rejectForSeller(OWNER_ID, PROPOSAL_ID);
+
+    expect(proposalRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: ListingAgentProposalStatus.REJECTED,
+        rejectedAt: expect.any(Date),
+      }),
+    );
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'agent@example.test',
+        subject: expect.stringContaining('odrzucił'),
+      }),
+    );
+    expect(result.assignment).toBeNull();
   });
 });
 

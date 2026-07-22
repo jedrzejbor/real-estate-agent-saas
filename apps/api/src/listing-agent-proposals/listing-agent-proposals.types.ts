@@ -1,4 +1,5 @@
 import type {
+  ListingAgentAssignmentStatus,
   ListingAgentProposalCommissionType,
   ListingAgentProposalExclusivity,
   ListingAgentProposalStatus,
@@ -50,6 +51,26 @@ export interface ListingAgentProposalResponse {
   updatedAt: Date;
   listing: ListingAgentProposalListingSummary | null;
   agent: ListingAgentProposalAgentSummary | null;
+}
+
+export interface ListingAgentAssignmentResponse {
+  id: string;
+  listingId: string;
+  proposalId: string;
+  ownerUserId: string;
+  agentId: string;
+  agencyId: string | null;
+  status: ListingAgentAssignmentStatus;
+  acceptedTermsSnapshot: Record<string, unknown>;
+  agentListingId: string | null;
+  createdAt: Date;
+  revokedAt: Date | null;
+  completedAt: Date | null;
+}
+
+export interface ListingAgentProposalDecisionResponse
+  extends ListingAgentProposalResponse {
+  assignment: ListingAgentAssignmentResponse | null;
 }
 
 export interface ListingAgentProposalPage {

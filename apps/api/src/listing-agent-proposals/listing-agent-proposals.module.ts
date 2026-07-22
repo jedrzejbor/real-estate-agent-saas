@@ -4,12 +4,12 @@ import { EmailModule } from '../email';
 import { Listing } from '../listings/entities';
 import { UsersModule } from '../users';
 import { ListingAgentProposalsController } from './listing-agent-proposals.controller';
-import { ListingAgentProposal } from './entities';
+import { ListingAgentAssignment, ListingAgentProposal } from './entities';
 import { ListingAgentProposalsService } from './listing-agent-proposals.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ListingAgentProposal, Listing]),
+    TypeOrmModule.forFeature([ListingAgentProposal, ListingAgentAssignment, Listing]),
     UsersModule,
     EmailModule,
   ],

@@ -7,9 +7,11 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, In, QueryFailedError, Repository } from 'typeorm';
 import { EmailService } from '../email';
 import {
+  ListingAgentAssignmentStatus,
+  ListingAgentCollaborationMode,
   ListingAgentCollaborationStatus,
   ListingAgentProposalCommissionType,
   ListingAgentProposalStatus,
@@ -24,12 +26,14 @@ import {
   ListingAgentProposalQueryDto,
   UpdateListingAgentProposalDto,
 } from './dto';
-import { ListingAgentProposal } from './entities';
+import { ListingAgentAssignment, ListingAgentProposal } from './entities';
 import {
   canEditListingAgentProposal,
   canTransitionListingAgentProposal,
 } from './listing-agent-proposal-status';
 import type {
+  ListingAgentAssignmentResponse,
+  ListingAgentProposalDecisionResponse,
   ListingAgentProposalPage,
   ListingAgentProposalResponse,
 } from './listing-agent-proposals.types';
@@ -54,6 +58,9 @@ export class ListingAgentProposalsService {
     private readonly proposalRepo: Repository<ListingAgentProposal>,
     @InjectRepository(Listing)
     private readonly listingRepo: Repository<Listing>,
+    @InjectRepository(ListingAgentAssignment)
+    private readonly assignmentRepo: Repository<ListingAgentAssignment>,
+    private readonly dataSource: DataSource,
     private readonly usersService: UsersService,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
@@ -259,6 +266,193 @@ export class ListingAgentProposalsService {
     return toProposalResponse(saved);
   }
 
+  async findForSeller(
+    userId: string,
+    query: ListingAgentProposalQueryDto,
+  ): Promise<ListingAgentProposalPage> {
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+      status,
+      listingId,
+    } = query;
+
+    const qb = this.proposalRepo
+      .createQueryBuilder('proposal')
+      .leftJoinAndSelect('proposal.listing', 'listing')
+      .leftJoinAndSelect('listing.address', 'address')
+      .leftJoinAndSelect('proposal.agent', 'agent')
+      .leftJoinAndSelect('agent.agency', 'agency')
+      .where('proposal.ownerUserId = :ownerUserId', { ownerUserId: userId });
+
+    if (status) {
+      qb.andWhere('proposal.status = :status', { status });
+    }
+
+    if (listingId) {
+      qb.andWhere('proposal.listingId = :listingId', { listingId });
+    }
+
+    const sortColumn = getProposalSortColumn(sortBy);
+    qb.orderBy(sortColumn, sortOrder === 'ASC' ? 'ASC' : 'DESC')
+      .addOrderBy('proposal.id', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [proposals, total] = await qb.getManyAndCount();
+
+    return {
+      data: proposals.map(toProposalResponse),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        sort: `${sortBy}:${sortOrder}`,
+      },
+    };
+  }
+
+  async findOneForSeller(
+    userId: string,
+    id: string,
+  ): Promise<ListingAgentProposalResponse> {
+    const proposal = await this.findSellerProposalOrFail(userId, id);
+
+    return toProposalResponse(proposal);
+  }
+
+  async acceptForSeller(
+    userId: string,
+    id: string,
+  ): Promise<ListingAgentProposalDecisionResponse> {
+    try {
+      const result = await this.dataSource.transaction(async (manager) => {
+        const proposalRepo = manager.getRepository(ListingAgentProposal);
+        const listingRepo = manager.getRepository(Listing);
+        const assignmentRepo = manager.getRepository(ListingAgentAssignment);
+        const proposal = await proposalRepo.findOne({
+          where: { id, ownerUserId: userId },
+          relations: [
+            'listing',
+            'listing.address',
+            'agent',
+            'agent.user',
+            'agent.agency',
+          ],
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Oferta współpracy nie znaleziona');
+        }
+
+        this.assertProposalCanBeAccepted(proposal);
+
+        const listing = proposal.listing;
+        if (
+          !listing.agentCollaborationEnabled ||
+          listing.agentCollaborationStatus !== ListingAgentCollaborationStatus.OPEN
+        ) {
+          throw new BadRequestException(
+            'Nabór agentów dla tej oferty nie jest już otwarty',
+          );
+        }
+
+        const now = new Date();
+        proposal.status = ListingAgentProposalStatus.ACCEPTED;
+        proposal.acceptedAt = now;
+
+        const assignment = assignmentRepo.create({
+          listingId: proposal.listingId,
+          proposalId: proposal.id,
+          ownerUserId: proposal.ownerUserId,
+          agentId: proposal.agentId,
+          agencyId: proposal.agencyId ?? null,
+          status: ListingAgentAssignmentStatus.ACTIVE,
+          acceptedTermsSnapshot: buildAcceptedTermsSnapshot(proposal),
+        });
+
+        const savedAssignment = await assignmentRepo.save(assignment);
+        const savedProposal = await proposalRepo.save(proposal);
+
+        if (
+          listing.agentCollaborationMode ===
+          ListingAgentCollaborationMode.SINGLE_AGENT
+        ) {
+          listing.agentCollaborationStatus =
+            ListingAgentCollaborationStatus.ASSIGNED;
+          listing.agentCollaborationClosedAt = now;
+          await listingRepo.save(listing);
+
+          await proposalRepo
+            .createQueryBuilder()
+            .update(ListingAgentProposal)
+            .set({ status: ListingAgentProposalStatus.CLOSED })
+            .where('listing_id = :listingId', { listingId: proposal.listingId })
+            .andWhere('id != :proposalId', { proposalId: proposal.id })
+            .andWhere('status IN (:...statuses)', {
+              statuses: [...ACTIVE_PROPOSAL_STATUSES],
+            })
+            .execute();
+        }
+
+        savedProposal.listing = listing;
+        savedProposal.agent = proposal.agent;
+        savedProposal.agency = proposal.agent.agency ?? null;
+        savedAssignment.proposal = savedProposal;
+
+        return { proposal: savedProposal, assignment: savedAssignment };
+      });
+
+      await this.notifyAgentAboutSellerDecision(result.proposal, 'accepted');
+
+      return {
+        ...toProposalResponse(result.proposal),
+        assignment: toAssignmentResponse(result.assignment),
+      };
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException(
+          'Ta oferta współpracy została już zaakceptowana',
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  async rejectForSeller(
+    userId: string,
+    id: string,
+  ): Promise<ListingAgentProposalDecisionResponse> {
+    const proposal = await this.findSellerProposalOrFail(userId, id);
+
+    if (
+      !canTransitionListingAgentProposal(
+        proposal.status,
+        ListingAgentProposalStatus.REJECTED,
+      )
+    ) {
+      throw new BadRequestException(
+        'Tej oferty współpracy nie można już odrzucić',
+      );
+    }
+
+    proposal.status = ListingAgentProposalStatus.REJECTED;
+    proposal.rejectedAt = new Date();
+
+    const saved = await this.proposalRepo.save(proposal);
+    await this.notifyAgentAboutSellerDecision(saved, 'rejected');
+
+    return {
+      ...toProposalResponse(saved),
+      assignment: null,
+    };
+  }
+
   private async resolvePaidAgentAccess(
     userId: string,
   ): Promise<AgentAccessContext> {
@@ -330,6 +524,45 @@ export class ListingAgentProposalsService {
     }
 
     return proposal;
+  }
+
+  private async findSellerProposalOrFail(
+    ownerUserId: string,
+    id: string,
+  ): Promise<ListingAgentProposal> {
+    const proposal = await this.proposalRepo.findOne({
+      where: { id, ownerUserId },
+      relations: [
+        'listing',
+        'listing.address',
+        'agent',
+        'agent.user',
+        'agent.agency',
+      ],
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Oferta współpracy nie znaleziona');
+    }
+
+    return proposal;
+  }
+
+  private assertProposalCanBeAccepted(proposal: ListingAgentProposal): void {
+    if (
+      !canTransitionListingAgentProposal(
+        proposal.status,
+        ListingAgentProposalStatus.ACCEPTED,
+      )
+    ) {
+      throw new BadRequestException(
+        'Tej oferty współpracy nie można już zaakceptować',
+      );
+    }
+
+    if (proposal.validUntil && proposal.validUntil <= new Date()) {
+      throw new BadRequestException('Ta oferta współpracy już wygasła');
+    }
   }
 
   private assertValidProposalInput(input: NormalizedProposalInput): void {
@@ -406,6 +639,46 @@ export class ListingAgentProposalsService {
     } catch (error) {
       this.logger.warn(
         `Failed to notify owner ${listing.ownerUserId} about listing agent proposal ${proposal.id}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
+  }
+
+  private async notifyAgentAboutSellerDecision(
+    proposal: ListingAgentProposal,
+    decision: 'accepted' | 'rejected',
+  ): Promise<void> {
+    const agentEmail = proposal.agent?.user?.email;
+    if (!agentEmail) {
+      return;
+    }
+
+    const frontendUrl = this.configService.get(
+      'FRONTEND_URL',
+      'http://localhost:3000',
+    );
+    const agentUrl = `${frontendUrl.replace(/\/+$/, '')}/dashboard`;
+    const listingTitle = proposal.listing?.publicTitle || proposal.listing?.title;
+    const accepted = decision === 'accepted';
+
+    try {
+      await this.emailService.send({
+        to: agentEmail,
+        subject: accepted
+          ? `Właściciel zaakceptował Twoją ofertę współpracy: ${listingTitle}`
+          : `Właściciel odrzucił Twoją ofertę współpracy: ${listingTitle}`,
+        text: [
+          accepted
+            ? `Właściciel zaakceptował Twoją ofertę współpracy dla ogłoszenia "${listingTitle}".`
+            : `Właściciel odrzucił Twoją ofertę współpracy dla ogłoszenia "${listingTitle}".`,
+          '',
+          `Zobacz szczegóły w panelu agenta: ${agentUrl}`,
+        ].join('\n'),
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to notify agent ${proposal.agentId} about seller decision for proposal ${proposal.id}: ${
           error instanceof Error ? error.message : 'unknown error'
         }`,
       );
@@ -518,6 +791,45 @@ function toProposalResponse(
     updatedAt: proposal.updatedAt,
     listing: proposal.listing ? toListingSummary(proposal.listing) : null,
     agent: proposal.agent ? toAgentSummary(proposal.agent) : null,
+  };
+}
+
+function toAssignmentResponse(
+  assignment: ListingAgentAssignment,
+): ListingAgentAssignmentResponse {
+  return {
+    id: assignment.id,
+    listingId: assignment.listingId,
+    proposalId: assignment.proposalId,
+    ownerUserId: assignment.ownerUserId,
+    agentId: assignment.agentId,
+    agencyId: assignment.agencyId ?? null,
+    status: assignment.status,
+    acceptedTermsSnapshot: assignment.acceptedTermsSnapshot ?? {},
+    agentListingId: assignment.agentListingId ?? null,
+    createdAt: assignment.createdAt,
+    revokedAt: assignment.revokedAt ?? null,
+    completedAt: assignment.completedAt ?? null,
+  };
+}
+
+function buildAcceptedTermsSnapshot(
+  proposal: ListingAgentProposal,
+): Record<string, unknown> {
+  return {
+    proposalId: proposal.id,
+    commissionType: proposal.commissionType ?? null,
+    commissionValue: proposal.commissionValue ?? null,
+    minimumContractMonths: proposal.minimumContractMonths ?? null,
+    exclusivity: proposal.exclusivity ?? null,
+    services: proposal.services ?? [],
+    marketingPlan: proposal.marketingPlan ?? null,
+    valuationOpinion: proposal.valuationOpinion ?? null,
+    proposedPrice: proposal.proposedPrice ?? null,
+    availability: proposal.availability ?? null,
+    message: proposal.message ?? null,
+    validUntil: proposal.validUntil ?? null,
+    acceptedAt: proposal.acceptedAt ?? null,
   };
 }
 
