@@ -15,6 +15,15 @@ export interface ListingAgentProposalListingSummary {
   currency: string;
 }
 
+export interface ListingAgentRecruitmentResponse {
+  listingId: string;
+  agentCollaborationEnabled: boolean;
+  agentCollaborationMode: string | null;
+  agentCollaborationStatus: string | null;
+  agentCollaborationOpenedAt: Date | null;
+  agentCollaborationClosedAt: Date | null;
+}
+
 export interface ListingAgentProposalAgentSummary {
   id: string;
   firstName: string | null;

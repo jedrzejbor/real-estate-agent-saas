@@ -119,4 +119,30 @@ export class ListingAgentProposalsController {
   ) {
     return this.listingAgentProposalsService.rejectForSeller(userId, id);
   }
+
+  /** POST /api/listing-agent-proposals/seller/listings/:listingId/close-recruitment — close agent recruitment for an owned listing. */
+  @Post('seller/listings/:listingId/close-recruitment')
+  @Roles(UserRole.OWNER)
+  async closeRecruitmentForSeller(
+    @CurrentUser('id') userId: string,
+    @Param('listingId', ParseUUIDPipe) listingId: string,
+  ) {
+    return this.listingAgentProposalsService.closeRecruitmentForSeller(
+      userId,
+      listingId,
+    );
+  }
+
+  /** POST /api/listing-agent-proposals/seller/listings/:listingId/reopen-recruitment — reopen agent recruitment for an owned listing. */
+  @Post('seller/listings/:listingId/reopen-recruitment')
+  @Roles(UserRole.OWNER)
+  async reopenRecruitmentForSeller(
+    @CurrentUser('id') userId: string,
+    @Param('listingId', ParseUUIDPipe) listingId: string,
+  ) {
+    return this.listingAgentProposalsService.reopenRecruitmentForSeller(
+      userId,
+      listingId,
+    );
+  }
 }

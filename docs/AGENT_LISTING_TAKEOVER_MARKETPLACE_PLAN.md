@@ -1018,10 +1018,25 @@ Pozwolic wlascicielowi porownywac propozycje i podejmowac decyzje.
     - akceptacja tworzy assignment, ale nabor pozostaje otwarty,
     - pozostale aktywne propozycje nie sa automatycznie zamykane.
 
-- [ ] `AT4.6` Dodac zamykanie i ponowne otwieranie naboru agentow.
-  - Status: poza zakresem pierwszej iteracji AT-4.
-  - Uzasadnienie: akceptacja `single_agent` zamyka nabor automatycznie, ale
-    osobne reczne akcje ownera wymagaja osobnych endpointow i UI.
+- [x] `AT4.6` Dodac zamykanie i ponowne otwieranie naboru agentow.
+  - Data zakonczenia: 2026-07-22
+  - Endpointy:
+    - `POST /api/listing-agent-proposals/seller/listings/:listingId/close-recruitment`,
+    - `POST /api/listing-agent-proposals/seller/listings/:listingId/reopen-recruitment`.
+  - Wykonano:
+    - wlasciciel moze zamknac nabor tylko dla swojej oferty,
+    - zamkniecie ustawia `agentCollaborationStatus = closed` i
+      `agentCollaborationClosedAt`,
+    - zamkniecie naboru nie zmienia statusow istniejacych propozycji, zeby
+      wlasciciel mogl nadal je porownac albo wrocic do nich po ponownym
+      otwarciu,
+    - ponowne otwarcie ustawia `agentCollaborationEnabled = true`,
+      `agentCollaborationStatus = open`, nowe `agentCollaborationOpenedAt` i
+      czysci `agentCollaborationClosedAt`,
+    - ponowne otwarcie jest dozwolone tylko dla aktywnej, opublikowanej,
+      niewygaslej oferty z publicznym slugiem,
+    - oferta ze statusem `assigned` nie moze byc recznie zamknieta ani
+      ponownie otwarta w tym przeplywie.
 
 - [x] `AT4.7` Dodac powiadomienia do agenta po akceptacji/odrzuceniu.
   - Data zakonczenia: 2026-07-22
@@ -1044,16 +1059,18 @@ Pozwolic wlascicielowi porownywac propozycje i podejmowac decyzje.
     - akceptacja tworzy assignment i snapshot warunkow,
     - `single_agent` zamyka nabor i pozostale aktywne propozycje,
     - `multi_agent` zostawia nabor otwarty,
-    - odrzucenie ustawia status i powiadamia agenta.
+    - odrzucenie ustawia status i powiadamia agenta,
+    - reczne zamkniecie naboru aktualizuje status listingu,
+    - reczne ponowne otwarcie naboru wymaga aktywnej publicznej oferty,
+    - obcy wlasciciel nie moze sterowac naborem.
 
 #### Weryfikacja
 
 - `pnpm --filter api type-check` - przechodzi.
 - `pnpm --filter api test -- listing-agent-proposals.service.spec.ts listing-agent-proposals.controller.spec.ts listing-agent-proposal-status.spec.ts` - przechodzi.
 
-#### Poza zakresem pierwszej iteracji AT-4
+#### Poza zakresem AT-4
 
-- Reczne zamykanie i ponowne otwieranie naboru agentow (`AT4.6`).
 - UI porownywania propozycji po stronie wlasciciela zostaje w Sprint AT-6.
 - Czat propozycji zostaje w Sprint AT-5.
 

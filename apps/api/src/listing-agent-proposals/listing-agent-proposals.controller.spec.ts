@@ -19,6 +19,8 @@ describe('ListingAgentProposalsController', () => {
     findOneForSeller: jest.Mock;
     acceptForSeller: jest.Mock;
     rejectForSeller: jest.Mock;
+    closeRecruitmentForSeller: jest.Mock;
+    reopenRecruitmentForSeller: jest.Mock;
   };
 
   beforeEach(() => {
@@ -32,6 +34,8 @@ describe('ListingAgentProposalsController', () => {
       findOneForSeller: jest.fn(),
       acceptForSeller: jest.fn(),
       rejectForSeller: jest.fn(),
+      closeRecruitmentForSeller: jest.fn(),
+      reopenRecruitmentForSeller: jest.fn(),
     };
     controller = new ListingAgentProposalsController(
       service as unknown as ListingAgentProposalsService,
@@ -157,6 +161,40 @@ describe('ListingAgentProposalsController', () => {
     expect(service.rejectForSeller).toHaveBeenCalledWith(USER_ID, PROPOSAL_ID);
   });
 
+  it('delegates seller close recruitment action to the service', async () => {
+    const response = {
+      listingId: LISTING_ID,
+      agentCollaborationStatus: 'closed',
+    };
+    service.closeRecruitmentForSeller.mockResolvedValue(response);
+
+    await expect(
+      controller.closeRecruitmentForSeller(USER_ID, LISTING_ID),
+    ).resolves.toBe(response);
+
+    expect(service.closeRecruitmentForSeller).toHaveBeenCalledWith(
+      USER_ID,
+      LISTING_ID,
+    );
+  });
+
+  it('delegates seller reopen recruitment action to the service', async () => {
+    const response = {
+      listingId: LISTING_ID,
+      agentCollaborationStatus: 'open',
+    };
+    service.reopenRecruitmentForSeller.mockResolvedValue(response);
+
+    await expect(
+      controller.reopenRecruitmentForSeller(USER_ID, LISTING_ID),
+    ).resolves.toBe(response);
+
+    expect(service.reopenRecruitmentForSeller).toHaveBeenCalledWith(
+      USER_ID,
+      LISTING_ID,
+    );
+  });
+
   it('requires authenticated scoped roles', () => {
     expect(
       Reflect.getMetadata(IS_PUBLIC_KEY, ListingAgentProposalsController),
@@ -177,6 +215,12 @@ describe('ListingAgentProposalsController', () => {
       Reflect.getMetadata(
         ROLES_KEY,
         ListingAgentProposalsController.prototype.findForSeller,
+      ),
+    ).toEqual([UserRole.OWNER]);
+    expect(
+      Reflect.getMetadata(
+        ROLES_KEY,
+        ListingAgentProposalsController.prototype.closeRecruitmentForSeller,
       ),
     ).toEqual([UserRole.OWNER]);
   });

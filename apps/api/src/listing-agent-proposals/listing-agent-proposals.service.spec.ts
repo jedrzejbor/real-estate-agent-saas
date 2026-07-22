@@ -203,6 +203,7 @@ function buildService({
   };
   const listingRepo = {
     createQueryBuilder: jest.fn().mockReturnValue(listingQb),
+    findOne: jest.fn().mockResolvedValue(listing),
     save: jest.fn(async (entity) => entity),
   };
   const assignmentRepo = {
@@ -589,6 +590,87 @@ describe('ListingAgentProposalsService', () => {
       }),
     );
     expect(result.assignment).toBeNull();
+  });
+
+  it('closes recruitment for an owned listing without changing existing proposals', async () => {
+    const listing = buildListing();
+    const { service, listingRepo, proposalRepo } = buildService({ listing });
+
+    const result = await service.closeRecruitmentForSeller(OWNER_ID, LISTING_ID);
+
+    expect(listingRepo.findOne).toHaveBeenCalledWith({
+      where: { id: LISTING_ID, ownerUserId: OWNER_ID },
+    });
+    expect(listingRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentCollaborationStatus: ListingAgentCollaborationStatus.CLOSED,
+        agentCollaborationClosedAt: expect.any(Date),
+      }),
+    );
+    expect(proposalRepo.save).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      listingId: LISTING_ID,
+      agentCollaborationEnabled: true,
+      agentCollaborationStatus: ListingAgentCollaborationStatus.CLOSED,
+    });
+  });
+
+  it('blocks closing already closed recruitment', async () => {
+    const { service } = buildService({
+      listing: buildListing({
+        agentCollaborationStatus: ListingAgentCollaborationStatus.CLOSED,
+      }),
+    });
+
+    await expect(
+      service.closeRecruitmentForSeller(OWNER_ID, LISTING_ID),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('reopens recruitment for an owned public listing', async () => {
+    const listing = buildListing({
+      agentCollaborationStatus: ListingAgentCollaborationStatus.CLOSED,
+      agentCollaborationClosedAt: new Date('2026-07-04T00:00:00.000Z'),
+    });
+    const { service, listingRepo } = buildService({ listing });
+
+    const result = await service.reopenRecruitmentForSeller(OWNER_ID, LISTING_ID);
+
+    expect(listingRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentCollaborationEnabled: true,
+        agentCollaborationStatus: ListingAgentCollaborationStatus.OPEN,
+        agentCollaborationOpenedAt: expect.any(Date),
+        agentCollaborationClosedAt: null,
+      }),
+    );
+    expect(result).toMatchObject({
+      listingId: LISTING_ID,
+      agentCollaborationEnabled: true,
+      agentCollaborationStatus: ListingAgentCollaborationStatus.OPEN,
+      agentCollaborationClosedAt: null,
+    });
+  });
+
+  it('blocks reopening recruitment for a non-public listing', async () => {
+    const { service } = buildService({
+      listing: buildListing({
+        agentCollaborationStatus: ListingAgentCollaborationStatus.CLOSED,
+        publicationStatus: ListingPublicationStatus.DRAFT,
+      }),
+    });
+
+    await expect(
+      service.reopenRecruitmentForSeller(OWNER_ID, LISTING_ID),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('returns not found when seller controls a listing they do not own', async () => {
+    const { service } = buildService({ listing: null });
+
+    await expect(
+      service.closeRecruitmentForSeller(OWNER_ID, LISTING_ID),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
 

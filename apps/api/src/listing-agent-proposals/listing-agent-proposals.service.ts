@@ -36,6 +36,7 @@ import type {
   ListingAgentProposalDecisionResponse,
   ListingAgentProposalPage,
   ListingAgentProposalResponse,
+  ListingAgentRecruitmentResponse,
 } from './listing-agent-proposals.types';
 
 const UNIQUE_VIOLATION_CODE = '23505';
@@ -453,6 +454,72 @@ export class ListingAgentProposalsService {
     };
   }
 
+  async closeRecruitmentForSeller(
+    userId: string,
+    listingId: string,
+  ): Promise<ListingAgentRecruitmentResponse> {
+    const listing = await this.findSellerListingForRecruitmentOrFail(
+      userId,
+      listingId,
+    );
+
+    if (!listing.agentCollaborationEnabled) {
+      throw new BadRequestException(
+        'Współpraca z agentami nie jest włączona dla tej oferty',
+      );
+    }
+
+    if (listing.agentCollaborationStatus === ListingAgentCollaborationStatus.CLOSED) {
+      throw new BadRequestException('Nabór agentów jest już zamknięty');
+    }
+
+    if (
+      listing.agentCollaborationStatus === ListingAgentCollaborationStatus.ASSIGNED
+    ) {
+      throw new BadRequestException(
+        'Oferta ma już zaakceptowanego agenta',
+      );
+    }
+
+    listing.agentCollaborationStatus = ListingAgentCollaborationStatus.CLOSED;
+    listing.agentCollaborationClosedAt = new Date();
+
+    const saved = await this.listingRepo.save(listing);
+    return toRecruitmentResponse(saved);
+  }
+
+  async reopenRecruitmentForSeller(
+    userId: string,
+    listingId: string,
+  ): Promise<ListingAgentRecruitmentResponse> {
+    const listing = await this.findSellerListingForRecruitmentOrFail(
+      userId,
+      listingId,
+    );
+
+    this.assertListingCanOpenRecruitment(listing);
+
+    if (listing.agentCollaborationStatus === ListingAgentCollaborationStatus.OPEN) {
+      throw new BadRequestException('Nabór agentów jest już otwarty');
+    }
+
+    if (
+      listing.agentCollaborationStatus === ListingAgentCollaborationStatus.ASSIGNED
+    ) {
+      throw new BadRequestException(
+        'Oferta ma już zaakceptowanego agenta',
+      );
+    }
+
+    listing.agentCollaborationEnabled = true;
+    listing.agentCollaborationStatus = ListingAgentCollaborationStatus.OPEN;
+    listing.agentCollaborationOpenedAt = new Date();
+    listing.agentCollaborationClosedAt = null;
+
+    const saved = await this.listingRepo.save(listing);
+    return toRecruitmentResponse(saved);
+  }
+
   private async resolvePaidAgentAccess(
     userId: string,
   ): Promise<AgentAccessContext> {
@@ -524,6 +591,35 @@ export class ListingAgentProposalsService {
     }
 
     return proposal;
+  }
+
+  private async findSellerListingForRecruitmentOrFail(
+    ownerUserId: string,
+    listingId: string,
+  ): Promise<Listing> {
+    const listing = await this.listingRepo.findOne({
+      where: { id: listingId, ownerUserId },
+    });
+
+    if (!listing) {
+      throw new NotFoundException('Oferta nie znaleziona');
+    }
+
+    return listing;
+  }
+
+  private assertListingCanOpenRecruitment(listing: Listing): void {
+    if (
+      listing.status !== ListingStatus.ACTIVE ||
+      listing.publicationStatus !== ListingPublicationStatus.PUBLISHED ||
+      !listing.publicSlug ||
+      !listing.publishedAt ||
+      (listing.expiresAt && listing.expiresAt <= new Date())
+    ) {
+      throw new BadRequestException(
+        'Nabór agentów można otworzyć tylko dla aktywnej, opublikowanej i niewygasłej oferty',
+      );
+    }
   }
 
   private async findSellerProposalOrFail(
@@ -810,6 +906,17 @@ function toAssignmentResponse(
     createdAt: assignment.createdAt,
     revokedAt: assignment.revokedAt ?? null,
     completedAt: assignment.completedAt ?? null,
+  };
+}
+
+function toRecruitmentResponse(listing: Listing): ListingAgentRecruitmentResponse {
+  return {
+    listingId: listing.id,
+    agentCollaborationEnabled: listing.agentCollaborationEnabled,
+    agentCollaborationMode: listing.agentCollaborationMode ?? null,
+    agentCollaborationStatus: listing.agentCollaborationStatus ?? null,
+    agentCollaborationOpenedAt: listing.agentCollaborationOpenedAt ?? null,
+    agentCollaborationClosedAt: listing.agentCollaborationClosedAt ?? null,
   };
 }
 
