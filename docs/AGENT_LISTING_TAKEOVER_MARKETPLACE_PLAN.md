@@ -849,14 +849,111 @@ Pozwolic agentowi skladac, edytowac i wycofywac propozycje.
 
 #### Zadania
 
-- [ ] `AT3.1` Dodac DTO formularza propozycji z walidacja.
-- [ ] `AT3.2` Dodac endpoint skladania propozycji.
-- [ ] `AT3.3` Dodac endpoint listy wyslanych propozycji agenta.
-- [ ] `AT3.4` Dodac endpoint szczegolow propozycji agenta.
-- [ ] `AT3.5` Dodac edycje propozycji tylko dla dozwolonych statusow.
-- [ ] `AT3.6` Dodac wycofanie propozycji.
-- [ ] `AT3.7` Dodac transakcyjne eventy/powiadomienia dla wlasciciela.
-- [ ] `AT3.8` Dodac testy race condition i duplikatu aktywnej propozycji.
+- [x] `AT3.1` Dodac DTO formularza propozycji z walidacja.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano:
+    - `ListingAgentProposalInputDto`,
+    - `UpdateListingAgentProposalDto`,
+    - `ListingAgentProposalQueryDto`.
+  - Zakres walidacji:
+    - typ prowizji i opcjonalna wartosc prowizji,
+    - minimalny okres umowy,
+    - typ wylacznosci,
+    - lista uslug `1..20`,
+    - plan marketingowy,
+    - opinia wyceny,
+    - proponowana cena,
+    - dostepnosc,
+    - wiadomosc do wlasciciela,
+    - data waznosci propozycji.
+
+- [x] `AT3.2` Dodac endpoint skladania propozycji.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: dodano `ListingAgentProposalsModule`, kontroler i serwis.
+  - Endpoint:
+    - `POST /api/listing-agent-proposals/listings/:listingId`.
+  - Reguly backendowe:
+    - endpoint wymaga roli `agent`,
+    - backend wymaga entitlementu `agentListingMarket`,
+    - Free plan dostaje `FeatureAccessDeniedException`,
+    - agent nie moze zlozyc propozycji do swojej oferty,
+    - oferta musi miec wlaczona i otwarta wspolprace,
+    - oferta musi byc publiczna, aktywna, opublikowana i niewygasla,
+    - wlasciciel musi byc powiazany z oferta,
+    - aktywny duplikat propozycji tego samego agenta jest blokowany.
+
+- [x] `AT3.3` Dodac endpoint listy wyslanych propozycji agenta.
+  - Data zakonczenia: 2026-07-22
+  - Endpoint:
+    - `GET /api/listing-agent-proposals/agent`.
+  - Filtry query:
+    - `status`,
+    - `listingId`,
+    - `page`,
+    - `limit`,
+    - `sortBy`,
+    - `sortOrder`.
+  - Odpowiedz zawiera znormalizowany payload propozycji, podsumowanie oferty i
+    publiczne podsumowanie agenta/agencji.
+
+- [x] `AT3.4` Dodac endpoint szczegolow propozycji agenta.
+  - Data zakonczenia: 2026-07-22
+  - Endpoint:
+    - `GET /api/listing-agent-proposals/agent/:id`.
+  - Bezpieczenstwo: agent moze pobrac tylko propozycje, gdzie
+    `proposal.agentId` nalezy do biezacego agenta.
+
+- [x] `AT3.5` Dodac edycje propozycji tylko dla dozwolonych statusow.
+  - Data zakonczenia: 2026-07-22
+  - Endpoint:
+    - `PATCH /api/listing-agent-proposals/agent/:id`.
+  - Wykonano: edycja uzywa wspolnej normalizacji i walidacji danych.
+  - Reguly statusow:
+    - edytowalne: `draft`, `sent`, `updated`,
+    - nieedytowalne: statusy terminalne i decyzyjne, np. `accepted`,
+      `rejected`, `withdrawn`, `expired`, `closed`.
+  - Po edycji status przechodzi na `updated`.
+
+- [x] `AT3.6` Dodac wycofanie propozycji.
+  - Data zakonczenia: 2026-07-22
+  - Endpoint:
+    - `POST /api/listing-agent-proposals/agent/:id/withdraw`.
+  - Wykonano: wycofanie uzywa helpera przejsc statusow i ustawia
+    `withdrawnAt`.
+
+- [x] `AT3.7` Dodac transakcyjne eventy/powiadomienia dla wlasciciela.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano w zakresie AT-3: po zapisaniu nowej propozycji serwis wysyla
+    minimalne powiadomienie email do wlasciciela przez istniejacy
+    `EmailService`.
+  - Uwagi / follow-up: trwale notyfikacje in-app, analytics eventy i ewentualny
+    outbox transakcyjny warto dopiac w AT-4/AT-9, gdy dojdzie panel
+    wlasciciela i decyzje.
+
+- [x] `AT3.8` Dodac testy race condition i duplikatu aktywnej propozycji.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano:
+    - test blokady istniejacej aktywnej propozycji przed zapisem,
+    - test mapowania bledu unikalnego indeksu PostgreSQL `23505` na
+      `ConflictException`, czyli scenariusz race condition,
+    - testy walidacji prowizji,
+    - testy blokady Free planu,
+    - testy listy wyslanych propozycji,
+    - testy edycji i wycofania,
+    - testy metadanych kontrolera: endpointy nie sa publiczne i wymagaja roli
+      `agent`.
+
+#### Weryfikacja
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter api test -- listing-agent-proposals.service.spec.ts listing-agent-proposals.controller.spec.ts listing-agent-proposal-status.spec.ts` - przechodzi.
+
+#### Poza zakresem AT-3
+
+- Panel wlasciciela, akceptacja, odrzucenie i tworzenie
+  `ListingAgentAssignment` zostaja w Sprint AT-4.
+- Czat propozycji zostaje w Sprint AT-5.
+- UI agenta i wlasciciela zostaje w Sprint AT-6/AT-7.
 
 ### Sprint AT-4 - Backend: panel wlasciciela i decyzje
 
