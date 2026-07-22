@@ -13,6 +13,8 @@ import {
 import {
   PropertyType,
   ListingCommissionType,
+  ListingAgentCollaborationMode,
+  ListingAgentCollaborationStatus,
   ListingStatus,
   ListingPublicationStatus,
   TransactionType,
@@ -21,6 +23,16 @@ import { Agent } from '../../users/entities/agent.entity';
 import { User } from '../../users/entities/user.entity';
 import { ListingImage } from './listing-image.entity';
 import { Address } from './address.entity';
+
+export interface ListingAgentCollaborationPreferences {
+  allowsExclusiveAgreement?: boolean;
+  allowsMultipleAgents?: boolean;
+  preferredCommissionType?: 'percentage' | 'fixed' | null;
+  preferredCommissionValue?: number | null;
+  expectedServices?: string[];
+  notes?: string | null;
+  preferredContactChannel?: 'platform_chat' | 'phone_after_acceptance';
+}
 
 @Entity('listings')
 export class Listing {
@@ -122,6 +134,52 @@ export class Listing {
 
   @Column({ type: 'boolean', default: false })
   showPublicViewCount: boolean;
+
+  @Index()
+  @Column({
+    type: 'boolean',
+    name: 'agent_collaboration_enabled',
+    default: false,
+  })
+  agentCollaborationEnabled: boolean;
+
+  @Column({
+    type: 'enum',
+    enum: ListingAgentCollaborationMode,
+    name: 'agent_collaboration_mode',
+    nullable: true,
+  })
+  agentCollaborationMode?: ListingAgentCollaborationMode | null;
+
+  @Index()
+  @Column({
+    type: 'enum',
+    enum: ListingAgentCollaborationStatus,
+    name: 'agent_collaboration_status',
+    nullable: true,
+  })
+  agentCollaborationStatus?: ListingAgentCollaborationStatus | null;
+
+  @Column({
+    type: 'jsonb',
+    name: 'agent_collaboration_preferences',
+    nullable: true,
+  })
+  agentCollaborationPreferences?: ListingAgentCollaborationPreferences | null;
+
+  @Column({
+    type: 'timestamptz',
+    name: 'agent_collaboration_opened_at',
+    nullable: true,
+  })
+  agentCollaborationOpenedAt?: Date | null;
+
+  @Column({
+    type: 'timestamptz',
+    name: 'agent_collaboration_closed_at',
+    nullable: true,
+  })
+  agentCollaborationClosedAt?: Date | null;
 
   @Column({ type: 'timestamptz', nullable: true })
   publishedAt: Date | null;

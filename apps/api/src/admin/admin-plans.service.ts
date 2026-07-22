@@ -181,6 +181,7 @@ export class AdminPlansService {
         'reportsAppointmentsBasic',
         'publicListings',
         'publicLeadForms',
+        'agentListingMarket',
         'customBranding',
         'multiUser',
         'customDomain',

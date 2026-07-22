@@ -119,6 +119,7 @@ function buildService(params: {
         reportsAppointmentsBasic: false,
         publicListings: true,
         publicLeadForms: true,
+        agentListingMarket: true,
         customBranding:
           currentAgency.planOverrides?.features?.customBranding ?? false,
         multiUser: currentAgency.planOverrides?.features?.multiUser ?? false,

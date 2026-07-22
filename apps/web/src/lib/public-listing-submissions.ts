@@ -13,6 +13,27 @@ export interface PublicListingSubmissionImage {
   isPrimary?: boolean;
 }
 
+export type ListingAgentCollaborationMode = 'single_agent' | 'multi_agent';
+export type ListingAgentCollaborationStatus =
+  | 'open'
+  | 'paused'
+  | 'closed'
+  | 'assigned';
+
+export interface PublicListingSubmissionAgentCollaboration {
+  enabled: boolean;
+  mode?: ListingAgentCollaborationMode;
+  preferences?: {
+    allowsExclusiveAgreement?: boolean;
+    allowsMultipleAgents?: boolean;
+    preferredCommissionType?: 'percentage' | 'fixed' | null;
+    preferredCommissionValue?: number | null;
+    expectedServices?: string[];
+    notes?: string | null;
+    preferredContactChannel?: 'platform_chat' | 'phone_after_acceptance';
+  };
+}
+
 export interface CreatePublicListingSubmissionInput {
   listing: {
     title: string;
@@ -44,6 +65,7 @@ export interface CreatePublicListingSubmissionInput {
     showExactAddressOnPublicPage?: boolean;
   };
   images?: PublicListingSubmissionImage[];
+  agentCollaboration?: PublicListingSubmissionAgentCollaboration;
   ownerName: string;
   email: string;
   phone: string;
@@ -115,6 +137,9 @@ export interface SellerPublicListingSubmissionListItem {
   publicationStatus: ListingPublicationStatus | null;
   viewCount: number | null;
   inquiryCount: number | null;
+  agentCollaborationEnabled: boolean;
+  agentCollaborationMode: ListingAgentCollaborationMode | null;
+  agentCollaborationStatus: ListingAgentCollaborationStatus | null;
   createdAt: string;
   updatedAt: string;
   verifiedAt: string | null;
@@ -131,6 +156,7 @@ export interface SellerPublicListingSubmissionDetail extends SellerPublicListing
   address: CreatePublicListingSubmissionInput['address'];
   publicSettings?: CreatePublicListingSubmissionInput['publicSettings'];
   images: PublicListingSubmissionImage[];
+  agentCollaboration: Record<string, unknown>;
   ownerName: string;
   email: string;
   phone: string;
@@ -167,6 +193,7 @@ export type UpdateSellerPublicListingSubmissionInput = Partial<
     | 'address'
     | 'publicSettings'
     | 'images'
+    | 'agentCollaboration'
     | 'ownerName'
     | 'email'
     | 'phone'

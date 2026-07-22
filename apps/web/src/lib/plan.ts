@@ -85,6 +85,12 @@ const featureConfig: FeatureConfig[] = [
     description: 'Zbieranie leadów bezpośrednio z publicznych stron ofert.',
   },
   {
+    key: 'agentListingMarket',
+    label: 'Oferty szukające agenta',
+    description:
+      'Dostęp do rynku właścicieli otwartych na współpracę z agentami.',
+  },
+  {
     key: 'customBranding',
     label: 'Własny branding',
     description: `Usunięcie brandingu ${APP_NAME} i pełniejsze dopasowanie do marki biura.`,

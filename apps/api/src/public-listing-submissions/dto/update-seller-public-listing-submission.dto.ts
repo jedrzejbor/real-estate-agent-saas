@@ -9,6 +9,7 @@ import {
 } from 'class-validator';
 import {
   PublicSubmissionAddressDto,
+  PublicSubmissionAgentCollaborationDto,
   PublicSubmissionImageDto,
   PublicSubmissionListingDto,
   PublicSubmissionPublicSettingsDto,
@@ -34,6 +35,11 @@ export class UpdateSellerPublicListingSubmissionDto {
   @ValidateNested({ each: true })
   @Type(() => PublicSubmissionImageDto)
   images?: PublicSubmissionImageDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PublicSubmissionAgentCollaborationDto)
+  agentCollaboration?: PublicSubmissionAgentCollaborationDto;
 
   @IsOptional()
   @IsString()

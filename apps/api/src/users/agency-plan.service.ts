@@ -84,6 +84,7 @@ export const DEFAULT_PLAN_CATALOG: Record<AgencyPlan, AgencyPlanDefinition> = {
       reportsAppointmentsBasic: false,
       publicListings: true,
       publicLeadForms: true,
+      agentListingMarket: false,
       customBranding: false,
       multiUser: false,
       customDomain: false,
@@ -108,6 +109,7 @@ export const DEFAULT_PLAN_CATALOG: Record<AgencyPlan, AgencyPlanDefinition> = {
       reportsAppointmentsBasic: true,
       publicListings: true,
       publicLeadForms: true,
+      agentListingMarket: true,
       customBranding: false,
       multiUser: false,
       customDomain: false,
@@ -132,6 +134,7 @@ export const DEFAULT_PLAN_CATALOG: Record<AgencyPlan, AgencyPlanDefinition> = {
       reportsAppointmentsBasic: true,
       publicListings: true,
       publicLeadForms: true,
+      agentListingMarket: true,
       customBranding: true,
       multiUser: true,
       customDomain: false,
@@ -156,6 +159,7 @@ export const DEFAULT_PLAN_CATALOG: Record<AgencyPlan, AgencyPlanDefinition> = {
       reportsAppointmentsBasic: true,
       publicListings: true,
       publicLeadForms: true,
+      agentListingMarket: true,
       customBranding: true,
       multiUser: true,
       customDomain: true,
@@ -180,6 +184,7 @@ export const DEFAULT_PLAN_CATALOG: Record<AgencyPlan, AgencyPlanDefinition> = {
       reportsAppointmentsBasic: true,
       publicListings: true,
       publicLeadForms: true,
+      agentListingMarket: true,
       customBranding: false,
       multiUser: false,
       customDomain: false,
@@ -433,6 +438,11 @@ export class AgencyPlanService implements OnModuleInit {
     );
     this.assignFeature(features, 'publicListings', value.publicListings);
     this.assignFeature(features, 'publicLeadForms', value.publicLeadForms);
+    this.assignFeature(
+      features,
+      'agentListingMarket',
+      value.agentListingMarket,
+    );
     this.assignFeature(features, 'customBranding', value.customBranding);
     this.assignFeature(features, 'multiUser', value.multiUser);
     this.assignFeature(features, 'customDomain', value.customDomain);

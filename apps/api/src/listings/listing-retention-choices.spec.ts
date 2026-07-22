@@ -37,6 +37,7 @@ const access = {
       reportsAppointmentsBasic: false,
       publicListings: true,
       publicLeadForms: true,
+      agentListingMarket: true,
       customBranding: false,
       multiUser: false,
       customDomain: false,

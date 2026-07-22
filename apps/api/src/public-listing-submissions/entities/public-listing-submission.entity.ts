@@ -9,10 +9,15 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import {
+  ListingAgentCollaborationMode,
+  ListingAgentCollaborationStatus,
   PublicListingSubmissionSource,
   PublicListingSubmissionStatus,
 } from '../../common/enums';
-import { Listing } from '../../listings/entities/listing.entity';
+import {
+  Listing,
+  type ListingAgentCollaborationPreferences,
+} from '../../listings/entities/listing.entity';
 import { Agent, Agency, User } from '../../users/entities';
 
 export interface PublicListingSubmissionPayload {
@@ -20,6 +25,7 @@ export interface PublicListingSubmissionPayload {
   publicSettings?: Record<string, unknown>;
   address?: Record<string, unknown>;
   images?: Array<Record<string, unknown>>;
+  agentCollaboration?: Record<string, unknown>;
   utm?: Record<string, unknown>;
   referrer?: string | null;
 }
@@ -137,6 +143,52 @@ export class PublicListingSubmission {
 
   @Column({ type: 'jsonb' })
   payload: PublicListingSubmissionPayload;
+
+  @Index()
+  @Column({
+    type: 'boolean',
+    name: 'agent_collaboration_enabled',
+    default: false,
+  })
+  agentCollaborationEnabled: boolean;
+
+  @Column({
+    type: 'enum',
+    enum: ListingAgentCollaborationMode,
+    name: 'agent_collaboration_mode',
+    nullable: true,
+  })
+  agentCollaborationMode?: ListingAgentCollaborationMode | null;
+
+  @Index()
+  @Column({
+    type: 'enum',
+    enum: ListingAgentCollaborationStatus,
+    name: 'agent_collaboration_status',
+    nullable: true,
+  })
+  agentCollaborationStatus?: ListingAgentCollaborationStatus | null;
+
+  @Column({
+    type: 'jsonb',
+    name: 'agent_collaboration_preferences',
+    nullable: true,
+  })
+  agentCollaborationPreferences?: ListingAgentCollaborationPreferences | null;
+
+  @Column({
+    type: 'timestamptz',
+    name: 'agent_collaboration_opened_at',
+    nullable: true,
+  })
+  agentCollaborationOpenedAt?: Date | null;
+
+  @Column({
+    type: 'timestamptz',
+    name: 'agent_collaboration_closed_at',
+    nullable: true,
+  })
+  agentCollaborationClosedAt?: Date | null;
 
   @Column({ type: 'jsonb', default: () => "'{}'::jsonb" })
   metadata: Record<string, unknown>;

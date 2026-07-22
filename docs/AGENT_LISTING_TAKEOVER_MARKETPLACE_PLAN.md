@@ -618,17 +618,86 @@ danych bez przebudowy zalozen domenowych.
 **Cel sprintu:**
 Zbudowac fundament domenowy bez UI.
 
+**Rezultat sprintu:**
+Backend ma podstawowy model danych dla wspolpracy wlasciciel-agent: pola na
+ofertach i submission, encje propozycji, wiadomosci i assignmentow, migracje SQL
+oraz entitlement planu `agentListingMarket`. Statusy propozycji maja osobny
+helper domenowy testowany bez bazy.
+
 #### Zadania
 
-- [ ] `AT1.1` Dodac pola wspolpracy na `Listing`.
-- [ ] `AT1.2` Dodac pola wspolpracy do `PublicListingSubmission` albo jego
+- [x] `AT1.1` Dodac pola wspolpracy na `Listing`.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: dodano pola:
+    - `agentCollaborationEnabled`,
+    - `agentCollaborationMode`,
+    - `agentCollaborationStatus`,
+    - `agentCollaborationPreferences`,
+    - `agentCollaborationOpenedAt`,
+    - `agentCollaborationClosedAt`.
+  - Uwagi / follow-up: preferencje sa `jsonb` z jawnie opisanym typem
+    `ListingAgentCollaborationPreferences`. Rynek agentow bedzie filtrowal po
+    kolumnach `enabled/status`, bez parsowania preferencji.
+
+- [x] `AT1.2` Dodac pola wspolpracy do `PublicListingSubmission` albo jego
   `payload`, zgodnie z obecnym standardem migracji.
-- [ ] `AT1.3` Dodac encje `ListingAgentProposal`.
-- [ ] `AT1.4` Dodac encje `ListingAgentProposalMessage`.
-- [ ] `AT1.5` Dodac encje `ListingAgentAssignment`.
-- [ ] `AT1.6` Przygotowac migracje SQL z indeksami i constraintami.
-- [ ] `AT1.7` Dodac enumy statusow w `common/enums`.
-- [ ] `AT1.8` Dodac entitlement feature `agentListingMarket` do
+  - Data zakonczenia: 2026-07-22
+  - Wykonano:
+    - dodano te same pola wspolpracy na encji `PublicListingSubmission`,
+    - rozszerzono `PublicListingSubmissionPayload` o `agentCollaboration`,
+    - rozszerzono DTO create/update o `agentCollaboration`,
+    - dodano mapowanie submission -> listing, zeby ustawienie nie znikalo przy
+      claimie/publikacji,
+    - rozszerzono frontendowy kontrakt
+      `apps/web/src/lib/public-listing-submissions.ts`.
+  - Uwagi / follow-up: UI checkboxa i preferencji zostaje w Sprint AT-6.
+
+- [x] `AT1.3` Dodac encje `ListingAgentProposal`.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: dodano encje `ListingAgentProposal` z relacjami do `Listing`,
+    `User` wlasciciela, `Agent` i opcjonalnej `Agency`; dodano pola statusu,
+    prowizji, wylacznosci, uslug, strategii, wyceny, wiadomosci i terminow.
+  - Uwagi / follow-up: aktywny duplikat propozycji jednego agenta dla jednej
+    oferty jest blokowany unikalnym indeksem czesciowym dla statusow
+    `draft/sent/updated`.
+
+- [x] `AT1.4` Dodac encje `ListingAgentProposalMessage`.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: dodano encje `ListingAgentProposalMessage` z relacja do propozycji,
+    nadawcy, trescia, `readAt`, `metadata` i indeksem
+    `(proposal_id, created_at)`.
+  - Uwagi / follow-up: MVP obsluguje tylko tekst. Zalaczniki zostaja poza AT-1.
+
+- [x] `AT1.5` Dodac encje `ListingAgentAssignment`.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: dodano encje `ListingAgentAssignment` z relacja do oryginalnej
+    oferty, propozycji, wlasciciela, agenta, agencji oraz opcjonalnej kopii
+    oferty agenta `agentListingId`.
+  - Uwagi / follow-up: assignment jest docelowym zrodlem uprawnien po
+    akceptacji, a nie sam status propozycji.
+
+- [x] `AT1.6` Przygotowac migracje SQL z indeksami i constraintami.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: dodano migracje
+    `apps/api/migrations/20260722_agent_listing_takeover_foundation.sql`.
+    Migracja tworzy enumy Postgresa, kolumny na `listings` i
+    `public_listing_submissions`, tabele `listing_agent_proposals`,
+    `listing_agent_proposal_messages`, `listing_agent_assignments`, indeksy
+    query oraz constrainty `jsonb_typeof`.
+  - Uwagi / follow-up: migracja aktualizuje `plan_catalog.features` o
+    `agentListingMarket` dla istniejacych planow systemowych.
+
+- [x] `AT1.7` Dodac enumy statusow w `common/enums`.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: dodano enumy:
+    - `ListingAgentCollaborationMode`,
+    - `ListingAgentCollaborationStatus`,
+    - `ListingAgentProposalStatus`,
+    - `ListingAgentProposalCommissionType`,
+    - `ListingAgentProposalExclusivity`,
+    - `ListingAgentAssignmentStatus`.
+
+- [x] `AT1.8` Dodac entitlement feature `agentListingMarket` do
   `AgencyPlanFeatures`, domyslnego katalogu planow, `PlanCatalog`, odpowiedzi
   auth i typow web.
   - Wymagania:
@@ -636,7 +705,34 @@ Zbudowac fundament domenowy bez UI.
     - platne plany: `true`,
     - zachowac override'y planow z panelu admina,
     - dodac testy fallbacku i katalogu planow.
-- [ ] `AT1.9` Dodac testy jednostkowe przejsc statusow.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano:
+    - dodano `agentListingMarket` do backendowego `AgencyPlanFeatures`,
+    - ustawiono `free: false`, `starter/professional/enterprise/custom: true`,
+    - rozszerzono normalizacje feature overrides,
+    - rozszerzono DTO admina i wymagane klucze planow,
+    - rozszerzono typy web `AuthUser`, `billing-plans` i panel admina planow,
+    - dodano testy planow i DTO admina.
+  - Uwagi / follow-up: Sprint AT-2 musi egzekwowac ten entitlement na endpointach
+    rynku agentow.
+
+- [x] `AT1.9` Dodac testy jednostkowe przejsc statusow.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: dodano helper
+    `apps/api/src/listing-agent-proposals/listing-agent-proposal-status.ts` oraz
+    testy `listing-agent-proposal-status.spec.ts`.
+  - Zakres testow:
+    - edytowalne statusy `sent/updated`,
+    - dozwolone przejscia `draft -> sent`, `sent -> updated`,
+      `updated -> accepted`, `accepted -> closed`,
+    - brak mozliwosci ponownego otwierania `rejected/withdrawn`,
+    - idempotentne przejscie do tego samego statusu jako bezpieczny no-op.
+
+#### Weryfikacja
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter api test -- listing-agent-proposal-status.spec.ts agency-plan.service.spec.ts update-plan.dto.spec.ts update-agency-plan.dto.spec.ts public-listing-submissions.service.spec.ts` - przechodzi.
+- `pnpm --filter web type-check` - przechodzi.
 
 ### Sprint AT-2 - Backend: rynek ofert dla agentow
 

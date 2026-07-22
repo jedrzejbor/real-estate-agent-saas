@@ -24,6 +24,8 @@ import { UsersService } from '../users';
 import {
   ActivityAction,
   ActivityEntityType,
+  ListingAgentCollaborationMode,
+  ListingAgentCollaborationStatus,
   ListingStatus,
   ListingPublicationStatus,
   PropertyType,
@@ -143,6 +145,9 @@ export interface SellerPublicListingSubmissionListItem {
   publicationStatus: ListingPublicationStatus | null;
   viewCount: number | null;
   inquiryCount: number | null;
+  agentCollaborationEnabled: boolean;
+  agentCollaborationMode: ListingAgentCollaborationMode | null;
+  agentCollaborationStatus: ListingAgentCollaborationStatus | null;
   createdAt: Date;
   updatedAt: Date;
   verifiedAt: Date | null;
@@ -159,6 +164,9 @@ export interface SellerPublicListingSubmissionDetail extends SellerPublicListing
   address: PublicListingSubmissionPayload['address'];
   publicSettings: PublicListingSubmissionPayload['publicSettings'];
   images: NonNullable<PublicListingSubmissionPayload['images']>;
+  agentCollaboration: NonNullable<
+    PublicListingSubmissionPayload['agentCollaboration']
+  >;
   ownerName: string;
   email: string;
   phone: string;
@@ -256,6 +264,10 @@ export class PublicListingSubmissionsService {
     );
     const verification = createTokenPair();
     const expiresAt = new Date(now.getTime() + VERIFICATION_TTL_MS);
+    const agentCollaboration = normalizeAgentCollaborationInput(
+      dto.agentCollaboration,
+      now,
+    );
 
     const submission = this.submissionRepo.create({
       status: PublicListingSubmissionStatus.PENDING_EMAIL_VERIFICATION,
@@ -276,6 +288,12 @@ export class PublicListingSubmissionsService {
       ipHash: fingerprint.ipHash,
       userAgent: fingerprint.userAgent,
       payload: buildSubmissionPayload(dto),
+      agentCollaborationEnabled: agentCollaboration.enabled,
+      agentCollaborationMode: agentCollaboration.mode,
+      agentCollaborationStatus: agentCollaboration.status,
+      agentCollaborationPreferences: agentCollaboration.preferences,
+      agentCollaborationOpenedAt: agentCollaboration.openedAt,
+      agentCollaborationClosedAt: agentCollaboration.closedAt,
       metadata: {
         ...sanitizeMetadata(dto.metadata),
         abuse: {
@@ -386,6 +404,23 @@ export class PublicListingSubmissionsService {
           order: image.order ?? index,
         })),
       };
+    }
+
+    if (dto.agentCollaboration) {
+      const agentCollaboration = normalizeAgentCollaborationInput(
+        dto.agentCollaboration,
+        new Date(),
+      );
+      submission.payload = {
+        ...submission.payload,
+        agentCollaboration: buildPayloadAgentCollaboration(agentCollaboration),
+      };
+      submission.agentCollaborationEnabled = agentCollaboration.enabled;
+      submission.agentCollaborationMode = agentCollaboration.mode;
+      submission.agentCollaborationStatus = agentCollaboration.status;
+      submission.agentCollaborationPreferences = agentCollaboration.preferences;
+      submission.agentCollaborationOpenedAt = agentCollaboration.openedAt;
+      submission.agentCollaborationClosedAt = agentCollaboration.closedAt;
     }
 
     if (dto.ownerName !== undefined) {
@@ -1597,6 +1632,7 @@ function buildListingDataFromPayload(
       publicSettings.showExactAddressOnPublicPage,
     ),
     estateflowBrandingEnabled: true,
+    ...buildListingAgentCollaborationData(payload),
   };
 }
 
@@ -1762,6 +1798,9 @@ function toSellerListItem(
     inquiryCount: publishedListing
       ? (publishedListing.publicInquiryCount ?? 0)
       : null,
+    agentCollaborationEnabled: submission.agentCollaborationEnabled,
+    agentCollaborationMode: submission.agentCollaborationMode ?? null,
+    agentCollaborationStatus: submission.agentCollaborationStatus ?? null,
     createdAt: submission.createdAt,
     updatedAt: submission.updatedAt,
     verifiedAt: submission.verifiedAt ?? null,
@@ -1783,6 +1822,7 @@ function toSellerDetail(
     address: submission.payload.address ?? {},
     publicSettings: submission.payload.publicSettings ?? {},
     images: submission.payload.images ?? [],
+    agentCollaboration: submission.payload.agentCollaboration ?? {},
     ownerName: submission.ownerName,
     email: submission.email,
     phone: submission.phone,
@@ -1877,6 +1917,15 @@ function getOptionalNumber(value: unknown): number | undefined {
   return getNullableNumber(value) ?? undefined;
 }
 
+function getOptionalDate(value: unknown): Date | null {
+  if (typeof value !== 'string' || !value.trim()) {
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function getEnumValue<T extends string>(
   value: unknown,
   allowedValues: T[],
@@ -1945,6 +1994,11 @@ function slugify(value: string): string {
 function buildSubmissionPayload(
   dto: CreatePublicListingSubmissionDto,
 ): PublicListingSubmission['payload'] {
+  const agentCollaboration = normalizeAgentCollaborationInput(
+    dto.agentCollaboration,
+    new Date(),
+  );
+
   return {
     listing: {
       ...dto.listing,
@@ -1963,12 +2017,128 @@ function buildSubmissionPayload(
     },
     address: { ...dto.address },
     images: dto.images?.map((image) => ({ ...image })) ?? [],
+    agentCollaboration: buildPayloadAgentCollaboration(agentCollaboration),
     utm: {
       utmSource: dto.utmSource ?? null,
       utmMedium: dto.utmMedium ?? null,
       utmCampaign: dto.utmCampaign ?? null,
     },
     referrer: dto.referrer ?? null,
+  };
+}
+
+interface NormalizedAgentCollaboration {
+  enabled: boolean;
+  mode: ListingAgentCollaborationMode | null;
+  status: ListingAgentCollaborationStatus | null;
+  preferences: PublicListingSubmission['agentCollaborationPreferences'];
+  openedAt: Date | null;
+  closedAt: Date | null;
+}
+
+function normalizeAgentCollaborationInput(
+  input: CreatePublicListingSubmissionDto['agentCollaboration'],
+  now: Date,
+): NormalizedAgentCollaboration {
+  if (!input?.enabled) {
+    return {
+      enabled: false,
+      mode: null,
+      status: null,
+      preferences: null,
+      openedAt: null,
+      closedAt: null,
+    };
+  }
+
+  const allowsMultipleAgents =
+    input.preferences?.allowsMultipleAgents === true ||
+    input.mode === ListingAgentCollaborationMode.MULTI_AGENT;
+  const mode = allowsMultipleAgents
+    ? ListingAgentCollaborationMode.MULTI_AGENT
+    : ListingAgentCollaborationMode.SINGLE_AGENT;
+  const preferences = {
+    allowsExclusiveAgreement:
+      input.preferences?.allowsExclusiveAgreement ?? false,
+    allowsMultipleAgents,
+    preferredCommissionType:
+      input.preferences?.preferredCommissionType ?? null,
+    preferredCommissionValue:
+      input.preferences?.preferredCommissionValue ?? null,
+    expectedServices: (input.preferences?.expectedServices ?? [])
+      .map((service) => service.trim())
+      .filter(Boolean)
+      .slice(0, 20),
+    notes: normalizeOptional(input.preferences?.notes),
+    preferredContactChannel:
+      input.preferences?.preferredContactChannel ?? 'platform_chat',
+  };
+
+  return {
+    enabled: true,
+    mode,
+    status: ListingAgentCollaborationStatus.OPEN,
+    preferences,
+    openedAt: now,
+    closedAt: null,
+  };
+}
+
+function buildPayloadAgentCollaboration(
+  collaboration: NormalizedAgentCollaboration,
+): Record<string, unknown> {
+  return {
+    enabled: collaboration.enabled,
+    mode: collaboration.mode,
+    status: collaboration.status,
+    preferences: collaboration.preferences,
+    openedAt: collaboration.openedAt?.toISOString() ?? null,
+    closedAt: collaboration.closedAt?.toISOString() ?? null,
+  };
+}
+
+function buildListingAgentCollaborationData(
+  payload: PublicListingSubmissionPayload,
+): Pick<
+  Listing,
+  | 'agentCollaborationEnabled'
+  | 'agentCollaborationMode'
+  | 'agentCollaborationStatus'
+  | 'agentCollaborationPreferences'
+  | 'agentCollaborationOpenedAt'
+  | 'agentCollaborationClosedAt'
+> {
+  const collaboration = payload.agentCollaboration ?? {};
+  const enabled = collaboration.enabled === true;
+  const mode = getNullableString(collaboration.mode);
+  const status = getNullableString(collaboration.status);
+
+  return {
+    agentCollaborationEnabled: enabled,
+    agentCollaborationMode: enabled
+      ? getEnumValue(
+          mode,
+          Object.values(ListingAgentCollaborationMode),
+          ListingAgentCollaborationMode.SINGLE_AGENT,
+        )
+      : null,
+    agentCollaborationStatus: enabled
+      ? getEnumValue(
+          status,
+          Object.values(ListingAgentCollaborationStatus),
+          ListingAgentCollaborationStatus.OPEN,
+        )
+      : null,
+    agentCollaborationPreferences:
+      enabled &&
+      typeof collaboration.preferences === 'object' &&
+      collaboration.preferences !== null
+        ? (collaboration.preferences as Listing['agentCollaborationPreferences'])
+        : null,
+    agentCollaborationOpenedAt: enabled
+      ? getOptionalDate(collaboration.openedAt)
+      : null,
+    agentCollaborationClosedAt: getOptionalDate(collaboration.closedAt),
   };
 }
 

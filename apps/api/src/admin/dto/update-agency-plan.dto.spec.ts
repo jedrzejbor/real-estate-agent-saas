@@ -26,7 +26,7 @@ describe('UpdateAgencyPlanDto', () => {
           planOverrides: {
             label: 'Plan Premium',
             limits: { activeListings: null },
-            features: { customBranding: true },
+            features: { customBranding: true, agentListingMarket: true },
           },
         },
         bodyMetadata,
@@ -36,7 +36,7 @@ describe('UpdateAgencyPlanDto', () => {
       planOverrides: {
         label: 'Plan Premium',
         limits: { activeListings: null },
-        features: { customBranding: true },
+        features: { customBranding: true, agentListingMarket: true },
       },
     });
   });

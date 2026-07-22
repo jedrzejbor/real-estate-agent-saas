@@ -64,6 +64,10 @@ class UpdatePlanFeaturesDto {
 
   @ValidateIf((_, value) => value !== undefined)
   @IsBoolean()
+  agentListingMarket?: boolean;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsBoolean()
   customBranding?: boolean;
 
   @ValidateIf((_, value) => value !== undefined)

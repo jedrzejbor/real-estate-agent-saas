@@ -50,6 +50,48 @@ export enum ListingPublicationStatus {
   UNPUBLISHED = 'unpublished',
 }
 
+export enum ListingAgentCollaborationMode {
+  SINGLE_AGENT = 'single_agent',
+  MULTI_AGENT = 'multi_agent',
+}
+
+export enum ListingAgentCollaborationStatus {
+  OPEN = 'open',
+  PAUSED = 'paused',
+  CLOSED = 'closed',
+  ASSIGNED = 'assigned',
+}
+
+export enum ListingAgentProposalStatus {
+  DRAFT = 'draft',
+  SENT = 'sent',
+  UPDATED = 'updated',
+  ACCEPTED = 'accepted',
+  REJECTED = 'rejected',
+  WITHDRAWN = 'withdrawn',
+  EXPIRED = 'expired',
+  CLOSED = 'closed',
+}
+
+export enum ListingAgentProposalCommissionType {
+  PERCENTAGE = 'percentage',
+  FIXED = 'fixed',
+  MIXED = 'mixed',
+  NONE = 'none',
+}
+
+export enum ListingAgentProposalExclusivity {
+  EXCLUSIVE = 'exclusive',
+  OPEN = 'open',
+  FLEXIBLE = 'flexible',
+}
+
+export enum ListingAgentAssignmentStatus {
+  ACTIVE = 'active',
+  REVOKED = 'revoked',
+  COMPLETED = 'completed',
+}
+
 export enum ListingCommissionType {
   PERCENTAGE = 'percentage',
   FIXED = 'fixed',

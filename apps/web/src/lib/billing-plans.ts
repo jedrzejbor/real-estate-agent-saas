@@ -22,6 +22,7 @@ export interface AgencyPlanFeatures {
   reportsAppointmentsBasic: boolean;
   publicListings: boolean;
   publicLeadForms: boolean;
+  agentListingMarket: boolean;
   customBranding: boolean;
   multiUser: boolean;
   customDomain: boolean;

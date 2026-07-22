@@ -24,6 +24,7 @@ function buildPlan(overrides: Partial<PlanCatalog> = {}): PlanCatalog {
       reportsAppointmentsBasic: true,
       publicListings: true,
       publicLeadForms: true,
+      agentListingMarket: true,
       customBranding: false,
       multiUser: false,
       customDomain: false,

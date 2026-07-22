@@ -23,14 +23,14 @@ describe('UpdatePlanDto', () => {
         {
           priceMonthlyPln: 12900,
           limits: { activeListings: 40 },
-          features: { customBranding: true },
+          features: { customBranding: true, agentListingMarket: true },
         },
         bodyMetadata,
       ),
     ).resolves.toMatchObject({
       priceMonthlyPln: 12900,
       limits: { activeListings: 40 },
-      features: { customBranding: true },
+      features: { customBranding: true, agentListingMarket: true },
     });
   });
 

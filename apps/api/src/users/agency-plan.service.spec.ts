@@ -79,6 +79,7 @@ describe('AgencyPlanService', () => {
     });
     expect(entitlements.features.customBranding).toBe(true);
     expect(entitlements.features.multiUser).toBe(false);
+    expect(entitlements.features.agentListingMarket).toBe(true);
   });
 
   it('seeds missing system plans without overwriting existing rows', async () => {
@@ -134,6 +135,7 @@ describe('AgencyPlanService', () => {
       customDomain: true,
       apiAccess: true,
       dedicatedSupport: true,
+      agentListingMarket: true,
     });
   });
 
@@ -173,6 +175,7 @@ describe('AgencyPlanService', () => {
       customBranding: true,
       multiUser: true,
       customDomain: false,
+      agentListingMarket: true,
     });
   });
 
@@ -227,5 +230,43 @@ describe('AgencyPlanService', () => {
       multiUser: true,
       customDomain: true,
     });
+  });
+
+  it('keeps the agent listing market out of the free plan and enabled for paid plans', () => {
+    const service = new AgencyPlanService(buildRepo() as never);
+
+    expect(
+      service.getEntitlements(buildAgency({ plan: AgencyPlan.FREE })).features
+        .agentListingMarket,
+    ).toBe(false);
+    expect(
+      service.getEntitlements(buildAgency({ plan: AgencyPlan.STARTER }))
+        .features.agentListingMarket,
+    ).toBe(true);
+    expect(
+      service.getEntitlements(buildAgency({ plan: AgencyPlan.PROFESSIONAL }))
+        .features.agentListingMarket,
+    ).toBe(true);
+    expect(
+      service.getEntitlements(buildAgency({ plan: AgencyPlan.ENTERPRISE }))
+        .features.agentListingMarket,
+    ).toBe(true);
+  });
+
+  it('allows custom overrides to disable the agent listing market', () => {
+    const service = new AgencyPlanService(buildRepo() as never);
+
+    const entitlements = service.getEntitlements(
+      buildAgency({
+        plan: AgencyPlan.CUSTOM,
+        planOverrides: {
+          features: {
+            agentListingMarket: false,
+          },
+        },
+      }),
+    );
+
+    expect(entitlements.features.agentListingMarket).toBe(false);
   });
 });

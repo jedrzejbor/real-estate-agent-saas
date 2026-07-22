@@ -1,7 +1,9 @@
 import {
   IsBoolean,
+  IsArray,
   IsEmail,
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsObject,
@@ -15,6 +17,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
+  ListingAgentCollaborationMode,
   PropertyType,
   PublicListingSubmissionSource,
   TransactionType,
@@ -178,6 +181,56 @@ export class PublicSubmissionImageDto {
   isPrimary?: boolean;
 }
 
+export class PublicSubmissionAgentCollaborationPreferencesDto {
+  @IsOptional()
+  @IsBoolean()
+  allowsExclusiveAgreement?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allowsMultipleAgents?: boolean;
+
+  @IsOptional()
+  @IsIn(['percentage', 'fixed'])
+  preferredCommissionType?: 'percentage' | 'fixed' | null;
+
+  @ValidateIf((value) => value.preferredCommissionValue !== null)
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  preferredCommissionValue?: number | null;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  expectedServices?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  notes?: string;
+
+  @IsOptional()
+  @IsIn(['platform_chat', 'phone_after_acceptance'])
+  preferredContactChannel?: 'platform_chat' | 'phone_after_acceptance';
+}
+
+export class PublicSubmissionAgentCollaborationDto {
+  @IsBoolean()
+  enabled: boolean;
+
+  @IsOptional()
+  @IsEnum(ListingAgentCollaborationMode)
+  mode?: ListingAgentCollaborationMode;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PublicSubmissionAgentCollaborationPreferencesDto)
+  preferences?: PublicSubmissionAgentCollaborationPreferencesDto;
+}
+
 export class CreatePublicListingSubmissionDto {
   @ValidateNested()
   @Type(() => PublicSubmissionListingDto)
@@ -196,6 +249,11 @@ export class CreatePublicListingSubmissionDto {
   @ValidateNested({ each: true })
   @Type(() => PublicSubmissionImageDto)
   images?: PublicSubmissionImageDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PublicSubmissionAgentCollaborationDto)
+  agentCollaboration?: PublicSubmissionAgentCollaborationDto;
 
   @IsNotEmpty({ message: 'Imię i nazwisko są wymagane' })
   @IsString()
