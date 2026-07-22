@@ -19,13 +19,17 @@ import {
   TransactionType,
 } from '../common/enums';
 import { Listing } from '../listings/entities';
-import { ListingAgentProposal } from './entities';
+import {
+  ListingAgentProposal,
+  ListingAgentProposalMessage,
+} from './entities';
 import { ListingAgentProposalsService } from './listing-agent-proposals.service';
 
 function buildAccess(agentListingMarket = true) {
   return {
     agent: {
       id: AGENT_ID,
+      userId: AGENT_USER_ID,
       firstName: 'Jan',
       lastName: 'Agent',
       user: {
@@ -137,10 +141,29 @@ function buildProposal(
     createdAt: new Date('2026-07-03T00:00:00.000Z'),
     updatedAt: new Date('2026-07-03T00:00:00.000Z'),
     listing: buildListing(),
+    ownerUser: {
+      id: OWNER_ID,
+      email: 'owner@example.test',
+    },
     agent: buildAccess(true).agent,
     agency: buildAccess(true).agency,
     ...overrides,
   } as ListingAgentProposal;
+}
+
+function buildMessage(
+  overrides: Partial<ListingAgentProposalMessage> = {},
+): ListingAgentProposalMessage {
+  return {
+    id: 'message-1',
+    proposalId: PROPOSAL_ID,
+    senderUserId: OWNER_ID,
+    body: 'Dzien dobry, chcialbym doprecyzowac warunki wspolpracy.',
+    readAt: null,
+    metadata: {},
+    createdAt: new Date('2026-07-06T00:00:00.000Z'),
+    ...overrides,
+  } as ListingAgentProposalMessage;
 }
 
 function createListingQueryBuilder(listing: Listing | null) {
@@ -171,21 +194,37 @@ function createProposalQueryBuilder(
   };
 }
 
+function createMessageQueryBuilder(unreadCount = 0) {
+  return {
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    set: jest.fn().mockReturnThis(),
+    execute: jest.fn().mockResolvedValue({ affected: unreadCount }),
+    getCount: jest.fn().mockResolvedValue(unreadCount),
+  };
+}
+
 function buildService({
   access = buildAccess(true),
   listing = buildListing(),
   existingProposal = null,
   ownedProposal = buildProposal(),
   queryProposals = [buildProposal()],
+  messages = [buildMessage()],
+  unreadCount = 0,
 }: {
   access?: ReturnType<typeof buildAccess>;
   listing?: Listing | null;
   existingProposal?: ListingAgentProposal | null;
   ownedProposal?: ListingAgentProposal | null;
   queryProposals?: ListingAgentProposal[];
+  messages?: ListingAgentProposalMessage[];
+  unreadCount?: number;
 } = {}) {
   const listingQb = createListingQueryBuilder(listing);
   const proposalQb = createProposalQueryBuilder(queryProposals);
+  const messageQb = createMessageQueryBuilder(unreadCount);
   const proposalRepo = {
     findOne: jest.fn(async (options: { where?: Record<string, unknown> }) =>
       options.where && 'listingId' in options.where
@@ -214,6 +253,16 @@ function buildService({
       createdAt: new Date('2026-07-05T00:00:00.000Z'),
       revokedAt: null,
       completedAt: null,
+    })),
+  };
+  const messageRepo = {
+    createQueryBuilder: jest.fn().mockReturnValue(messageQb),
+    findAndCount: jest.fn().mockResolvedValue([messages, messages.length]),
+    create: jest.fn((input) => input),
+    save: jest.fn(async (message) => ({
+      ...message,
+      id: message.id ?? 'message-2',
+      createdAt: message.createdAt ?? new Date('2026-07-06T01:00:00.000Z'),
     })),
   };
   const dataSource = {
@@ -245,6 +294,7 @@ function buildService({
     proposalRepo as never,
     listingRepo as never,
     assignmentRepo as never,
+    messageRepo as never,
     dataSource as never,
     usersService as never,
     emailService as never,
@@ -256,11 +306,13 @@ function buildService({
     proposalRepo,
     listingRepo,
     assignmentRepo,
+    messageRepo,
     dataSource,
     usersService,
     emailService,
     listingQb,
     proposalQb,
+    messageQb,
   };
 }
 
@@ -672,9 +724,103 @@ describe('ListingAgentProposalsService', () => {
       service.closeRecruitmentForSeller(OWNER_ID, LISTING_ID),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('lists proposal messages for a participant and marks received messages as read', async () => {
+    const message = buildMessage({
+      senderUserId: AGENT_USER_ID,
+      body: 'Moge przygotowac profesjonalny plan sprzedazy.',
+    });
+    const { service, messageRepo, messageQb } = buildService({
+      messages: [message],
+      unreadCount: 1,
+      ownedProposal: buildProposal(),
+    });
+
+    const result = await service.findMessages(OWNER_ID, PROPOSAL_ID, {
+      page: 1,
+      limit: 50,
+    });
+
+    expect(messageRepo.findAndCount).toHaveBeenCalledWith({
+      where: { proposalId: PROPOSAL_ID },
+      order: { createdAt: 'ASC', id: 'ASC' },
+      skip: 0,
+      take: 50,
+    });
+    expect(messageQb.update).toHaveBeenCalledWith(ListingAgentProposalMessage);
+    expect(result.data[0]).toMatchObject({
+      id: 'message-1',
+      senderUserId: AGENT_USER_ID,
+      senderRole: 'agent',
+    });
+    expect(result.meta.unreadCount).toBe(1);
+  });
+
+  it('sends proposal message as an agent participant and notifies the owner', async () => {
+    const { service, messageRepo, emailService } = buildService({
+      ownedProposal: buildProposal(),
+    });
+
+    const result = await service.createMessage(AGENT_USER_ID, PROPOSAL_ID, {
+      body: 'Dzien dobry, moge zaczac od audytu ceny i promocji.',
+    });
+
+    expect(messageRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        proposalId: PROPOSAL_ID,
+        senderUserId: AGENT_USER_ID,
+        body: 'Dzien dobry, moge zaczac od audytu ceny i promocji.',
+        readAt: null,
+        metadata: { senderRole: 'agent' },
+      }),
+    );
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'owner@example.test',
+        subject: expect.stringContaining('Nowa wiadomość'),
+      }),
+    );
+    expect(result).toMatchObject({
+      senderUserId: AGENT_USER_ID,
+      senderRole: 'agent',
+    });
+  });
+
+  it('blocks proposal messages from users outside the proposal participants', async () => {
+    const { service } = buildService({ ownedProposal: buildProposal() });
+
+    await expect(
+      service.createMessage('not-participant', PROPOSAL_ID, {
+        body: 'Nie powinienem miec dostepu do tego watku.',
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('blocks empty proposal messages after trimming', async () => {
+    const { service } = buildService({ ownedProposal: buildProposal() });
+
+    await expect(
+      service.createMessage(OWNER_ID, PROPOSAL_ID, { body: '   ' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('blocks sending messages in a closed proposal', async () => {
+    const { service } = buildService({
+      ownedProposal: buildProposal({
+        status: ListingAgentProposalStatus.CLOSED,
+      }),
+    });
+
+    await expect(
+      service.createMessage(OWNER_ID, PROPOSAL_ID, {
+        body: 'Ta wiadomosc nie powinna zostac wyslana.',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
 });
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
+const AGENT_USER_ID = USER_ID;
 const AGENT_ID = '22222222-2222-4222-8222-222222222222';
 const OTHER_AGENT_ID = '33333333-3333-4333-8333-333333333333';
 const AGENCY_ID = '44444444-4444-4444-8444-444444444444';

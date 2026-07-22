@@ -22,11 +22,17 @@ import { FeatureAccessDeniedException } from '../common/exceptions/feature-acces
 import { Listing } from '../listings/entities';
 import { UsersService } from '../users';
 import {
+  CreateListingAgentProposalMessageDto,
   ListingAgentProposalInputDto,
+  ListingAgentProposalMessageQueryDto,
   ListingAgentProposalQueryDto,
   UpdateListingAgentProposalDto,
 } from './dto';
-import { ListingAgentAssignment, ListingAgentProposal } from './entities';
+import {
+  ListingAgentAssignment,
+  ListingAgentProposal,
+  ListingAgentProposalMessage,
+} from './entities';
 import {
   canEditListingAgentProposal,
   canTransitionListingAgentProposal,
@@ -34,6 +40,9 @@ import {
 import type {
   ListingAgentAssignmentResponse,
   ListingAgentProposalDecisionResponse,
+  ListingAgentProposalMessagePage,
+  ListingAgentProposalMessageResponse,
+  ListingAgentProposalParticipantRole,
   ListingAgentProposalPage,
   ListingAgentProposalResponse,
   ListingAgentRecruitmentResponse,
@@ -45,6 +54,11 @@ const ACTIVE_PROPOSAL_STATUSES = [
   ListingAgentProposalStatus.SENT,
   ListingAgentProposalStatus.UPDATED,
 ] as const;
+const MESSAGEABLE_PROPOSAL_STATUSES = new Set<ListingAgentProposalStatus>([
+  ListingAgentProposalStatus.SENT,
+  ListingAgentProposalStatus.UPDATED,
+  ListingAgentProposalStatus.ACCEPTED,
+]);
 
 type AgentAccessContext = Awaited<
   ReturnType<UsersService['getAgencyAccessContext']>
@@ -61,6 +75,8 @@ export class ListingAgentProposalsService {
     private readonly listingRepo: Repository<Listing>,
     @InjectRepository(ListingAgentAssignment)
     private readonly assignmentRepo: Repository<ListingAgentAssignment>,
+    @InjectRepository(ListingAgentProposalMessage)
+    private readonly messageRepo: Repository<ListingAgentProposalMessage>,
     private readonly dataSource: DataSource,
     private readonly usersService: UsersService,
     private readonly emailService: EmailService,
@@ -520,6 +536,93 @@ export class ListingAgentProposalsService {
     return toRecruitmentResponse(saved);
   }
 
+  async findMessages(
+    userId: string,
+    proposalId: string,
+    query: ListingAgentProposalMessageQueryDto,
+  ): Promise<ListingAgentProposalMessagePage> {
+    const participant = await this.findParticipantProposalOrFail(
+      userId,
+      proposalId,
+    );
+    const { page = 1, limit = 50 } = query;
+
+    const unreadCount = await this.messageRepo
+      .createQueryBuilder('message')
+      .where('message.proposalId = :proposalId', { proposalId })
+      .andWhere('message.senderUserId != :userId', { userId })
+      .andWhere('message.readAt IS NULL')
+      .getCount();
+
+    const [messages, total] = await this.messageRepo.findAndCount({
+      where: { proposalId },
+      order: { createdAt: 'ASC', id: 'ASC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    if (unreadCount > 0) {
+      await this.messageRepo
+        .createQueryBuilder()
+        .update(ListingAgentProposalMessage)
+        .set({ readAt: new Date() })
+        .where('proposal_id = :proposalId', { proposalId })
+        .andWhere('sender_user_id != :userId', { userId })
+        .andWhere('read_at IS NULL')
+        .execute();
+    }
+
+    return {
+      data: messages.map((message) =>
+        toMessageResponse(message, participant.proposal),
+      ),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        unreadCount,
+      },
+    };
+  }
+
+  async createMessage(
+    userId: string,
+    proposalId: string,
+    dto: CreateListingAgentProposalMessageDto,
+  ): Promise<ListingAgentProposalMessageResponse> {
+    const participant = await this.findParticipantProposalOrFail(
+      userId,
+      proposalId,
+    );
+
+    if (!MESSAGEABLE_PROPOSAL_STATUSES.has(participant.proposal.status)) {
+      throw new BadRequestException(
+        'Nie można wysłać wiadomości w zamkniętej propozycji',
+      );
+    }
+
+    const body = dto.body.trim();
+    if (!body) {
+      throw new BadRequestException('Wiadomość nie może być pusta');
+    }
+
+    const message = this.messageRepo.create({
+      proposalId,
+      senderUserId: userId,
+      body,
+      readAt: null,
+      metadata: {
+        senderRole: participant.role,
+      },
+    });
+
+    const saved = await this.messageRepo.save(message);
+    await this.notifyParticipantAboutMessage(participant.proposal, userId, body);
+
+    return toMessageResponse(saved, participant.proposal);
+  }
+
   private async resolvePaidAgentAccess(
     userId: string,
   ): Promise<AgentAccessContext> {
@@ -575,6 +678,40 @@ export class ListingAgentProposalsService {
     }
 
     return listing;
+  }
+
+  private async findParticipantProposalOrFail(
+    userId: string,
+    proposalId: string,
+  ): Promise<{
+    proposal: ListingAgentProposal;
+    role: ListingAgentProposalParticipantRole;
+  }> {
+    const proposal = await this.proposalRepo.findOne({
+      where: { id: proposalId },
+      relations: [
+        'listing',
+        'listing.address',
+        'ownerUser',
+        'agent',
+        'agent.user',
+        'agent.agency',
+      ],
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Oferta współpracy nie znaleziona');
+    }
+
+    if (proposal.ownerUserId === userId) {
+      return { proposal, role: 'owner' };
+    }
+
+    if (proposal.agent?.userId === userId) {
+      return { proposal, role: 'agent' };
+    }
+
+    throw new NotFoundException('Oferta współpracy nie znaleziona');
   }
 
   private async findOwnedProposalOrFail(
@@ -780,6 +917,48 @@ export class ListingAgentProposalsService {
       );
     }
   }
+
+  private async notifyParticipantAboutMessage(
+    proposal: ListingAgentProposal,
+    senderUserId: string,
+    body: string,
+  ): Promise<void> {
+    const recipientEmail =
+      proposal.ownerUserId === senderUserId
+        ? proposal.agent?.user?.email
+        : proposal.ownerUser?.email;
+
+    if (!recipientEmail) {
+      return;
+    }
+
+    const frontendUrl = this.configService.get(
+      'FRONTEND_URL',
+      'http://localhost:3000',
+    );
+    const url = `${frontendUrl.replace(/\/+$/, '')}/dashboard`;
+    const listingTitle = proposal.listing?.publicTitle || proposal.listing?.title;
+
+    try {
+      await this.emailService.send({
+        to: recipientEmail,
+        subject: `Nowa wiadomość dotycząca propozycji: ${listingTitle}`,
+        text: [
+          `Masz nową wiadomość dotyczącą propozycji współpracy dla ogłoszenia "${listingTitle}".`,
+          '',
+          body,
+          '',
+          `Zobacz rozmowę w panelu: ${url}`,
+        ].join('\n'),
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to notify participant about proposal message for ${proposal.id}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
+  }
 }
 
 interface NormalizedProposalInput {
@@ -918,6 +1097,29 @@ function toRecruitmentResponse(listing: Listing): ListingAgentRecruitmentRespons
     agentCollaborationOpenedAt: listing.agentCollaborationOpenedAt ?? null,
     agentCollaborationClosedAt: listing.agentCollaborationClosedAt ?? null,
   };
+}
+
+function toMessageResponse(
+  message: ListingAgentProposalMessage,
+  proposal: ListingAgentProposal,
+): ListingAgentProposalMessageResponse {
+  return {
+    id: message.id,
+    proposalId: message.proposalId,
+    senderUserId: message.senderUserId,
+    senderRole: getSenderRole(message.senderUserId, proposal),
+    body: message.body,
+    readAt: message.readAt ?? null,
+    metadata: message.metadata ?? {},
+    createdAt: message.createdAt,
+  };
+}
+
+function getSenderRole(
+  senderUserId: string,
+  proposal: ListingAgentProposal,
+): ListingAgentProposalParticipantRole {
+  return proposal.ownerUserId === senderUserId ? 'owner' : 'agent';
 }
 
 function buildAcceptedTermsSnapshot(

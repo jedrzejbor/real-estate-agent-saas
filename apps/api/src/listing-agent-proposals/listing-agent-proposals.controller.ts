@@ -12,7 +12,9 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums';
 import {
+  CreateListingAgentProposalMessageDto,
   ListingAgentProposalInputDto,
+  ListingAgentProposalMessageQueryDto,
   ListingAgentProposalQueryDto,
   UpdateListingAgentProposalDto,
 } from './dto';
@@ -144,5 +146,27 @@ export class ListingAgentProposalsController {
       userId,
       listingId,
     );
+  }
+
+  /** GET /api/listing-agent-proposals/:id/messages — list chat messages for a proposal participant. */
+  @Get(':id/messages')
+  @Roles(UserRole.OWNER, UserRole.AGENT)
+  async findMessages(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: ListingAgentProposalMessageQueryDto,
+  ) {
+    return this.listingAgentProposalsService.findMessages(userId, id, query);
+  }
+
+  /** POST /api/listing-agent-proposals/:id/messages — send a chat message as a proposal participant. */
+  @Post(':id/messages')
+  @Roles(UserRole.OWNER, UserRole.AGENT)
+  async createMessage(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateListingAgentProposalMessageDto,
+  ) {
+    return this.listingAgentProposalsService.createMessage(userId, id, dto);
   }
 }

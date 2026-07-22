@@ -21,6 +21,8 @@ describe('ListingAgentProposalsController', () => {
     rejectForSeller: jest.Mock;
     closeRecruitmentForSeller: jest.Mock;
     reopenRecruitmentForSeller: jest.Mock;
+    findMessages: jest.Mock;
+    createMessage: jest.Mock;
   };
 
   beforeEach(() => {
@@ -36,6 +38,8 @@ describe('ListingAgentProposalsController', () => {
       rejectForSeller: jest.fn(),
       closeRecruitmentForSeller: jest.fn(),
       reopenRecruitmentForSeller: jest.fn(),
+      findMessages: jest.fn(),
+      createMessage: jest.fn(),
     };
     controller = new ListingAgentProposalsController(
       service as unknown as ListingAgentProposalsService,
@@ -195,6 +199,38 @@ describe('ListingAgentProposalsController', () => {
     );
   });
 
+  it('delegates proposal message list lookup to the service', async () => {
+    const query = { page: 1, limit: 50 };
+    const response = { data: [], meta: { total: 0 } };
+    service.findMessages.mockResolvedValue(response);
+
+    await expect(
+      controller.findMessages(USER_ID, PROPOSAL_ID, query),
+    ).resolves.toBe(response);
+
+    expect(service.findMessages).toHaveBeenCalledWith(
+      USER_ID,
+      PROPOSAL_ID,
+      query,
+    );
+  });
+
+  it('delegates proposal message creation to the service', async () => {
+    const dto = { body: 'Dzien dobry, prosze o szczegoly wspolpracy.' };
+    const response = { id: 'message-1' };
+    service.createMessage.mockResolvedValue(response);
+
+    await expect(
+      controller.createMessage(USER_ID, PROPOSAL_ID, dto),
+    ).resolves.toBe(response);
+
+    expect(service.createMessage).toHaveBeenCalledWith(
+      USER_ID,
+      PROPOSAL_ID,
+      dto,
+    );
+  });
+
   it('requires authenticated scoped roles', () => {
     expect(
       Reflect.getMetadata(IS_PUBLIC_KEY, ListingAgentProposalsController),
@@ -223,6 +259,12 @@ describe('ListingAgentProposalsController', () => {
         ListingAgentProposalsController.prototype.closeRecruitmentForSeller,
       ),
     ).toEqual([UserRole.OWNER]);
+    expect(
+      Reflect.getMetadata(
+        ROLES_KEY,
+        ListingAgentProposalsController.prototype.findMessages,
+      ),
+    ).toEqual([UserRole.OWNER, UserRole.AGENT]);
   });
 });
 

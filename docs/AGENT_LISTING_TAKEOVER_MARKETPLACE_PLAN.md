@@ -1081,14 +1081,73 @@ Umozliwic negocjacje i doprecyzowanie warunkow bez wychodzenia poza platforme.
 
 #### Zadania
 
-- [ ] `AT5.1` Dodac endpoint listy wiadomosci.
-- [ ] `AT5.2` Dodac endpoint wyslania wiadomosci.
-- [ ] `AT5.3` Dodac oznaczanie przeczytania albo minimalny licznik
+- [x] `AT5.1` Dodac endpoint listy wiadomosci.
+  - Data zakonczenia: 2026-07-22
+  - Endpoint:
+    - `GET /api/listing-agent-proposals/:id/messages`.
+  - Wykonano: endpoint zwraca paginowana liste wiadomosci dla uczestnika
+    propozycji, sortowana rosnaco po `createdAt` i `id`.
+
+- [x] `AT5.2` Dodac endpoint wyslania wiadomosci.
+  - Data zakonczenia: 2026-07-22
+  - Endpoint:
+    - `POST /api/listing-agent-proposals/:id/messages`.
+  - Wykonano: dodano `CreateListingAgentProposalMessageDto` z walidacja pustej
+    tresci i limitem 4000 znakow.
+  - Wiadomosc zapisuje:
+    - `proposalId`,
+    - `senderUserId`,
+    - przycieta tresc `body`,
+    - `metadata.senderRole`.
+
+- [x] `AT5.3` Dodac oznaczanie przeczytania albo minimalny licznik
   nieprzeczytanych.
-- [ ] `AT5.4` Zabezpieczyc uczestnikow watku.
-- [ ] `AT5.5` Dodac notyfikacje o nowej wiadomosci.
-- [ ] `AT5.6` Dodac testy: obcy agent, obcy wlasciciel, pusta wiadomosc,
+  - Data zakonczenia: 2026-07-22
+  - Wykonano:
+    - lista wiadomosci zwraca `meta.unreadCount`,
+    - przy pobraniu watku wiadomosci drugiej strony z `readAt IS NULL` sa
+      oznaczane jako przeczytane.
+  - Uwagi / follow-up: to jest minimalny read state bez osobnej tabeli per
+    uczestnik, wystarczajacy dla watku 1:1 owner-agent.
+
+- [x] `AT5.4` Zabezpieczyc uczestnikow watku.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano:
+    - endpointy czatu wymagaja roli `owner` albo `agent`,
+    - wlasciciel jest rozpoznawany po `proposal.ownerUserId`,
+    - agent jest rozpoznawany po `proposal.agent.userId`,
+    - uzytkownik spoza watku dostaje `NotFoundException`.
+
+- [x] `AT5.5` Dodac notyfikacje o nowej wiadomosci.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: po wyslaniu wiadomosci serwis wysyla minimalny email do drugiego
+    uczestnika przez istniejacy `EmailService`.
+  - Uwagi / follow-up: trwale in-app notifications i analytics eventy zostaja w
+    AT-9.
+
+- [x] `AT5.6` Dodac testy: obcy agent, obcy wlasciciel, pusta wiadomosc,
   wiadomosc po zamknieciu propozycji.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano:
+    - test delegacji endpointow czatu w kontrolerze,
+    - test metadanych rol `owner`/`agent` dla endpointow czatu,
+    - test listy wiadomosci i oznaczania wiadomosci drugiej strony jako
+      przeczytane,
+    - test wyslania wiadomosci przez agenta i emaila do wlasciciela,
+    - test blokady uzytkownika spoza watku,
+    - test blokady pustej wiadomosci po trimowaniu,
+    - test blokady wysylki w propozycji ze statusem `closed`.
+
+#### Weryfikacja
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter api test -- listing-agent-proposals.service.spec.ts listing-agent-proposals.controller.spec.ts listing-agent-proposal-status.spec.ts` - przechodzi.
+
+#### Poza zakresem AT-5
+
+- UI czatu dla wlasciciela i agenta zostaje w Sprint AT-6/AT-7.
+- Trwale notyfikacje in-app, real-time updates i analytics zostaja w Sprint
+  AT-9.
 
 ### Sprint AT-6 - Frontend: wlasciciel i publiczny wizard
 

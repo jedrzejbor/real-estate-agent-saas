@@ -24,6 +24,30 @@ export interface ListingAgentRecruitmentResponse {
   agentCollaborationClosedAt: Date | null;
 }
 
+export type ListingAgentProposalParticipantRole = 'owner' | 'agent';
+
+export interface ListingAgentProposalMessageResponse {
+  id: string;
+  proposalId: string;
+  senderUserId: string;
+  senderRole: ListingAgentProposalParticipantRole;
+  body: string;
+  readAt: Date | null;
+  metadata: Record<string, unknown>;
+  createdAt: Date;
+}
+
+export interface ListingAgentProposalMessagePage {
+  data: ListingAgentProposalMessageResponse[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    unreadCount: number;
+  };
+}
+
 export interface ListingAgentProposalAgentSummary {
   id: string;
   firstName: string | null;
