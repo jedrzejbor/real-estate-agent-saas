@@ -30,6 +30,7 @@ import { MessageTemplatesModule } from './message-templates';
 import { MatchingModule } from './matching';
 import { InsightsModule } from './insights';
 import { FavoriteListingsModule } from './favorite-listings';
+import { AgentListingMarketModule } from './agent-listing-market';
 
 function getBooleanConfig(
   configService: ConfigService,
@@ -77,6 +78,7 @@ function getBooleanConfig(
     MatchingModule,
     InsightsModule,
     FavoriteListingsModule,
+    AgentListingMarketModule,
     ReportsModule,
     SearchModule,
     NotificationsModule,

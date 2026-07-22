@@ -739,17 +739,108 @@ helper domenowy testowany bez bazy.
 **Cel sprintu:**
 Udostepnic agentom liste ofert, ktore szukaja wspolpracy.
 
+**Rezultat sprintu:**
+Powstal backendowy endpoint rynku ofert dla agentow:
+`GET /api/agent-listing-market`. Endpoint zwraca tylko publicznie dostepne,
+aktywne oferty wlascicieli z otwarta wspolpraca, obsluguje podstawowe filtry i
+paginacje, wskazuje czy biezacy agent ma juz propozycje dla danej oferty oraz
+jest zabezpieczony rola `agent` i entitlementem `agentListingMarket`.
+
 #### Zadania
 
-- [ ] `AT2.1` Dodac modul `agent-listing-market`.
-- [ ] `AT2.2` Zbudowac query listy ofert z filtrami i paginacja.
-- [ ] `AT2.3` Uzyc bezpiecznego mappera publicznego bez danych kontaktowych
+- [x] `AT2.1` Dodac modul `agent-listing-market`.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: dodano modul `AgentListingMarketModule`, kontroler, serwis, DTO
+    query, typy odpowiedzi i eksport modulu. Modul zostal podpiety w
+    `AppModule`.
+  - Endpoint: `GET /api/agent-listing-market`.
+
+- [x] `AT2.2` Zbudowac query listy ofert z filtrami i paginacja.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: serwis filtruje oferty po:
+    - `agentCollaborationEnabled = true`,
+    - `agentCollaborationStatus = open`,
+    - `ownerUserId IS NOT NULL`,
+    - oferta aktywna, opublikowana, z `publicSlug`, `publishedAt` i bez
+      wygasniecia,
+    - oferta nie nalezy do biezacego agenta.
+  - Filtry query:
+    - `propertyType`,
+    - `transactionType`,
+    - `collaborationMode`,
+    - `city`,
+    - `search`,
+    - `priceMin`,
+    - `priceMax`,
+    - `page`,
+    - `limit`,
+    - `sortBy`,
+    - `sortOrder`.
+  - Uwagi / follow-up: domyslne sortowanie idzie po
+    `agentCollaborationOpenedAt`, z dodatkowym stabilnym sortowaniem po
+    `listing.id`.
+
+- [x] `AT2.3` Uzyc bezpiecznego mappera publicznego bez danych kontaktowych
   wlasciciela.
-- [ ] `AT2.4` Dodac informacje, czy biezacy agent juz wyslal propozycje.
-- [ ] `AT2.5` Zabezpieczyc endpoint rola `agent` oraz entitlementem
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: odpowiedz bazuje na bezpiecznym ksztalcie zblizonym do
+    `PublicListingCatalogItem` i dodaje tylko sekcje `collaboration`.
+  - Prywatnosc: payload nie zawiera `ownerUser`, emaila, telefonu ani danych
+    kontaktowych wlasciciela. Zwracane sa tylko dane publicznej oferty,
+    publiczne dane agenta/oferty oraz preferencje wspolpracy.
+  - Uwagi / follow-up: mapper jest lokalny dla `agent-listing-market`, zeby nie
+    uzalezniac tego modulu od calego `ListingsService`. Jesli mappery publiczne
+    zaczna sie powtarzac w kolejnych sprintach, warto wydzielic wspolny
+    `public-listing-mapper`.
+
+- [x] `AT2.4` Dodac informacje, czy biezacy agent juz wyslal propozycje.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano: serwis jednym zbiorczym query pobiera propozycje biezacego agenta
+    dla listingow z aktualnej strony i ustawia `hasSubmittedProposal`.
+  - Uwagi / follow-up: na etapie AT-2 nie filtrujemy jeszcze po statusach
+    propozycji, bo statusowe zachowanie skladania/edycji propozycji nalezy do
+    AT-3.
+
+- [x] `AT2.5` Zabezpieczyc endpoint rola `agent` oraz entitlementem
   `agentListingMarket`.
-- [ ] `AT2.6` Dodac testy: brak autoryzacji, zla rola, tylko otwarte oferty,
+  - Data zakonczenia: 2026-07-22
+  - Wykonano:
+    - kontroler ma `@Roles(UserRole.AGENT)`,
+    - endpoint nie jest publiczny,
+    - serwis pobiera access context przez `UsersService.getAgencyAccessContext`,
+    - plan Free bez `agentListingMarket` dostaje `FeatureAccessDeniedException`.
+  - Uwagi / follow-up: frontend moze pokazac teaser/CTA upgrade, ale backend
+    pozostaje zrodlem prawdy dla blokady planu.
+
+- [x] `AT2.6` Dodac testy: brak autoryzacji, zla rola, tylko otwarte oferty,
   brak prywatnych danych.
+  - Data zakonczenia: 2026-07-22
+  - Wykonano:
+    - dodano `agent-listing-market.controller.spec.ts`,
+    - dodano `agent-listing-market.service.spec.ts`.
+  - Zakres testow:
+    - kontroler deleguje do serwisu,
+    - endpoint nie ma `@Public`,
+    - kontroler wymaga `UserRole.AGENT`,
+    - serwis blokuje Free przez `FeatureAccessDeniedException`,
+    - query wymusza otwarta wspolprace, publicznosc oferty i wykluczenie ofert
+      biezacego agenta,
+    - filtry i paginacja sa przekazywane do query buildera,
+    - odpowiedz nie zawiera `ownerUser`,
+    - `hasSubmittedProposal` jest ustawiane z jednego zbiorczego query.
+  - Uwagi / follow-up: testy 401/403 globalnych guardow moga zostac dodane w E2E
+    przy AT-9. W AT-2 zabezpieczono kontrakt przez metadane kontrolera i testy
+    serwisu.
+
+#### Weryfikacja
+
+- `pnpm --filter api type-check` - przechodzi.
+- `pnpm --filter api test -- agent-listing-market.service.spec.ts agent-listing-market.controller.spec.ts` - przechodzi.
+
+#### Poza zakresem AT-2
+
+- Skladanie, edycja i wycofanie propozycji zostaje w Sprint AT-3.
+- UI dashboardu agenta zostaje w Sprint AT-7.
 
 ### Sprint AT-3 - Backend: propozycje wspolpracy
 
