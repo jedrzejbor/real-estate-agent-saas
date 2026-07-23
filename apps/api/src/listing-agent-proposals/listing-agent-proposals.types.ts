@@ -101,6 +101,12 @@ export interface ListingAgentAssignmentResponse {
   completedAt: Date | null;
 }
 
+export interface ListingAgentAssignmentListItemResponse
+  extends ListingAgentAssignmentResponse {
+  listing: ListingAgentProposalListingSummary | null;
+  proposal: ListingAgentProposalResponse | null;
+}
+
 export interface ListingAgentProposalDecisionResponse
   extends ListingAgentProposalResponse {
   assignment: ListingAgentAssignmentResponse | null;
@@ -108,6 +114,17 @@ export interface ListingAgentProposalDecisionResponse
 
 export interface ListingAgentProposalPage {
   data: ListingAgentProposalResponse[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    sort: string;
+  };
+}
+
+export interface ListingAgentAssignmentPage {
+  data: ListingAgentAssignmentListItemResponse[];
   meta: {
     total: number;
     page: number;

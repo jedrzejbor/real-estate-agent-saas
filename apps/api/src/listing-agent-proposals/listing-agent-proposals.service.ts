@@ -23,6 +23,7 @@ import { Listing } from '../listings/entities';
 import { UsersService } from '../users';
 import {
   CreateListingAgentProposalMessageDto,
+  ListingAgentAssignmentQueryDto,
   ListingAgentProposalInputDto,
   ListingAgentProposalMessageQueryDto,
   ListingAgentProposalQueryDto,
@@ -38,6 +39,7 @@ import {
   canTransitionListingAgentProposal,
 } from './listing-agent-proposal-status';
 import type {
+  ListingAgentAssignmentPage,
   ListingAgentAssignmentResponse,
   ListingAgentProposalDecisionResponse,
   ListingAgentProposalMessagePage,
@@ -82,6 +84,52 @@ export class ListingAgentProposalsService {
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
   ) {}
+
+  async findAssignmentsForAgent(
+    userId: string,
+    query: ListingAgentAssignmentQueryDto,
+  ): Promise<ListingAgentAssignmentPage> {
+    const access = await this.resolvePaidAgentAccess(userId);
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+      status,
+    } = query;
+
+    const qb = this.assignmentRepo
+      .createQueryBuilder('assignment')
+      .leftJoinAndSelect('assignment.listing', 'listing')
+      .leftJoinAndSelect('listing.address', 'address')
+      .leftJoinAndSelect('assignment.proposal', 'proposal')
+      .leftJoinAndSelect('proposal.agent', 'agent')
+      .leftJoinAndSelect('agent.agency', 'agency')
+      .where('assignment.agentId = :agentId', { agentId: access.agent.id });
+
+    if (status) {
+      qb.andWhere('assignment.status = :status', { status });
+    }
+
+    const sortColumn = getAssignmentSortColumn(sortBy);
+    qb.orderBy(sortColumn, sortOrder === 'ASC' ? 'ASC' : 'DESC')
+      .addOrderBy('assignment.id', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [assignments, total] = await qb.getManyAndCount();
+
+    return {
+      data: assignments.map(toAssignmentListItemResponse),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        sort: `${sortBy}:${sortOrder}`,
+      },
+    };
+  }
 
   async createForListing(
     userId: string,
@@ -1038,6 +1086,16 @@ function getProposalSortColumn(sortBy: string): string {
   }
 }
 
+function getAssignmentSortColumn(sortBy: string): string {
+  switch (sortBy) {
+    case 'status':
+      return 'assignment.status';
+    case 'createdAt':
+    default:
+      return 'assignment.createdAt';
+  }
+}
+
 function toProposalResponse(
   proposal: ListingAgentProposal,
 ): ListingAgentProposalResponse {
@@ -1066,6 +1124,16 @@ function toProposalResponse(
     updatedAt: proposal.updatedAt,
     listing: proposal.listing ? toListingSummary(proposal.listing) : null,
     agent: proposal.agent ? toAgentSummary(proposal.agent) : null,
+  };
+}
+
+function toAssignmentListItemResponse(assignment: ListingAgentAssignment) {
+  return {
+    ...toAssignmentResponse(assignment),
+    listing: assignment.listing ? toListingSummary(assignment.listing) : null,
+    proposal: assignment.proposal
+      ? toProposalResponse(assignment.proposal)
+      : null,
   };
 }
 

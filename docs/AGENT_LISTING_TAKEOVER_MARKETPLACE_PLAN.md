@@ -1375,7 +1375,23 @@ Po akceptacji dac agentowi praktyczna mozliwosc pracy na ofercie w swoim CRM.
 
 #### Zadania
 
-- [ ] `AT8.1` Dodac widok zaakceptowanych assignmentow po stronie agenta.
+- [x] `AT8.1` Dodac widok zaakceptowanych assignmentow po stronie agenta.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - dodano DTO `ListingAgentAssignmentQueryDto` dla listy assignmentow,
+    - dodano endpoint
+      `GET /api/listing-agent-proposals/agent/assignments`,
+    - serwis listuje assignmenty aktualnego agenta z filtrem statusu,
+      paginacja i sortowaniem,
+    - odpowiedz zawiera dane assignmentu, skrót oferty oraz propozycje, na
+      podstawie ktorej powstala wspolpraca,
+    - dodano testy kontrolera i serwisu dla listowania assignmentow,
+    - dodano webowy klient `fetchAgentListingAssignments`,
+    - dodano pozycje `Wspolprace` w sidebarze dashboardu agenta,
+    - dodano trase `/dashboard/agent-assignments`,
+    - widok pokazuje status wspolpracy, oferte, lokalizacje, date akceptacji,
+      cene, link do oferty publicznej, link do propozycji/czatu oraz stan, czy
+      istnieje juz kopia w CRM.
 - [ ] `AT8.2` Dodac akcje `Utworz kopie w CRM`.
 - [ ] `AT8.3` Mapowac dane oryginalnej oferty do nowej oferty agenta bez
   przenoszenia prywatnych danych wlasciciela, ktore nie sa potrzebne.

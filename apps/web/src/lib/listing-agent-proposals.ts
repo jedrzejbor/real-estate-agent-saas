@@ -28,6 +28,7 @@ export type ListingAgentCollaborationStatus =
   | 'paused'
   | 'closed'
   | 'assigned';
+export type ListingAgentAssignmentStatus = 'active' | 'revoked' | 'completed';
 
 export interface ListingAgentProposalListingSummary {
   id: string;
@@ -57,12 +58,17 @@ export interface ListingAgentAssignment {
   ownerUserId: string;
   agentId: string;
   agencyId: string | null;
-  status: 'active' | 'revoked' | 'completed';
+  status: ListingAgentAssignmentStatus;
   acceptedTermsSnapshot: Record<string, unknown>;
   agentListingId: string | null;
   createdAt: string;
   revokedAt: string | null;
   completedAt: string | null;
+}
+
+export interface ListingAgentAssignmentListItem extends ListingAgentAssignment {
+  listing: ListingAgentProposalListingSummary | null;
+  proposal: ListingAgentProposal | null;
 }
 
 export interface ListingAgentRecruitment {
@@ -129,6 +135,19 @@ export interface PaginatedListingAgentProposals {
   meta: PaginationMeta;
 }
 
+export interface ListingAgentAssignmentFilters {
+  status?: ListingAgentAssignmentStatus;
+  page?: number;
+  limit?: number;
+  sortBy?: 'createdAt' | 'status';
+  sortOrder?: 'ASC' | 'DESC';
+}
+
+export interface PaginatedListingAgentAssignments {
+  data: ListingAgentAssignmentListItem[];
+  meta: PaginationMeta;
+}
+
 export interface PaginatedListingAgentProposalMessages {
   data: ListingAgentProposalMessage[];
   meta: PaginationMeta & {
@@ -163,6 +182,21 @@ function buildQueryString(filters: ListingAgentProposalFilters): string {
   return qs ? `?${qs}` : '';
 }
 
+function buildAssignmentQueryString(
+  filters: ListingAgentAssignmentFilters,
+): string {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== '' && value !== null) {
+      params.set(key, String(value));
+    }
+  }
+
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}
+
 export async function fetchSellerListingAgentProposals(
   filters: ListingAgentProposalFilters = {},
 ): Promise<PaginatedListingAgentProposals> {
@@ -176,6 +210,14 @@ export async function fetchAgentListingAgentProposals(
 ): Promise<PaginatedListingAgentProposals> {
   return apiFetch<PaginatedListingAgentProposals>(
     `/listing-agent-proposals/agent${buildQueryString(filters)}`,
+  );
+}
+
+export async function fetchAgentListingAssignments(
+  filters: ListingAgentAssignmentFilters = {},
+): Promise<PaginatedListingAgentAssignments> {
+  return apiFetch<PaginatedListingAgentAssignments>(
+    `/listing-agent-proposals/agent/assignments${buildAssignmentQueryString(filters)}`,
   );
 }
 

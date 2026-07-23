@@ -20,6 +20,7 @@ import {
 } from '../common/enums';
 import { Listing } from '../listings/entities';
 import {
+  ListingAgentAssignment,
   ListingAgentProposal,
   ListingAgentProposalMessage,
 } from './entities';
@@ -166,6 +167,28 @@ function buildMessage(
   } as ListingAgentProposalMessage;
 }
 
+function buildAssignment(
+  overrides: Partial<ListingAgentAssignment> = {},
+): ListingAgentAssignment {
+  return {
+    id: 'assignment-1',
+    listingId: LISTING_ID,
+    proposalId: PROPOSAL_ID,
+    ownerUserId: OWNER_ID,
+    agentId: AGENT_ID,
+    agencyId: AGENCY_ID,
+    status: ListingAgentAssignmentStatus.ACTIVE,
+    acceptedTermsSnapshot: {},
+    agentListingId: null,
+    createdAt: new Date('2026-07-05T00:00:00.000Z'),
+    revokedAt: null,
+    completedAt: null,
+    listing: buildListing(),
+    proposal: buildProposal({ status: ListingAgentProposalStatus.ACCEPTED }),
+    ...overrides,
+  } as ListingAgentAssignment;
+}
+
 function createListingQueryBuilder(listing: Listing | null) {
   return {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
@@ -194,6 +217,22 @@ function createProposalQueryBuilder(
   };
 }
 
+function createAssignmentQueryBuilder(
+  assignments: ListingAgentAssignment[],
+  total = assignments.length,
+) {
+  return {
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    getManyAndCount: jest.fn().mockResolvedValue([assignments, total]),
+  };
+}
+
 function createMessageQueryBuilder(unreadCount = 0) {
   return {
     where: jest.fn().mockReturnThis(),
@@ -211,6 +250,7 @@ function buildService({
   existingProposal = null,
   ownedProposal = buildProposal(),
   queryProposals = [buildProposal()],
+  queryAssignments = [buildAssignment()],
   messages = [buildMessage()],
   unreadCount = 0,
 }: {
@@ -219,11 +259,13 @@ function buildService({
   existingProposal?: ListingAgentProposal | null;
   ownedProposal?: ListingAgentProposal | null;
   queryProposals?: ListingAgentProposal[];
+  queryAssignments?: ListingAgentAssignment[];
   messages?: ListingAgentProposalMessage[];
   unreadCount?: number;
 } = {}) {
   const listingQb = createListingQueryBuilder(listing);
   const proposalQb = createProposalQueryBuilder(queryProposals);
+  const assignmentQb = createAssignmentQueryBuilder(queryAssignments);
   const messageQb = createMessageQueryBuilder(unreadCount);
   const proposalRepo = {
     findOne: jest.fn(async (options: { where?: Record<string, unknown> }) =>
@@ -246,6 +288,7 @@ function buildService({
     save: jest.fn(async (entity) => entity),
   };
   const assignmentRepo = {
+    createQueryBuilder: jest.fn().mockReturnValue(assignmentQb),
     create: jest.fn((input) => input),
     save: jest.fn(async (assignment) => ({
       ...assignment,
@@ -306,6 +349,7 @@ function buildService({
     proposalRepo,
     listingRepo,
     assignmentRepo,
+    assignmentQb,
     messageRepo,
     dataSource,
     usersService,
@@ -473,6 +517,48 @@ describe('ListingAgentProposalsService', () => {
       limit: 5,
       totalPages: 1,
       sort: 'updatedAt:ASC',
+    });
+  });
+
+  it('lists assignments accepted for the current agent', async () => {
+    const assignment = buildAssignment();
+    const { service, assignmentQb } = buildService({
+      queryAssignments: [assignment],
+    });
+
+    const result = await service.findAssignmentsForAgent(USER_ID, {
+      status: ListingAgentAssignmentStatus.ACTIVE,
+      page: 2,
+      limit: 5,
+      sortBy: 'createdAt',
+      sortOrder: 'ASC',
+    });
+
+    expect(assignmentQb.where).toHaveBeenCalledWith(
+      'assignment.agentId = :agentId',
+      { agentId: AGENT_ID },
+    );
+    expect(assignmentQb.andWhere).toHaveBeenCalledWith(
+      'assignment.status = :status',
+      { status: ListingAgentAssignmentStatus.ACTIVE },
+    );
+    expect(assignmentQb.orderBy).toHaveBeenCalledWith(
+      'assignment.createdAt',
+      'ASC',
+    );
+    expect(assignmentQb.skip).toHaveBeenCalledWith(5);
+    expect(assignmentQb.take).toHaveBeenCalledWith(5);
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0]).toMatchObject({
+      id: assignment.id,
+      listing: {
+        id: LISTING_ID,
+        title: 'Publiczne mieszkanie testowe',
+      },
+      proposal: {
+        id: PROPOSAL_ID,
+        status: ListingAgentProposalStatus.ACCEPTED,
+      },
     });
   });
 

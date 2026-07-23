@@ -13,6 +13,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums';
 import {
   CreateListingAgentProposalMessageDto,
+  ListingAgentAssignmentQueryDto,
   ListingAgentProposalInputDto,
   ListingAgentProposalMessageQueryDto,
   ListingAgentProposalQueryDto,
@@ -49,6 +50,19 @@ export class ListingAgentProposalsController {
     @Query() query: ListingAgentProposalQueryDto,
   ) {
     return this.listingAgentProposalsService.findForAgent(userId, query);
+  }
+
+  /** GET /api/listing-agent-proposals/agent/assignments — list accepted listing collaborations for the current agent. */
+  @Get('agent/assignments')
+  @Roles(UserRole.AGENT)
+  async findAssignmentsForAgent(
+    @CurrentUser('id') userId: string,
+    @Query() query: ListingAgentAssignmentQueryDto,
+  ) {
+    return this.listingAgentProposalsService.findAssignmentsForAgent(
+      userId,
+      query,
+    );
   }
 
   /** GET /api/listing-agent-proposals/agent/:id — show one proposal sent by the current agent. */

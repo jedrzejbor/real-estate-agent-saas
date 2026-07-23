@@ -1,6 +1,7 @@
 import { IS_PUBLIC_KEY } from '../auth/decorators/public.decorator';
 import { ROLES_KEY } from '../auth/decorators/roles.decorator';
 import {
+  ListingAgentAssignmentStatus,
   ListingAgentProposalCommissionType,
   UserRole,
 } from '../common/enums';
@@ -11,6 +12,7 @@ describe('ListingAgentProposalsController', () => {
   let controller: ListingAgentProposalsController;
   let service: {
     createForListing: jest.Mock;
+    findAssignmentsForAgent: jest.Mock;
     findForAgent: jest.Mock;
     findOneForAgent: jest.Mock;
     updateForAgent: jest.Mock;
@@ -28,6 +30,7 @@ describe('ListingAgentProposalsController', () => {
   beforeEach(() => {
     service = {
       createForListing: jest.fn(),
+      findAssignmentsForAgent: jest.fn(),
       findForAgent: jest.fn(),
       findOneForAgent: jest.fn(),
       updateForAgent: jest.fn(),
@@ -77,6 +80,21 @@ describe('ListingAgentProposalsController', () => {
     );
 
     expect(service.findForAgent).toHaveBeenCalledWith(USER_ID, query);
+  });
+
+  it('delegates agent assignment list lookup to the service', async () => {
+    const query = { status: ListingAgentAssignmentStatus.ACTIVE };
+    const response = { data: [], meta: { total: 0 } };
+    service.findAssignmentsForAgent.mockResolvedValue(response);
+
+    await expect(
+      controller.findAssignmentsForAgent(USER_ID, query),
+    ).resolves.toBe(response);
+
+    expect(service.findAssignmentsForAgent).toHaveBeenCalledWith(
+      USER_ID,
+      query,
+    );
   });
 
   it('delegates agent proposal detail lookup to the service', async () => {

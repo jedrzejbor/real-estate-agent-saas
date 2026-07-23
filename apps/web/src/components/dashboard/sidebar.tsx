@@ -89,6 +89,11 @@ const navGroups: DashboardNavGroup[] = [
         href: '/dashboard/agent-proposals',
         icon: Send,
       },
+      {
+        label: 'Współprace',
+        href: '/dashboard/agent-assignments',
+        icon: Handshake,
+      },
       { label: 'Klienci', href: '/dashboard/clients', icon: Users },
       { label: 'Transakcje', href: '/dashboard/transactions', icon: Handshake },
     ],
