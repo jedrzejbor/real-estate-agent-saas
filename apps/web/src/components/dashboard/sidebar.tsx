@@ -20,6 +20,7 @@ import {
   BookOpenCheck,
   Heart,
   Search,
+  Send,
   X,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -82,6 +83,11 @@ const navGroups: DashboardNavGroup[] = [
         label: 'Oferty szukające agenta',
         href: '/dashboard/agent-market',
         icon: Search,
+      },
+      {
+        label: 'Wysłane propozycje',
+        href: '/dashboard/agent-proposals',
+        icon: Send,
       },
       { label: 'Klienci', href: '/dashboard/clients', icon: Users },
       { label: 'Transakcje', href: '/dashboard/transactions', icon: Handshake },

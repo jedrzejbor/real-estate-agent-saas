@@ -171,6 +171,14 @@ export async function fetchSellerListingAgentProposals(
   );
 }
 
+export async function fetchAgentListingAgentProposals(
+  filters: ListingAgentProposalFilters = {},
+): Promise<PaginatedListingAgentProposals> {
+  return apiFetch<PaginatedListingAgentProposals>(
+    `/listing-agent-proposals/agent${buildQueryString(filters)}`,
+  );
+}
+
 export async function createListingAgentProposal(
   listingId: string,
   input: ListingAgentProposalInput,

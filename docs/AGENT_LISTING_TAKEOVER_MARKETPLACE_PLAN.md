@@ -1295,13 +1295,25 @@ Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
     - podlaczono formularz jako modal w `/dashboard/agent-market`,
     - po wyslaniu propozycji karta oferty przechodzi w stan
       `Propozycja wyslana`, a agent dostaje komunikat toast.
-- [ ] `AT7.5` Dodac zakladke `Wyslane propozycje`.
+- [x] `AT7.5` Dodac zakladke `Wyslane propozycje`.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - dodano funkcje `fetchAgentListingAgentProposals` w webowym kliencie API,
+    - dodano pozycje `Wyslane propozycje` w sidebarze dashboardu agenta,
+    - dodano trase `/dashboard/agent-proposals`,
+    - widok pobiera propozycje agenta przez
+      `GET /api/listing-agent-proposals/agent`,
+    - dodano filtr statusu propozycji,
+    - lista pokazuje status, oferte, lokalizacje, daty wyslania/aktualizacji,
+      prowizje, date waznosci, zakres uslug i link do publicznej oferty,
+    - dodano loading state, empty state, empty state dla filtra statusu oraz
+      error state dla blokady planu z CTA do upgrade.
 - [ ] `AT7.6` Dodac edycje i wycofanie propozycji.
 - [ ] `AT7.7` Dodac UI czatu dla agenta.
 - [ ] `AT7.8` Dodac stany braku uprawnien i CTA do logowania/rejestracji.
-  - Status czesciowy: strona rynku ma stan braku uprawnien dla planu bez
-    `agentListingMarket`; pozostale stany beda domykane przy formularzu i
-    widokach wyslanych propozycji.
+  - Status czesciowy: strona rynku i strona wyslanych propozycji maja stan
+    braku uprawnien dla planu bez `agentListingMarket`; pozostale stany beda
+    domykane przy edycji, wycofaniu i czacie.
 
 #### Weryfikacja
 
@@ -1309,7 +1321,6 @@ Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
 
 #### Poza zakresem pierwszej iteracji AT-7
 
-- Lista wyslanych propozycji agenta.
 - Edycja, wycofanie i czat po stronie agenta.
 
 ### Sprint AT-8 - Akceptacja i kopia oferty w CRM agenta
