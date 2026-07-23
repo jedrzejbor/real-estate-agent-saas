@@ -196,6 +196,10 @@ export function isPrivateSellerUser(user: Pick<AuthUser, 'role'>): boolean {
   return user.role === 'viewer';
 }
 
+export function isAgentUser(user: Pick<AuthUser, 'role'>): boolean {
+  return user.role === 'agent';
+}
+
 export function getDefaultAuthenticatedPath(user: AuthUser): string {
   return isPrivateSellerUser(user)
     ? PRIVATE_SELLER_HOME_PATH

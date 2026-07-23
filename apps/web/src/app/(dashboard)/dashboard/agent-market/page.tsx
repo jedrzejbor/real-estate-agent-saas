@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  AlertCircle,
   Building2,
   CheckCircle2,
   Loader2,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardPageHeader } from '@/components/dashboard/page-header';
+import { AgentListingMarketplaceAccessState } from '@/components/dashboard/agent-listing-marketplace-access-state';
 import {
   ListingAgentProposalForm,
   INITIAL_LISTING_AGENT_PROPOSAL_FORM_VALUES,
@@ -21,8 +21,10 @@ import {
   type ListingAgentProposalFormErrors,
   type ListingAgentProposalFormValues,
 } from '@/components/listings/listing-agent-proposal-form';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage, isFeatureAccessDeniedApiError } from '@/lib/api-client';
+import { isAgentUser } from '@/lib/auth';
 import {
   fetchAgentListingMarket,
   type AgentListingMarketFilters,
@@ -60,9 +62,13 @@ export default function AgentListingMarketPage() {
   const [proposalErrors, setProposalErrors] =
     useState<ListingAgentProposalFormErrors>({});
   const [isSubmittingProposal, setIsSubmittingProposal] = useState(false);
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { error: showErrorToast, success: showSuccessToast } = useToast();
+  const isAgent = user ? isAgentUser(user) : false;
 
   useEffect(() => {
+    if (isAuthLoading || !user || !isAgent) return;
+
     let cancelled = false;
 
     async function loadMarket() {
@@ -93,7 +99,7 @@ export default function AgentListingMarketPage() {
     return () => {
       cancelled = true;
     };
-  }, [filters]);
+  }, [filters, isAgent, isAuthLoading, user]);
 
   function updateFilter<K extends keyof AgentListingMarketFilters>(
     key: K,
@@ -226,12 +232,24 @@ export default function AgentListingMarketPage() {
         </div>
       </section>
 
-      {isLoading ? (
+      {isAuthLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : user && !isAgent ? (
+        <AgentListingMarketplaceAccessState
+          variant="role"
+          message="Rynek ofert szukających agenta jest dostępny tylko dla kont agentów nieruchomości."
+        />
+      ) : isLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : error ? (
-        <MarketErrorState message={error} isPlanBlocked={isPlanBlocked} />
+        <AgentListingMarketplaceAccessState
+          variant={isPlanBlocked ? 'plan' : 'error'}
+          message={error}
+        />
       ) : items.length === 0 ? (
         <section className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -401,35 +419,5 @@ function ProposalModal({
         </div>
       </section>
     </div>
-  );
-}
-
-function MarketErrorState({
-  message,
-  isPlanBlocked,
-}: {
-  message: string;
-  isPlanBlocked: boolean;
-}) {
-  return (
-    <section className="rounded-2xl border border-destructive/20 bg-card p-8 text-center shadow-sm">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
-        <AlertCircle className="h-6 w-6" />
-      </div>
-      <h2 className="mt-4 font-heading text-2xl font-semibold">
-        {isPlanBlocked ? 'Funkcja dostępna w płatnym planie' : 'Nie udało się pobrać rynku ofert'}
-      </h2>
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-        {message}
-      </p>
-      {isPlanBlocked ? (
-        <Link
-          href="/dashboard/upgrade"
-          className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          Zobacz plany
-        </Link>
-      ) : null}
-    </section>
   );
 }

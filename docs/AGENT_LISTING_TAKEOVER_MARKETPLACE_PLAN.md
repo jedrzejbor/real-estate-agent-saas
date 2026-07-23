@@ -1342,10 +1342,21 @@ Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
       zakres uslug, date aktualizacji i link do publicznej oferty,
     - lista `/dashboard/agent-proposals` dostala przejscie `Szczegoly i czat`
       do detalu propozycji.
-- [ ] `AT7.8` Dodac stany braku uprawnien i CTA do logowania/rejestracji.
-  - Status czesciowy: strona rynku i strona wyslanych propozycji maja stan
-    braku uprawnien dla planu bez `agentListingMarket`; detal propozycji i
-    czat maja error state z CTA do upgrade dla blokady planu.
+- [x] `AT7.8` Dodac stany braku uprawnien i CTA do logowania/rejestracji.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - dodano helper `isAgentUser` w webowym module auth,
+    - dodano reuzywalny komponent
+      `apps/web/src/components/dashboard/agent-listing-marketplace-access-state.tsx`
+      dla stanow: blad, blokada planu, niewlasciwa rola,
+    - `/dashboard/agent-market`, `/dashboard/agent-proposals` i
+      `/dashboard/agent-proposals/[id]` nie odpalaja agentowych endpointow dla
+      uzytkownikow, ktorzy nie sa kontem agenta,
+    - dla kont bez funkcji `agentListingMarket` widoki pokazuja CTA do upgrade,
+    - dla nie-agentow widoki pokazuja czytelny stan `Dostep tylko dla kont
+      agentow`,
+    - brak sesji pozostaje obslugiwany globalnie przez dashboard layout i
+      `auth:unauthorized`, z przekierowaniem do logowania.
 
 #### Weryfikacja
 
@@ -1353,7 +1364,9 @@ Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
 
 #### Poza zakresem pierwszej iteracji AT-7
 
-- Pelne stany logowania/rejestracji poza dashboardem agenta.
+- Publiczny komunikat na `/oferty/[slug]`, ze wlasciciel jest otwarty na
+  przejecie oferty przez agenta, wymaga jeszcze wystawienia bezpiecznych pol
+  wspolpracy w publicznym DTO oferty.
 
 ### Sprint AT-8 - Akceptacja i kopia oferty w CRM agenta
 

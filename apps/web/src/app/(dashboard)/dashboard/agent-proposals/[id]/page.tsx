@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
-  AlertCircle,
   ArrowLeft,
   CalendarDays,
   CheckCircle2,
@@ -14,9 +13,12 @@ import {
   MessageSquareText,
 } from 'lucide-react';
 import { DashboardPageHeader } from '@/components/dashboard/page-header';
+import { AgentListingMarketplaceAccessState } from '@/components/dashboard/agent-listing-marketplace-access-state';
 import { ListingAgentProposalChat } from '@/components/listings/listing-agent-proposal-chat';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage, isFeatureAccessDeniedApiError } from '@/lib/api-client';
+import { isAgentUser } from '@/lib/auth';
 import {
   createListingAgentProposalMessage,
   fetchAgentListingAgentProposal,
@@ -76,6 +78,7 @@ const STATUS_COPY: Record<
 
 export default function AgentProposalDetailPage() {
   const params = useParams<{ id: string }>();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { error: showErrorToast } = useToast();
   const [proposal, setProposal] = useState<ListingAgentProposal | null>(null);
   const [messages, setMessages] = useState<ListingAgentProposalMessage[]>([]);
@@ -87,12 +90,15 @@ export default function AgentProposalDetailPage() {
   const canMessage = proposal
     ? ['sent', 'updated', 'accepted'].includes(proposal.status)
     : false;
+  const isAgent = user ? isAgentUser(user) : false;
   const pageTitle = useMemo(
     () => proposal?.listing?.title ?? 'Szczegóły propozycji',
     [proposal],
   );
 
   useEffect(() => {
+    if (isAuthLoading || !user || !isAgent) return;
+
     let cancelled = false;
 
     async function loadProposal() {
@@ -130,7 +136,7 @@ export default function AgentProposalDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [params.id]);
+  }, [isAgent, isAuthLoading, params.id, user]);
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -158,6 +164,30 @@ export default function AgentProposalDetailPage() {
     }
   }
 
+  if (isAuthLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (user && !isAgent) {
+    return (
+      <div className="space-y-6">
+        <DashboardPageHeader
+          title="Szczegóły propozycji"
+          description="Dostęp do rozmów o propozycjach jest ograniczony do kont agentów."
+          icon={MessageSquareText}
+        />
+        <AgentListingMarketplaceAccessState
+          variant="role"
+          message="Szczegóły propozycji i czat z właścicielem są dostępne tylko dla kont agentów nieruchomości."
+        />
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -174,9 +204,9 @@ export default function AgentProposalDetailPage() {
           description="Nie udało się pobrać danych propozycji."
           icon={MessageSquareText}
         />
-        <AgentProposalErrorState
+        <AgentListingMarketplaceAccessState
+          variant={isPlanBlocked ? 'plan' : 'error'}
           message={error ?? 'Propozycja jest niedostępna.'}
-          isPlanBlocked={isPlanBlocked}
         />
       </div>
     );
@@ -329,36 +359,6 @@ export default function AgentProposalDetailPage() {
         onSubmit={sendMessage}
       />
     </div>
-  );
-}
-
-function AgentProposalErrorState({
-  message,
-  isPlanBlocked,
-}: {
-  message: string;
-  isPlanBlocked: boolean;
-}) {
-  return (
-    <section className="rounded-2xl border border-destructive/20 bg-card p-8 text-center shadow-sm">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
-        <AlertCircle className="h-6 w-6" />
-      </div>
-      <h2 className="mt-4 font-heading text-2xl font-semibold">
-        {isPlanBlocked ? 'Funkcja dostępna w płatnym planie' : 'Nie udało się pobrać propozycji'}
-      </h2>
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-        {message}
-      </p>
-      {isPlanBlocked ? (
-        <Link
-          href="/dashboard/upgrade"
-          className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          Zobacz plany
-        </Link>
-      ) : null}
-    </section>
   );
 }
 
