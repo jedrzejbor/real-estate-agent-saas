@@ -1323,11 +1323,29 @@ Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
     - dodano wycofanie aktywnej propozycji z potwierdzeniem i aktualizacja
       statusu na liscie bez przeladowania strony,
     - dodano komunikaty toast dla sukcesu i bledow edycji/wycofania.
-- [ ] `AT7.7` Dodac UI czatu dla agenta.
+- [x] `AT7.7` Dodac UI czatu dla agenta.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - dodano reuzywalny komponent
+      `apps/web/src/components/listings/listing-agent-proposal-chat.tsx`,
+      ktory obsluguje liste wiadomosci, formularz wysylki i rozroznienie roli
+      aktualnego uczestnika rozmowy,
+    - dodano trase `/dashboard/agent-proposals/[id]` ze szczegolami propozycji
+      agenta,
+    - widok szczegolow pobiera propozycje przez
+      `GET /api/listing-agent-proposals/agent/:id` oraz wiadomosci przez
+      `GET /api/listing-agent-proposals/:id/messages`,
+    - agent moze wyslac wiadomosc przez
+      `POST /api/listing-agent-proposals/:id/messages` dla aktywnych rozmow
+      (`sent`, `updated`, `accepted`),
+    - widok pokazuje status, oferte, lokalizacje, prowizje, warunki,
+      zakres uslug, date aktualizacji i link do publicznej oferty,
+    - lista `/dashboard/agent-proposals` dostala przejscie `Szczegoly i czat`
+      do detalu propozycji.
 - [ ] `AT7.8` Dodac stany braku uprawnien i CTA do logowania/rejestracji.
   - Status czesciowy: strona rynku i strona wyslanych propozycji maja stan
-    braku uprawnien dla planu bez `agentListingMarket`; pozostale stany beda
-    domykane przy czacie.
+    braku uprawnien dla planu bez `agentListingMarket`; detal propozycji i
+    czat maja error state z CTA do upgrade dla blokady planu.
 
 #### Weryfikacja
 
@@ -1335,7 +1353,7 @@ Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
 
 #### Poza zakresem pierwszej iteracji AT-7
 
-- Czat po stronie agenta.
+- Pelne stany logowania/rejestracji poza dashboardem agenta.
 
 ### Sprint AT-8 - Akceptacja i kopia oferty w CRM agenta
 
