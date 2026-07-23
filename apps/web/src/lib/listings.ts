@@ -235,6 +235,8 @@ export interface Listing {
   address?: Address;
   images?: ListingImage[];
   messageRecipient?: ListingMessageRecipient | null;
+  sourceListingId?: string | null;
+  agentAssignmentId?: string | null;
 }
 
 export interface ListingDocument {

@@ -44,6 +44,10 @@ import {
 import { ActivityHistoryCard } from '@/components/activity/activity-history-card';
 import { ActivityTimeline } from '@/components/activity/activity-timeline';
 import { ListingDocumentsPanel } from '@/components/listings/listing-documents-panel';
+import {
+  ListingCollaborationOriginBadge,
+  isListingFromAgentCollaboration,
+} from '@/components/listings/listing-collaboration-origin-badge';
 import { ListingPublicationPanel } from '@/components/listings/listing-publication-panel';
 import { MessageTemplateDialog } from '@/components/messages/message-template-dialog';
 import { useConfirm } from '@/contexts/confirm-context';
@@ -508,6 +512,7 @@ export default function ListingDetailPage() {
           <>
             <ListingStatusBadge status={listing.status} />
             <ListingPublicationBadge status={listing.publicationStatus} />
+            <ListingCollaborationOriginBadge listing={listing} />
           </>
         }
         description={
@@ -621,6 +626,33 @@ export default function ListingDetailPage() {
       />
 
       <DashboardNextStepBar step={nextStep} />
+
+      {isListingFromAgentCollaboration(listing) ? (
+        <section className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Handshake className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">
+                  Oferta pochodzi ze współpracy z właścicielem.
+                </p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  To robocza kopia CRM utworzona po zaakceptowaniu propozycji
+                  agenta. Możesz ją edytować i opublikować ze swojego konta.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/agent-assignments"
+              className="inline-flex h-10 items-center justify-center rounded-xl border border-primary/25 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
+            >
+              Współprace
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       {isActiveButUnpublished ? (
         <div className="flex flex-col gap-3 rounded-2xl border border-status-warning/25 bg-status-warning-bg p-4 text-status-warning sm:flex-row sm:items-center sm:justify-between">

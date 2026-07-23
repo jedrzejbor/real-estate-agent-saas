@@ -1427,7 +1427,18 @@ Po akceptacji dac agentowi praktyczna mozliwosc pracy na ofercie w swoim CRM.
     - `ListingAgentAssignment.agentListingId` wskazuje utworzona kopie CRM,
     - dodano indeksy dla `source_listing_id` i unikalny indeks dla
       `agent_assignment_id`.
-- [ ] `AT8.5` Oznaczyc w UI, ze oferta pochodzi ze wspolpracy z wlascicielem.
+- [x] `AT8.5` Oznaczyc w UI, ze oferta pochodzi ze wspolpracy z wlascicielem.
+  - Data zakonczenia: 2026-07-24
+  - Wykonano:
+    - dodano pola `sourceListingId` i `agentAssignmentId` do webowego typu
+      `Listing`,
+    - dodano reuzywalny komponent
+      `apps/web/src/components/listings/listing-collaboration-origin-badge.tsx`,
+    - badge `Z przejetej wspolpracy` jest widoczny na karcie oferty w gridzie,
+      w tabeli ofert oraz w naglowku detalu oferty,
+    - w detalu oferty dodano panel informacyjny wyjasniajacy, ze oferta jest
+      robocza kopia CRM utworzona po akceptacji propozycji przez wlasciciela,
+    - panel w detalu prowadzi do `/dashboard/agent-assignments`.
 - [x] `AT8.6` Upewnic sie, ze limity planu aktywnych ofert sa respektowane.
   - Data zakonczenia: 2026-07-23
   - Wykonano:

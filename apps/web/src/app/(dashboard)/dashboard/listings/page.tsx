@@ -19,6 +19,10 @@ import {
 } from '@/components/dashboard/view-mode-toggle';
 import { PlanLimitStatusBanner } from '@/components/growth/plan-limit-status-banner';
 import { ListingCard } from '@/components/listings/listing-card';
+import {
+  ListingCollaborationOriginBadge,
+  isListingFromAgentCollaboration,
+} from '@/components/listings/listing-collaboration-origin-badge';
 import { ListingFiltersBar } from '@/components/listings/listing-filters';
 import { ListingPagination } from '@/components/listings/listing-pagination';
 import { ListingRetentionChoiceModal } from '@/components/listings/listing-retention-choice-modal';
@@ -398,6 +402,14 @@ function ListingTable({ listings }: { listings: Listing[] }) {
                             .filter(Boolean)
                             .join(' · ')}
                         </p>
+                        {isListingFromAgentCollaboration(listing) ? (
+                          <div className="mt-2">
+                            <ListingCollaborationOriginBadge
+                              listing={listing}
+                              compact
+                            />
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </td>

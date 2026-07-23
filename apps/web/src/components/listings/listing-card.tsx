@@ -21,6 +21,7 @@ import {
   formatArea,
   formatListingCommission,
 } from '@/lib/listings';
+import { ListingCollaborationOriginBadge } from './listing-collaboration-origin-badge';
 
 interface ListingCardProps {
   listing: Listing;
@@ -55,8 +56,8 @@ export function ListingCard({ listing }: ListingCardProps) {
       className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:shadow-md hover:border-primary/20"
     >
       {/* Header with type badge & status */}
-      <div className="flex items-center justify-between border-b border-border/50 px-5 py-3">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3 border-b border-border/50 px-5 py-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground">
             {PROPERTY_TYPE_LABELS[propertyType]}
           </span>
@@ -64,6 +65,7 @@ export function ListingCard({ listing }: ListingCardProps) {
           <span className="text-xs text-muted-foreground">
             {TRANSACTION_TYPE_LABELS[transactionType]}
           </span>
+          <ListingCollaborationOriginBadge listing={listing} compact />
         </div>
         <ListingStatusBadge status={status} />
       </div>
