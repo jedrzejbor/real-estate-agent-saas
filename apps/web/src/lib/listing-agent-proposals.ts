@@ -86,6 +86,19 @@ export interface ListingAgentProposal {
   assignment?: ListingAgentAssignment | null;
 }
 
+export type ListingAgentProposalParticipantRole = 'owner' | 'agent';
+
+export interface ListingAgentProposalMessage {
+  id: string;
+  proposalId: string;
+  senderUserId: string;
+  senderRole: ListingAgentProposalParticipantRole;
+  body: string;
+  readAt: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
 export interface ListingAgentProposalFilters {
   status?: ListingAgentProposalStatus;
   listingId?: string;
@@ -98,6 +111,13 @@ export interface ListingAgentProposalFilters {
 export interface PaginatedListingAgentProposals {
   data: ListingAgentProposal[];
   meta: PaginationMeta;
+}
+
+export interface PaginatedListingAgentProposalMessages {
+  data: ListingAgentProposalMessage[];
+  meta: PaginationMeta & {
+    unreadCount: number;
+  };
 }
 
 function buildQueryString(filters: ListingAgentProposalFilters): string {
@@ -121,6 +141,14 @@ export async function fetchSellerListingAgentProposals(
   );
 }
 
+export async function fetchSellerListingAgentProposal(
+  id: string,
+): Promise<ListingAgentProposal> {
+  return apiFetch<ListingAgentProposal>(
+    `/listing-agent-proposals/seller/${id}`,
+  );
+}
+
 export async function acceptSellerListingAgentProposal(
   id: string,
 ): Promise<ListingAgentProposal> {
@@ -136,5 +164,32 @@ export async function rejectSellerListingAgentProposal(
   return apiFetch<ListingAgentProposal>(
     `/listing-agent-proposals/seller/${id}/reject`,
     { method: 'POST' },
+  );
+}
+
+export async function fetchListingAgentProposalMessages(
+  id: string,
+  filters: { page?: number; limit?: number } = {},
+): Promise<PaginatedListingAgentProposalMessages> {
+  const params = new URLSearchParams();
+  if (filters.page) params.set('page', String(filters.page));
+  if (filters.limit) params.set('limit', String(filters.limit));
+  const qs = params.toString();
+
+  return apiFetch<PaginatedListingAgentProposalMessages>(
+    `/listing-agent-proposals/${id}/messages${qs ? `?${qs}` : ''}`,
+  );
+}
+
+export async function createListingAgentProposalMessage(
+  id: string,
+  body: string,
+): Promise<ListingAgentProposalMessage> {
+  return apiFetch<ListingAgentProposalMessage>(
+    `/listing-agent-proposals/${id}/messages`,
+    {
+      method: 'POST',
+      body: { body },
+    },
   );
 }

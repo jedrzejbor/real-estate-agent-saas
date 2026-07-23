@@ -498,6 +498,13 @@ function SellerAgentProposalCard({
         </div>
 
         <div className="flex w-full shrink-0 flex-col gap-2 lg:w-56">
+          <Link
+            href={`/seller/agent-proposals/${proposal.id}`}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted"
+          >
+            <Eye className="h-4 w-4" />
+            Szczegóły
+          </Link>
           {canDecide ? (
             <>
               <button

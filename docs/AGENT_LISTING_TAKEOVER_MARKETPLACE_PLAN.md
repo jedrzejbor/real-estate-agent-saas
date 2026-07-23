@@ -1200,8 +1200,11 @@ Pozwolic wlascicielowi wlaczyc wspolprace i zarzadzac propozycjami.
       status, date, wiadomosc, prowizje, typ umowy, minimalny czas wspolpracy,
       proponowana cene oraz uslugi,
     - warunki sa formatowane przez lokalne helpery UI.
-  - Uwagi / follow-up: osobny widok szczegolow propozycji z pelnym planem
-    marketingowym i czatem zostaje w kolejnej iteracji AT-6.
+  - Uzupelnienie z kolejnej iteracji:
+    - dodano widok `/seller/agent-proposals/:id`,
+    - widok pokazuje pelne warunki propozycji, plan marketingowy, opinie o
+      cenie, dostepnosc, zakres uslug, powiazane ogloszenie i status decyzji,
+    - dashboard `/seller` linkuje do szczegolow kazdej propozycji.
 
 - [x] `AT6.5` Dodac akcje akceptacji, odrzucenia i zamkniecia naboru.
   - Data zakonczenia: 2026-07-23
@@ -1213,11 +1216,23 @@ Pozwolic wlascicielowi wlaczyc wspolprace i zarzadzac propozycjami.
     - po decyzji stan listy jest aktualizowany bez pelnego reloadu.
   - Uwagi / follow-up: reczne zamykanie/ponowne otwieranie naboru ma backend w
     AT-4, ale dedykowane przyciski w UI zostaja do widoku szczegolow/listingu.
-- [ ] `AT6.6` Dodac UI czatu dla wlasciciela.
-- [ ] `AT6.7` Dodac empty/loading/error states.
-  - Status czesciowy: sekcja propozycji ma empty/error state i korzysta ze
-    wspolnego loadingu dashboardu. Pelne stany szczegolow i czatu zostaja do
-    kolejnej iteracji.
+- [x] `AT6.6` Dodac UI czatu dla wlasciciela.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - widok `/seller/agent-proposals/:id` pobiera wiadomosci przez
+      `GET /api/listing-agent-proposals/:id/messages`,
+    - wlasciciel moze wyslac wiadomosc przez
+      `POST /api/listing-agent-proposals/:id/messages`,
+    - wiadomosci sa rozrozniane wizualnie jako `Ty` i `Agent`,
+    - formularz wysylki jest blokowany dla zamknietych propozycji.
+
+- [x] `AT6.7` Dodac empty/loading/error states.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - dashboard ma empty/error state dla sekcji propozycji,
+    - szczegoly propozycji maja loading i error state,
+    - czat ma empty state dla watku bez wiadomosci,
+    - akcje decyzji i wysylki wiadomosci maja stany `loading/disabled`.
 
 #### Weryfikacja
 
@@ -1225,10 +1240,7 @@ Pozwolic wlascicielowi wlaczyc wspolprace i zarzadzac propozycjami.
 
 #### Poza zakresem aktualnej iteracji AT-6
 
-- Pelny widok szczegolow propozycji wlasciciela.
-- UI czatu wlasciciela.
 - Dedykowane akcje zamkniecia/ponownego otwarcia naboru w UI.
-- Pelne empty/loading/error states dla szczegolow i czatu.
 
 ### Sprint AT-7 - Frontend: agent
 
