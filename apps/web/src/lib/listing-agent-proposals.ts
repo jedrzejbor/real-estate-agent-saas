@@ -221,6 +221,15 @@ export async function fetchAgentListingAssignments(
   );
 }
 
+export async function createAgentAssignmentListingCopy(
+  assignmentId: string,
+): Promise<ListingAgentAssignment> {
+  return apiFetch<ListingAgentAssignment>(
+    `/listing-agent-proposals/agent/assignments/${assignmentId}/create-listing-copy`,
+    { method: 'POST' },
+  );
+}
+
 export async function fetchAgentListingAgentProposal(
   id: string,
 ): Promise<ListingAgentProposal> {

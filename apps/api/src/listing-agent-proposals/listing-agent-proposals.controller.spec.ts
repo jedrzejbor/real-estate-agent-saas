@@ -13,6 +13,7 @@ describe('ListingAgentProposalsController', () => {
   let service: {
     createForListing: jest.Mock;
     findAssignmentsForAgent: jest.Mock;
+    createListingCopyForAgentAssignment: jest.Mock;
     findForAgent: jest.Mock;
     findOneForAgent: jest.Mock;
     updateForAgent: jest.Mock;
@@ -31,6 +32,7 @@ describe('ListingAgentProposalsController', () => {
     service = {
       createForListing: jest.fn(),
       findAssignmentsForAgent: jest.fn(),
+      createListingCopyForAgentAssignment: jest.fn(),
       findForAgent: jest.fn(),
       findOneForAgent: jest.fn(),
       updateForAgent: jest.fn(),
@@ -94,6 +96,20 @@ describe('ListingAgentProposalsController', () => {
     expect(service.findAssignmentsForAgent).toHaveBeenCalledWith(
       USER_ID,
       query,
+    );
+  });
+
+  it('delegates agent listing copy creation to the service', async () => {
+    const response = { id: 'assignment-1', agentListingId: LISTING_ID };
+    service.createListingCopyForAgentAssignment.mockResolvedValue(response);
+
+    await expect(
+      controller.createListingCopyForAgentAssignment(USER_ID, 'assignment-1'),
+    ).resolves.toBe(response);
+
+    expect(service.createListingCopyForAgentAssignment).toHaveBeenCalledWith(
+      USER_ID,
+      'assignment-1',
     );
   });
 

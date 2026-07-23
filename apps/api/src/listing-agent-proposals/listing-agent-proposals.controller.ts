@@ -65,6 +65,19 @@ export class ListingAgentProposalsController {
     );
   }
 
+  /** POST /api/listing-agent-proposals/agent/assignments/:id/create-listing-copy — create an editable CRM listing copy from an accepted assignment. */
+  @Post('agent/assignments/:id/create-listing-copy')
+  @Roles(UserRole.AGENT)
+  async createListingCopyForAgentAssignment(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.listingAgentProposalsService.createListingCopyForAgentAssignment(
+      userId,
+      id,
+    );
+  }
+
   /** GET /api/listing-agent-proposals/agent/:id — show one proposal sent by the current agent. */
   @Get('agent/:id')
   @Roles(UserRole.AGENT)

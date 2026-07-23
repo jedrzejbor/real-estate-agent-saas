@@ -1392,14 +1392,57 @@ Po akceptacji dac agentowi praktyczna mozliwosc pracy na ofercie w swoim CRM.
     - widok pokazuje status wspolpracy, oferte, lokalizacje, date akceptacji,
       cene, link do oferty publicznej, link do propozycji/czatu oraz stan, czy
       istnieje juz kopia w CRM.
-- [ ] `AT8.2` Dodac akcje `Utworz kopie w CRM`.
-- [ ] `AT8.3` Mapowac dane oryginalnej oferty do nowej oferty agenta bez
+- [x] `AT8.2` Dodac akcje `Utworz kopie w CRM`.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - dodano migracje
+      `apps/api/migrations/20260723_agent_assignment_listing_copy_relations.sql`,
+    - dodano pola `sourceListingId` i `agentAssignmentId` w encji `Listing`,
+    - dodano endpoint
+      `POST /api/listing-agent-proposals/agent/assignments/:id/create-listing-copy`,
+    - endpoint tworzy robocza kopie oferty w CRM agenta tylko dla aktywnego
+      assignmentu aktualnego agenta,
+    - endpoint blokuje ponowne tworzenie kopii dla tego samego assignmentu,
+    - strona `/dashboard/agent-assignments` ma aktywna akcje
+      `Utworz kopie w CRM`, loading state, toast sukcesu i toast bledu,
+    - po utworzeniu kopii karta wspolpracy aktualizuje `agentListingId` bez
+      przeladowania strony i pokazuje link `Otworz kopie CRM`.
+- [x] `AT8.3` Mapowac dane oryginalnej oferty do nowej oferty agenta bez
   przenoszenia prywatnych danych wlasciciela, ktore nie sa potrzebne.
-- [ ] `AT8.4` Zachowac relacje `agentAssignmentId` / `sourceListingId`.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - kopia jest tworzona jako `DRAFT` i `publicationStatus=DRAFT`,
+    - kopia nie wlacza naboru agentow i nie dziedziczy publicznego sluga,
+    - cena kopii korzysta z zaakceptowanej `proposedPrice`, jesli byla podana,
+    - zdjecia sa kopiowane jako referencje do publicznych URL-i,
+    - adres kopiuje miasto, dzielnice i wojewodztwo; ulica, kod pocztowy i
+      wspolrzedne sa kopiowane tylko wtedy, gdy oryginalna oferta publicznie
+      pokazywala dokladny adres.
+- [x] `AT8.4` Zachowac relacje `agentAssignmentId` / `sourceListingId`.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - `Listing.sourceListingId` wskazuje oryginalna oferte wlasciciela,
+    - `Listing.agentAssignmentId` wskazuje assignment, z ktorego powstala
+      kopia,
+    - `ListingAgentAssignment.agentListingId` wskazuje utworzona kopie CRM,
+    - dodano indeksy dla `source_listing_id` i unikalny indeks dla
+      `agent_assignment_id`.
 - [ ] `AT8.5` Oznaczyc w UI, ze oferta pochodzi ze wspolpracy z wlascicielem.
-- [ ] `AT8.6` Upewnic sie, ze limity planu aktywnych ofert sa respektowane.
-- [ ] `AT8.7` Dodac testy: brak akceptacji, ponowne tworzenie kopii,
+- [x] `AT8.6` Upewnic sie, ze limity planu aktywnych ofert sa respektowane.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - tworzenie kopii sprawdza limit `activeListings` dla calej agencji agenta,
+    - przekroczenie limitu zwraca `PlanLimitReachedException` zgodny z reszta
+      systemu.
+- [x] `AT8.7` Dodac testy: brak akceptacji, ponowne tworzenie kopii,
   przekroczenie limitu planu.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - dodano test braku aktywnego zaakceptowanego assignmentu,
+    - dodano test blokady ponownego tworzenia kopii,
+    - dodano test przekroczenia limitu aktywnych ofert,
+    - rozszerzono test happy path o bezpieczne mapowanie adresu, zdjecia,
+      status kopii i zapis `agentListingId`.
 
 ### Sprint AT-9 - Powiadomienia, analityka i jakosc
 

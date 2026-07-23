@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, In, Not, QueryFailedError, Repository } from 'typeorm';
 import { EmailService } from '../email';
 import {
   ListingAgentAssignmentStatus,
@@ -19,7 +19,8 @@ import {
   ListingStatus,
 } from '../common/enums';
 import { FeatureAccessDeniedException } from '../common/exceptions/feature-access-denied.exception';
-import { Listing } from '../listings/entities';
+import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
+import { Address, Listing, ListingImage } from '../listings/entities';
 import { UsersService } from '../users';
 import {
   CreateListingAgentProposalMessageDto,
@@ -75,6 +76,10 @@ export class ListingAgentProposalsService {
     private readonly proposalRepo: Repository<ListingAgentProposal>,
     @InjectRepository(Listing)
     private readonly listingRepo: Repository<Listing>,
+    @InjectRepository(Address)
+    private readonly addressRepo: Repository<Address>,
+    @InjectRepository(ListingImage)
+    private readonly listingImageRepo: Repository<ListingImage>,
     @InjectRepository(ListingAgentAssignment)
     private readonly assignmentRepo: Repository<ListingAgentAssignment>,
     @InjectRepository(ListingAgentProposalMessage)
@@ -183,6 +188,84 @@ export class ListingAgentProposalsService {
 
       throw error;
     }
+  }
+
+  async createListingCopyForAgentAssignment(
+    userId: string,
+    assignmentId: string,
+  ): Promise<ListingAgentAssignmentResponse> {
+    const access = await this.resolvePaidAgentAccess(userId);
+    await this.assertAgentListingCreateWithinPlanLimit(access);
+
+    const assignment = await this.assignmentRepo.findOne({
+      where: {
+        id: assignmentId,
+        agentId: access.agent.id,
+        status: ListingAgentAssignmentStatus.ACTIVE,
+      },
+      relations: [
+        'listing',
+        'listing.address',
+        'listing.images',
+        'proposal',
+        'proposal.agent',
+        'proposal.agent.agency',
+      ],
+    });
+
+    if (!assignment) {
+      throw new NotFoundException('Nie znaleziono aktywnej współpracy');
+    }
+
+    if (assignment.agentListingId) {
+      throw new ConflictException('Kopia oferty w CRM została już utworzona');
+    }
+
+    const sourceListing = assignment.listing;
+    if (!sourceListing) {
+      throw new NotFoundException('Oferta źródłowa jest niedostępna');
+    }
+
+    const savedAssignment = await this.dataSource.transaction(async (manager) => {
+      const listingRepo = manager.getRepository(Listing);
+      const addressRepo = manager.getRepository(Address);
+      const imageRepo = manager.getRepository(ListingImage);
+      const assignmentRepo = manager.getRepository(ListingAgentAssignment);
+
+      const listingCopy = listingRepo.create(
+        buildAgentListingCopy(sourceListing, assignment, access.agent.id),
+      );
+      const savedListing = await listingRepo.save(listingCopy);
+
+      if (sourceListing.address) {
+        const addressCopy = addressRepo.create(
+          buildAgentListingAddressCopy(sourceListing, savedListing),
+        );
+        await addressRepo.save(addressCopy);
+      }
+
+      if (Array.isArray(sourceListing.images) && sourceListing.images.length > 0) {
+        const imageCopies = sourceListing.images.map((image) =>
+          imageRepo.create({
+            url: image.url,
+            order: image.order,
+            isPrimary: image.isPrimary,
+            altText: image.altText,
+            listing: savedListing,
+          }),
+        );
+        await imageRepo.save(imageCopies);
+      }
+
+      assignment.agentListingId = savedListing.id;
+      const updatedAssignment = await assignmentRepo.save(assignment);
+      updatedAssignment.listing = sourceListing;
+      updatedAssignment.proposal = assignment.proposal;
+
+      return updatedAssignment;
+    });
+
+    return toAssignmentResponse(savedAssignment);
   }
 
   async findForAgent(
@@ -688,6 +771,31 @@ export class ListingAgentProposalsService {
     return access;
   }
 
+  private async assertAgentListingCreateWithinPlanLimit(
+    access: AgentAccessContext,
+  ): Promise<void> {
+    const currentUsage = await this.listingRepo.count({
+      where: {
+        agentId: In(access.agencyAgentIds),
+        status: Not(ListingStatus.ARCHIVED),
+      },
+    });
+    const attemptedUsage = currentUsage + 1;
+    const limit = access.entitlements.limits.activeListings;
+
+    if (limit !== null && attemptedUsage > limit) {
+      throw new PlanLimitReachedException({
+        resource: 'listings',
+        limit,
+        currentUsage,
+        attemptedUsage,
+        planCode: access.entitlements.plan.code,
+        message:
+          'Osiągnięto limit aktywnych ofert w Twoim planie. Przejdź na wyższy plan, aby utworzyć kopię oferty w CRM.',
+      });
+    }
+  }
+
   private async findOpenListingForProposalOrFail(
     listingId: string,
     agentId: string,
@@ -1134,6 +1242,84 @@ function toAssignmentListItemResponse(assignment: ListingAgentAssignment) {
     proposal: assignment.proposal
       ? toProposalResponse(assignment.proposal)
       : null,
+  };
+}
+
+function buildAgentListingCopy(
+  sourceListing: Listing,
+  assignment: ListingAgentAssignment,
+  agentId: string,
+): Partial<Listing> {
+  const proposedPrice = assignment.proposal?.proposedPrice;
+
+  return {
+    title: sourceListing.publicTitle || sourceListing.title,
+    description:
+      sourceListing.publicDescription ||
+      sourceListing.description ||
+      'Opis do uzupełnienia po przejęciu współpracy.',
+    propertyType: sourceListing.propertyType,
+    transactionType: sourceListing.transactionType,
+    price:
+      proposedPrice !== null && proposedPrice !== undefined
+        ? Number(proposedPrice)
+        : Number(sourceListing.price),
+    currency: sourceListing.currency,
+    commissionType: sourceListing.commissionType ?? null,
+    commissionValue: sourceListing.commissionValue ?? null,
+    areaM2: sourceListing.areaM2,
+    plotAreaM2: sourceListing.plotAreaM2,
+    rooms: sourceListing.rooms,
+    bathrooms: sourceListing.bathrooms,
+    floor: sourceListing.floor,
+    totalFloors: sourceListing.totalFloors,
+    yearBuilt: sourceListing.yearBuilt,
+    isPremium: false,
+    status: ListingStatus.DRAFT,
+    publicationStatus: ListingPublicationStatus.DRAFT,
+    publicSlug: null,
+    publicTitle: sourceListing.publicTitle || sourceListing.title,
+    publicDescription:
+      sourceListing.publicDescription || sourceListing.description || null,
+    seoTitle: null,
+    seoDescription: null,
+    shareImageUrl: sourceListing.shareImageUrl ?? null,
+    showPriceOnPublicPage: sourceListing.showPriceOnPublicPage,
+    showExactAddressOnPublicPage: false,
+    estateflowBrandingEnabled: true,
+    showPublicViewCount: false,
+    agentCollaborationEnabled: false,
+    agentCollaborationMode: null,
+    agentCollaborationStatus: null,
+    agentCollaborationPreferences: null,
+    agentCollaborationOpenedAt: null,
+    agentCollaborationClosedAt: null,
+    publishedAt: null,
+    unpublishedAt: null,
+    expiresAt: null,
+    agentId,
+    ownerUserId: null,
+    sourceListingId: sourceListing.id,
+    agentAssignmentId: assignment.id,
+  };
+}
+
+function buildAgentListingAddressCopy(
+  sourceListing: Listing,
+  listingCopy: Listing,
+): Partial<Address> {
+  const sourceAddress = sourceListing.address;
+  const canCopyExactAddress = sourceListing.showExactAddressOnPublicPage;
+
+  return {
+    street: canCopyExactAddress ? sourceAddress?.street : undefined,
+    city: sourceAddress?.city || 'Nieznane',
+    postalCode: canCopyExactAddress ? sourceAddress?.postalCode : undefined,
+    district: sourceAddress?.district,
+    voivodeship: sourceAddress?.voivodeship,
+    lat: canCopyExactAddress ? sourceAddress?.lat : undefined,
+    lng: canCopyExactAddress ? sourceAddress?.lng : undefined,
+    listing: listingCopy,
   };
 }
 

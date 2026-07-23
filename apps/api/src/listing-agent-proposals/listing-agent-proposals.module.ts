@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EmailModule } from '../email';
-import { Listing } from '../listings/entities';
+import { Address, Listing, ListingImage } from '../listings/entities';
 import { UsersModule } from '../users';
 import { ListingAgentProposalsController } from './listing-agent-proposals.controller';
 import {
@@ -18,6 +18,8 @@ import { ListingAgentProposalsService } from './listing-agent-proposals.service'
       ListingAgentAssignment,
       ListingAgentProposalMessage,
       Listing,
+      Address,
+      ListingImage,
     ]),
     UsersModule,
     EmailModule,

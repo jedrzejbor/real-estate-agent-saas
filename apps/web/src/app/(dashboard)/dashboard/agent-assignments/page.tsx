@@ -14,8 +14,10 @@ import { DashboardPageHeader } from '@/components/dashboard/page-header';
 import { AgentListingMarketplaceAccessState } from '@/components/dashboard/agent-listing-marketplace-access-state';
 import { useAuth } from '@/contexts/auth-context';
 import { getApiErrorMessage, isFeatureAccessDeniedApiError } from '@/lib/api-client';
+import { useToast } from '@/contexts/toast-context';
 import { isAgentUser } from '@/lib/auth';
 import {
+  createAgentAssignmentListingCopy,
   fetchAgentListingAssignments,
   type ListingAgentAssignmentListItem,
   type ListingAgentAssignmentStatus,
@@ -64,7 +66,11 @@ export default function AgentAssignmentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPlanBlocked, setIsPlanBlocked] = useState(false);
+  const [copyingAssignmentId, setCopyingAssignmentId] = useState<string | null>(
+    null,
+  );
   const { user, isLoading: isAuthLoading } = useAuth();
+  const { error: showErrorToast, success: showSuccessToast } = useToast();
   const isAgent = user ? isAgentUser(user) : false;
 
   useEffect(() => {
@@ -108,6 +114,37 @@ export default function AgentAssignmentsPage() {
       cancelled = true;
     };
   }, [isAgent, isAuthLoading, status, user]);
+
+  async function createListingCopy(assignment: ListingAgentAssignmentListItem) {
+    setCopyingAssignmentId(assignment.id);
+
+    try {
+      const updatedAssignment = await createAgentAssignmentListingCopy(
+        assignment.id,
+      );
+      setAssignments((current) =>
+        current.map((item) =>
+          item.id === updatedAssignment.id
+            ? {
+                ...item,
+                ...updatedAssignment,
+              }
+            : item,
+        ),
+      );
+      showSuccessToast({
+        title: 'Kopia oferty została utworzona',
+        description: 'Możesz teraz edytować ją w swoim CRM.',
+      });
+    } catch (copyError) {
+      showErrorToast({
+        title: 'Nie udało się utworzyć kopii',
+        description: getApiErrorMessage(copyError),
+      });
+    } finally {
+      setCopyingAssignmentId(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -155,7 +192,12 @@ export default function AgentAssignmentsPage() {
       ) : (
         <div className="space-y-4">
           {assignments.map((assignment) => (
-            <AssignmentCard key={assignment.id} assignment={assignment} />
+            <AssignmentCard
+              key={assignment.id}
+              assignment={assignment}
+              isCreatingCopy={copyingAssignmentId === assignment.id}
+              onCreateCopy={createListingCopy}
+            />
           ))}
         </div>
       )}
@@ -173,8 +215,12 @@ function LoadingState() {
 
 function AssignmentCard({
   assignment,
+  isCreatingCopy,
+  onCreateCopy,
 }: {
   assignment: ListingAgentAssignmentListItem;
+  isCreatingCopy: boolean;
+  onCreateCopy: (assignment: ListingAgentAssignmentListItem) => void;
 }) {
   const status = STATUS_COPY[assignment.status];
   const listing = assignment.listing;
@@ -263,9 +309,13 @@ function AssignmentCard({
         ) : (
           <button
             type="button"
-            disabled
-            className="inline-flex h-10 cursor-not-allowed items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground opacity-60"
+            disabled={isCreatingCopy}
+            onClick={() => onCreateCopy(assignment)}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
+            {isCreatingCopy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : null}
             Utwórz kopię w CRM
           </button>
         )}

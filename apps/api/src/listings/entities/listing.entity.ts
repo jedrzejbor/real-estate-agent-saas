@@ -224,6 +224,14 @@ export class Listing {
   @Column({ type: 'uuid', name: 'owner_user_id', nullable: true })
   ownerUserId?: string | null;
 
+  @Index()
+  @Column({ type: 'uuid', name: 'source_listing_id', nullable: true })
+  sourceListingId?: string | null;
+
+  @Index({ unique: true })
+  @Column({ type: 'uuid', name: 'agent_assignment_id', nullable: true })
+  agentAssignmentId?: string | null;
+
   @OneToMany(() => ListingImage, (img) => img.listing, {
     cascade: true,
     eager: false,

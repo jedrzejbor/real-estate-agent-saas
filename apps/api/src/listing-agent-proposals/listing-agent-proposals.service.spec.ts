@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
 import { FeatureAccessDeniedException } from '../common/exceptions/feature-access-denied.exception';
+import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import {
   AgencyPlan,
   ListingAgentAssignmentStatus,
@@ -18,7 +19,7 @@ import {
   SubscriptionStatus,
   TransactionType,
 } from '../common/enums';
-import { Listing } from '../listings/entities';
+import { Address, Listing, ListingImage } from '../listings/entities';
 import {
   ListingAgentAssignment,
   ListingAgentProposal,
@@ -111,6 +112,15 @@ function buildListing(overrides: Partial<Listing> = {}): Listing {
       city: 'Warszawa',
       district: 'Mokotow',
     },
+    images: [
+      {
+        id: 'image-1',
+        url: 'https://cdn.example.test/image.jpg',
+        order: 0,
+        isPrimary: true,
+        altText: 'Salon',
+      },
+    ],
     ...overrides,
   } as Listing;
 }
@@ -251,6 +261,8 @@ function buildService({
   ownedProposal = buildProposal(),
   queryProposals = [buildProposal()],
   queryAssignments = [buildAssignment()],
+  ownedAssignment = buildAssignment(),
+  activeListingCount = 0,
   messages = [buildMessage()],
   unreadCount = 0,
 }: {
@@ -260,6 +272,8 @@ function buildService({
   ownedProposal?: ListingAgentProposal | null;
   queryProposals?: ListingAgentProposal[];
   queryAssignments?: ListingAgentAssignment[];
+  ownedAssignment?: ListingAgentAssignment | null;
+  activeListingCount?: number;
   messages?: ListingAgentProposalMessage[];
   unreadCount?: number;
 } = {}) {
@@ -285,9 +299,25 @@ function buildService({
   const listingRepo = {
     createQueryBuilder: jest.fn().mockReturnValue(listingQb),
     findOne: jest.fn().mockResolvedValue(listing),
+    count: jest.fn().mockResolvedValue(activeListingCount),
+    create: jest.fn((input) => input),
+    save: jest.fn(async (entity) => ({
+      ...entity,
+      id: entity.id ?? 'agent-listing-1',
+      createdAt: entity.createdAt ?? new Date('2026-07-07T00:00:00.000Z'),
+      updatedAt: entity.updatedAt ?? new Date('2026-07-07T00:00:00.000Z'),
+    })),
+  };
+  const addressRepo = {
+    create: jest.fn((input) => input),
+    save: jest.fn(async (entity) => entity),
+  };
+  const listingImageRepo = {
+    create: jest.fn((input) => input),
     save: jest.fn(async (entity) => entity),
   };
   const assignmentRepo = {
+    findOne: jest.fn().mockResolvedValue(ownedAssignment),
     createQueryBuilder: jest.fn().mockReturnValue(assignmentQb),
     create: jest.fn((input) => input),
     save: jest.fn(async (assignment) => ({
@@ -313,6 +343,8 @@ function buildService({
       callback({
         getRepository: (entity: unknown) => {
           if (entity === ListingAgentProposal) return proposalRepo;
+          if (entity === Address) return addressRepo;
+          if (entity === ListingImage) return listingImageRepo;
           if (
             typeof entity === 'function' &&
             entity.name === 'Listing'
@@ -336,6 +368,8 @@ function buildService({
   const service = new ListingAgentProposalsService(
     proposalRepo as never,
     listingRepo as never,
+    addressRepo as never,
+    listingImageRepo as never,
     assignmentRepo as never,
     messageRepo as never,
     dataSource as never,
@@ -348,6 +382,8 @@ function buildService({
     service,
     proposalRepo,
     listingRepo,
+    addressRepo,
+    listingImageRepo,
     assignmentRepo,
     assignmentQb,
     messageRepo,
@@ -560,6 +596,100 @@ describe('ListingAgentProposalsService', () => {
         status: ListingAgentProposalStatus.ACCEPTED,
       },
     });
+  });
+
+  it('creates CRM listing copy for an accepted agent assignment', async () => {
+    const assignment = buildAssignment({
+      listing: buildListing({
+        showExactAddressOnPublicPage: false,
+        address: {
+          street: 'Tajna 10',
+          city: 'Warszawa',
+          district: 'Mokotow',
+          postalCode: '00-001',
+          lat: 52.1,
+          lng: 21.1,
+        } as never,
+      }),
+      proposal: buildProposal({
+        status: ListingAgentProposalStatus.ACCEPTED,
+        proposedPrice: 520000,
+      }),
+    });
+    const { service, listingRepo, addressRepo, listingImageRepo, assignmentRepo } =
+      buildService({
+        ownedAssignment: assignment,
+      });
+
+    const result = await service.createListingCopyForAgentAssignment(
+      USER_ID,
+      assignment.id,
+    );
+
+    expect(listingRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentId: AGENT_ID,
+        ownerUserId: null,
+        sourceListingId: LISTING_ID,
+        agentAssignmentId: assignment.id,
+        status: ListingStatus.DRAFT,
+        publicationStatus: ListingPublicationStatus.DRAFT,
+        price: 520000,
+        agentCollaborationEnabled: false,
+      }),
+    );
+    expect(addressRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        street: undefined,
+        postalCode: undefined,
+        lat: undefined,
+        lng: undefined,
+      }),
+    );
+    expect(listingImageRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: 'https://cdn.example.test/image.jpg',
+        isPrimary: true,
+      }),
+    );
+    expect(assignmentRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentListingId: 'agent-listing-1',
+      }),
+    );
+    expect(result.agentListingId).toBe('agent-listing-1');
+  });
+
+  it('blocks creating CRM listing copy twice for the same assignment', async () => {
+    const { service } = buildService({
+      ownedAssignment: buildAssignment({
+        agentListingId: 'existing-listing-id',
+      }),
+    });
+
+    await expect(
+      service.createListingCopyForAgentAssignment(USER_ID, 'assignment-1'),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('blocks creating CRM listing copy without an active accepted assignment', async () => {
+    const { service } = buildService({
+      ownedAssignment: null,
+    });
+
+    await expect(
+      service.createListingCopyForAgentAssignment(USER_ID, 'assignment-1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('blocks creating CRM listing copy when active listing limit is reached', async () => {
+    const { service } = buildService({
+      activeListingCount: 25,
+    });
+
+    await expect(
+      service.createListingCopyForAgentAssignment(USER_ID, 'assignment-1'),
+    ).rejects.toBeInstanceOf(PlanLimitReachedException);
   });
 
   it('updates editable agent proposal and marks it as updated', async () => {
