@@ -22,6 +22,13 @@ export type ListingAgentProposalExclusivity =
   | 'open'
   | 'flexible';
 
+export type ListingAgentCollaborationMode = 'single_agent' | 'multi_agent';
+export type ListingAgentCollaborationStatus =
+  | 'open'
+  | 'paused'
+  | 'closed'
+  | 'assigned';
+
 export interface ListingAgentProposalListingSummary {
   id: string;
   slug: string;
@@ -56,6 +63,15 @@ export interface ListingAgentAssignment {
   createdAt: string;
   revokedAt: string | null;
   completedAt: string | null;
+}
+
+export interface ListingAgentRecruitment {
+  listingId: string;
+  agentCollaborationEnabled: boolean;
+  agentCollaborationMode: ListingAgentCollaborationMode | null;
+  agentCollaborationStatus: ListingAgentCollaborationStatus | null;
+  agentCollaborationOpenedAt: string | null;
+  agentCollaborationClosedAt: string | null;
 }
 
 export interface ListingAgentProposal {
@@ -191,5 +207,23 @@ export async function createListingAgentProposalMessage(
       method: 'POST',
       body: { body },
     },
+  );
+}
+
+export async function closeSellerListingAgentRecruitment(
+  listingId: string,
+): Promise<ListingAgentRecruitment> {
+  return apiFetch<ListingAgentRecruitment>(
+    `/listing-agent-proposals/seller/listings/${listingId}/close-recruitment`,
+    { method: 'POST' },
+  );
+}
+
+export async function reopenSellerListingAgentRecruitment(
+  listingId: string,
+): Promise<ListingAgentRecruitment> {
+  return apiFetch<ListingAgentRecruitment>(
+    `/listing-agent-proposals/seller/listings/${listingId}/reopen-recruitment`,
+    { method: 'POST' },
   );
 }

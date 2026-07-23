@@ -19,6 +19,7 @@ import {
   CreditCard,
   BookOpenCheck,
   Heart,
+  Search,
   X,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -77,6 +78,11 @@ const navGroups: DashboardNavGroup[] = [
     label: 'CRM',
     items: [
       { label: 'Oferty', href: '/dashboard/listings', icon: Building2 },
+      {
+        label: 'Oferty szukające agenta',
+        href: '/dashboard/agent-market',
+        icon: Search,
+      },
       { label: 'Klienci', href: '/dashboard/clients', icon: Users },
       { label: 'Transakcje', href: '/dashboard/transactions', icon: Handshake },
     ],

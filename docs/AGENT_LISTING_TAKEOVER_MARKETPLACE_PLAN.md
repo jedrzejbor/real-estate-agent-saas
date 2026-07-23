@@ -1214,8 +1214,12 @@ Pozwolic wlascicielowi wlaczyc wspolprace i zarzadzac propozycjami.
     - karta aktywnej propozycji (`sent`, `updated`) pozwala zaakceptowac albo
       odrzucic propozycje,
     - po decyzji stan listy jest aktualizowany bez pelnego reloadu.
-  - Uwagi / follow-up: reczne zamykanie/ponowne otwieranie naboru ma backend w
-    AT-4, ale dedykowane przyciski w UI zostaja do widoku szczegolow/listingu.
+  - Uzupelnienie z kolejnej iteracji:
+    - dodano akcje `closeSellerListingAgentRecruitment`,
+    - dodano akcje `reopenSellerListingAgentRecruitment`,
+    - widok szczegolow ogloszenia `/seller/listings/:id` pokazuje status naboru
+      agentow i pozwala wlascicielowi recznie zamknac albo ponownie otworzyc
+      nabor, jesli oferta jest opublikowana i nie ma statusu `assigned`.
 - [x] `AT6.6` Dodac UI czatu dla wlasciciela.
   - Data zakonczenia: 2026-07-23
   - Wykonano:
@@ -1238,9 +1242,9 @@ Pozwolic wlascicielowi wlaczyc wspolprace i zarzadzac propozycjami.
 
 - `pnpm --filter web type-check` - przechodzi.
 
-#### Poza zakresem aktualnej iteracji AT-6
+#### Poza zakresem AT-6
 
-- Dedykowane akcje zamkniecia/ponownego otwarcia naboru w UI.
+- Rozbudowane filtry i osobna pelna lista wszystkich propozycji wlasciciela.
 
 ### Sprint AT-7 - Frontend: agent
 
@@ -1249,14 +1253,50 @@ Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
 
 #### Zadania
 
-- [ ] `AT7.1` Dodac klienta API i typy w `apps/web/src/lib`.
-- [ ] `AT7.2` Dodac zakladke `Oferty szukajace agenta` w dashboardzie agenta.
-- [ ] `AT7.3` Dodac filtry i liste ofert rynku.
+- [x] `AT7.1` Dodac klienta API i typy w `apps/web/src/lib`.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - dodano `apps/web/src/lib/agent-listing-market.ts`,
+    - dodano typy `AgentListingMarketItem`, `AgentListingMarketFilters`,
+      `PaginatedAgentListingMarket`,
+    - dodano `fetchAgentListingMarket`,
+    - dodano webowy helper `isFeatureAccessDeniedApiError` dla blokady funkcji
+      przez plan.
+
+- [x] `AT7.2` Dodac zakladke `Oferty szukajace agenta` w dashboardzie agenta.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - dodano pozycje `Oferty szukajace agenta` w sidebarze dashboardu,
+    - dodano trase `/dashboard/agent-market`.
+
+- [x] `AT7.3` Dodac filtry i liste ofert rynku.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - strona `/dashboard/agent-market` pobiera rynek ofert przez
+      `GET /api/agent-listing-market`,
+    - dodano filtry: search, typ nieruchomosci, typ transakcji, miasto,
+    - lista pokazuje zdjecie, tytul, lokalizacje, cene, typ oferty i informacje
+      czy agent juz wyslal propozycje,
+    - dodano empty state, loading state oraz error state dla blokady planu z CTA
+      do upgrade.
 - [ ] `AT7.4` Dodac formularz propozycji wspolpracy.
 - [ ] `AT7.5` Dodac zakladke `Wyslane propozycje`.
 - [ ] `AT7.6` Dodac edycje i wycofanie propozycji.
 - [ ] `AT7.7` Dodac UI czatu dla agenta.
 - [ ] `AT7.8` Dodac stany braku uprawnien i CTA do logowania/rejestracji.
+  - Status czesciowy: strona rynku ma stan braku uprawnien dla planu bez
+    `agentListingMarket`; pozostale stany beda domykane przy formularzu i
+    widokach wyslanych propozycji.
+
+#### Weryfikacja
+
+- `pnpm --filter web type-check` - przechodzi.
+
+#### Poza zakresem pierwszej iteracji AT-7
+
+- Formularz skladania propozycji z poziomu rynku ofert.
+- Lista wyslanych propozycji agenta.
+- Edycja, wycofanie i czat po stronie agenta.
 
 ### Sprint AT-8 - Akceptacja i kopia oferty w CRM agenta
 

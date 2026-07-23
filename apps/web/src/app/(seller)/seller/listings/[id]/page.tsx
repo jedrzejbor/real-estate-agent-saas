@@ -9,6 +9,7 @@ import {
   Edit3,
   Eye,
   EyeOff,
+  Handshake,
   Home,
   Loader2,
   MapPin,
@@ -35,6 +36,11 @@ import {
   type SellerPublicListingSubmissionDetail,
   unpublishSellerPublicListingSubmission,
 } from '@/lib/public-listing-submissions';
+import {
+  closeSellerListingAgentRecruitment,
+  reopenSellerListingAgentRecruitment,
+  type ListingAgentRecruitment,
+} from '@/lib/listing-agent-proposals';
 import { Logo } from '@/components/common/logo';
 
 export default function SellerListingDetailPage() {
@@ -138,6 +144,67 @@ export default function SellerListingDetailPage() {
     } finally {
       setIsUpdating(false);
     }
+  }
+
+  async function closeAgentRecruitment() {
+    if (!submission?.publishedListingId) return;
+
+    setIsUpdating(true);
+
+    try {
+      const updated = await closeSellerListingAgentRecruitment(
+        submission.publishedListingId,
+      );
+      applyRecruitmentUpdate(updated);
+      showSuccessToast({
+        title: 'Nabór agentów zamknięty',
+        description: 'Nowi agenci nie będą mogli wysyłać propozycji.',
+      });
+    } catch (error) {
+      showErrorToast({
+        title: 'Nie udało się zamknąć naboru',
+        description: getApiErrorMessage(error),
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
+  async function reopenAgentRecruitment() {
+    if (!submission?.publishedListingId) return;
+
+    setIsUpdating(true);
+
+    try {
+      const updated = await reopenSellerListingAgentRecruitment(
+        submission.publishedListingId,
+      );
+      applyRecruitmentUpdate(updated);
+      showSuccessToast({
+        title: 'Nabór agentów otwarty',
+        description: 'Agenci znów mogą wysyłać propozycje współpracy.',
+      });
+    } catch (error) {
+      showErrorToast({
+        title: 'Nie udało się otworzyć naboru',
+        description: getApiErrorMessage(error),
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
+  function applyRecruitmentUpdate(update: ListingAgentRecruitment) {
+    setSubmission((current) =>
+      current
+        ? {
+            ...current,
+            agentCollaborationEnabled: update.agentCollaborationEnabled,
+            agentCollaborationMode: update.agentCollaborationMode,
+            agentCollaborationStatus: update.agentCollaborationStatus,
+          }
+        : current,
+    );
   }
 
   if (isLoading || isFetching || !user || !isPrivateSeller || !submission) {
@@ -264,6 +331,58 @@ export default function SellerListingDetailPage() {
           </section>
 
           <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Handshake className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-heading text-lg font-semibold">
+                  Współpraca z agentami
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  {getAgentRecruitmentDescription(submission)}
+                </p>
+              </div>
+            </div>
+            {submission.publishedListingId &&
+            submission.agentCollaborationEnabled &&
+            submission.agentCollaborationStatus !== 'assigned' ? (
+              <div className="mt-4 grid gap-2">
+                {submission.agentCollaborationStatus === 'open' ? (
+                  <button
+                    type="button"
+                    disabled={isUpdating}
+                    onClick={closeAgentRecruitment}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {isUpdating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <EyeOff className="h-4 w-4" />
+                    )}
+                    Zamknij nabór
+                  </button>
+                ) : null}
+                {submission.agentCollaborationStatus === 'closed' ? (
+                  <button
+                    type="button"
+                    disabled={isUpdating}
+                    onClick={reopenAgentRecruitment}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {isUpdating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    Otwórz nabór
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <h2 className="font-heading text-lg font-semibold">Akcje</h2>
             <div className="mt-4 grid gap-2">
               <Link
@@ -356,6 +475,27 @@ function getStatusDescription(
   }
 
   return 'Ogłoszenie jest w przygotowaniu.';
+}
+
+function getAgentRecruitmentDescription(
+  submission: SellerPublicListingSubmissionDetail,
+): string {
+  if (!submission.agentCollaborationEnabled) {
+    return 'Nabór agentów nie jest włączony dla tej oferty.';
+  }
+
+  switch (submission.agentCollaborationStatus) {
+    case 'open':
+      return 'Nabór jest otwarty. Agenci mogą wysyłać propozycje współpracy.';
+    case 'closed':
+      return 'Nabór jest zamknięty. Istniejące propozycje pozostają dostępne.';
+    case 'assigned':
+      return 'Oferta ma już zaakceptowanego agenta.';
+    case 'paused':
+      return 'Nabór jest tymczasowo wstrzymany.';
+    default:
+      return 'Status naboru agentów nie jest jeszcze ustawiony.';
+  }
 }
 
 function formatDate(value: string): string {

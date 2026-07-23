@@ -54,6 +54,24 @@ export function isPlanLimitApiError(
   );
 }
 
+export interface FeatureAccessDeniedErrorBody extends Record<string, unknown> {
+  code: 'FEATURE_NOT_AVAILABLE';
+  feature: string;
+  planCode: string;
+  upgradeRequired: boolean;
+  message: string;
+}
+
+export function isFeatureAccessDeniedApiError(
+  error: unknown,
+): error is ApiError & { body: FeatureAccessDeniedErrorBody } {
+  return (
+    error instanceof ApiError &&
+    error.body.code === 'FEATURE_NOT_AVAILABLE' &&
+    typeof error.body.feature === 'string'
+  );
+}
+
 export function getApiErrorMessage(error: unknown): string {
   if (isPlanLimitApiError(error)) {
     return `${error.body.message} (${error.body.currentUsage}/${error.body.limit})`;
