@@ -39,6 +39,13 @@ import {
 import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { Logo } from '@/components/common/logo';
 import { BulkSelectionToolbar } from '@/components/common/bulk-selection-toolbar';
+import {
+  AgentCollaborationFields,
+  INITIAL_AGENT_COLLABORATION_FORM_VALUE,
+  buildAgentCollaborationPayload,
+  normalizeAgentCollaborationFormValue,
+  type AgentCollaborationFormValue,
+} from '@/components/listings/agent-collaboration-fields';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useBulkSelection } from '@/hooks/use-bulk-selection';
@@ -70,6 +77,7 @@ interface SellerListingEditDraft {
   email: string;
   phone: string;
   agencyName: string;
+  agentCollaboration: AgentCollaborationFormValue;
 }
 
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -674,6 +682,11 @@ export default function SellerListingEditPage() {
               </div>
             ) : null}
           </section>
+
+          <AgentCollaborationFields
+            value={draft.agentCollaboration}
+            onChange={(value) => updateDraft('agentCollaboration', value)}
+          />
         </div>
       </section>
     </main>
@@ -725,6 +738,12 @@ function toDraft(
     email: submission.email,
     phone: submission.phone,
     agencyName: submission.agencyName ?? '',
+    agentCollaboration: normalizeAgentCollaborationFormValue(
+      submission.agentCollaboration ?? {
+        enabled: submission.agentCollaborationEnabled,
+        mode: submission.agentCollaborationMode,
+      },
+    ),
   };
 }
 
@@ -765,6 +784,9 @@ function buildUpdatePayload(draft: SellerListingEditDraft) {
       order: index,
       isPrimary: image.isPrimary || index === 0,
     })),
+    agentCollaboration: buildAgentCollaborationPayload(
+      draft.agentCollaboration ?? INITIAL_AGENT_COLLABORATION_FORM_VALUE,
+    ),
     ownerName: draft.ownerName.trim(),
     email: draft.email.trim(),
     phone: draft.phone.trim(),

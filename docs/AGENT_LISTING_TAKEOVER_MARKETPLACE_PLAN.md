@@ -1156,13 +1156,49 @@ Pozwolic wlascicielowi wlaczyc wspolprace i zarzadzac propozycjami.
 
 #### Zadania
 
-- [ ] `AT6.1` Dodac checkbox i preferencje wspolpracy w `/dodaj-oferte`.
-- [ ] `AT6.2` Dodac te same ustawienia w edycji oferty wlasciciela w `/seller`.
+- [x] `AT6.1` Dodac checkbox i preferencje wspolpracy w `/dodaj-oferte`.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - dodano wspolny komponent `AgentCollaborationFields`,
+    - publiczny wizard zapisuje ustawienia w draft/localStorage,
+    - krok `Kontakt` zawiera decyzje o wlaczeniu wspolpracy z agentami,
+    - podsumowanie pokazuje status i podstawowe preferencje wspolpracy,
+    - payload tworzenia zawiera `agentCollaboration`.
+  - Zakres preferencji:
+    - wlaczenie/wylaczenie naboru agentow,
+    - tryb `single_agent` albo `multi_agent`,
+    - dopuszczenie rozmowy o wylacznosci,
+    - preferowany typ i wartosc prowizji,
+    - oczekiwane uslugi,
+    - dodatkowe oczekiwania,
+    - preferowany kanal kontaktu przed akceptacja.
+
+- [x] `AT6.2` Dodac te same ustawienia w edycji oferty wlasciciela w `/seller`.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - edycja `/seller/listings/:id/edit` uzywa tego samego komponentu
+      `AgentCollaborationFields`,
+    - dane z backendu sa normalizowane przez
+      `normalizeAgentCollaborationFormValue`,
+    - zapis edycji wysyla `agentCollaboration` w payloadzie
+      `updateSellerPublicListingSubmission`.
+  - Uwagi / follow-up: reczne zamykanie/ponowne otwieranie naboru ma juz backend
+    z AT-4, ale dedykowane przyciski w UI zostaja przy widoku propozycji
+    wlasciciela.
 - [ ] `AT6.3` Dodac liste propozycji w panelu wlasciciela.
 - [ ] `AT6.4` Dodac szczegoly propozycji i porownywalne warunki.
 - [ ] `AT6.5` Dodac akcje akceptacji, odrzucenia i zamkniecia naboru.
 - [ ] `AT6.6` Dodac UI czatu dla wlasciciela.
 - [ ] `AT6.7` Dodac empty/loading/error states.
+
+#### Weryfikacja
+
+- `pnpm --filter web type-check` - przechodzi.
+
+#### Poza zakresem pierwszej iteracji AT-6
+
+- Lista propozycji wlasciciela, szczegoly, decyzje, czat oraz empty/loading/error
+  states zostaja w kolejnej iteracji AT-6.
 
 ### Sprint AT-7 - Frontend: agent
 

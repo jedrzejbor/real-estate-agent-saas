@@ -22,6 +22,12 @@ import { BulkSelectionToolbar } from '@/components/common/bulk-selection-toolbar
 import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { DistrictAutocomplete } from '@/components/locations/district-autocomplete';
 import { Input } from '@/components/ui/input';
+import {
+  AgentCollaborationFields,
+  INITIAL_AGENT_COLLABORATION_FORM_VALUE,
+  buildAgentCollaborationPayload,
+  type AgentCollaborationFormValue,
+} from '@/components/listings/agent-collaboration-fields';
 import { PublicListingSubmissionProcess } from '@/components/listings/public-listing-submission-process';
 import { useToast } from '@/contexts/toast-context';
 import { useAuth } from '@/contexts/auth-context';
@@ -89,6 +95,7 @@ interface PublicListingWizardDraft {
   termsConsent: boolean;
   marketingConsent: boolean;
   website: string;
+  agentCollaboration: AgentCollaborationFormValue;
 }
 
 const STORAGE_KEY = STORAGE_KEYS.publicListingWizard;
@@ -129,6 +136,7 @@ const INITIAL_DRAFT: PublicListingWizardDraft = {
   termsConsent: false,
   marketingConsent: false,
   website: '',
+  agentCollaboration: INITIAL_AGENT_COLLABORATION_FORM_VALUE,
 };
 
 const STEPS = [
@@ -885,6 +893,7 @@ function StepContact({
   | 'termsConsent'
   | 'marketingConsent'
   | 'website'
+  | 'agentCollaboration'
 >) {
   return (
     <div className="space-y-6">
@@ -929,6 +938,10 @@ function StepContact({
           onChange={(event) => updateDraft('website', event.target.value)}
         />
       </div>
+      <AgentCollaborationFields
+        value={draft.agentCollaboration}
+        onChange={(value) => updateDraft('agentCollaboration', value)}
+      />
       <div className="space-y-3">
         <CheckboxField
           checked={draft.contactConsent}
@@ -1038,6 +1051,10 @@ function StepSummary({ draft }: { draft: PublicListingWizardDraft }) {
             ['Telefon', draft.phone],
             ['Zdjęcia', String(draft.images.length)],
           ]}
+        />
+        <SummaryCard
+          title="Współpraca z agentami"
+          rows={getAgentCollaborationSummaryRows(draft.agentCollaboration)}
         />
       </div>
     </div>
@@ -1519,6 +1536,7 @@ function buildSubmissionPayload(
       order: index,
       isPrimary: image.isPrimary || index === 0,
     })),
+    agentCollaboration: buildAgentCollaborationPayload(draft.agentCollaboration),
     ownerName: draft.ownerName.trim(),
     email: draft.email.trim(),
     phone: draft.phone.trim(),
@@ -1554,6 +1572,34 @@ function buildSubmissionPayload(
         : undefined,
     },
   };
+}
+
+function getAgentCollaborationSummaryRows(
+  value: AgentCollaborationFormValue,
+): Array<[string, string]> {
+  if (!value.enabled) {
+    return [['Status', 'Nie szukam agenta']];
+  }
+
+  return [
+    ['Status', 'Szukam agenta'],
+    [
+      'Model',
+      value.mode === 'multi_agent'
+        ? 'dopuszczam kilku agentów'
+        : 'jeden wybrany agent',
+    ],
+    [
+      'Kontakt',
+      value.preferredContactChannel === 'phone_after_acceptance'
+        ? 'telefon po akceptacji'
+        : 'czat na platformie',
+    ],
+    [
+      'Wyłączność',
+      value.allowsExclusiveAgreement ? 'do rozmowy' : 'brak preferencji',
+    ],
+  ];
 }
 
 function normalizeSubmissionImages(
