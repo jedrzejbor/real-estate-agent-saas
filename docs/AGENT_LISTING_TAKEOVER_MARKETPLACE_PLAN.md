@@ -1185,20 +1185,50 @@ Pozwolic wlascicielowi wlaczyc wspolprace i zarzadzac propozycjami.
   - Uwagi / follow-up: reczne zamykanie/ponowne otwieranie naboru ma juz backend
     z AT-4, ale dedykowane przyciski w UI zostaja przy widoku propozycji
     wlasciciela.
-- [ ] `AT6.3` Dodac liste propozycji w panelu wlasciciela.
-- [ ] `AT6.4` Dodac szczegoly propozycji i porownywalne warunki.
-- [ ] `AT6.5` Dodac akcje akceptacji, odrzucenia i zamkniecia naboru.
+- [x] `AT6.3` Dodac liste propozycji w panelu wlasciciela.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - dodano klienta API `apps/web/src/lib/listing-agent-proposals.ts`,
+    - panel `/seller` pobiera ostatnie propozycje przez
+      `GET /api/listing-agent-proposals/seller`,
+    - dodano sekcje `Propozycje agentow` z empty/error state.
+
+- [x] `AT6.4` Dodac szczegoly propozycji i porownywalne warunki.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano w zakresie listy panelowej:
+    - karta propozycji pokazuje agenta, agencje, powiazane ogloszenie,
+      status, date, wiadomosc, prowizje, typ umowy, minimalny czas wspolpracy,
+      proponowana cene oraz uslugi,
+    - warunki sa formatowane przez lokalne helpery UI.
+  - Uwagi / follow-up: osobny widok szczegolow propozycji z pelnym planem
+    marketingowym i czatem zostaje w kolejnej iteracji AT-6.
+
+- [x] `AT6.5` Dodac akcje akceptacji, odrzucenia i zamkniecia naboru.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - dodano akcje `acceptSellerListingAgentProposal`,
+    - dodano akcje `rejectSellerListingAgentProposal`,
+    - karta aktywnej propozycji (`sent`, `updated`) pozwala zaakceptowac albo
+      odrzucic propozycje,
+    - po decyzji stan listy jest aktualizowany bez pelnego reloadu.
+  - Uwagi / follow-up: reczne zamykanie/ponowne otwieranie naboru ma backend w
+    AT-4, ale dedykowane przyciski w UI zostaja do widoku szczegolow/listingu.
 - [ ] `AT6.6` Dodac UI czatu dla wlasciciela.
 - [ ] `AT6.7` Dodac empty/loading/error states.
+  - Status czesciowy: sekcja propozycji ma empty/error state i korzysta ze
+    wspolnego loadingu dashboardu. Pelne stany szczegolow i czatu zostaja do
+    kolejnej iteracji.
 
 #### Weryfikacja
 
 - `pnpm --filter web type-check` - przechodzi.
 
-#### Poza zakresem pierwszej iteracji AT-6
+#### Poza zakresem aktualnej iteracji AT-6
 
-- Lista propozycji wlasciciela, szczegoly, decyzje, czat oraz empty/loading/error
-  states zostaja w kolejnej iteracji AT-6.
+- Pelny widok szczegolow propozycji wlasciciela.
+- UI czatu wlasciciela.
+- Dedykowane akcje zamkniecia/ponownego otwarcia naboru w UI.
+- Pelne empty/loading/error states dla szczegolow i czatu.
 
 ### Sprint AT-7 - Frontend: agent
 

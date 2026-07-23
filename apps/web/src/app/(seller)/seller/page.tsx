@@ -23,6 +23,8 @@ import {
   PlusCircle,
   RefreshCw,
   EyeOff,
+  Handshake,
+  XCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
@@ -51,6 +53,13 @@ import {
   type PublicInquiry,
   type PublicLeadStatus as PublicLeadStatusValue,
 } from '@/lib/public-inquiries';
+import {
+  acceptSellerListingAgentProposal,
+  fetchSellerListingAgentProposals,
+  rejectSellerListingAgentProposal,
+  type ListingAgentProposal,
+  type ListingAgentProposalStatus,
+} from '@/lib/listing-agent-proposals';
 import { Logo } from '@/components/common/logo';
 
 export default function SellerDashboardPage() {
@@ -61,6 +70,9 @@ export default function SellerDashboardPage() {
     SellerPublicListingSubmissionListItem[]
   >([]);
   const [inquiries, setInquiries] = useState<PublicInquiry[]>([]);
+  const [agentProposals, setAgentProposals] = useState<ListingAgentProposal[]>(
+    [],
+  );
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
   const [updatingInquiryId, setUpdatingInquiryId] = useState<string | null>(
     null,
@@ -68,8 +80,12 @@ export default function SellerDashboardPage() {
   const [updatingSubmissionId, setUpdatingSubmissionId] = useState<
     string | null
   >(null);
+  const [updatingProposalId, setUpdatingProposalId] = useState<string | null>(
+    null,
+  );
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [inquiryError, setInquiryError] = useState<string | null>(null);
+  const [proposalError, setProposalError] = useState<string | null>(null);
   const upgradeHref = getUpgradeHref({
     source: 'private_seller_dashboard_upgrade_cta',
     upsellId: 'higher-limits',
@@ -97,17 +113,25 @@ export default function SellerDashboardPage() {
       setIsLoadingSubmissions(true);
       setSubmissionError(null);
       setInquiryError(null);
+      setProposalError(null);
 
       try {
-        const [submissionResult, inquiryResult] = await Promise.allSettled([
-          fetchSellerPublicListingSubmissions(),
-          fetchSellerPublicInquiries({
-            page: 1,
-            limit: 5,
-            sortBy: 'createdAt',
-            sortOrder: 'DESC',
-          }),
-        ]);
+        const [submissionResult, inquiryResult, proposalResult] =
+          await Promise.allSettled([
+            fetchSellerPublicListingSubmissions(),
+            fetchSellerPublicInquiries({
+              page: 1,
+              limit: 5,
+              sortBy: 'createdAt',
+              sortOrder: 'DESC',
+            }),
+            fetchSellerListingAgentProposals({
+              page: 1,
+              limit: 5,
+              sortBy: 'createdAt',
+              sortOrder: 'DESC',
+            }),
+          ]);
 
         if (!cancelled) {
           if (submissionResult.status === 'fulfilled') {
@@ -120,6 +144,12 @@ export default function SellerDashboardPage() {
             setInquiries(inquiryResult.value.data);
           } else {
             setInquiryError(getApiErrorMessage(inquiryResult.reason));
+          }
+
+          if (proposalResult.status === 'fulfilled') {
+            setAgentProposals(proposalResult.value.data);
+          } else {
+            setProposalError(getApiErrorMessage(proposalResult.reason));
           }
         }
       } finally {
@@ -190,6 +220,38 @@ export default function SellerDashboardPage() {
       setSubmissionError(getApiErrorMessage(error));
     } finally {
       setUpdatingSubmissionId(null);
+    }
+  }
+
+  async function acceptAgentProposal(id: string) {
+    setUpdatingProposalId(id);
+    setProposalError(null);
+
+    try {
+      const updated = await acceptSellerListingAgentProposal(id);
+      setAgentProposals((current) =>
+        current.map((proposal) => (proposal.id === id ? updated : proposal)),
+      );
+    } catch (error) {
+      setProposalError(getApiErrorMessage(error));
+    } finally {
+      setUpdatingProposalId(null);
+    }
+  }
+
+  async function rejectAgentProposal(id: string) {
+    setUpdatingProposalId(id);
+    setProposalError(null);
+
+    try {
+      const updated = await rejectSellerListingAgentProposal(id);
+      setAgentProposals((current) =>
+        current.map((proposal) => (proposal.id === id ? updated : proposal)),
+      );
+    } catch (error) {
+      setProposalError(getApiErrorMessage(error));
+    } finally {
+      setUpdatingProposalId(null);
     }
   }
 
@@ -273,12 +335,217 @@ export default function SellerDashboardPage() {
               updatingInquiryId={updatingInquiryId}
               onStatusChange={updateInquiryStatus}
             />
+            <SellerAgentProposalsSection
+              proposals={agentProposals}
+              error={proposalError}
+              updatingProposalId={updatingProposalId}
+              onAccept={acceptAgentProposal}
+              onReject={rejectAgentProposal}
+            />
           </>
         ) : (
           <SellerEmptyState />
         )}
       </section>
     </main>
+  );
+}
+
+function SellerAgentProposalsSection({
+  proposals,
+  error,
+  updatingProposalId,
+  onAccept,
+  onReject,
+}: {
+  proposals: ListingAgentProposal[];
+  error: string | null;
+  updatingProposalId: string | null;
+  onAccept: (id: string) => void;
+  onReject: (id: string) => void;
+}) {
+  return (
+    <section className="mt-8">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-heading text-2xl font-semibold">
+            Propozycje agentów
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Oferty współpracy wysłane do ogłoszeń, w których szukasz agenta.
+          </p>
+        </div>
+      </div>
+
+      {error ? (
+        <div className="rounded-2xl border border-destructive/20 bg-card p-6 text-sm text-destructive shadow-sm">
+          {error}
+        </div>
+      ) : proposals.length === 0 ? (
+        <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Handshake className="h-6 w-6" />
+          </div>
+          <h3 className="mt-4 font-heading text-xl font-semibold">
+            Nie masz jeszcze propozycji agentów
+          </h3>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+            Gdy agent odpowie na ogłoszenie otwarte na współpracę, zobaczysz tu
+            warunki i możliwość podjęcia decyzji.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {proposals.map((proposal) => (
+            <SellerAgentProposalCard
+              key={proposal.id}
+              proposal={proposal}
+              isUpdating={updatingProposalId === proposal.id}
+              onAccept={onAccept}
+              onReject={onReject}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SellerAgentProposalCard({
+  proposal,
+  isUpdating,
+  onAccept,
+  onReject,
+}: {
+  proposal: ListingAgentProposal;
+  isUpdating: boolean;
+  onAccept: (id: string) => void;
+  onReject: (id: string) => void;
+}) {
+  const status = SELLER_AGENT_PROPOSAL_STATUS_COPY[proposal.status];
+  const agentName = getAgentDisplayName(proposal);
+  const canDecide =
+    proposal.status === 'sent' || proposal.status === 'updated';
+
+  return (
+    <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${status.className}`}
+            >
+              {status.label}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {formatDate(proposal.createdAt)}
+            </span>
+          </div>
+
+          <h3 className="mt-3 font-heading text-lg font-semibold">
+            {agentName}
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {proposal.agent?.agency?.name ?? 'Agent niezależny'} ·{' '}
+            {proposal.listing?.title ?? 'Ogłoszenie niedostępne'}
+          </p>
+
+          {proposal.message ? (
+            <p className="mt-3 line-clamp-3 text-sm leading-6 text-foreground">
+              {proposal.message}
+            </p>
+          ) : null}
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <ProposalMetric
+              label="Prowizja"
+              value={formatProposalCommission(proposal)}
+            />
+            <ProposalMetric
+              label="Umowa"
+              value={formatProposalExclusivity(proposal)}
+            />
+            <ProposalMetric
+              label="Czas"
+              value={
+                proposal.minimumContractMonths
+                  ? `${proposal.minimumContractMonths} mies.`
+                  : 'do ustalenia'
+              }
+            />
+            <ProposalMetric
+              label="Wycena"
+              value={
+                proposal.proposedPrice
+                  ? formatPrice(Number(proposal.proposedPrice), 'PLN')
+                  : 'brak'
+              }
+            />
+          </div>
+
+          {proposal.services.length > 0 ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {proposal.services.slice(0, 6).map((service) => (
+                <span
+                  key={service}
+                  className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground"
+                >
+                  {service}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex w-full shrink-0 flex-col gap-2 lg:w-56">
+          {canDecide ? (
+            <>
+              <button
+                type="button"
+                disabled={isUpdating}
+                onClick={() => onAccept(proposal.id)}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60"
+              >
+                {isUpdating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                Akceptuj
+              </button>
+              <button
+                type="button"
+                disabled={isUpdating}
+                onClick={() => onReject(proposal.id)}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-60"
+              >
+                {isUpdating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <XCircle className="h-4 w-4" />
+                )}
+                Odrzuć
+              </button>
+            </>
+          ) : (
+            <p className="rounded-xl bg-muted/40 p-3 text-sm leading-6 text-muted-foreground">
+              {status.description}
+            </p>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ProposalMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 p-3">
+      <p className="text-xs font-semibold uppercase text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
+    </div>
   );
 }
 
@@ -1022,6 +1289,99 @@ const SELLER_INQUIRY_STATUS_COPY: Record<
   spam: { className: 'bg-red-100 text-red-900' },
   archived: { className: 'bg-stone-200 text-stone-800' },
 };
+
+const SELLER_AGENT_PROPOSAL_STATUS_COPY: Record<
+  ListingAgentProposalStatus,
+  { label: string; description: string; className: string }
+> = {
+  draft: {
+    label: 'Szkic',
+    description: 'Agent nie wysłał jeszcze tej propozycji.',
+    className: 'bg-muted text-muted-foreground',
+  },
+  sent: {
+    label: 'Nowa',
+    description: 'Propozycja czeka na Twoją decyzję.',
+    className: 'bg-blue-100 text-blue-900',
+  },
+  updated: {
+    label: 'Zaktualizowana',
+    description: 'Agent zmienił warunki propozycji.',
+    className: 'bg-amber-100 text-amber-900',
+  },
+  accepted: {
+    label: 'Zaakceptowana',
+    description: 'Wybrano tego agenta do współpracy.',
+    className: 'bg-emerald-100 text-emerald-900',
+  },
+  rejected: {
+    label: 'Odrzucona',
+    description: 'Ta propozycja została odrzucona.',
+    className: 'bg-red-100 text-red-900',
+  },
+  withdrawn: {
+    label: 'Wycofana',
+    description: 'Agent wycofał propozycję.',
+    className: 'bg-stone-200 text-stone-800',
+  },
+  expired: {
+    label: 'Wygasła',
+    description: 'Termin ważności propozycji minął.',
+    className: 'bg-stone-200 text-stone-800',
+  },
+  closed: {
+    label: 'Zamknięta',
+    description: 'Nabór dla tej propozycji został zamknięty.',
+    className: 'bg-stone-200 text-stone-800',
+  },
+};
+
+function getAgentDisplayName(proposal: ListingAgentProposal): string {
+  const name = [proposal.agent?.firstName, proposal.agent?.lastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  return name || 'Agent nieruchomości';
+}
+
+function formatProposalCommission(proposal: ListingAgentProposal): string {
+  if (proposal.commissionType === 'none') {
+    return 'brak';
+  }
+
+  if (proposal.commissionValue === null || proposal.commissionValue === undefined) {
+    return 'do ustalenia';
+  }
+
+  const value = Number(proposal.commissionValue);
+  if (!Number.isFinite(value)) {
+    return 'do ustalenia';
+  }
+
+  if (proposal.commissionType === 'percentage') {
+    return `${value.toLocaleString('pl-PL')}%`;
+  }
+
+  if (proposal.commissionType === 'fixed') {
+    return formatPrice(value, 'PLN');
+  }
+
+  return `${value.toLocaleString('pl-PL')} + warunki`;
+}
+
+function formatProposalExclusivity(proposal: ListingAgentProposal): string {
+  switch (proposal.exclusivity) {
+    case 'exclusive':
+      return 'na wyłączność';
+    case 'open':
+      return 'otwarta';
+    case 'flexible':
+      return 'elastyczna';
+    default:
+      return 'do ustalenia';
+  }
+}
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleDateString('pl-PL', {
