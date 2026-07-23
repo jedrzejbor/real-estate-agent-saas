@@ -1279,7 +1279,22 @@ Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
       czy agent juz wyslal propozycje,
     - dodano empty state, loading state oraz error state dla blokady planu z CTA
       do upgrade.
-- [ ] `AT7.4` Dodac formularz propozycji wspolpracy.
+- [x] `AT7.4` Dodac formularz propozycji wspolpracy.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - dodano webowy typ DTO `ListingAgentProposalInput` oraz funkcje
+      `createListingAgentProposal`,
+    - dodano reuzywalny komponent
+      `apps/web/src/components/listings/listing-agent-proposal-form.tsx`,
+      ktory bedzie mozna wykorzystac takze przy edycji propozycji w `AT7.6`,
+    - formularz obsluguje: model prowizji, wartosc prowizji, minimalny okres
+      wspolpracy, typ wspolpracy, zakres uslug, plan marketingowy, opinie o
+      wycenie, proponowana cene, dostepnosc, wiadomosc i date waznosci,
+    - dodano walidacje UI dla wymaganych uslug, minimalnej dlugosci wiadomosci,
+      prowizji, ceny, okresu wspolpracy i daty waznosci,
+    - podlaczono formularz jako modal w `/dashboard/agent-market`,
+    - po wyslaniu propozycji karta oferty przechodzi w stan
+      `Propozycja wyslana`, a agent dostaje komunikat toast.
 - [ ] `AT7.5` Dodac zakladke `Wyslane propozycje`.
 - [ ] `AT7.6` Dodac edycje i wycofanie propozycji.
 - [ ] `AT7.7` Dodac UI czatu dla agenta.
@@ -1294,7 +1309,6 @@ Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
 
 #### Poza zakresem pierwszej iteracji AT-7
 
-- Formularz skladania propozycji z poziomu rynku ofert.
 - Lista wyslanych propozycji agenta.
 - Edycja, wycofanie i czat po stronie agenta.
 

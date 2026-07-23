@@ -9,15 +9,25 @@ import {
   Loader2,
   MapPin,
   Search,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardPageHeader } from '@/components/dashboard/page-header';
+import {
+  ListingAgentProposalForm,
+  INITIAL_LISTING_AGENT_PROPOSAL_FORM_VALUES,
+  buildListingAgentProposalInput,
+  type ListingAgentProposalFormErrors,
+  type ListingAgentProposalFormValues,
+} from '@/components/listings/listing-agent-proposal-form';
+import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage, isFeatureAccessDeniedApiError } from '@/lib/api-client';
 import {
   fetchAgentListingMarket,
   type AgentListingMarketFilters,
   type AgentListingMarketItem,
 } from '@/lib/agent-listing-market';
+import { createListingAgentProposal } from '@/lib/listing-agent-proposals';
 import {
   formatPrice,
   PROPERTY_TYPE_LABELS,
@@ -40,6 +50,16 @@ export default function AgentListingMarketPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPlanBlocked, setIsPlanBlocked] = useState(false);
+  const [selectedListing, setSelectedListing] =
+    useState<AgentListingMarketItem | null>(null);
+  const [proposalDraft, setProposalDraft] =
+    useState<ListingAgentProposalFormValues>(
+      INITIAL_LISTING_AGENT_PROPOSAL_FORM_VALUES,
+    );
+  const [proposalErrors, setProposalErrors] =
+    useState<ListingAgentProposalFormErrors>({});
+  const [isSubmittingProposal, setIsSubmittingProposal] = useState(false);
+  const { error: showErrorToast, success: showSuccessToast } = useToast();
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +103,58 @@ export default function AgentListingMarketPage() {
       page: 1,
       [key]: value || undefined,
     }));
+  }
+
+  function openProposalForm(item: AgentListingMarketItem) {
+    setSelectedListing(item);
+    setProposalDraft(INITIAL_LISTING_AGENT_PROPOSAL_FORM_VALUES);
+    setProposalErrors({});
+  }
+
+  function closeProposalForm() {
+    if (isSubmittingProposal) return;
+    setSelectedListing(null);
+    setProposalErrors({});
+  }
+
+  async function submitProposal() {
+    if (!selectedListing) return;
+
+    const validationErrors = validateProposalForm(proposalDraft);
+    setProposalErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
+    setIsSubmittingProposal(true);
+
+    try {
+      await createListingAgentProposal(
+        selectedListing.id,
+        buildListingAgentProposalInput(proposalDraft),
+      );
+      setItems((current) =>
+        current.map((item) =>
+          item.id === selectedListing.id
+            ? { ...item, hasSubmittedProposal: true }
+            : item,
+        ),
+      );
+      setSelectedListing(null);
+      setProposalDraft(INITIAL_LISTING_AGENT_PROPOSAL_FORM_VALUES);
+      showSuccessToast({
+        title: 'Propozycja została wysłana',
+        description: 'Właściciel zobaczy ją w zapytaniach do tej oferty.',
+      });
+    } catch (submitError) {
+      showErrorToast({
+        title: 'Nie udało się wysłać propozycji',
+        description: getApiErrorMessage(submitError),
+      });
+    } finally {
+      setIsSubmittingProposal(false);
+    }
   }
 
   return (
@@ -175,15 +247,37 @@ export default function AgentListingMarketPage() {
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
           {items.map((item) => (
-            <MarketListingCard key={item.id} item={item} />
+            <MarketListingCard
+              key={item.id}
+              item={item}
+              onCreateProposal={openProposalForm}
+            />
           ))}
         </div>
       )}
+
+      {selectedListing ? (
+        <ProposalModal
+          listing={selectedListing}
+          draft={proposalDraft}
+          errors={proposalErrors}
+          isSubmitting={isSubmittingProposal}
+          onChange={setProposalDraft}
+          onSubmit={submitProposal}
+          onClose={closeProposalForm}
+        />
+      ) : null}
     </div>
   );
 }
 
-function MarketListingCard({ item }: { item: AgentListingMarketItem }) {
+function MarketListingCard({
+  item,
+  onCreateProposal,
+}: {
+  item: AgentListingMarketItem;
+  onCreateProposal: (item: AgentListingMarketItem) => void;
+}) {
   return (
     <article className="grid overflow-hidden rounded-2xl border border-border bg-card shadow-sm sm:grid-cols-[180px_1fr]">
       <div
@@ -237,13 +331,133 @@ function MarketListingCard({ item }: { item: AgentListingMarketItem }) {
           >
             Zobacz ofertę
           </Link>
-          <Button disabled={item.hasSubmittedProposal} className="rounded-xl">
+          <Button
+            disabled={item.hasSubmittedProposal}
+            className="rounded-xl"
+            onClick={() => onCreateProposal(item)}
+          >
             {item.hasSubmittedProposal ? 'Propozycja wysłana' : 'Złóż propozycję'}
           </Button>
         </div>
       </div>
     </article>
   );
+}
+
+function ProposalModal({
+  listing,
+  draft,
+  errors,
+  isSubmitting,
+  onChange,
+  onSubmit,
+  onClose,
+}: {
+  listing: AgentListingMarketItem;
+  draft: ListingAgentProposalFormValues;
+  errors: ListingAgentProposalFormErrors;
+  isSubmitting: boolean;
+  onChange: (value: ListingAgentProposalFormValues) => void;
+  onSubmit: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
+      <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-border bg-card shadow-xl">
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-card px-5 py-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Propozycja współpracy
+            </p>
+            <h2 className="mt-1 font-heading text-xl font-semibold">
+              {listing.title}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {[listing.address.city, listing.address.district]
+                .filter(Boolean)
+                .join(', ') || 'Lokalizacja niedostępna'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Zamknij formularz"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-5">
+          <ListingAgentProposalForm
+            value={draft}
+            errors={errors}
+            disabled={isSubmitting}
+            onChange={onChange}
+            onSubmit={onSubmit}
+            onCancel={onClose}
+          />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function validateProposalForm(
+  values: ListingAgentProposalFormValues,
+): ListingAgentProposalFormErrors {
+  const errors: ListingAgentProposalFormErrors = {};
+  const services = values.services
+    .split(/[\n,]/)
+    .map((service) => service.trim())
+    .filter(Boolean);
+  const commissionValue = Number(values.commissionValue);
+  const proposedPrice = Number(values.proposedPrice);
+  const minimumContractMonths = Number(values.minimumContractMonths);
+
+  if (values.commissionType !== 'none') {
+    if (!values.commissionValue.trim()) {
+      errors.commissionValue = 'Podaj wartość wynagrodzenia.';
+    } else if (!Number.isFinite(commissionValue) || commissionValue < 0) {
+      errors.commissionValue = 'Podaj poprawną wartość wynagrodzenia.';
+    } else if (values.commissionType === 'percentage' && commissionValue > 100) {
+      errors.commissionValue = 'Prowizja procentowa nie może przekraczać 100%.';
+    }
+  }
+
+  if (
+    values.minimumContractMonths.trim() &&
+    (!Number.isInteger(minimumContractMonths) || minimumContractMonths < 0)
+  ) {
+    errors.minimumContractMonths = 'Podaj pełną liczbę miesięcy.';
+  }
+
+  if (services.length === 0) {
+    errors.services = 'Podaj co najmniej jedną usługę.';
+  }
+
+  if (
+    values.proposedPrice.trim() &&
+    (!Number.isFinite(proposedPrice) || proposedPrice < 0)
+  ) {
+    errors.proposedPrice = 'Podaj poprawną proponowaną cenę.';
+  }
+
+  if (values.message.trim().length < 20) {
+    errors.message = 'Wiadomość musi mieć co najmniej 20 znaków.';
+  }
+
+  if (values.validUntil) {
+    const selectedDate = new Date(`${values.validUntil}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (Number.isNaN(selectedDate.getTime()) || selectedDate <= today) {
+      errors.validUntil = 'Data ważności musi być w przyszłości.';
+    }
+  }
+
+  return errors;
 }
 
 function MarketErrorState({

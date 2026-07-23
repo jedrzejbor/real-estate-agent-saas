@@ -136,6 +136,20 @@ export interface PaginatedListingAgentProposalMessages {
   };
 }
 
+export interface ListingAgentProposalInput {
+  commissionType: ListingAgentProposalCommissionType;
+  commissionValue?: number | null;
+  minimumContractMonths?: number | null;
+  exclusivity?: ListingAgentProposalExclusivity | null;
+  services: string[];
+  marketingPlan?: string | null;
+  valuationOpinion?: string | null;
+  proposedPrice?: number | null;
+  availability?: string | null;
+  message: string;
+  validUntil?: string | null;
+}
+
 function buildQueryString(filters: ListingAgentProposalFilters): string {
   const params = new URLSearchParams();
 
@@ -154,6 +168,19 @@ export async function fetchSellerListingAgentProposals(
 ): Promise<PaginatedListingAgentProposals> {
   return apiFetch<PaginatedListingAgentProposals>(
     `/listing-agent-proposals/seller${buildQueryString(filters)}`,
+  );
+}
+
+export async function createListingAgentProposal(
+  listingId: string,
+  input: ListingAgentProposalInput,
+): Promise<ListingAgentProposal> {
+  return apiFetch<ListingAgentProposal>(
+    `/listing-agent-proposals/listings/${listingId}`,
+    {
+      method: 'POST',
+      body: input,
+    },
   );
 }
 
