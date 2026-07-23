@@ -179,6 +179,14 @@ export async function fetchAgentListingAgentProposals(
   );
 }
 
+export async function fetchAgentListingAgentProposal(
+  id: string,
+): Promise<ListingAgentProposal> {
+  return apiFetch<ListingAgentProposal>(
+    `/listing-agent-proposals/agent/${id}`,
+  );
+}
+
 export async function createListingAgentProposal(
   listingId: string,
   input: ListingAgentProposalInput,
@@ -189,6 +197,28 @@ export async function createListingAgentProposal(
       method: 'POST',
       body: input,
     },
+  );
+}
+
+export async function updateAgentListingAgentProposal(
+  id: string,
+  input: ListingAgentProposalInput,
+): Promise<ListingAgentProposal> {
+  return apiFetch<ListingAgentProposal>(
+    `/listing-agent-proposals/agent/${id}`,
+    {
+      method: 'PATCH',
+      body: input,
+    },
+  );
+}
+
+export async function withdrawAgentListingAgentProposal(
+  id: string,
+): Promise<ListingAgentProposal> {
+  return apiFetch<ListingAgentProposal>(
+    `/listing-agent-proposals/agent/${id}/withdraw`,
+    { method: 'POST' },
   );
 }
 

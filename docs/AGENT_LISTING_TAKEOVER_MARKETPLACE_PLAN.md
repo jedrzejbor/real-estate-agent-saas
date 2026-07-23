@@ -1308,12 +1308,26 @@ Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
       prowizje, date waznosci, zakres uslug i link do publicznej oferty,
     - dodano loading state, empty state, empty state dla filtra statusu oraz
       error state dla blokady planu z CTA do upgrade.
-- [ ] `AT7.6` Dodac edycje i wycofanie propozycji.
+- [x] `AT7.6` Dodac edycje i wycofanie propozycji.
+  - Data zakonczenia: 2026-07-23
+  - Wykonano:
+    - dodano funkcje `fetchAgentListingAgentProposal`,
+      `updateAgentListingAgentProposal` i
+      `withdrawAgentListingAgentProposal` w webowym kliencie API,
+    - formularz propozycji dostal wspolna normalizacje danych z backendu i
+      wspolna walidacje `validateListingAgentProposalForm`,
+    - strona `/dashboard/agent-market` korzysta teraz z tej samej walidacji co
+      edycja propozycji,
+    - w `/dashboard/agent-proposals` dodano edycje aktywnych propozycji
+      (`sent`, `updated`) w modalu opartym o ten sam komponent formularza,
+    - dodano wycofanie aktywnej propozycji z potwierdzeniem i aktualizacja
+      statusu na liscie bez przeladowania strony,
+    - dodano komunikaty toast dla sukcesu i bledow edycji/wycofania.
 - [ ] `AT7.7` Dodac UI czatu dla agenta.
 - [ ] `AT7.8` Dodac stany braku uprawnien i CTA do logowania/rejestracji.
   - Status czesciowy: strona rynku i strona wyslanych propozycji maja stan
     braku uprawnien dla planu bez `agentListingMarket`; pozostale stany beda
-    domykane przy edycji, wycofaniu i czacie.
+    domykane przy czacie.
 
 #### Weryfikacja
 
@@ -1321,7 +1335,7 @@ Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
 
 #### Poza zakresem pierwszej iteracji AT-7
 
-- Edycja, wycofanie i czat po stronie agenta.
+- Czat po stronie agenta.
 
 ### Sprint AT-8 - Akceptacja i kopia oferty w CRM agenta
 

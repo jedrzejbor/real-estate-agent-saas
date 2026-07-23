@@ -17,6 +17,7 @@ import {
   ListingAgentProposalForm,
   INITIAL_LISTING_AGENT_PROPOSAL_FORM_VALUES,
   buildListingAgentProposalInput,
+  validateListingAgentProposalForm,
   type ListingAgentProposalFormErrors,
   type ListingAgentProposalFormValues,
 } from '@/components/listings/listing-agent-proposal-form';
@@ -120,7 +121,7 @@ export default function AgentListingMarketPage() {
   async function submitProposal() {
     if (!selectedListing) return;
 
-    const validationErrors = validateProposalForm(proposalDraft);
+    const validationErrors = validateListingAgentProposalForm(proposalDraft);
     setProposalErrors(validationErrors);
 
     if (Object.keys(validationErrors).length > 0) {
@@ -401,63 +402,6 @@ function ProposalModal({
       </section>
     </div>
   );
-}
-
-function validateProposalForm(
-  values: ListingAgentProposalFormValues,
-): ListingAgentProposalFormErrors {
-  const errors: ListingAgentProposalFormErrors = {};
-  const services = values.services
-    .split(/[\n,]/)
-    .map((service) => service.trim())
-    .filter(Boolean);
-  const commissionValue = Number(values.commissionValue);
-  const proposedPrice = Number(values.proposedPrice);
-  const minimumContractMonths = Number(values.minimumContractMonths);
-
-  if (values.commissionType !== 'none') {
-    if (!values.commissionValue.trim()) {
-      errors.commissionValue = 'Podaj wartość wynagrodzenia.';
-    } else if (!Number.isFinite(commissionValue) || commissionValue < 0) {
-      errors.commissionValue = 'Podaj poprawną wartość wynagrodzenia.';
-    } else if (values.commissionType === 'percentage' && commissionValue > 100) {
-      errors.commissionValue = 'Prowizja procentowa nie może przekraczać 100%.';
-    }
-  }
-
-  if (
-    values.minimumContractMonths.trim() &&
-    (!Number.isInteger(minimumContractMonths) || minimumContractMonths < 0)
-  ) {
-    errors.minimumContractMonths = 'Podaj pełną liczbę miesięcy.';
-  }
-
-  if (services.length === 0) {
-    errors.services = 'Podaj co najmniej jedną usługę.';
-  }
-
-  if (
-    values.proposedPrice.trim() &&
-    (!Number.isFinite(proposedPrice) || proposedPrice < 0)
-  ) {
-    errors.proposedPrice = 'Podaj poprawną proponowaną cenę.';
-  }
-
-  if (values.message.trim().length < 20) {
-    errors.message = 'Wiadomość musi mieć co najmniej 20 znaków.';
-  }
-
-  if (values.validUntil) {
-    const selectedDate = new Date(`${values.validUntil}T00:00:00`);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (Number.isNaN(selectedDate.getTime()) || selectedDate <= today) {
-      errors.validUntil = 'Data ważności musi być w przyszłości.';
-    }
-  }
-
-  return errors;
 }
 
 function MarketErrorState({

@@ -8,14 +8,28 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
+  Edit3,
   Loader2,
   MapPin,
   Send,
+  X,
 } from 'lucide-react';
 import { DashboardPageHeader } from '@/components/dashboard/page-header';
+import {
+  ListingAgentProposalForm,
+  buildListingAgentProposalInput,
+  normalizeListingAgentProposalFormValues,
+  validateListingAgentProposalForm,
+  type ListingAgentProposalFormErrors,
+  type ListingAgentProposalFormValues,
+} from '@/components/listings/listing-agent-proposal-form';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/contexts/toast-context';
 import { getApiErrorMessage, isFeatureAccessDeniedApiError } from '@/lib/api-client';
 import {
   fetchAgentListingAgentProposals,
+  updateAgentListingAgentProposal,
+  withdrawAgentListingAgentProposal,
   type ListingAgentProposal,
   type ListingAgentProposalStatus,
 } from '@/lib/listing-agent-proposals';
@@ -88,6 +102,15 @@ export default function AgentProposalsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPlanBlocked, setIsPlanBlocked] = useState(false);
+  const [editingProposal, setEditingProposal] =
+    useState<ListingAgentProposal | null>(null);
+  const [editDraft, setEditDraft] =
+    useState<ListingAgentProposalFormValues | null>(null);
+  const [editErrors, setEditErrors] =
+    useState<ListingAgentProposalFormErrors>({});
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+  const { error: showErrorToast, success: showSuccessToast } = useToast();
 
   useEffect(() => {
     let cancelled = false;
@@ -128,6 +151,91 @@ export default function AgentProposalsPage() {
       cancelled = true;
     };
   }, [status]);
+
+  function openEditModal(proposal: ListingAgentProposal) {
+    setEditingProposal(proposal);
+    setEditDraft(normalizeListingAgentProposalFormValues(proposal));
+    setEditErrors({});
+  }
+
+  function closeEditModal() {
+    if (isSavingEdit) return;
+    setEditingProposal(null);
+    setEditDraft(null);
+    setEditErrors({});
+  }
+
+  async function submitEdit() {
+    if (!editingProposal || !editDraft) return;
+
+    const validationErrors = validateListingAgentProposalForm(editDraft);
+    setEditErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
+    setIsSavingEdit(true);
+
+    try {
+      const updatedProposal = await updateAgentListingAgentProposal(
+        editingProposal.id,
+        buildListingAgentProposalInput(editDraft),
+      );
+      setProposals((current) =>
+        current.map((proposal) =>
+          proposal.id === updatedProposal.id ? updatedProposal : proposal,
+        ),
+      );
+      setEditingProposal(null);
+      setEditDraft(null);
+      showSuccessToast({
+        title: 'Propozycja została zaktualizowana',
+        description: 'Właściciel zobaczy najnowsze warunki współpracy.',
+      });
+    } catch (saveError) {
+      showErrorToast({
+        title: 'Nie udało się zaktualizować propozycji',
+        description: getApiErrorMessage(saveError),
+      });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
+
+  async function withdrawProposal(proposal: ListingAgentProposal) {
+    const confirmed = window.confirm(
+      'Czy na pewno chcesz wycofać tę propozycję współpracy?',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setWithdrawingId(proposal.id);
+
+    try {
+      const withdrawnProposal = await withdrawAgentListingAgentProposal(
+        proposal.id,
+      );
+      setProposals((current) =>
+        current.map((item) =>
+          item.id === withdrawnProposal.id ? withdrawnProposal : item,
+        ),
+      );
+      showSuccessToast({
+        title: 'Propozycja została wycofana',
+        description: 'Właściciel nie będzie mógł już jej zaakceptować.',
+      });
+    } catch (withdrawError) {
+      showErrorToast({
+        title: 'Nie udało się wycofać propozycji',
+        description: getApiErrorMessage(withdrawError),
+      });
+    } finally {
+      setWithdrawingId(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -170,21 +278,46 @@ export default function AgentProposalsPage() {
       ) : (
         <div className="space-y-4">
           {proposals.map((proposal) => (
-            <AgentProposalCard key={proposal.id} proposal={proposal} />
+            <AgentProposalCard
+              key={proposal.id}
+              proposal={proposal}
+              isWithdrawing={withdrawingId === proposal.id}
+              onEdit={openEditModal}
+              onWithdraw={withdrawProposal}
+            />
           ))}
         </div>
       )}
+
+      {editingProposal && editDraft ? (
+        <EditProposalModal
+          proposal={editingProposal}
+          draft={editDraft}
+          errors={editErrors}
+          isSaving={isSavingEdit}
+          onChange={setEditDraft}
+          onSubmit={submitEdit}
+          onClose={closeEditModal}
+        />
+      ) : null}
     </div>
   );
 }
 
 function AgentProposalCard({
   proposal,
+  isWithdrawing,
+  onEdit,
+  onWithdraw,
 }: {
   proposal: ListingAgentProposal;
+  isWithdrawing: boolean;
+  onEdit: (proposal: ListingAgentProposal) => void;
+  onWithdraw: (proposal: ListingAgentProposal) => void;
 }) {
   const status = STATUS_COPY[proposal.status];
   const listing = proposal.listing;
+  const canEdit = canEditAgentProposal(proposal);
 
   return (
     <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -272,8 +405,91 @@ function AgentProposalCard({
             Zobacz ofertę
           </Link>
         ) : null}
+        {canEdit ? (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 rounded-xl"
+              onClick={() => onEdit(proposal)}
+            >
+              <Edit3 className="h-4 w-4" />
+              Edytuj
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="h-10 rounded-xl"
+              disabled={isWithdrawing}
+              onClick={() => onWithdraw(proposal)}
+            >
+              {isWithdrawing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
+              Wycofaj
+            </Button>
+          </>
+        ) : null}
       </div>
     </article>
+  );
+}
+
+function EditProposalModal({
+  proposal,
+  draft,
+  errors,
+  isSaving,
+  onChange,
+  onSubmit,
+  onClose,
+}: {
+  proposal: ListingAgentProposal;
+  draft: ListingAgentProposalFormValues;
+  errors: ListingAgentProposalFormErrors;
+  isSaving: boolean;
+  onChange: (value: ListingAgentProposalFormValues) => void;
+  onSubmit: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
+      <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-border bg-card shadow-xl">
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-card px-5 py-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Edycja propozycji
+            </p>
+            <h2 className="mt-1 font-heading text-xl font-semibold">
+              {proposal.listing?.title ?? 'Oferta niedostępna'}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {formatListingLocation(proposal)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSaving}
+            className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Zamknij formularz"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-5">
+          <ListingAgentProposalForm
+            value={draft}
+            errors={errors}
+            disabled={isSaving}
+            submitLabel="Zapisz zmiany"
+            onChange={onChange}
+            onSubmit={onSubmit}
+            onCancel={onClose}
+          />
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -335,6 +551,10 @@ function AgentProposalsErrorState({
       ) : null}
     </section>
   );
+}
+
+function canEditAgentProposal(proposal: ListingAgentProposal): boolean {
+  return proposal.status === 'sent' || proposal.status === 'updated';
 }
 
 function formatListingLocation(proposal: ListingAgentProposal): string {

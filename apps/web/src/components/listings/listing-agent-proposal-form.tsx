@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import type {
+  ListingAgentProposal,
   ListingAgentProposalCommissionType,
   ListingAgentProposalExclusivity,
   ListingAgentProposalInput,
@@ -44,6 +45,7 @@ interface ListingAgentProposalFormProps {
   value: ListingAgentProposalFormValues;
   errors?: ListingAgentProposalFormErrors;
   disabled?: boolean;
+  submitLabel?: string;
   onChange: (value: ListingAgentProposalFormValues) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -95,10 +97,96 @@ export function buildListingAgentProposalInput(
   };
 }
 
+export function normalizeListingAgentProposalFormValues(
+  proposal: ListingAgentProposal,
+): ListingAgentProposalFormValues {
+  return {
+    commissionType: proposal.commissionType ?? 'percentage',
+    commissionValue:
+      proposal.commissionValue === null || proposal.commissionValue === undefined
+        ? ''
+        : String(proposal.commissionValue),
+    minimumContractMonths:
+      proposal.minimumContractMonths === null ||
+      proposal.minimumContractMonths === undefined
+        ? ''
+        : String(proposal.minimumContractMonths),
+    exclusivity: proposal.exclusivity ?? '',
+    services: proposal.services.join('\n'),
+    marketingPlan: proposal.marketingPlan ?? '',
+    valuationOpinion: proposal.valuationOpinion ?? '',
+    proposedPrice:
+      proposal.proposedPrice === null || proposal.proposedPrice === undefined
+        ? ''
+        : String(proposal.proposedPrice),
+    availability: proposal.availability ?? '',
+    message: proposal.message ?? '',
+    validUntil: proposal.validUntil ? proposal.validUntil.slice(0, 10) : '',
+  };
+}
+
+export function validateListingAgentProposalForm(
+  values: ListingAgentProposalFormValues,
+): ListingAgentProposalFormErrors {
+  const errors: ListingAgentProposalFormErrors = {};
+  const services = values.services
+    .split(/[\n,]/)
+    .map((service) => service.trim())
+    .filter(Boolean);
+  const commissionValue = Number(values.commissionValue);
+  const proposedPrice = Number(values.proposedPrice);
+  const minimumContractMonths = Number(values.minimumContractMonths);
+
+  if (values.commissionType !== 'none') {
+    if (!values.commissionValue.trim()) {
+      errors.commissionValue = 'Podaj wartość wynagrodzenia.';
+    } else if (!Number.isFinite(commissionValue) || commissionValue < 0) {
+      errors.commissionValue = 'Podaj poprawną wartość wynagrodzenia.';
+    } else if (values.commissionType === 'percentage' && commissionValue > 100) {
+      errors.commissionValue = 'Prowizja procentowa nie może przekraczać 100%.';
+    }
+  }
+
+  if (
+    values.minimumContractMonths.trim() &&
+    (!Number.isInteger(minimumContractMonths) || minimumContractMonths < 0)
+  ) {
+    errors.minimumContractMonths = 'Podaj pełną liczbę miesięcy.';
+  }
+
+  if (services.length === 0) {
+    errors.services = 'Podaj co najmniej jedną usługę.';
+  }
+
+  if (
+    values.proposedPrice.trim() &&
+    (!Number.isFinite(proposedPrice) || proposedPrice < 1)
+  ) {
+    errors.proposedPrice = 'Podaj poprawną proponowaną cenę.';
+  }
+
+  if (values.message.trim().length < 20) {
+    errors.message = 'Wiadomość musi mieć co najmniej 20 znaków.';
+  }
+
+  if (values.validUntil) {
+    const selectedDate = new Date(`${values.validUntil}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (Number.isNaN(selectedDate.getTime()) || selectedDate <= today) {
+      errors.validUntil = 'Data ważności musi być w przyszłości.';
+    }
+  }
+
+  return errors;
+}
+
 export function ListingAgentProposalForm({
   value,
   errors = {},
   disabled = false,
+  submitLabel = 'Wyślij propozycję',
   onChange,
   onSubmit,
   onCancel,
@@ -299,7 +387,7 @@ export function ListingAgentProposalForm({
           disabled={disabled}
           className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Wyślij propozycję
+          {submitLabel}
         </button>
       </div>
     </form>
