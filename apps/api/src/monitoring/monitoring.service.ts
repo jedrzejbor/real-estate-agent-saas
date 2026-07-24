@@ -13,6 +13,7 @@ export type MonitoredFlow =
   | 'public_submission_claim'
   | 'public_analytics_event'
   | 'public_blog_analytics_event'
+  | 'listing_agent_marketplace'
   | 'address_geocoding'
   | 'plan_limit_enforcement';
 

@@ -1530,7 +1530,26 @@ Domknac funkcje produkcyjnie: monitoring, analityka, testy E2E i edge case'y.
       wojewodztwo,
     - test rynku agentow potwierdza, ze telefon agenta/wlasciciela nie jest
       wystawiany w katalogowym payloadzie marketplace.
-- [ ] `AT9.5` Dodac metryki administracyjne i logi bledow.
+- [x] `AT9.5` Dodac metryki administracyjne i logi bledow.
+  - Data zakonczenia: 2026-07-24
+  - Wykonano:
+    - rozszerzono `GET /api/admin/analytics/usage` o sekcje `marketplace` z
+      lejkiem wspolpracy wlasciciel-agent,
+    - dodano metryki: wlaczenia naboru, wyswietlenia rynku, wyslane propozycje,
+      otwarcia propozycji przez wlasciciela, akceptacje, odrzucenia oraz
+      utworzone kopie CRM,
+    - dodano wyliczane wskazniki: `sellerOpenRate`, `acceptanceRate` i
+      `copyCreationRate`,
+    - dodano panel "Rynek ofert agentow" w admin analytics z etapami lejka i
+      wskaznikami procentowymi,
+    - dodano etykiety marketplace dla list eventow w admin analytics,
+    - dodano przeplyw monitoringu `listing_agent_marketplace`,
+    - awarie pobocznych procesow marketplace, takich jak tracking analityki i
+      wysylka emaili, sa raportowane przez `MonitoringService.recordWarning`
+      bez blokowania glownej akcji uzytkownika,
+    - dodano test agregacji metryk marketplace w `analytics.service.spec.ts`,
+    - dodano test regresji, ze awaria trackingu analityki nie blokuje wyslania
+      propozycji i zapisuje warning monitoringu.
 - [ ] `AT9.6` Przygotowac rollout za feature flaga.
 
 ---

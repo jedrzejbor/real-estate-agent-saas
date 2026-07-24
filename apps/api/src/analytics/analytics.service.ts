@@ -15,6 +15,16 @@ import {
   CreatePublicListingAnalyticsEventDto,
 } from './dto/create-analytics-event.dto';
 
+const MARKETPLACE_ANALYTICS_EVENT_NAMES = [
+  'listing_agent_collaboration_enabled',
+  'agent_listing_market_viewed',
+  'listing_agent_proposal_sent',
+  'listing_agent_proposal_opened_by_seller',
+  'listing_agent_proposal_accepted',
+  'listing_agent_proposal_rejected',
+  'agent_assignment_listing_copy_created',
+] as const;
+
 @Injectable()
 export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
@@ -95,14 +105,21 @@ export class AnalyticsService {
     const now = new Date();
     const from = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
-    const [summary, topEvents, eventCategories, dailyEvents, recentEvents] =
-      await Promise.all([
-        this.getAnalyticsUsageTotals(from),
-        this.getTopAnalyticsEvents(from),
-        this.getAnalyticsEventCategories(from),
-        this.getDailyAnalyticsEvents(from),
-        this.getRecentAnalyticsEvents(from),
-      ]);
+    const [
+      summary,
+      topEvents,
+      eventCategories,
+      dailyEvents,
+      recentEvents,
+      marketplace,
+    ] = await Promise.all([
+      this.getAnalyticsUsageTotals(from),
+      this.getTopAnalyticsEvents(from),
+      this.getAnalyticsEventCategories(from),
+      this.getDailyAnalyticsEvents(from),
+      this.getRecentAnalyticsEvents(from),
+      this.getMarketplaceAnalyticsSummary(from),
+    ]);
 
     return {
       period: {
@@ -115,6 +132,7 @@ export class AnalyticsService {
       eventCategories,
       dailyEvents,
       recentEvents,
+      marketplace,
     };
   }
 
@@ -325,6 +343,53 @@ export class AnalyticsService {
     }));
   }
 
+  private async getMarketplaceAnalyticsSummary(from: Date) {
+    const rows = await this.analyticsEventRepo
+      .createQueryBuilder('event')
+      .select('event.name', 'name')
+      .addSelect('COUNT(*)', 'count')
+      .where('event.createdAt >= :from', { from })
+      .andWhere('event.name IN (:...eventNames)', {
+        eventNames: [...MARKETPLACE_ANALYTICS_EVENT_NAMES],
+      })
+      .groupBy('event.name')
+      .getRawMany<{ name: string; count: string }>();
+
+    const counts = new Map(
+      rows.map((row) => [row.name, parseCount(row.count)]),
+    );
+    const getCount = (
+      name: (typeof MARKETPLACE_ANALYTICS_EVENT_NAMES)[number],
+    ) => counts.get(name) ?? 0;
+    const proposalsSent = getCount('listing_agent_proposal_sent');
+    const proposalsOpenedBySeller = getCount(
+      'listing_agent_proposal_opened_by_seller',
+    );
+    const proposalsAccepted = getCount('listing_agent_proposal_accepted');
+    const proposalsRejected = getCount('listing_agent_proposal_rejected');
+    const decisions = proposalsAccepted + proposalsRejected;
+    const listingCopiesCreated = getCount(
+      'agent_assignment_listing_copy_created',
+    );
+
+    return {
+      collaborationEnabled: getCount('listing_agent_collaboration_enabled'),
+      marketViews: getCount('agent_listing_market_viewed'),
+      proposalsSent,
+      proposalsOpenedBySeller,
+      proposalsAccepted,
+      proposalsRejected,
+      listingCopiesCreated,
+      sellerOpenRate: calculateRate(proposalsOpenedBySeller, proposalsSent),
+      acceptanceRate: calculateRate(proposalsAccepted, decisions),
+      copyCreationRate: calculateRate(listingCopiesCreated, proposalsAccepted),
+      events: MARKETPLACE_ANALYTICS_EVENT_NAMES.map((name) => ({
+        name,
+        count: getCount(name),
+      })),
+    };
+  }
+
   private async trackPublicBlogCore(
     slug: string,
     dto: CreatePublicBlogAnalyticsEventDto,
@@ -372,6 +437,14 @@ export class AnalyticsService {
 function parseCount(value: string | number | null | undefined): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function calculateRate(numerator: number, denominator: number): number {
+  if (denominator <= 0) {
+    return 0;
+  }
+
+  return Math.round((numerator / denominator) * 100);
 }
 
 type AnalyticsEventCategory =

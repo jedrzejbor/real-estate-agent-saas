@@ -22,6 +22,7 @@ import {
 import { FeatureAccessDeniedException } from '../common/exceptions/feature-access-denied.exception';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { Address, Listing, ListingImage } from '../listings/entities';
+import { MonitoringService } from '../monitoring';
 import { UsersService } from '../users';
 import {
   CreateListingAgentProposalMessageDto,
@@ -97,6 +98,7 @@ export class ListingAgentProposalsService {
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
     private readonly analyticsService: AnalyticsService,
+    private readonly monitoringService: MonitoringService,
   ) {}
 
   async findAssignmentsForAgent(
@@ -1091,6 +1093,17 @@ export class ListingAgentProposalsService {
           error instanceof Error ? error.message : 'unknown error'
         }`,
       );
+      this.monitoringService.recordWarning(
+        'listing_agent_marketplace',
+        'analytics_track_failed',
+        {
+          analyticsEventName: name,
+          listingId: proposal.listingId,
+          proposalId: proposal.id,
+          agentId: proposal.agentId,
+          agencyId: proposal.agencyId ?? proposal.agent?.agencyId ?? null,
+        },
+      );
     }
   }
 
@@ -1123,6 +1136,19 @@ export class ListingAgentProposalsService {
         `Failed to track listing agent assignment analytics event ${name} for assignment ${assignment.id}: ${
           error instanceof Error ? error.message : 'unknown error'
         }`,
+      );
+      this.monitoringService.recordWarning(
+        'listing_agent_marketplace',
+        'analytics_track_failed',
+        {
+          analyticsEventName: name,
+          listingId: assignment.listingId,
+          proposalId: assignment.proposalId,
+          assignmentId: assignment.id,
+          agentId: assignment.agentId,
+          agencyId:
+            assignment.agencyId ?? assignment.proposal?.agencyId ?? null,
+        },
       );
     }
   }
@@ -1166,6 +1192,17 @@ export class ListingAgentProposalsService {
           error instanceof Error ? error.message : 'unknown error'
         }`,
       );
+      this.monitoringService.recordWarning(
+        'listing_agent_marketplace',
+        'owner_email_notification_failed',
+        {
+          listingId: listing.id,
+          proposalId: proposal.id,
+          ownerUserId: listing.ownerUserId,
+          agentId: proposal.agentId,
+          agencyId: proposal.agencyId ?? null,
+        },
+      );
     }
   }
 
@@ -1206,6 +1243,18 @@ export class ListingAgentProposalsService {
         `Failed to notify agent ${proposal.agentId} about seller decision for proposal ${proposal.id}: ${
           error instanceof Error ? error.message : 'unknown error'
         }`,
+      );
+      this.monitoringService.recordWarning(
+        'listing_agent_marketplace',
+        'agent_email_notification_failed',
+        {
+          listingId: proposal.listingId,
+          proposalId: proposal.id,
+          ownerUserId: proposal.ownerUserId,
+          agentId: proposal.agentId,
+          agencyId: proposal.agencyId ?? null,
+          decision,
+        },
       );
     }
   }

@@ -42,6 +42,22 @@ export interface AdminAnalyticsUsageSummary {
     planCode: string | null;
     createdAt: string;
   }>;
+  marketplace: {
+    collaborationEnabled: number;
+    marketViews: number;
+    proposalsSent: number;
+    proposalsOpenedBySeller: number;
+    proposalsAccepted: number;
+    proposalsRejected: number;
+    listingCopiesCreated: number;
+    sellerOpenRate: number;
+    acceptanceRate: number;
+    copyCreationRate: number;
+    events: Array<{
+      name: string;
+      count: number;
+    }>;
+  };
 }
 
 export async function fetchAdminAnalyticsUsage(

@@ -362,6 +362,9 @@ function buildService({
   const analyticsService = {
     trackSystemEvent: jest.fn().mockResolvedValue(undefined),
   };
+  const monitoringService = {
+    recordWarning: jest.fn(),
+  };
   const configService = {
     get: jest.fn((_key: string, fallback?: unknown) => fallback),
   };
@@ -377,6 +380,7 @@ function buildService({
     emailService as never,
     configService as never,
     analyticsService as never,
+    monitoringService as never,
   );
 
   return {
@@ -392,6 +396,7 @@ function buildService({
     usersService,
     emailService,
     analyticsService,
+    monitoringService,
     listingQb,
     proposalQb,
     messageQb,
@@ -456,6 +461,39 @@ describe('ListingAgentProposalsService', () => {
         id: AGENT_ID,
       },
     });
+  });
+
+  it('keeps proposal creation successful when marketplace analytics tracking fails and records a monitoring warning', async () => {
+    const { service, analyticsService, monitoringService } = buildService({
+      listing: buildListing(),
+      existingProposal: null,
+    });
+    analyticsService.trackSystemEvent.mockRejectedValueOnce(
+      new Error('analytics unavailable'),
+    );
+
+    const result = await service.createForListing(USER_ID, LISTING_ID, {
+      commissionType: ListingAgentProposalCommissionType.PERCENTAGE,
+      commissionValue: 2,
+      services: ['Zdjecia', 'Portale'],
+      message: 'Chce pomoc w sprzedazy tej nieruchomosci.',
+    });
+
+    expect(result).toMatchObject({
+      id: PROPOSAL_ID,
+      status: ListingAgentProposalStatus.SENT,
+    });
+    expect(monitoringService.recordWarning).toHaveBeenCalledWith(
+      'listing_agent_marketplace',
+      'analytics_track_failed',
+      expect.objectContaining({
+        analyticsEventName: 'listing_agent_proposal_sent',
+        listingId: LISTING_ID,
+        proposalId: PROPOSAL_ID,
+        agentId: AGENT_ID,
+        agencyId: AGENCY_ID,
+      }),
+    );
   });
 
   it('blocks free plans before checking listing availability', async () => {

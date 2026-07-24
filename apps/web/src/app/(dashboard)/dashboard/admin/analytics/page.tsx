@@ -196,6 +196,8 @@ export default function AdminAnalyticsUsagePage() {
             />
           </div>
 
+          <MarketplaceFunnelPanel data={data} />
+
           <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -401,6 +403,14 @@ const EVENT_LABELS: Record<string, string> = {
   matching_cta_clicked: 'Kliknięto akcję matchingu',
   matching_dismissed: 'Ukryto dopasowanie',
   matching_results_viewed: 'Wyświetlono dopasowania',
+  agent_assignment_listing_copy_created: 'Utworzono kopię CRM współpracy',
+  agent_listing_market_viewed: 'Wyświetlono rynek ofert agentów',
+  listing_agent_collaboration_enabled: 'Włączono współpracę z agentami',
+  listing_agent_proposal_accepted: 'Zaakceptowano propozycję agenta',
+  listing_agent_proposal_opened_by_seller:
+    'Właściciel otworzył propozycję agenta',
+  listing_agent_proposal_rejected: 'Odrzucono propozycję agenta',
+  listing_agent_proposal_sent: 'Wysłano propozycję współpracy',
   message_template_copied: 'Skopiowano szablon wiadomości',
   message_template_rendered: 'Wyrenderowano szablon wiadomości',
   notification_center_opened: 'Otworzono centrum powiadomień',
@@ -512,8 +522,7 @@ function buildDecisionInsights(
   const anomaly = getDailyAnomaly(sortedDailyEvents);
   const categorySignal = getCategorySignal(data);
   const missingAdoptionEvents = KEY_ADOPTION_EVENTS.filter(
-    (eventName) =>
-      !data.topEvents.some((event) => event.name === eventName),
+    (eventName) => !data.topEvents.some((event) => event.name === eventName),
   );
 
   if (data.summary.totalEvents === 0) {
@@ -534,7 +543,8 @@ function buildDecisionInsights(
     {
       id: 'recent-trend',
       label: getTrendLabel(trend.changePercent),
-      title: trend.changePercent >= 0 ? 'Wzrost aktywności' : 'Spadek aktywności',
+      title:
+        trend.changePercent >= 0 ? 'Wzrost aktywności' : 'Spadek aktywności',
       value: formatSignedPercent(trend.changePercent),
       description: `Ostatnie ${trend.recentDays} dni: ${trend.recentCount}, poprzednie ${trend.previousDays} dni: ${trend.previousCount}.`,
       tone:
@@ -562,7 +572,9 @@ function buildDecisionInsights(
     },
     {
       id: 'category-signal',
-      label: categorySignal.requiresAction ? 'Wymaga reakcji' : 'Najmocniejszy obszar',
+      label: categorySignal.requiresAction
+        ? 'Wymaga reakcji'
+        : 'Najmocniejszy obszar',
       title: categorySignal.title,
       value: categorySignal.value,
       description: categorySignal.description,
@@ -593,16 +605,17 @@ function buildDecisionInsights(
   return insights;
 }
 
-function getRecentTrend(
-  events: AdminAnalyticsUsageSummary['dailyEvents'],
-): {
+function getRecentTrend(events: AdminAnalyticsUsageSummary['dailyEvents']): {
   recentCount: number;
   previousCount: number;
   recentDays: number;
   previousDays: number;
   changePercent: number;
 } {
-  const comparisonWindow = Math.min(7, Math.max(1, Math.floor(events.length / 2)));
+  const comparisonWindow = Math.min(
+    7,
+    Math.max(1, Math.floor(events.length / 2)),
+  );
   const recent = events.slice(-comparisonWindow);
   const previous = events.slice(-comparisonWindow * 2, -comparisonWindow);
   const recentCount = sumDailyEvents(recent);
@@ -623,7 +636,9 @@ function getRecentTrend(
     previousCount,
     recentDays: recent.length,
     previousDays: previous.length,
-    changePercent: Math.round(((recentCount - previousCount) / previousCount) * 100),
+    changePercent: Math.round(
+      ((recentCount - previousCount) / previousCount) * 100,
+    ),
   };
 }
 
@@ -677,7 +692,8 @@ function getCategorySignal(data: AdminAnalyticsUsageSummary): {
     return {
       title: 'Brak dominującej sekcji',
       value: '0',
-      description: 'Kategorie produktu nie mają jeszcze wystarczającej aktywności.',
+      description:
+        'Kategorie produktu nie mają jeszcze wystarczającej aktywności.',
       requiresAction: true,
     };
   }
@@ -749,11 +765,7 @@ function UsageAlertCard({ alert }: { alert: UsageAlert }) {
   );
 }
 
-function DecisionInsightsPanel({
-  insights,
-}: {
-  insights: DecisionInsight[];
-}) {
+function DecisionInsightsPanel({ insights }: { insights: DecisionInsight[] }) {
   return (
     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -767,8 +779,8 @@ function DecisionInsightsPanel({
             </Badge>
           </div>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Najważniejsze sygnały z analytics: anomalie, wzrosty, spadki i
-            luki w adopcji kluczowych funkcji.
+            Najważniejsze sygnały z analytics: anomalie, wzrosty, spadki i luki
+            w adopcji kluczowych funkcji.
           </p>
         </div>
         <TrendingUp className="h-5 w-5 text-primary" />
@@ -811,6 +823,147 @@ function DecisionInsightCard({ insight }: { insight: DecisionInsight }) {
       </p>
       <p className="mt-2 text-sm leading-5 opacity-90">{insight.description}</p>
     </article>
+  );
+}
+
+function MarketplaceFunnelPanel({
+  data,
+}: {
+  data: AdminAnalyticsUsageSummary;
+}) {
+  const marketplace = data.marketplace;
+  const funnelSteps = [
+    {
+      id: 'collaboration-enabled',
+      label: 'Włączono nabór',
+      value: marketplace.collaborationEnabled,
+      description: 'Właściciele otworzyli oferty na współpracę.',
+    },
+    {
+      id: 'market-views',
+      label: 'Wyświetlenia rynku',
+      value: marketplace.marketViews,
+      description: 'Agenci weszli na rynek ofert.',
+    },
+    {
+      id: 'proposals-sent',
+      label: 'Propozycje',
+      value: marketplace.proposalsSent,
+      description: 'Agenci wysłali propozycje współpracy.',
+    },
+    {
+      id: 'seller-opened',
+      label: 'Otwarcia właściciela',
+      value: marketplace.proposalsOpenedBySeller,
+      description: `${marketplace.sellerOpenRate}% względem wysłanych propozycji.`,
+    },
+    {
+      id: 'accepted',
+      label: 'Akceptacje',
+      value: marketplace.proposalsAccepted,
+      description: `${marketplace.acceptanceRate}% zaakceptowanych decyzji.`,
+    },
+    {
+      id: 'copy-created',
+      label: 'Kopie CRM',
+      value: marketplace.listingCopiesCreated,
+      description: `${marketplace.copyCreationRate}% względem akceptacji.`,
+    },
+  ];
+  const maxValue = Math.max(1, ...funnelSteps.map((step) => step.value));
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="font-heading text-lg font-semibold text-foreground">
+              Rynek ofert agentów
+            </h2>
+            <Badge variant="outline" className="rounded-full">
+              Marketplace
+            </Badge>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Lejek współpracy właściciel-agent od otwarcia naboru po kopię CRM.
+          </p>
+        </div>
+        <HeartHandshake className="h-5 w-5 text-primary" />
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {funnelSteps.map((step) => (
+          <div
+            key={step.id}
+            className="rounded-xl border border-border/70 bg-muted/20 p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">
+                  {step.label}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {step.description}
+                </p>
+              </div>
+              <span className="shrink-0 text-xl font-semibold text-foreground">
+                {step.value.toLocaleString('pl-PL')}
+              </span>
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary"
+                style={{
+                  width: `${Math.max(4, (step.value / maxValue) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <MarketplaceRateCard
+          label="Otwarcia propozycji"
+          value={marketplace.sellerOpenRate}
+          description="Właściciel otworzył propozycję po wysłaniu."
+        />
+        <MarketplaceRateCard
+          label="Akceptacje decyzji"
+          value={marketplace.acceptanceRate}
+          description="Udział akceptacji w decyzjach właścicieli."
+        />
+        <MarketplaceRateCard
+          label="Kopie po akceptacji"
+          value={marketplace.copyCreationRate}
+          description="Agenci utworzyli kopię CRM po akceptacji."
+        />
+      </div>
+    </section>
+  );
+}
+
+function MarketplaceRateCard({
+  label,
+  value,
+  description,
+}: {
+  label: string;
+  value: number;
+  description: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-card px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        <Badge variant="outline" className="rounded-full">
+          {value}%
+        </Badge>
+      </div>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+        {description}
+      </p>
+    </div>
   );
 }
 
