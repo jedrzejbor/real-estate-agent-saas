@@ -661,7 +661,8 @@ describe('ListingAgentProposalsService', () => {
   });
 
   it('blocks creating CRM listing copy twice for the same assignment', async () => {
-    const { service } = buildService({
+    const { service, listingRepo } = buildService({
+      activeListingCount: 25,
       ownedAssignment: buildAssignment({
         agentListingId: 'existing-listing-id',
       }),
@@ -670,16 +671,19 @@ describe('ListingAgentProposalsService', () => {
     await expect(
       service.createListingCopyForAgentAssignment(USER_ID, 'assignment-1'),
     ).rejects.toBeInstanceOf(ConflictException);
+    expect(listingRepo.count).not.toHaveBeenCalled();
   });
 
   it('blocks creating CRM listing copy without an active accepted assignment', async () => {
-    const { service } = buildService({
+    const { service, listingRepo } = buildService({
+      activeListingCount: 25,
       ownedAssignment: null,
     });
 
     await expect(
       service.createListingCopyForAgentAssignment(USER_ID, 'assignment-1'),
     ).rejects.toBeInstanceOf(NotFoundException);
+    expect(listingRepo.count).not.toHaveBeenCalled();
   });
 
   it('blocks creating CRM listing copy when active listing limit is reached', async () => {

@@ -1454,6 +1454,16 @@ Po akceptacji dac agentowi praktyczna mozliwosc pracy na ofercie w swoim CRM.
     - dodano test przekroczenia limitu aktywnych ofert,
     - rozszerzono test happy path o bezpieczne mapowanie adresu, zdjecia,
       status kopii i zapis `agentListingId`.
+- [x] `AT8.8` Dodatkowy hardening kontraktu tworzenia kopii CRM.
+  - Data zakonczenia: 2026-07-24
+  - Wykonano:
+    - przesunieto sprawdzanie limitu planu aktywnych ofert na moment po
+      walidacji, ze aktywny assignment istnieje i nie ma jeszcze kopii CRM,
+    - dzieki temu endpoint zwraca precyzyjnie `404` dla braku aktywnej
+      wspolpracy oraz `409` dla juz utworzonej kopii, zamiast maskowac te
+      przypadki bledem limitu planu,
+    - dodano testy regresji pilnujace, ze limit planu nie jest sprawdzany dla
+      brakujacego assignmentu ani dla assignmentu z istniejaca kopia CRM.
 
 ### Sprint AT-9 - Powiadomienia, analityka i jakosc
 

@@ -195,7 +195,6 @@ export class ListingAgentProposalsService {
     assignmentId: string,
   ): Promise<ListingAgentAssignmentResponse> {
     const access = await this.resolvePaidAgentAccess(userId);
-    await this.assertAgentListingCreateWithinPlanLimit(access);
 
     const assignment = await this.assignmentRepo.findOne({
       where: {
@@ -225,6 +224,8 @@ export class ListingAgentProposalsService {
     if (!sourceListing) {
       throw new NotFoundException('Oferta źródłowa jest niedostępna');
     }
+
+    await this.assertAgentListingCreateWithinPlanLimit(access);
 
     const savedAssignment = await this.dataSource.transaction(async (manager) => {
       const listingRepo = manager.getRepository(Listing);
