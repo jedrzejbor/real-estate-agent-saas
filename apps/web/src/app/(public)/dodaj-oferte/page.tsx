@@ -154,6 +154,8 @@ export default function PublicListingSubmissionWizardPage() {
   const shouldRedirectAuthenticatedAgent = user
     ? !isPrivateSellerUser(user)
     : false;
+  const isAuthenticatedPrivateSeller = user ? isPrivateSellerUser(user) : false;
+  const showAgencyNameField = !isAuthenticatedPrivateSeller;
   const formStartedAt = React.useRef(Date.now());
   const appliedContactDefaultsForUserRef = React.useRef<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -308,14 +310,17 @@ export default function PublicListingSubmissionWizardPage() {
   }
 
   async function handleSubmit() {
-    const validation = validateStep(4, draft);
+    const submissionDraft = isAuthenticatedPrivateSeller
+      ? { ...draft, agencyName: '' }
+      : draft;
+    const validation = validateStep(4, submissionDraft);
     if (!validation.success) {
       setFieldErrors(validation.errors);
       return;
     }
 
     const urlSearchParams = new URLSearchParams(window.location.search);
-    const payload = buildSubmissionPayload(draft, {
+    const payload = buildSubmissionPayload(submissionDraft, {
       formStartedAt: formStartedAt.current,
       sourceUrl: window.location.href,
       referrer: document.referrer || undefined,
@@ -456,6 +461,7 @@ export default function PublicListingSubmissionWizardPage() {
               <StepContact
                 draft={draft}
                 errors={fieldErrors}
+                showAgencyNameField={showAgencyNameField}
                 updateDraft={updateDraft}
               />
             ) : null}
@@ -883,6 +889,7 @@ function getSubmissionImageSelectionId(
 function StepContact({
   draft,
   errors,
+  showAgencyNameField,
   updateDraft,
 }: StepProps<
   | 'ownerName'
@@ -894,7 +901,9 @@ function StepContact({
   | 'marketingConsent'
   | 'website'
   | 'agentCollaboration'
->) {
+> & {
+  showAgencyNameField: boolean;
+}) {
   return (
     <div className="space-y-6">
       <SectionHeader
@@ -922,11 +931,13 @@ function StepContact({
           error={errors.phone}
           onChange={(value) => updateDraft('phone', value)}
         />
-        <TextField
-          label="Biuro / agencja (opcjonalnie)"
-          value={draft.agencyName}
-          onChange={(value) => updateDraft('agencyName', value)}
-        />
+        {showAgencyNameField ? (
+          <TextField
+            label="Biuro / agencja (opcjonalnie)"
+            value={draft.agencyName}
+            onChange={(value) => updateDraft('agencyName', value)}
+          />
+        ) : null}
       </div>
       <div className="hidden">
         <label htmlFor="website">Strona internetowa</label>
@@ -1436,6 +1447,13 @@ function applyAuthenticatedContactDefaults(
     };
   }
 
+  if (isPrivateSellerUser(user) && next.agencyName) {
+    next = {
+      ...next,
+      agencyName: '',
+    };
+  }
+
   return next;
 }
 
@@ -1452,7 +1470,9 @@ function getAuthenticatedContactDefaults(
       .trim(),
     email: user.email,
     phone: user.agent?.phone?.trim() ?? '',
-    agencyName: user.agency?.name?.trim() ?? '',
+    agencyName: isPrivateSellerUser(user)
+      ? ''
+      : (user.agency?.name?.trim() ?? ''),
   };
 }
 
