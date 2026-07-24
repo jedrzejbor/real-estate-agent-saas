@@ -1550,7 +1550,25 @@ Domknac funkcje produkcyjnie: monitoring, analityka, testy E2E i edge case'y.
     - dodano test agregacji metryk marketplace w `analytics.service.spec.ts`,
     - dodano test regresji, ze awaria trackingu analityki nie blokuje wyslania
       propozycji i zapisuje warning monitoringu.
-- [ ] `AT9.6` Przygotowac rollout za feature flaga.
+- [x] `AT9.6` Przygotowac rollout za feature flaga.
+  - Data zakonczenia: 2026-07-24
+  - Wykonano:
+    - dodano release flag `agentListingMarketplaceEnabled` po stronie API i web,
+    - flaga jest sterowana zmienna
+      `RELEASE_FLAG_AGENT_LISTING_MARKETPLACE_ENABLED`,
+    - domyslna wartosc flagi to `false`, zeby funkcja nie wlaczala sie
+      przypadkowo po deployu,
+    - `AgentListingMarketService` blokuje rynek ofert przed pobieraniem access
+      contextu, jesli flaga rolloutowa jest wylaczona,
+    - `ListingAgentProposalsService` blokuje glowne akcje marketplace:
+      wysylanie, listowanie, edycje i wycofanie propozycji, widoki sprzedawcy,
+      decyzje sprzedawcy, czat, listowanie assignmentow oraz tworzenie kopii
+      CRM,
+    - linki dashboardu `Oferty szukajace agenta`, `Wyslane propozycje` i
+      `Wspolprace` sa ukrywane w sidebarze, gdy flaga jest wylaczona,
+    - dokument `LOCAL_SETUP.md` zawiera nowa zmienna env i opis jej roli,
+    - dodano testy release flag oraz testy regresji blokady rynku/propozycji
+      przy wylaczonej fladze.
 
 ---
 
@@ -1574,7 +1592,213 @@ Domknac funkcje produkcyjnie: monitoring, analityka, testy E2E i edge case'y.
 
 ---
 
-## 12. Ryzyka i uwagi
+## 12. Manualna lista testow regresji przed rolloutem
+
+### Przygotowanie srodowiska
+
+- [ ] Uruchomic API i web po aktualnych migracjach.
+- [ ] Ustawic `RELEASE_FLAG_AGENT_LISTING_MARKETPLACE_ENABLED=false` i
+      potwierdzic, ze funkcja jest ukryta/zablokowana.
+- [ ] Ustawic `RELEASE_FLAG_AGENT_LISTING_MARKETPLACE_ENABLED=true`,
+      zrestartowac API i odswiezyc sesje uzytkownika.
+- [ ] Przygotowac minimum 4 konta:
+  - wlasciciel prywatny / zwykly uzytkownik,
+  - agent w platnym planie z `agentListingMarket=true`,
+  - agent w planie Free albo bez uprawnienia,
+  - admin.
+- [ ] Przygotowac minimum 2 oferty wlasciciela:
+  - oferta publiczna z wlaczona wspolpraca,
+  - oferta publiczna bez wlaczonej wspolpracy.
+
+### Rollout flag
+
+- [ ] Przy wylaczonej fladze linki `Oferty szukajace agenta`, `Wyslane
+    propozycje` i `Wspolprace` nie sa widoczne w sidebarze agenta.
+- [ ] Przy wylaczonej fladze wejscie reczne na `/dashboard/agent-market`
+      konczy sie blokada dostepu albo komunikatem braku funkcji.
+- [ ] Przy wylaczonej fladze backend blokuje wyslanie propozycji,
+      listowanie propozycji, czat, assignmenty i tworzenie kopii CRM.
+- [ ] Przy wlaczonej fladze linki marketplace wracaja w dashboardzie agenta.
+- [ ] Przy wlaczonej fladze admin nadal widzi panel analytics i zwykle funkcje
+      administracyjne.
+
+### Wlasciciel - tworzenie i edycja oferty
+
+- [ ] Wlasciciel moze utworzyc/publikowac oferte bez wlaczania wspolpracy.
+- [ ] Oferta bez wspolpracy nie pojawia sie na rynku ofert agentow.
+- [ ] Wlasciciel moze wlaczyc wspolprace dla opublikowanej, aktywnej oferty.
+- [ ] Wlasciciel moze wybrac tryb `single_agent`.
+- [ ] Wlasciciel moze wybrac tryb `multi_agent`.
+- [ ] Preferencje wspolpracy zapisuja sie po edycji i sa widoczne w panelu
+      wlasciciela.
+- [ ] Wlasciciel moze zamknac nabor agentow.
+- [ ] Wlasciciel moze ponownie otworzyc zamkniety nabor dla aktywnej publicznej
+      oferty.
+- [ ] Nie da sie otworzyc naboru dla oferty niepublicznej, szkicu,
+      zarchiwizowanej albo wygaslej.
+
+### Publiczna oferta
+
+- [ ] Anonimowy uzytkownik widzi tylko neutralna informacje, ze wlasciciel jest
+      otwarty na wspolprace z agentem.
+- [ ] Anonimowy uzytkownik nie widzi formularza skladania propozycji agenta.
+- [ ] Zwykly zalogowany uzytkownik nie-agent nie widzi formularza skladania
+      propozycji agenta.
+- [ ] Publiczny payload nie zawiera danych kontaktowych wlasciciela.
+- [ ] Publiczny payload nie zawiera `ownerUser`, `ownerUserId`, warunkow
+      propozycji agentow ani snapshotow zaakceptowanych warunkow.
+- [ ] Jesli oferta nie pokazuje dokladnego adresu, publiczny payload nie zawiera
+      ulicy, kodu pocztowego ani wspolrzednych.
+
+### Agent - rynek ofert
+
+- [ ] Agent w planie Free nie ma dostepu do rynku ofert.
+- [ ] Agent w platnym planie widzi zakladke `Oferty szukajace agenta`.
+- [ ] Rynek pokazuje tylko aktywne, opublikowane, niewygasle oferty z otwartym
+      naborem.
+- [ ] Rynek nie pokazuje ofert tego samego agenta/agencji, jesli nie powinien
+      skladac propozycji do wlasnej oferty.
+- [ ] Filtry rynku dzialaja: typ nieruchomosci, transakcja, miasto, cena,
+      wyszukiwarka i tryb wspolpracy.
+- [ ] Sortowanie i paginacja rynku nie psuja wynikow.
+- [ ] Karta rynku pokazuje publiczny ksztalt oferty: tytul, cena zgodnie z
+      publicznym ustawieniem, lokalizacja, zdjecie i metadane wspolpracy.
+- [ ] Karta rynku nie pokazuje danych kontaktowych wlasciciela ani dokladnego
+      adresu.
+
+### Agent - skladanie i edycja propozycji
+
+- [ ] Agent moze otworzyc formularz propozycji tylko dla oferty z otwartym
+      naborem.
+- [ ] Formularz waliduje wymagane pola: typ prowizji, wartosc prowizji, zakres
+      uslug i wiadomosc.
+- [ ] Prowizja procentowa nie moze przekroczyc 100%.
+- [ ] Brak prowizji nie pozwala podac wartosci prowizji.
+- [ ] Termin waznosci propozycji nie moze byc w przeszlosci.
+- [ ] Po wyslaniu propozycji karta rynku pokazuje, ze agent juz zlozyl
+      propozycje.
+- [ ] Agent nie moze wyslac drugiej aktywnej propozycji do tej samej oferty.
+- [ ] Agent widzi wyslana propozycje w `/dashboard/agent-proposals`.
+- [ ] Agent moze edytowac propozycje, dopoki nie jest zaakceptowana, odrzucona,
+      wycofana, wygasla albo zamknieta.
+- [ ] Agent moze wycofac aktywna propozycje.
+- [ ] Wycofanej propozycji nie da sie zaakceptowac przez wlasciciela.
+
+### Wlasciciel - propozycje i decyzje
+
+- [ ] Wlasciciel widzi tylko propozycje dotyczace swoich ofert.
+- [ ] Wlasciciel nie widzi propozycji do ofert innych wlascicieli.
+- [ ] Lista propozycji pokazuje status, dane agenta/agencji, warunki
+      wspolpracy i powiazana oferte.
+- [ ] Wlasciciel moze otworzyc szczegoly propozycji.
+- [ ] Otwarcie szczegolow nie ujawnia danych, ktore nie powinny byc widoczne
+      poza kontekstem tej propozycji.
+- [ ] Wlasciciel moze odrzucic aktywna propozycje.
+- [ ] Po odrzuceniu agent widzi status `Odrzucona`.
+- [ ] Wlasciciel moze zaakceptowac aktywna propozycje.
+- [ ] Dla trybu `single_agent` akceptacja zamyka nabor i zamyka pozostale
+      aktywne propozycje.
+- [ ] Dla trybu `multi_agent` akceptacja nie zamyka naboru automatycznie.
+- [ ] Wlasciciel nie moze zaakceptowac propozycji drugi raz, jesli assignment
+      juz istnieje.
+
+### Czat propozycji
+
+- [ ] Agent moze wyslac wiadomosc w aktywnej propozycji.
+- [ ] Wlasciciel moze odpowiedziec w tej samej propozycji.
+- [ ] Wiadomosci widza tylko uczestnicy propozycji.
+- [ ] Uzytkownik spoza propozycji nie moze pobrac ani wyslac wiadomosci.
+- [ ] Nie da sie wyslac pustej wiadomosci.
+- [ ] Czat jest zablokowany dla propozycji zamknietej, wycofanej, odrzuconej
+      albo wygaslej.
+
+### Assignment i kopia CRM agenta
+
+- [ ] Po akceptacji agent widzi wspolprace w `/dashboard/agent-assignments`.
+- [ ] Assignment pokazuje oferte, status, date akceptacji i link do propozycji.
+- [ ] Agent moze utworzyc kopie CRM tylko dla aktywnego assignmentu.
+- [ ] Kopia CRM powstaje jako szkic, nie jako opublikowana oferta.
+- [ ] Kopia CRM ma `sourceListingId` i `agentAssignmentId`.
+- [ ] Assignment dostaje `agentListingId`.
+- [ ] Nie da sie utworzyc drugiej kopii CRM dla tego samego assignmentu.
+- [ ] Tworzenie kopii CRM respektuje limit aktywnych ofert planu agencji.
+- [ ] Kopia CRM nie wlacza naboru agentow.
+- [ ] Kopia CRM nie dziedziczy publicznego sluga wlasciciela.
+- [ ] Kopia CRM nie przenosi prywatnych danych wlasciciela.
+- [ ] Jesli oryginalna oferta nie pokazuje dokladnego adresu, kopia CRM dostaje
+      tylko bezpieczny adres publiczny.
+- [ ] Oferta utworzona z assignmentu ma badge/panel informacyjny, ze pochodzi
+      ze wspolpracy.
+- [ ] Agent moze edytowac kopie CRM bez zmiany oryginalnej oferty wlasciciela.
+- [ ] Agent moze opublikowac kopie CRM ze swojego konta, jesli standardowe
+      wymogi publikacji sa spelnione.
+
+### Powiadomienia i email
+
+- [ ] Po wyslaniu propozycji wlasciciel dostaje email.
+- [ ] Po akceptacji propozycji agent dostaje email.
+- [ ] Po odrzuceniu propozycji agent dostaje email.
+- [ ] Agent widzi in-app powiadomienie o zaakceptowanej wspolpracy wymagajacej
+      utworzenia kopii CRM.
+- [ ] Agent widzi in-app powiadomienie o odrzuconej propozycji.
+- [ ] Kategorie powiadomien w ustawieniach zawieraja `Wspolprace z
+    wlascicielami`.
+- [ ] Wyciszenie kategorii marketplace ukrywa powiadomienia tej kategorii.
+- [ ] Oznaczenie powiadomienia jako przeczytane dziala i nie wraca po
+      odswiezeniu.
+
+### Analytics, admin i monitoring
+
+- [ ] Po wlaczeniu wspolpracy pojawia sie event
+      `listing_agent_collaboration_enabled`.
+- [ ] Po wejsciu na rynek ofert pojawia sie event `agent_listing_market_viewed`.
+- [ ] Po wyslaniu propozycji pojawia sie event `listing_agent_proposal_sent`.
+- [ ] Po otwarciu propozycji przez wlasciciela pojawia sie event
+      `listing_agent_proposal_opened_by_seller`.
+- [ ] Po akceptacji/odrzuceniu pojawiaja sie eventy
+      `listing_agent_proposal_accepted` / `listing_agent_proposal_rejected`.
+- [ ] Po utworzeniu kopii CRM pojawia sie event
+      `agent_assignment_listing_copy_created`.
+- [ ] Admin widzi panel `Rynek ofert agentow` w analytics.
+- [ ] Panel admin analytics pokazuje liczby lejka i wskazniki:
+      `sellerOpenRate`, `acceptanceRate`, `copyCreationRate`.
+- [ ] Awarie pobocznego trackingu/emaili nie blokuja glownej akcji.
+- [ ] Awarie pobocznego trackingu/emaili sa widoczne w logach jako warning
+      flow `listing_agent_marketplace`.
+
+### Regresja istniejacych funkcji
+
+- [ ] Standardowe tworzenie oferty agenta bez wspolpracy nadal dziala.
+- [ ] Publikacja i odpublikowanie zwyklej oferty nadal dziala.
+- [ ] Publiczne strony ofert nadal dzialaja przy wlaczonej i wylaczonej fladze
+      marketplace.
+- [ ] Formularze publicznych leadow nadal dzialaja.
+- [ ] Ulubione oferty nadal dzialaja dla zalogowanego zwyklego uzytkownika.
+- [ ] Dashboard agenta nadal pokazuje oferty, klientow, transakcje, zadania,
+      kalendarz i raporty.
+- [ ] Limity planu aktywnych ofert nadal dzialaja dla zwyklego tworzenia
+      ofert.
+- [ ] Admin moze nadal edytowac plany i feature entitlements.
+- [ ] Ustawienia powiadomien nadal zapisuja poprzednie kategorie.
+- [ ] Publiczny katalog ofert i mapa nie pokazuja danych prywatnych.
+- [ ] Login, logout i odswiezenie `auth/me` nadal zwracaja poprawne
+      `releaseFlags`.
+
+### Smoke test po rollbacku flagi
+
+- [ ] Ustawic `RELEASE_FLAG_AGENT_LISTING_MARKETPLACE_ENABLED=false` i
+      zrestartowac API.
+- [ ] Odnowic sesje uzytkownika albo wykonac ponownie `auth/me`.
+- [ ] Linki marketplace znikaja z dashboardu.
+- [ ] Bezposrednie wejscie na endpointy marketplace zwraca `403`.
+- [ ] Istniejace oferty, publiczne strony, leady, ulubione i dashboard CRM
+      nadal dzialaja.
+- [ ] Ponowne ustawienie flagi na `true` przywraca funkcje marketplace bez
+      migracji i bez cofania danych.
+
+---
+
+## 13. Ryzyka i uwagi
 
 - Funkcja ma wysoka wartosc biznesowa, ale wymaga bardzo ostrej kontroli
   uprawnien, bo dotyka danych wlasciciela i relacji handlowej.

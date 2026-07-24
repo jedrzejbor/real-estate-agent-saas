@@ -96,6 +96,7 @@ RELEASE_FLAG_PUBLIC_LEAD_FORMS_ENABLED=false
 RELEASE_FLAG_PUBLIC_CLAIM_FLOW_ENABLED=false
 RELEASE_FLAG_FREEMIUM_UPSELL_ENABLED=true
 RELEASE_FLAG_PREMIUM_REPORTS_ENABLED=true
+RELEASE_FLAG_AGENT_LISTING_MARKETPLACE_ENABLED=false
 PLAN_LIMIT_ENFORCEMENT_SCHEDULER_ENABLED=true
 PLAN_LIMIT_ENFORCEMENT_SCHEDULER_HOUR=2
 PLAN_LIMIT_ENFORCEMENT_SCHEDULER_MINUTE=15
@@ -134,13 +135,14 @@ To odpali równocześnie:
 
 Techniczne feature flags są sterowane po stronie API przez zmienne środowiskowe:
 
-| Zmienna                                  | Domyślna wartość | Rola                                               |
-| ---------------------------------------- | ---------------- | -------------------------------------------------- |
-| `RELEASE_FLAG_PUBLIC_LISTINGS_ENABLED`   | `false`          | rollout publicznych stron ofert                    |
-| `RELEASE_FLAG_PUBLIC_LEAD_FORMS_ENABLED` | `false`          | rollout formularzy leadowych                       |
-| `RELEASE_FLAG_PUBLIC_CLAIM_FLOW_ENABLED` | `false`          | rollout claim flow dla publicznych ofert           |
-| `RELEASE_FLAG_FREEMIUM_UPSELL_ENABLED`   | `true`           | pokazywanie CTA upsell / premium entry pointów     |
-| `RELEASE_FLAG_PREMIUM_REPORTS_ENABLED`   | `true`           | udostępnianie premium raportów / ich placeholderów |
+| Zmienna                                          | Domyślna wartość | Rola                                               |
+| ------------------------------------------------ | ---------------- | -------------------------------------------------- |
+| `RELEASE_FLAG_PUBLIC_LISTINGS_ENABLED`           | `false`          | rollout publicznych stron ofert                    |
+| `RELEASE_FLAG_PUBLIC_LEAD_FORMS_ENABLED`         | `false`          | rollout formularzy leadowych                       |
+| `RELEASE_FLAG_PUBLIC_CLAIM_FLOW_ENABLED`         | `false`          | rollout claim flow dla publicznych ofert           |
+| `RELEASE_FLAG_FREEMIUM_UPSELL_ENABLED`           | `true`           | pokazywanie CTA upsell / premium entry pointów     |
+| `RELEASE_FLAG_PREMIUM_REPORTS_ENABLED`           | `true`           | udostępnianie premium raportów / ich placeholderów |
+| `RELEASE_FLAG_AGENT_LISTING_MARKETPLACE_ENABLED` | `false`          | rollout rynku współpracy właściciel-agent          |
 
 Zmiana flag wymaga restartu procesu API.
 
