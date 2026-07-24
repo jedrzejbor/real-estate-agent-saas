@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AnalyticsModule } from '../analytics';
 import { EmailModule } from '../email';
 import { Address, Listing, ListingImage } from '../listings/entities';
 import { UsersModule } from '../users';
@@ -21,6 +22,7 @@ import { ListingAgentProposalsService } from './listing-agent-proposals.service'
       Address,
       ListingImage,
     ]),
+    AnalyticsModule,
     UsersModule,
     EmailModule,
   ],

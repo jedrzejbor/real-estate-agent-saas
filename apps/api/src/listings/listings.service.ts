@@ -937,6 +937,7 @@ export class ListingsService {
     this.syncPublicationWithListingStatus(listing);
 
     await this.listingRepo.save(listing);
+    await this.trackAgentCollaborationEnabled(previousState, listing, userId);
 
     // Update address if provided
     if (addressDto && listing.address) {
@@ -972,6 +973,44 @@ export class ListingsService {
     await this.attachPublicViewCounts([updatedListing]);
     this.attachCommissionAmounts([updatedListing]);
     return updatedListing;
+  }
+
+  private async trackAgentCollaborationEnabled(
+    previousState: Record<string, unknown>,
+    listing: Listing,
+    userId: string,
+  ): Promise<void> {
+    if (
+      previousState.agentCollaborationEnabled === true ||
+      listing.agentCollaborationEnabled !== true
+    ) {
+      return;
+    }
+
+    try {
+      await this.analyticsEventRepo.save(
+        this.analyticsEventRepo.create({
+          name: 'listing_agent_collaboration_enabled',
+          userId,
+          agentId: listing.agentId ?? null,
+          agencyId: null,
+          planCode: null,
+          properties: {
+            listingId: listing.id,
+            ownerUserId: listing.ownerUserId ?? null,
+            collaborationMode: listing.agentCollaborationMode ?? null,
+            collaborationStatus: listing.agentCollaborationStatus ?? null,
+            publicSlug: listing.publicSlug ?? null,
+          },
+        }),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to track listing agent collaboration enabled event for listing ${listing.id}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
   }
 
   async addImages(

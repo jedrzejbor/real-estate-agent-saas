@@ -345,10 +345,7 @@ function buildService({
           if (entity === ListingAgentProposal) return proposalRepo;
           if (entity === Address) return addressRepo;
           if (entity === ListingImage) return listingImageRepo;
-          if (
-            typeof entity === 'function' &&
-            entity.name === 'Listing'
-          ) {
+          if (typeof entity === 'function' && entity.name === 'Listing') {
             return listingRepo;
           }
           return assignmentRepo;
@@ -361,6 +358,9 @@ function buildService({
   };
   const emailService = {
     send: jest.fn().mockResolvedValue(undefined),
+  };
+  const analyticsService = {
+    trackSystemEvent: jest.fn().mockResolvedValue(undefined),
   };
   const configService = {
     get: jest.fn((_key: string, fallback?: unknown) => fallback),
@@ -376,6 +376,7 @@ function buildService({
     usersService as never,
     emailService as never,
     configService as never,
+    analyticsService as never,
   );
 
   return {
@@ -390,6 +391,7 @@ function buildService({
     dataSource,
     usersService,
     emailService,
+    analyticsService,
     listingQb,
     proposalQb,
     messageQb,
@@ -399,10 +401,8 @@ function buildService({
 describe('ListingAgentProposalsService', () => {
   it('creates a sent proposal for an open collaboration listing and notifies the owner', async () => {
     const listing = buildListing();
-    const { service, proposalRepo, listingQb, emailService } = buildService({
-      listing,
-      existingProposal: null,
-    });
+    const { service, proposalRepo, listingQb, emailService, analyticsService } =
+      buildService({ listing, existingProposal: null });
 
     const result = await service.createForListing(USER_ID, LISTING_ID, {
       commissionType: ListingAgentProposalCommissionType.PERCENTAGE,
@@ -429,6 +429,19 @@ describe('ListingAgentProposalsService', () => {
       expect.objectContaining({
         to: 'owner@example.test',
         subject: expect.stringContaining('Nowa oferta współpracy'),
+      }),
+    );
+    expect(analyticsService.trackSystemEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'listing_agent_proposal_sent',
+        userId: USER_ID,
+        agentId: AGENT_ID,
+        agencyId: AGENCY_ID,
+        properties: expect.objectContaining({
+          listingId: LISTING_ID,
+          proposalId: PROPOSAL_ID,
+          commissionType: ListingAgentProposalCommissionType.PERCENTAGE,
+        }),
       }),
     );
     expect(result).toMatchObject({
@@ -543,7 +556,10 @@ describe('ListingAgentProposalsService', () => {
       'proposal.status = :status',
       { status: ListingAgentProposalStatus.SENT },
     );
-    expect(proposalQb.orderBy).toHaveBeenCalledWith('proposal.updatedAt', 'ASC');
+    expect(proposalQb.orderBy).toHaveBeenCalledWith(
+      'proposal.updatedAt',
+      'ASC',
+    );
     expect(proposalQb.skip).toHaveBeenCalledWith(5);
     expect(proposalQb.take).toHaveBeenCalledWith(5);
     expect(result.data).toHaveLength(1);
@@ -616,10 +632,16 @@ describe('ListingAgentProposalsService', () => {
         proposedPrice: 520000,
       }),
     });
-    const { service, listingRepo, addressRepo, listingImageRepo, assignmentRepo } =
-      buildService({
-        ownedAssignment: assignment,
-      });
+    const {
+      service,
+      listingRepo,
+      addressRepo,
+      listingImageRepo,
+      assignmentRepo,
+      analyticsService,
+    } = buildService({
+      ownedAssignment: assignment,
+    });
 
     const result = await service.createListingCopyForAgentAssignment(
       USER_ID,
@@ -655,6 +677,20 @@ describe('ListingAgentProposalsService', () => {
     expect(assignmentRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         agentListingId: 'agent-listing-1',
+      }),
+    );
+    expect(analyticsService.trackSystemEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'agent_assignment_listing_copy_created',
+        userId: USER_ID,
+        agentId: AGENT_ID,
+        agencyId: AGENCY_ID,
+        properties: expect.objectContaining({
+          listingId: LISTING_ID,
+          proposalId: PROPOSAL_ID,
+          assignmentId: assignment.id,
+          agentListingId: 'agent-listing-1',
+        }),
       }),
     );
     expect(result.agentListingId).toBe('agent-listing-1');
@@ -769,13 +805,28 @@ describe('ListingAgentProposalsService', () => {
 
   it('shows only seller-owned proposal details', async () => {
     const proposal = buildProposal();
-    const { service, proposalRepo } = buildService({ ownedProposal: proposal });
+    const { service, proposalRepo, analyticsService } = buildService({
+      ownedProposal: proposal,
+    });
 
     const result = await service.findOneForSeller(OWNER_ID, PROPOSAL_ID);
 
     expect(proposalRepo.findOne).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: PROPOSAL_ID, ownerUserId: OWNER_ID },
+      }),
+    );
+    expect(analyticsService.trackSystemEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'listing_agent_proposal_opened_by_seller',
+        userId: OWNER_ID,
+        agentId: AGENT_ID,
+        agencyId: AGENCY_ID,
+        properties: expect.objectContaining({
+          listingId: LISTING_ID,
+          proposalId: PROPOSAL_ID,
+          proposalStatus: ListingAgentProposalStatus.SENT,
+        }),
       }),
     );
     expect(result.id).toBe(PROPOSAL_ID);
@@ -787,8 +838,14 @@ describe('ListingAgentProposalsService', () => {
         agentCollaborationMode: ListingAgentCollaborationMode.SINGLE_AGENT,
       }),
     });
-    const { service, proposalRepo, listingRepo, assignmentRepo, proposalQb } =
-      buildService({ ownedProposal: proposal });
+    const {
+      service,
+      proposalRepo,
+      listingRepo,
+      assignmentRepo,
+      proposalQb,
+      analyticsService,
+    } = buildService({ ownedProposal: proposal });
 
     const result = await service.acceptForSeller(OWNER_ID, PROPOSAL_ID);
 
@@ -823,6 +880,19 @@ describe('ListingAgentProposalsService', () => {
       proposalId: PROPOSAL_ID,
       status: ListingAgentAssignmentStatus.ACTIVE,
     });
+    expect(analyticsService.trackSystemEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'listing_agent_proposal_accepted',
+        userId: OWNER_ID,
+        agentId: AGENT_ID,
+        agencyId: AGENCY_ID,
+        properties: expect.objectContaining({
+          listingId: LISTING_ID,
+          proposalId: PROPOSAL_ID,
+          assignmentId: 'assignment-1',
+        }),
+      }),
+    );
   });
 
   it('keeps multi-agent recruitment open after accepting a proposal', async () => {
@@ -843,9 +913,10 @@ describe('ListingAgentProposalsService', () => {
 
   it('rejects seller proposal and notifies the agent', async () => {
     const proposal = buildProposal();
-    const { service, proposalRepo, emailService } = buildService({
-      ownedProposal: proposal,
-    });
+    const { service, proposalRepo, emailService, analyticsService } =
+      buildService({
+        ownedProposal: proposal,
+      });
 
     const result = await service.rejectForSeller(OWNER_ID, PROPOSAL_ID);
 
@@ -861,6 +932,19 @@ describe('ListingAgentProposalsService', () => {
         subject: expect.stringContaining('odrzucił'),
       }),
     );
+    expect(analyticsService.trackSystemEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'listing_agent_proposal_rejected',
+        userId: OWNER_ID,
+        agentId: AGENT_ID,
+        agencyId: AGENCY_ID,
+        properties: expect.objectContaining({
+          listingId: LISTING_ID,
+          proposalId: PROPOSAL_ID,
+          proposalStatus: ListingAgentProposalStatus.REJECTED,
+        }),
+      }),
+    );
     expect(result.assignment).toBeNull();
   });
 
@@ -868,7 +952,10 @@ describe('ListingAgentProposalsService', () => {
     const listing = buildListing();
     const { service, listingRepo, proposalRepo } = buildService({ listing });
 
-    const result = await service.closeRecruitmentForSeller(OWNER_ID, LISTING_ID);
+    const result = await service.closeRecruitmentForSeller(
+      OWNER_ID,
+      LISTING_ID,
+    );
 
     expect(listingRepo.findOne).toHaveBeenCalledWith({
       where: { id: LISTING_ID, ownerUserId: OWNER_ID },
@@ -906,7 +993,10 @@ describe('ListingAgentProposalsService', () => {
     });
     const { service, listingRepo } = buildService({ listing });
 
-    const result = await service.reopenRecruitmentForSeller(OWNER_ID, LISTING_ID);
+    const result = await service.reopenRecruitmentForSeller(
+      OWNER_ID,
+      LISTING_ID,
+    );
 
     expect(listingRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({

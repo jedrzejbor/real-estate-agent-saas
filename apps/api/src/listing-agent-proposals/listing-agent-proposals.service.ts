@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Not, QueryFailedError, Repository } from 'typeorm';
+import { AnalyticsService } from '../analytics';
 import { EmailService } from '../email';
 import {
   ListingAgentAssignmentStatus,
@@ -62,6 +63,13 @@ const MESSAGEABLE_PROPOSAL_STATUSES = new Set<ListingAgentProposalStatus>([
   ListingAgentProposalStatus.UPDATED,
   ListingAgentProposalStatus.ACCEPTED,
 ]);
+const LISTING_AGENT_ANALYTICS_EVENTS = {
+  PROPOSAL_SENT: 'listing_agent_proposal_sent',
+  PROPOSAL_OPENED_BY_SELLER: 'listing_agent_proposal_opened_by_seller',
+  PROPOSAL_ACCEPTED: 'listing_agent_proposal_accepted',
+  PROPOSAL_REJECTED: 'listing_agent_proposal_rejected',
+  LISTING_COPY_CREATED: 'agent_assignment_listing_copy_created',
+} as const;
 
 type AgentAccessContext = Awaited<
   ReturnType<UsersService['getAgencyAccessContext']>
@@ -88,6 +96,7 @@ export class ListingAgentProposalsService {
     private readonly usersService: UsersService,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   async findAssignmentsForAgent(
@@ -177,6 +186,16 @@ export class ListingAgentProposalsService {
       saved.listing = listing;
       saved.agent = access.agent;
       saved.agency = access.agency ?? null;
+      await this.trackListingAgentProposalEvent(
+        LISTING_AGENT_ANALYTICS_EVENTS.PROPOSAL_SENT,
+        saved,
+        userId,
+        {
+          collaborationMode: listing.agentCollaborationMode ?? null,
+          commissionType: saved.commissionType,
+          hasProposedPrice: saved.proposedPrice !== null,
+        },
+      );
       await this.notifyOwnerAboutProposal(saved, listing);
       return toProposalResponse(saved);
     } catch (error) {
@@ -227,44 +246,58 @@ export class ListingAgentProposalsService {
 
     await this.assertAgentListingCreateWithinPlanLimit(access);
 
-    const savedAssignment = await this.dataSource.transaction(async (manager) => {
-      const listingRepo = manager.getRepository(Listing);
-      const addressRepo = manager.getRepository(Address);
-      const imageRepo = manager.getRepository(ListingImage);
-      const assignmentRepo = manager.getRepository(ListingAgentAssignment);
+    const savedAssignment = await this.dataSource.transaction(
+      async (manager) => {
+        const listingRepo = manager.getRepository(Listing);
+        const addressRepo = manager.getRepository(Address);
+        const imageRepo = manager.getRepository(ListingImage);
+        const assignmentRepo = manager.getRepository(ListingAgentAssignment);
 
-      const listingCopy = listingRepo.create(
-        buildAgentListingCopy(sourceListing, assignment, access.agent.id),
-      );
-      const savedListing = await listingRepo.save(listingCopy);
-
-      if (sourceListing.address) {
-        const addressCopy = addressRepo.create(
-          buildAgentListingAddressCopy(sourceListing, savedListing),
+        const listingCopy = listingRepo.create(
+          buildAgentListingCopy(sourceListing, assignment, access.agent.id),
         );
-        await addressRepo.save(addressCopy);
-      }
+        const savedListing = await listingRepo.save(listingCopy);
 
-      if (Array.isArray(sourceListing.images) && sourceListing.images.length > 0) {
-        const imageCopies = sourceListing.images.map((image) =>
-          imageRepo.create({
-            url: image.url,
-            order: image.order,
-            isPrimary: image.isPrimary,
-            altText: image.altText,
-            listing: savedListing,
-          }),
-        );
-        await imageRepo.save(imageCopies);
-      }
+        if (sourceListing.address) {
+          const addressCopy = addressRepo.create(
+            buildAgentListingAddressCopy(sourceListing, savedListing),
+          );
+          await addressRepo.save(addressCopy);
+        }
 
-      assignment.agentListingId = savedListing.id;
-      const updatedAssignment = await assignmentRepo.save(assignment);
-      updatedAssignment.listing = sourceListing;
-      updatedAssignment.proposal = assignment.proposal;
+        if (
+          Array.isArray(sourceListing.images) &&
+          sourceListing.images.length > 0
+        ) {
+          const imageCopies = sourceListing.images.map((image) =>
+            imageRepo.create({
+              url: image.url,
+              order: image.order,
+              isPrimary: image.isPrimary,
+              altText: image.altText,
+              listing: savedListing,
+            }),
+          );
+          await imageRepo.save(imageCopies);
+        }
 
-      return updatedAssignment;
-    });
+        assignment.agentListingId = savedListing.id;
+        const updatedAssignment = await assignmentRepo.save(assignment);
+        updatedAssignment.listing = sourceListing;
+        updatedAssignment.proposal = assignment.proposal;
+
+        return updatedAssignment;
+      },
+    );
+
+    await this.trackListingAgentAssignmentEvent(
+      LISTING_AGENT_ANALYTICS_EVENTS.LISTING_COPY_CREATED,
+      savedAssignment,
+      userId,
+      {
+        agentListingId: savedAssignment.agentListingId ?? null,
+      },
+    );
 
     return toAssignmentResponse(savedAssignment);
   }
@@ -373,12 +406,14 @@ export class ListingAgentProposalsService {
             ? null
             : Number(proposal.proposedPrice),
       availability:
-        dto.availability !== undefined ? dto.availability : proposal.availability,
+        dto.availability !== undefined
+          ? dto.availability
+          : proposal.availability,
       message: dto.message ?? proposal.message ?? '',
       validUntil:
         dto.validUntil !== undefined
           ? dto.validUntil
-          : proposal.validUntil?.toISOString() ?? null,
+          : (proposal.validUntil?.toISOString() ?? null),
     });
     this.assertValidProposalInput(input);
 
@@ -469,6 +504,14 @@ export class ListingAgentProposalsService {
     id: string,
   ): Promise<ListingAgentProposalResponse> {
     const proposal = await this.findSellerProposalOrFail(userId, id);
+    await this.trackListingAgentProposalEvent(
+      LISTING_AGENT_ANALYTICS_EVENTS.PROPOSAL_OPENED_BY_SELLER,
+      proposal,
+      userId,
+      {
+        proposalStatus: proposal.status,
+      },
+    );
 
     return toProposalResponse(proposal);
   }
@@ -503,7 +546,8 @@ export class ListingAgentProposalsService {
         const listing = proposal.listing;
         if (
           !listing.agentCollaborationEnabled ||
-          listing.agentCollaborationStatus !== ListingAgentCollaborationStatus.OPEN
+          listing.agentCollaborationStatus !==
+            ListingAgentCollaborationStatus.OPEN
         ) {
           throw new BadRequestException(
             'Nabór agentów dla tej oferty nie jest już otwarty',
@@ -557,6 +601,16 @@ export class ListingAgentProposalsService {
       });
 
       await this.notifyAgentAboutSellerDecision(result.proposal, 'accepted');
+      await this.trackListingAgentProposalEvent(
+        LISTING_AGENT_ANALYTICS_EVENTS.PROPOSAL_ACCEPTED,
+        result.proposal,
+        userId,
+        {
+          assignmentId: result.assignment.id,
+          collaborationMode:
+            result.proposal.listing?.agentCollaborationMode ?? null,
+        },
+      );
 
       return {
         ...toProposalResponse(result.proposal),
@@ -595,6 +649,14 @@ export class ListingAgentProposalsService {
 
     const saved = await this.proposalRepo.save(proposal);
     await this.notifyAgentAboutSellerDecision(saved, 'rejected');
+    await this.trackListingAgentProposalEvent(
+      LISTING_AGENT_ANALYTICS_EVENTS.PROPOSAL_REJECTED,
+      saved,
+      userId,
+      {
+        proposalStatus: saved.status,
+      },
+    );
 
     return {
       ...toProposalResponse(saved),
@@ -617,16 +679,18 @@ export class ListingAgentProposalsService {
       );
     }
 
-    if (listing.agentCollaborationStatus === ListingAgentCollaborationStatus.CLOSED) {
+    if (
+      listing.agentCollaborationStatus ===
+      ListingAgentCollaborationStatus.CLOSED
+    ) {
       throw new BadRequestException('Nabór agentów jest już zamknięty');
     }
 
     if (
-      listing.agentCollaborationStatus === ListingAgentCollaborationStatus.ASSIGNED
+      listing.agentCollaborationStatus ===
+      ListingAgentCollaborationStatus.ASSIGNED
     ) {
-      throw new BadRequestException(
-        'Oferta ma już zaakceptowanego agenta',
-      );
+      throw new BadRequestException('Oferta ma już zaakceptowanego agenta');
     }
 
     listing.agentCollaborationStatus = ListingAgentCollaborationStatus.CLOSED;
@@ -647,16 +711,17 @@ export class ListingAgentProposalsService {
 
     this.assertListingCanOpenRecruitment(listing);
 
-    if (listing.agentCollaborationStatus === ListingAgentCollaborationStatus.OPEN) {
+    if (
+      listing.agentCollaborationStatus === ListingAgentCollaborationStatus.OPEN
+    ) {
       throw new BadRequestException('Nabór agentów jest już otwarty');
     }
 
     if (
-      listing.agentCollaborationStatus === ListingAgentCollaborationStatus.ASSIGNED
+      listing.agentCollaborationStatus ===
+      ListingAgentCollaborationStatus.ASSIGNED
     ) {
-      throw new BadRequestException(
-        'Oferta ma już zaakceptowanego agenta',
-      );
+      throw new BadRequestException('Oferta ma już zaakceptowanego agenta');
     }
 
     listing.agentCollaborationEnabled = true;
@@ -750,7 +815,11 @@ export class ListingAgentProposalsService {
     });
 
     const saved = await this.messageRepo.save(message);
-    await this.notifyParticipantAboutMessage(participant.proposal, userId, body);
+    await this.notifyParticipantAboutMessage(
+      participant.proposal,
+      userId,
+      body,
+    );
 
     return toMessageResponse(saved, participant.proposal);
   }
@@ -764,8 +833,7 @@ export class ListingAgentProposalsService {
       throw new FeatureAccessDeniedException({
         feature: 'agentListingMarket',
         planCode: access.entitlements.plan.code,
-        message:
-          'Oferty współpracy są dostępne w płatnych planach agentów.',
+        message: 'Oferty współpracy są dostępne w płatnych planach agentów.',
       });
     }
 
@@ -989,7 +1057,73 @@ export class ListingAgentProposalsService {
       input.commissionType === ListingAgentProposalCommissionType.PERCENTAGE &&
       input.commissionValue > 100
     ) {
-      throw new BadRequestException('Prowizja procentowa nie może przekraczać 100');
+      throw new BadRequestException(
+        'Prowizja procentowa nie może przekraczać 100',
+      );
+    }
+  }
+
+  private async trackListingAgentProposalEvent(
+    name: (typeof LISTING_AGENT_ANALYTICS_EVENTS)[keyof typeof LISTING_AGENT_ANALYTICS_EVENTS],
+    proposal: ListingAgentProposal,
+    actorUserId: string,
+    properties: Record<string, unknown> = {},
+  ): Promise<void> {
+    try {
+      await this.analyticsService.trackSystemEvent({
+        name,
+        userId: actorUserId,
+        agentId: proposal.agentId,
+        agencyId: proposal.agencyId ?? proposal.agent?.agencyId ?? null,
+        planCode: proposal.agent?.agency?.plan ?? null,
+        properties: {
+          listingId: proposal.listingId,
+          proposalId: proposal.id,
+          ownerUserId: proposal.ownerUserId,
+          agentId: proposal.agentId,
+          agencyId: proposal.agencyId ?? proposal.agent?.agencyId ?? null,
+          ...properties,
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to track listing agent proposal analytics event ${name} for proposal ${proposal.id}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
+  }
+
+  private async trackListingAgentAssignmentEvent(
+    name: (typeof LISTING_AGENT_ANALYTICS_EVENTS)[keyof typeof LISTING_AGENT_ANALYTICS_EVENTS],
+    assignment: ListingAgentAssignment,
+    actorUserId: string,
+    properties: Record<string, unknown> = {},
+  ): Promise<void> {
+    try {
+      await this.analyticsService.trackSystemEvent({
+        name,
+        userId: actorUserId,
+        agentId: assignment.agentId,
+        agencyId: assignment.agencyId ?? assignment.proposal?.agencyId ?? null,
+        planCode: assignment.proposal?.agent?.agency?.plan ?? null,
+        properties: {
+          listingId: assignment.listingId,
+          proposalId: assignment.proposalId,
+          assignmentId: assignment.id,
+          ownerUserId: assignment.ownerUserId,
+          agentId: assignment.agentId,
+          agencyId:
+            assignment.agencyId ?? assignment.proposal?.agencyId ?? null,
+          ...properties,
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to track listing agent assignment analytics event ${name} for assignment ${assignment.id}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
     }
   }
 
@@ -1049,7 +1183,8 @@ export class ListingAgentProposalsService {
       'http://localhost:3000',
     );
     const agentUrl = `${frontendUrl.replace(/\/+$/, '')}/dashboard`;
-    const listingTitle = proposal.listing?.publicTitle || proposal.listing?.title;
+    const listingTitle =
+      proposal.listing?.publicTitle || proposal.listing?.title;
     const accepted = decision === 'accepted';
 
     try {
@@ -1094,7 +1229,8 @@ export class ListingAgentProposalsService {
       'http://localhost:3000',
     );
     const url = `${frontendUrl.replace(/\/+$/, '')}/dashboard`;
-    const listingTitle = proposal.listing?.publicTitle || proposal.listing?.title;
+    const listingTitle =
+      proposal.listing?.publicTitle || proposal.listing?.title;
 
     try {
       await this.emailService.send({
@@ -1343,7 +1479,9 @@ function toAssignmentResponse(
   };
 }
 
-function toRecruitmentResponse(listing: Listing): ListingAgentRecruitmentResponse {
+function toRecruitmentResponse(
+  listing: Listing,
+): ListingAgentRecruitmentResponse {
   return {
     listingId: listing.id,
     agentCollaborationEnabled: listing.agentCollaborationEnabled,

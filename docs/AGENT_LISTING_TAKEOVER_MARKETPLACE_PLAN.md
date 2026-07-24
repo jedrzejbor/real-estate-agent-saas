@@ -114,7 +114,7 @@ Agent powinien moc:
     wlasciciela.
 
 - [x] `ATD2` Czy zaakceptowany agent dostaje prawo edycji oryginalnej oferty, czy
-  tworzy wlasna kopie?
+      tworzy wlasna kopie?
   - Rekomendacja: w MVP tworzyc powiazana kopie w CRM agenta. Oryginalna oferta
     wlasciciela pozostaje zrodlem prawdy i nie jest edytowana bezposrednio przez
     agenta.
@@ -163,8 +163,8 @@ Agent powinien moc:
     - wlasciciel: `Wspolpraca z agentami`,
     - agent: `Oferty szukajace agenta`,
     - propozycja: `Oferta wspolpracy`.
-    W glownym UI unikamy slowa `przejecie`; moze zostac w nazwach technicznych,
-    jesli bedzie czytelne dla zespolu.
+      W glownym UI unikamy slowa `przejecie`; moze zostac w nazwach technicznych,
+      jesli bedzie czytelne dla zespolu.
 
 ---
 
@@ -504,10 +504,10 @@ danych bez przebudowy zalozen domenowych.
     - funkcja jest dostepna w platnych planach agentow, a plan Free dostaje
       najwyzej teaser/CTA upgrade,
     - nazwy UI: `Wspolpraca z agentami`, `Oferty szukajace agenta`, `Oferta
-      wspolpracy`.
+wspolpracy`.
 
 - [x] `AT0.2` Przejrzec obecny flow `/dodaj-oferte`, `/seller` i
-  `public-listing-submissions`, aby wskazac dokladne miejsca integracji.
+      `public-listing-submissions`, aby wskazac dokladne miejsca integracji.
   - Data zakonczenia: 2026-07-22
   - Wykonano:
     - publiczny wizard `/dodaj-oferte` korzysta z
@@ -562,7 +562,7 @@ danych bez przebudowy zalozen domenowych.
     zrodla uprawnien.
 
 - [x] `AT0.4` Sprawdzic obecny system planow i zdecydowac, czy MVP limituje
-  liczbe propozycji dla agentow.
+      liczbe propozycji dla agentow.
   - Data zakonczenia: 2026-07-22
   - Wykonano:
     - system planow ma `AgencyPlanFeatures` i `AgencyPlanLimits`,
@@ -640,7 +640,7 @@ helper domenowy testowany bez bazy.
     kolumnach `enabled/status`, bez parsowania preferencji.
 
 - [x] `AT1.2` Dodac pola wspolpracy do `PublicListingSubmission` albo jego
-  `payload`, zgodnie z obecnym standardem migracji.
+      `payload`, zgodnie z obecnym standardem migracji.
   - Data zakonczenia: 2026-07-22
   - Wykonano:
     - dodano te same pola wspolpracy na encji `PublicListingSubmission`,
@@ -698,8 +698,8 @@ helper domenowy testowany bez bazy.
     - `ListingAgentAssignmentStatus`.
 
 - [x] `AT1.8` Dodac entitlement feature `agentListingMarket` do
-  `AgencyPlanFeatures`, domyslnego katalogu planow, `PlanCatalog`, odpowiedzi
-  auth i typow web.
+      `AgencyPlanFeatures`, domyslnego katalogu planow, `PlanCatalog`, odpowiedzi
+      auth i typow web.
   - Wymagania:
     - `free: false`,
     - platne plany: `true`,
@@ -781,7 +781,7 @@ jest zabezpieczony rola `agent` i entitlementem `agentListingMarket`.
     `listing.id`.
 
 - [x] `AT2.3` Uzyc bezpiecznego mappera publicznego bez danych kontaktowych
-  wlasciciela.
+      wlasciciela.
   - Data zakonczenia: 2026-07-22
   - Wykonano: odpowiedz bazuje na bezpiecznym ksztalcie zblizonym do
     `PublicListingCatalogItem` i dodaje tylko sekcje `collaboration`.
@@ -802,7 +802,7 @@ jest zabezpieczony rola `agent` i entitlementem `agentListingMarket`.
     AT-3.
 
 - [x] `AT2.5` Zabezpieczyc endpoint rola `agent` oraz entitlementem
-  `agentListingMarket`.
+      `agentListingMarket`.
   - Data zakonczenia: 2026-07-22
   - Wykonano:
     - kontroler ma `@Roles(UserRole.AGENT)`,
@@ -813,7 +813,7 @@ jest zabezpieczony rola `agent` i entitlementem `agentListingMarket`.
     pozostaje zrodlem prawdy dla blokady planu.
 
 - [x] `AT2.6` Dodac testy: brak autoryzacji, zla rola, tylko otwarte oferty,
-  brak prywatnych danych.
+      brak prywatnych danych.
   - Data zakonczenia: 2026-07-22
   - Wykonano:
     - dodano `agent-listing-market.controller.spec.ts`,
@@ -983,7 +983,7 @@ Pozwolic wlascicielowi porownywac propozycje i podejmowac decyzje.
     `proposal.ownerUserId` zgadza sie z biezacym uzytkownikiem.
 
 - [x] `AT4.3` Dodac akceptacje propozycji z utworzeniem
-  `ListingAgentAssignment`.
+      `ListingAgentAssignment`.
   - Data zakonczenia: 2026-07-22
   - Endpoint:
     - `POST /api/listing-agent-proposals/seller/:id/accept`.
@@ -1101,7 +1101,7 @@ Umozliwic negocjacje i doprecyzowanie warunkow bez wychodzenia poza platforme.
     - `metadata.senderRole`.
 
 - [x] `AT5.3` Dodac oznaczanie przeczytania albo minimalny licznik
-  nieprzeczytanych.
+      nieprzeczytanych.
   - Data zakonczenia: 2026-07-22
   - Wykonano:
     - lista wiadomosci zwraca `meta.unreadCount`,
@@ -1126,7 +1126,7 @@ Umozliwic negocjacje i doprecyzowanie warunkow bez wychodzenia poza platforme.
     AT-9.
 
 - [x] `AT5.6` Dodac testy: obcy agent, obcy wlasciciel, pusta wiadomosc,
-  wiadomosc po zamknieciu propozycji.
+      wiadomosc po zamknieciu propozycji.
   - Data zakonczenia: 2026-07-22
   - Wykonano:
     - test delegacji endpointow czatu w kontrolerze,
@@ -1354,7 +1354,7 @@ Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
       uzytkownikow, ktorzy nie sa kontem agenta,
     - dla kont bez funkcji `agentListingMarket` widoki pokazuja CTA do upgrade,
     - dla nie-agentow widoki pokazuja czytelny stan `Dostep tylko dla kont
-      agentow`,
+agentow`,
     - brak sesji pozostaje obslugiwany globalnie przez dashboard layout i
       `auth:unauthorized`, z przekierowaniem do logowania.
 
@@ -1408,7 +1408,7 @@ Po akceptacji dac agentowi praktyczna mozliwosc pracy na ofercie w swoim CRM.
     - po utworzeniu kopii karta wspolpracy aktualizuje `agentListingId` bez
       przeladowania strony i pokazuje link `Otworz kopie CRM`.
 - [x] `AT8.3` Mapowac dane oryginalnej oferty do nowej oferty agenta bez
-  przenoszenia prywatnych danych wlasciciela, ktore nie sa potrzebne.
+      przenoszenia prywatnych danych wlasciciela, ktore nie sa potrzebne.
   - Data zakonczenia: 2026-07-23
   - Wykonano:
     - kopia jest tworzona jako `DRAFT` i `publicationStatus=DRAFT`,
@@ -1446,7 +1446,7 @@ Po akceptacji dac agentowi praktyczna mozliwosc pracy na ofercie w swoim CRM.
     - przekroczenie limitu zwraca `PlanLimitReachedException` zgodny z reszta
       systemu.
 - [x] `AT8.7` Dodac testy: brak akceptacji, ponowne tworzenie kopii,
-  przekroczenie limitu planu.
+      przekroczenie limitu planu.
   - Data zakonczenia: 2026-07-23
   - Wykonano:
     - dodano test braku aktywnego zaakceptowanego assignmentu,
@@ -1472,17 +1472,39 @@ Domknac funkcje produkcyjnie: monitoring, analityka, testy E2E i edge case'y.
 
 #### Zadania
 
-- [ ] `AT9.1` Dodac eventy analityczne:
+- [x] `AT9.1` Dodac eventy analityczne:
   - wlaczenie wspolpracy,
   - wyswietlenie rynku ofert,
   - wyslanie propozycji,
   - otwarcie propozycji przez wlasciciela,
   - akceptacja / odrzucenie,
   - utworzenie kopii w CRM.
+  - Data zakonczenia: 2026-07-24
+  - Wykonano:
+    - dodano nowe eventy do wspolnej listy nazw analitycznych API i web:
+      `listing_agent_collaboration_enabled`,
+      `agent_listing_market_viewed`, `listing_agent_proposal_sent`,
+      `listing_agent_proposal_opened_by_seller`,
+      `listing_agent_proposal_accepted`,
+      `listing_agent_proposal_rejected`,
+      `agent_assignment_listing_copy_created`,
+    - dodano `AnalyticsService.trackSystemEvent`, zeby eventy serwerowe mogly
+      byc zapisywane dla zdarzen biznesowych bez wymuszania kontekstu agencji
+      po stronie prywatnego wlasciciela,
+    - event wlaczenia wspolpracy jest zapisywany po udanej aktualizacji oferty,
+      tylko przy przejsciu z wylaczonej wspolpracy na wlaczona,
+    - event wyswietlenia rynku ofert jest wysylany po udanym pobraniu
+      `/dashboard/agent-market`, razem z filtrami, paginacja i liczba wynikow,
+    - eventy wyslania propozycji, otwarcia przez wlasciciela, akceptacji,
+      odrzucenia i utworzenia kopii CRM sa zapisywane po stronie backendu jako
+      zdarzenia biznesowe,
+    - eventy marketplace sa kategoryzowane w admin analytics jako `matching`,
+    - dodano testy regresji dla eventow: wyslanie propozycji, otwarcie przez
+      wlasciciela, akceptacja, odrzucenie i utworzenie kopii CRM.
 - [ ] `AT9.2` Dodac powiadomienia in-app/email dla krytycznych zdarzen.
 - [ ] `AT9.3` Dodac testy E2E glownej sciezki:
-  wlasciciel publikuje oferte -> agent sklada propozycje -> wlasciciel
-  akceptuje -> agent tworzy kopie w CRM.
+      wlasciciel publikuje oferte -> agent sklada propozycje -> wlasciciel
+      akceptuje -> agent tworzy kopie w CRM.
 - [ ] `AT9.4` Dodac testy regresji prywatnosci publicznych payloadow.
 - [ ] `AT9.5` Dodac metryki administracyjne i logi bledow.
 - [ ] `AT9.6` Przygotowac rollout za feature flaga.

@@ -9,6 +9,7 @@ export const AnalyticsEventName = {
   ONBOARDING_EMPTY_STATE_SHOWN: 'onboarding_empty_state_shown',
   ONBOARDING_EMPTY_STATE_CTA_CLICKED: 'onboarding_empty_state_cta_clicked',
   LISTING_CREATED: 'listing_created',
+  LISTING_AGENT_COLLABORATION_ENABLED: 'listing_agent_collaboration_enabled',
   LISTING_RETENTION_CHOICES_OPENED: 'listing_retention_choices_opened',
   LISTING_RETENTION_CHOICES_SAVED: 'listing_retention_choices_saved',
   LISTING_ADDRESS_GEOCODING_REQUESTED: 'listing_address_geocoding_requested',
@@ -50,6 +51,14 @@ export const AnalyticsEventName = {
   MATCHING_RESULTS_VIEWED: 'matching_results_viewed',
   MATCHING_CTA_CLICKED: 'matching_cta_clicked',
   MATCHING_DISMISSED: 'matching_dismissed',
+  AGENT_LISTING_MARKET_VIEWED: 'agent_listing_market_viewed',
+  LISTING_AGENT_PROPOSAL_SENT: 'listing_agent_proposal_sent',
+  LISTING_AGENT_PROPOSAL_OPENED_BY_SELLER:
+    'listing_agent_proposal_opened_by_seller',
+  LISTING_AGENT_PROPOSAL_ACCEPTED: 'listing_agent_proposal_accepted',
+  LISTING_AGENT_PROPOSAL_REJECTED: 'listing_agent_proposal_rejected',
+  AGENT_ASSIGNMENT_LISTING_COPY_CREATED:
+    'agent_assignment_listing_copy_created',
   TODAY_TASK_COMPLETED: 'today_task_completed',
   LIMIT_WARNING_SHOWN: 'limit_warning_shown',
   LIMIT_REACHED: 'limit_reached',

@@ -23,7 +23,11 @@ import {
 } from '@/components/listings/listing-agent-proposal-form';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
-import { getApiErrorMessage, isFeatureAccessDeniedApiError } from '@/lib/api-client';
+import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
+import {
+  getApiErrorMessage,
+  isFeatureAccessDeniedApiError,
+} from '@/lib/api-client';
 import { isAgentUser } from '@/lib/auth';
 import {
   fetchAgentListingMarket,
@@ -80,6 +84,21 @@ export default function AgentListingMarketPage() {
         const result = await fetchAgentListingMarket(filters);
         if (!cancelled) {
           setItems(result.data);
+          trackAnalyticsEvent({
+            name: AnalyticsEventName.AGENT_LISTING_MARKET_VIEWED,
+            properties: {
+              resultCount: result.data.length,
+              total: result.meta.total,
+              page: result.meta.page,
+              limit: result.meta.limit,
+              search: filters.search || null,
+              propertyType: filters.propertyType || null,
+              transactionType: filters.transactionType || null,
+              city: filters.city || null,
+              sortBy: filters.sortBy ?? DEFAULT_FILTERS.sortBy,
+              sortOrder: filters.sortOrder ?? DEFAULT_FILTERS.sortOrder,
+            },
+          });
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -337,11 +356,14 @@ function MarketListingCard({
         </h2>
         <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
           <MapPin className="h-4 w-4" />
-          {[item.address.city, item.address.district].filter(Boolean).join(', ') ||
-            'Lokalizacja niedostępna'}
+          {[item.address.city, item.address.district]
+            .filter(Boolean)
+            .join(', ') || 'Lokalizacja niedostępna'}
         </p>
         <p className="mt-4 text-lg font-semibold">
-          {item.price ? formatPrice(Number(item.price), item.currency) : 'Cena ukryta'}
+          {item.price
+            ? formatPrice(Number(item.price), item.currency)
+            : 'Cena ukryta'}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
@@ -355,7 +377,9 @@ function MarketListingCard({
             className="rounded-xl"
             onClick={() => onCreateProposal(item)}
           >
-            {item.hasSubmittedProposal ? 'Propozycja wysłana' : 'Złóż propozycję'}
+            {item.hasSubmittedProposal
+              ? 'Propozycja wysłana'
+              : 'Złóż propozycję'}
           </Button>
         </div>
       </div>

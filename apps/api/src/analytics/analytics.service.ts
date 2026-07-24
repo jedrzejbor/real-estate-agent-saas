@@ -58,6 +58,38 @@ export class AnalyticsService {
     };
   }
 
+  async trackSystemEvent(input: {
+    name: string;
+    userId?: string | null;
+    agentId?: string | null;
+    agencyId?: string | null;
+    planCode?: string | null;
+    path?: string | null;
+    properties?: Record<string, unknown>;
+  }) {
+    const event = this.analyticsEventRepo.create({
+      name: input.name,
+      userId: input.userId ?? null,
+      agentId: input.agentId ?? null,
+      agencyId: input.agencyId ?? null,
+      planCode: input.planCode ?? null,
+      path: input.path ?? null,
+      properties: input.properties ?? {},
+    });
+
+    const savedEvent = await this.analyticsEventRepo.save(event);
+
+    this.logger.debug(
+      `System analytics event tracked: ${savedEvent.name} (${savedEvent.id})`,
+    );
+
+    return {
+      id: savedEvent.id,
+      name: savedEvent.name,
+      createdAt: savedEvent.createdAt,
+    };
+  }
+
   async getAdminUsageSummary(query: AdminAnalyticsUsageQueryDto) {
     const days = query.days ?? 30;
     const now = new Date();
@@ -378,7 +410,12 @@ function getAnalyticsEventCategory(name: string): AnalyticsEventCategory {
     return 'communication';
   }
 
-  if (name.startsWith('matching_')) {
+  if (
+    name.startsWith('matching_') ||
+    name.startsWith('listing_agent_') ||
+    name.startsWith('agent_listing_') ||
+    name.startsWith('agent_assignment_')
+  ) {
     return 'matching';
   }
 
