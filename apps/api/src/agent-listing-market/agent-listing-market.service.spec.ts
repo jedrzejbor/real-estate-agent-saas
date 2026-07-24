@@ -12,6 +12,29 @@ import {
 import { Listing } from '../listings/entities';
 import { AgentListingMarketService } from './agent-listing-market.service';
 
+const OWNER_PRIVATE_KEYS = [
+  'ownerUser',
+  'ownerUserId',
+  'ownerEmail',
+  'ownerPhone',
+  'contactEmail',
+  'contactPhone',
+];
+const EXACT_ADDRESS_KEYS = ['street', 'postalCode', 'lat', 'lng'];
+const LISTING_AGENT_PROPOSAL_KEYS = [
+  'proposals',
+  'listingAgentProposals',
+  'acceptedTermsSnapshot',
+  'commissionType',
+  'commissionValue',
+  'minimumContractMonths',
+  'exclusivity',
+  'marketingPlan',
+  'valuationOpinion',
+  'availability',
+  'message',
+];
+
 function buildAccess(agentListingMarket = true) {
   return {
     agent: { id: 'agent-1' },
@@ -78,10 +101,22 @@ function buildListing(overrides: Partial<Listing> = {}): Listing {
       expectedServices: ['photos', 'portals'],
     },
     agentCollaborationOpenedAt: new Date('2026-07-03T00:00:00.000Z'),
+    ownerUser: {
+      id: 'owner-1',
+      email: 'owner@example.test',
+    },
+    ownerEmail: 'owner@example.test',
+    ownerPhone: '+48123123123',
+    contactEmail: 'owner@example.test',
+    contactPhone: '+48123123123',
     address: {
       city: 'Warszawa',
       district: 'Mokotów',
       voivodeship: 'mazowieckie',
+      street: 'Prywatna 10',
+      postalCode: '00-001',
+      lat: 52.1,
+      lng: 21.1,
     },
     images: [
       {
@@ -103,17 +138,43 @@ function buildListing(overrides: Partial<Listing> = {}): Listing {
       id: 'agent-2',
       firstName: 'Anna',
       lastName: 'Nowak',
+      phone: '+48999888777',
       agency: {
         id: 'agency-2',
         name: 'Nowak Estate',
         logoUrl: null,
       },
     },
+    listingAgentProposals: [
+      {
+        id: 'proposal-1',
+        commissionType: 'percentage',
+        commissionValue: '2.00',
+        minimumContractMonths: 3,
+        exclusivity: 'exclusive',
+        marketingPlan: 'Prywatny plan marketingowy',
+        valuationOpinion: 'Prywatna wycena',
+        availability: 'Prywatna dostępność',
+        message: 'Prywatna wiadomość agenta',
+      },
+    ],
+    proposals: [
+      {
+        id: 'proposal-2',
+        acceptedTermsSnapshot: {
+          commissionType: 'fixed',
+          commissionValue: '9000.00',
+        },
+      },
+    ],
     ...overrides,
   } as Listing;
 }
 
-function createListingQueryBuilder(listings: Listing[], total = listings.length) {
+function createListingQueryBuilder(
+  listings: Listing[],
+  total = listings.length,
+) {
   const qb = {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
@@ -214,6 +275,24 @@ describe('AgentListingMarketService', () => {
     expect(result.data[0].primaryImage?.id).toBe('image-1');
   });
 
+  it('does not expose owner private, exact address or proposal fields in the agent market payload', async () => {
+    const listing = buildListing();
+    const { service } = buildService({ listings: [listing] });
+
+    const result = await service.findAll(USER_ID, { page: 1, limit: 24 });
+    const payload = result.data[0];
+
+    expect(payload).not.toContainOwnerPrivateFields();
+    expect(payload).not.toContainExactAddressFields();
+    expect(payload).not.toContainListingAgentProposalFields();
+    expect(payload.agent).not.toHaveProperty('phone');
+    expect(payload.address).toEqual({
+      city: 'Warszawa',
+      district: 'Mokotów',
+      voivodeship: 'mazowieckie',
+    });
+  });
+
   it('applies filters and pagination without changing the public catalog endpoint', async () => {
     const { service, listingQb } = buildService();
 
@@ -280,5 +359,71 @@ describe('AgentListingMarketService', () => {
     expect(proposalQb.getRawMany).not.toHaveBeenCalled();
   });
 });
+
+expect.extend({
+  toContainOwnerPrivateFields(received: unknown) {
+    const foundKeys = findKeys(received, OWNER_PRIVATE_KEYS);
+
+    return {
+      pass: foundKeys.length > 0,
+      message: () =>
+        foundKeys.length > 0
+          ? `Expected payload not to contain owner private fields, found: ${foundKeys.join(', ')}`
+          : 'Expected payload to contain owner private fields',
+    };
+  },
+  toContainExactAddressFields(received: unknown) {
+    const foundKeys = findKeys(received, EXACT_ADDRESS_KEYS);
+
+    return {
+      pass: foundKeys.length > 0,
+      message: () =>
+        foundKeys.length > 0
+          ? `Expected payload not to contain exact address fields, found: ${foundKeys.join(', ')}`
+          : 'Expected payload to contain exact address fields',
+    };
+  },
+  toContainListingAgentProposalFields(received: unknown) {
+    const foundKeys = findKeys(received, LISTING_AGENT_PROPOSAL_KEYS);
+
+    return {
+      pass: foundKeys.length > 0,
+      message: () =>
+        foundKeys.length > 0
+          ? `Expected payload not to contain listing agent proposal fields, found: ${foundKeys.join(', ')}`
+          : 'Expected payload to contain listing agent proposal fields',
+    };
+  },
+});
+
+declare global {
+  namespace jest {
+    interface Matchers<R> {
+      toContainOwnerPrivateFields(): R;
+      toContainExactAddressFields(): R;
+      toContainListingAgentProposalFields(): R;
+    }
+  }
+}
+
+function findKeys(value: unknown, keys: string[], path = '$'): string[] {
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) =>
+      findKeys(item, keys, `${path}[${index}]`),
+    );
+  }
+
+  return Object.entries(value as Record<string, unknown>).flatMap(
+    ([key, nestedValue]) => {
+      const currentPath = `${path}.${key}`;
+      const matches = keys.includes(key) ? [currentPath] : [];
+      return [...matches, ...findKeys(nestedValue, keys, currentPath)];
+    },
+  );
+}
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';

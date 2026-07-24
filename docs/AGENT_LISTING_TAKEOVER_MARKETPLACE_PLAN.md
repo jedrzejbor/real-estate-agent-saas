@@ -1510,7 +1510,26 @@ Domknac funkcje produkcyjnie: monitoring, analityka, testy E2E i edge case'y.
 - [ ] `AT9.3` Dodac testy E2E glownej sciezki:
       wlasciciel publikuje oferte -> agent sklada propozycje -> wlasciciel
       akceptuje -> agent tworzy kopie w CRM.
-- [ ] `AT9.4` Dodac testy regresji prywatnosci publicznych payloadow.
+- [x] `AT9.4` Dodac testy regresji prywatnosci publicznych payloadow.
+  - Data zakonczenia: 2026-07-24
+  - Wykonano:
+    - rozszerzono testy `listing-public-privacy.spec.ts` o zakaz ujawniania
+      prywatnych identyfikatorow i danych kontaktowych wlasciciela:
+      `ownerUserId`, `ownerEmail`, `ownerPhone`, `contactEmail`,
+      `contactPhone`,
+    - rozszerzono testy publicznego detalu, katalogu i markerow mapy o zakaz
+      ujawniania pol propozycji agentow, m.in. prowizji, okresu umowy,
+      wyłączności, planu marketingowego, opinii o cenie, dostepnosci,
+      wiadomosci i snapshotow zaakceptowanych warunkow,
+    - dodano test prywatnosci rynku agentow
+      `agent-listing-market.service.spec.ts`, ktory pilnuje, ze payload
+      marketplace nie zawiera `ownerUser`, `ownerUserId`, danych kontaktowych
+      wlasciciela, dokladnego adresu ani danych propozycji,
+    - test rynku agentow potwierdza, ze nawet dla zrodla z ulica, kodem
+      pocztowym i wspolrzednymi odpowiedz zawiera tylko miasto, dzielnice i
+      wojewodztwo,
+    - test rynku agentow potwierdza, ze telefon agenta/wlasciciela nie jest
+      wystawiany w katalogowym payloadzie marketplace.
 - [ ] `AT9.5` Dodac metryki administracyjne i logi bledow.
 - [ ] `AT9.6` Przygotowac rollout za feature flaga.
 
