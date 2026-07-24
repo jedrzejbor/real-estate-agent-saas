@@ -202,10 +202,12 @@ function buildService({
   access = buildAccess(true),
   listings = [buildListing()],
   proposalRows = [],
+  releaseFlags = { agentListingMarketplaceEnabled: true },
 }: {
   access?: ReturnType<typeof buildAccess>;
   listings?: Listing[];
   proposalRows?: Array<{ listingId: string }>;
+  releaseFlags?: { agentListingMarketplaceEnabled: boolean };
 } = {}) {
   const listingQb = createListingQueryBuilder(listings);
   const proposalQb = createProposalQueryBuilder(proposalRows);
@@ -218,13 +220,17 @@ function buildService({
   const usersService = {
     getAgencyAccessContext: jest.fn().mockResolvedValue(access),
   };
+  const releaseFlagsService = {
+    getFlags: jest.fn().mockReturnValue(releaseFlags),
+  };
   const service = new AgentListingMarketService(
     listingRepo as never,
     proposalRepo as never,
     usersService as never,
+    releaseFlagsService as never,
   );
 
-  return { service, listingQb, proposalQb, usersService };
+  return { service, listingQb, proposalQb, usersService, releaseFlagsService };
 }
 
 describe('AgentListingMarketService', () => {
@@ -347,6 +353,18 @@ describe('AgentListingMarketService', () => {
     await expect(service.findAll(USER_ID, {})).rejects.toBeInstanceOf(
       FeatureAccessDeniedException,
     );
+    expect(listingQb.getManyAndCount).not.toHaveBeenCalled();
+  });
+
+  it('blocks agent listing market when rollout flag is disabled', async () => {
+    const { service, listingQb, usersService } = buildService({
+      releaseFlags: { agentListingMarketplaceEnabled: false },
+    });
+
+    await expect(service.findAll(USER_ID, {})).rejects.toBeInstanceOf(
+      FeatureAccessDeniedException,
+    );
+    expect(usersService.getAgencyAccessContext).not.toHaveBeenCalled();
     expect(listingQb.getManyAndCount).not.toHaveBeenCalled();
   });
 

@@ -7,6 +7,7 @@ export interface ReleaseFlags {
   publicClaimFlowEnabled: boolean;
   freemiumUpsellEnabled: boolean;
   premiumReportsEnabled: boolean;
+  agentListingMarketplaceEnabled: boolean;
 }
 
 @Injectable()
@@ -34,6 +35,10 @@ export class ReleaseFlagsService {
       premiumReportsEnabled: this.getBooleanFlag(
         'RELEASE_FLAG_PREMIUM_REPORTS_ENABLED',
         true,
+      ),
+      agentListingMarketplaceEnabled: this.getBooleanFlag(
+        'RELEASE_FLAG_AGENT_LISTING_MARKETPLACE_ENABLED',
+        false,
       ),
     };
   }

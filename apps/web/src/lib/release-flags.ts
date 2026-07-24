@@ -4,6 +4,7 @@ export interface ReleaseFlags {
   publicClaimFlowEnabled: boolean;
   freemiumUpsellEnabled: boolean;
   premiumReportsEnabled: boolean;
+  agentListingMarketplaceEnabled: boolean;
 }
 
 export const DEFAULT_RELEASE_FLAGS: ReleaseFlags = {
@@ -12,6 +13,7 @@ export const DEFAULT_RELEASE_FLAGS: ReleaseFlags = {
   publicClaimFlowEnabled: false,
   freemiumUpsellEnabled: true,
   premiumReportsEnabled: true,
+  agentListingMarketplaceEnabled: false,
 };
 
 export function getResolvedReleaseFlags(

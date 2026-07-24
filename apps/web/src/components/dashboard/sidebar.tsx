@@ -28,7 +28,11 @@ import { usePathname } from 'next/navigation';
 import { Logo } from '@/components/common/logo';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
-import { fetchDashboardToday, type DashboardTodayResponse } from '@/lib/dashboard';
+import {
+  fetchDashboardToday,
+  type DashboardTodayResponse,
+} from '@/lib/dashboard';
+import { getResolvedReleaseFlags } from '@/lib/release-flags';
 import { cn } from '@/lib/utils';
 
 export interface DashboardNavCounts {
@@ -54,7 +58,12 @@ const navGroups: DashboardNavGroup[] = [
   {
     label: 'Praca',
     items: [
-      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, exact: true },
+      {
+        label: 'Dashboard',
+        href: '/dashboard',
+        icon: LayoutDashboard,
+        exact: true,
+      },
       {
         label: 'Zapytania',
         href: '/dashboard/inquiries',
@@ -134,7 +143,12 @@ const onboardingNavGroups: DashboardNavGroup[] = [
   {
     label: 'Praca',
     items: [
-      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, exact: true },
+      {
+        label: 'Dashboard',
+        href: '/dashboard',
+        icon: LayoutDashboard,
+        exact: true,
+      },
       {
         label: 'Zapytania',
         href: '/dashboard/inquiries',
@@ -244,16 +258,30 @@ export function DashboardSidebar({
   const pathname = usePathname();
   const { logout, user } = useAuth();
   const isInitialOnboarding = useInitialOnboardingPeriod(user?.createdAt);
-  const visibleGroups = useMemo(
-    () => {
-      if (user?.role === 'admin') {
-        return [...navGroups, adminGroup];
-      }
+  const visibleGroups = useMemo(() => {
+    const releaseFlags = getResolvedReleaseFlags(user?.releaseFlags);
+    const marketplaceHrefs = new Set([
+      '/dashboard/agent-market',
+      '/dashboard/agent-proposals',
+      '/dashboard/agent-assignments',
+    ]);
+    const groups = navGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter(
+          (item) =>
+            releaseFlags.agentListingMarketplaceEnabled ||
+            !marketplaceHrefs.has(item.href),
+        ),
+      }))
+      .filter((group) => group.items.length > 0);
 
-      return isInitialOnboarding ? onboardingNavGroups : navGroups;
-    },
-    [isInitialOnboarding, user?.role],
-  );
+    if (user?.role === 'admin') {
+      return [...groups, adminGroup];
+    }
+
+    return isInitialOnboarding ? onboardingNavGroups : groups;
+  }, [isInitialOnboarding, user?.releaseFlags, user?.role]);
 
   useEffect(() => {
     onMobileClose?.();
@@ -275,87 +303,85 @@ export function DashboardSidebar({
           isMobileOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-      {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b border-border px-6">
-        <Link href="/dashboard">
-          <Logo size="sm" />
-        </Link>
-        <button
-          type="button"
-          aria-label="Zamknij menu"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
-          onClick={onMobileClose}
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
+        {/* Logo */}
+        <div className="flex h-16 items-center justify-between border-b border-border px-6">
+          <Link href="/dashboard">
+            <Logo size="sm" />
+          </Link>
+          <button
+            type="button"
+            aria-label="Zamknij menu"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
+            onClick={onMobileClose}
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-      {/* Main nav */}
-      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
-        {visibleGroups.map((group) => {
-          const isAdminGroup = group.label === adminGroup.label;
+        {/* Main nav */}
+        <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
+          {visibleGroups.map((group) => {
+            const isAdminGroup = group.label === adminGroup.label;
 
-          return (
-            <div
-              key={group.label}
-              className={cn(
-                isAdminGroup && 'border-t border-amber-200 pt-4',
-              )}
-            >
-              <p
+            return (
+              <div
+                key={group.label}
+                className={cn(isAdminGroup && 'border-t border-amber-200 pt-4')}
+              >
+                <p
+                  className={cn(
+                    'mb-1 px-3 text-[0.68rem] font-semibold uppercase tracking-wide text-muted-foreground',
+                    isAdminGroup && 'text-amber-700',
+                  )}
+                >
+                  {group.label}
+                </p>
+                <div className="space-y-1">
+                  {group.items.map((item) => (
+                    <DashboardNavLink
+                      key={item.href}
+                      item={item}
+                      pathname={pathname}
+                      count={item.countKey ? counts[item.countKey] : 0}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* Bottom nav */}
+        <div className="border-t border-border px-3 py-4 space-y-1">
+          {bottomItems.map((item) => {
+            const isActive =
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
                 className={cn(
-                  'mb-1 px-3 text-[0.68rem] font-semibold uppercase tracking-wide text-muted-foreground',
-                  isAdminGroup && 'text-amber-700',
+                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                 )}
               >
-                {group.label}
-              </p>
-              <div className="space-y-1">
-                {group.items.map((item) => (
-                  <DashboardNavLink
-                    key={item.href}
-                    item={item}
-                    pathname={pathname}
-                    count={item.countKey ? counts[item.countKey] : 0}
-                  />
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </nav>
-
-      {/* Bottom nav */}
-      <div className="border-t border-border px-3 py-4 space-y-1">
-        {bottomItems.map((item) => {
-          const isActive =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-              )}
-            >
-              <item.icon className="h-5 w-5 shrink-0" />
-              {item.label}
-            </Link>
-          );
-        })}
-        <button
-          onClick={logout}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-        >
-          <LogOut className="h-5 w-5 shrink-0" />
-          Wyloguj się
-        </button>
-      </div>
-    </aside>
+                <item.icon className="h-5 w-5 shrink-0" />
+                {item.label}
+              </Link>
+            );
+          })}
+          <button
+            onClick={logout}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+          >
+            <LogOut className="h-5 w-5 shrink-0" />
+            Wyloguj się
+          </button>
+        </div>
+      </aside>
     </>
   );
 }
@@ -427,7 +453,10 @@ function DashboardNavLink({
       <item.icon className="h-5 w-5 shrink-0" />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
       {count > 0 ? (
-        <Badge variant="destructive" className="rounded-full px-2 py-0 text-[0.68rem]">
+        <Badge
+          variant="destructive"
+          className="rounded-full px-2 py-0 text-[0.68rem]"
+        >
           {formatNavCount(count)}
         </Badge>
       ) : null}

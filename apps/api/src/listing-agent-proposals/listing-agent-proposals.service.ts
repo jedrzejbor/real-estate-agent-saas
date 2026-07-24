@@ -23,6 +23,7 @@ import { FeatureAccessDeniedException } from '../common/exceptions/feature-acces
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { Address, Listing, ListingImage } from '../listings/entities';
 import { MonitoringService } from '../monitoring';
+import { ReleaseFlagsService } from '../release-flags';
 import { UsersService } from '../users';
 import {
   CreateListingAgentProposalMessageDto,
@@ -99,12 +100,14 @@ export class ListingAgentProposalsService {
     private readonly configService: ConfigService,
     private readonly analyticsService: AnalyticsService,
     private readonly monitoringService: MonitoringService,
+    private readonly releaseFlagsService: ReleaseFlagsService,
   ) {}
 
   async findAssignmentsForAgent(
     userId: string,
     query: ListingAgentAssignmentQueryDto,
   ): Promise<ListingAgentAssignmentPage> {
+    this.assertMarketplaceReleaseEnabled();
     const access = await this.resolvePaidAgentAccess(userId);
     const {
       page = 1,
@@ -152,6 +155,7 @@ export class ListingAgentProposalsService {
     listingId: string,
     dto: ListingAgentProposalInputDto,
   ): Promise<ListingAgentProposalResponse> {
+    this.assertMarketplaceReleaseEnabled();
     const access = await this.resolvePaidAgentAccess(userId);
     const listing = await this.findOpenListingForProposalOrFail(
       listingId,
@@ -215,6 +219,7 @@ export class ListingAgentProposalsService {
     userId: string,
     assignmentId: string,
   ): Promise<ListingAgentAssignmentResponse> {
+    this.assertMarketplaceReleaseEnabled();
     const access = await this.resolvePaidAgentAccess(userId);
 
     const assignment = await this.assignmentRepo.findOne({
@@ -308,6 +313,7 @@ export class ListingAgentProposalsService {
     userId: string,
     query: ListingAgentProposalQueryDto,
   ): Promise<ListingAgentProposalPage> {
+    this.assertMarketplaceReleaseEnabled();
     const access = await this.resolvePaidAgentAccess(userId);
     const {
       page = 1,
@@ -358,6 +364,7 @@ export class ListingAgentProposalsService {
     userId: string,
     id: string,
   ): Promise<ListingAgentProposalResponse> {
+    this.assertMarketplaceReleaseEnabled();
     const access = await this.resolvePaidAgentAccess(userId);
     const proposal = await this.findOwnedProposalOrFail(access.agent.id, id);
 
@@ -369,6 +376,7 @@ export class ListingAgentProposalsService {
     id: string,
     dto: UpdateListingAgentProposalDto,
   ): Promise<ListingAgentProposalResponse> {
+    this.assertMarketplaceReleaseEnabled();
     const access = await this.resolvePaidAgentAccess(userId);
     const proposal = await this.findOwnedProposalOrFail(access.agent.id, id);
 
@@ -431,6 +439,7 @@ export class ListingAgentProposalsService {
     userId: string,
     id: string,
   ): Promise<ListingAgentProposalResponse> {
+    this.assertMarketplaceReleaseEnabled();
     const access = await this.resolvePaidAgentAccess(userId);
     const proposal = await this.findOwnedProposalOrFail(access.agent.id, id);
 
@@ -456,6 +465,7 @@ export class ListingAgentProposalsService {
     userId: string,
     query: ListingAgentProposalQueryDto,
   ): Promise<ListingAgentProposalPage> {
+    this.assertMarketplaceReleaseEnabled();
     const {
       page = 1,
       limit = 20,
@@ -505,6 +515,7 @@ export class ListingAgentProposalsService {
     userId: string,
     id: string,
   ): Promise<ListingAgentProposalResponse> {
+    this.assertMarketplaceReleaseEnabled();
     const proposal = await this.findSellerProposalOrFail(userId, id);
     await this.trackListingAgentProposalEvent(
       LISTING_AGENT_ANALYTICS_EVENTS.PROPOSAL_OPENED_BY_SELLER,
@@ -522,6 +533,7 @@ export class ListingAgentProposalsService {
     userId: string,
     id: string,
   ): Promise<ListingAgentProposalDecisionResponse> {
+    this.assertMarketplaceReleaseEnabled();
     try {
       const result = await this.dataSource.transaction(async (manager) => {
         const proposalRepo = manager.getRepository(ListingAgentProposal);
@@ -633,6 +645,7 @@ export class ListingAgentProposalsService {
     userId: string,
     id: string,
   ): Promise<ListingAgentProposalDecisionResponse> {
+    this.assertMarketplaceReleaseEnabled();
     const proposal = await this.findSellerProposalOrFail(userId, id);
 
     if (
@@ -670,6 +683,7 @@ export class ListingAgentProposalsService {
     userId: string,
     listingId: string,
   ): Promise<ListingAgentRecruitmentResponse> {
+    this.assertMarketplaceReleaseEnabled();
     const listing = await this.findSellerListingForRecruitmentOrFail(
       userId,
       listingId,
@@ -706,6 +720,7 @@ export class ListingAgentProposalsService {
     userId: string,
     listingId: string,
   ): Promise<ListingAgentRecruitmentResponse> {
+    this.assertMarketplaceReleaseEnabled();
     const listing = await this.findSellerListingForRecruitmentOrFail(
       userId,
       listingId,
@@ -740,6 +755,7 @@ export class ListingAgentProposalsService {
     proposalId: string,
     query: ListingAgentProposalMessageQueryDto,
   ): Promise<ListingAgentProposalMessagePage> {
+    this.assertMarketplaceReleaseEnabled();
     const participant = await this.findParticipantProposalOrFail(
       userId,
       proposalId,
@@ -790,6 +806,7 @@ export class ListingAgentProposalsService {
     proposalId: string,
     dto: CreateListingAgentProposalMessageDto,
   ): Promise<ListingAgentProposalMessageResponse> {
+    this.assertMarketplaceReleaseEnabled();
     const participant = await this.findParticipantProposalOrFail(
       userId,
       proposalId,
@@ -840,6 +857,18 @@ export class ListingAgentProposalsService {
     }
 
     return access;
+  }
+
+  private assertMarketplaceReleaseEnabled(): void {
+    if (this.releaseFlagsService.getFlags().agentListingMarketplaceEnabled) {
+      return;
+    }
+
+    throw new FeatureAccessDeniedException({
+      feature: 'agentListingMarketplace',
+      planCode: 'release_flag',
+      message: 'Rynek współpracy właściciel-agent nie jest jeszcze włączony.',
+    });
   }
 
   private async assertAgentListingCreateWithinPlanLimit(

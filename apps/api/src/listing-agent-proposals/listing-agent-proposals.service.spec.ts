@@ -265,6 +265,7 @@ function buildService({
   activeListingCount = 0,
   messages = [buildMessage()],
   unreadCount = 0,
+  releaseFlags = { agentListingMarketplaceEnabled: true },
 }: {
   access?: ReturnType<typeof buildAccess>;
   listing?: Listing | null;
@@ -276,6 +277,7 @@ function buildService({
   activeListingCount?: number;
   messages?: ListingAgentProposalMessage[];
   unreadCount?: number;
+  releaseFlags?: { agentListingMarketplaceEnabled: boolean };
 } = {}) {
   const listingQb = createListingQueryBuilder(listing);
   const proposalQb = createProposalQueryBuilder(queryProposals);
@@ -365,6 +367,9 @@ function buildService({
   const monitoringService = {
     recordWarning: jest.fn(),
   };
+  const releaseFlagsService = {
+    getFlags: jest.fn().mockReturnValue(releaseFlags),
+  };
   const configService = {
     get: jest.fn((_key: string, fallback?: unknown) => fallback),
   };
@@ -381,6 +386,7 @@ function buildService({
     configService as never,
     analyticsService as never,
     monitoringService as never,
+    releaseFlagsService as never,
   );
 
   return {
@@ -397,6 +403,7 @@ function buildService({
     emailService,
     analyticsService,
     monitoringService,
+    releaseFlagsService,
     listingQb,
     proposalQb,
     messageQb,
@@ -509,6 +516,24 @@ describe('ListingAgentProposalsService', () => {
         message: 'Chce pomoc w sprzedazy tej nieruchomosci.',
       }),
     ).rejects.toBeInstanceOf(FeatureAccessDeniedException);
+    expect(listingRepo.createQueryBuilder).not.toHaveBeenCalled();
+  });
+
+  it('blocks proposal creation before access lookup when marketplace rollout flag is disabled', async () => {
+    const { service, usersService, listingRepo } = buildService({
+      releaseFlags: { agentListingMarketplaceEnabled: false },
+      existingProposal: null,
+    });
+
+    await expect(
+      service.createForListing(USER_ID, LISTING_ID, {
+        commissionType: ListingAgentProposalCommissionType.PERCENTAGE,
+        commissionValue: 2,
+        services: ['Zdjecia', 'Portale'],
+        message: 'Chce pomoc w sprzedazy tej nieruchomosci.',
+      }),
+    ).rejects.toBeInstanceOf(FeatureAccessDeniedException);
+    expect(usersService.getAgencyAccessContext).not.toHaveBeenCalled();
     expect(listingRepo.createQueryBuilder).not.toHaveBeenCalled();
   });
 

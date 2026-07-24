@@ -10,6 +10,7 @@ import { FeatureAccessDeniedException } from '../common/exceptions/feature-acces
 import { Listing } from '../listings/entities';
 import type { PublicListingCatalogItem } from '../listings/public-listing.model';
 import { ListingAgentProposal } from '../listing-agent-proposals';
+import { ReleaseFlagsService } from '../release-flags';
 import { UsersService } from '../users';
 import { AgentListingMarketQueryDto } from './dto';
 import type {
@@ -25,12 +26,14 @@ export class AgentListingMarketService {
     @InjectRepository(ListingAgentProposal)
     private readonly proposalRepo: Repository<ListingAgentProposal>,
     private readonly usersService: UsersService,
+    private readonly releaseFlagsService: ReleaseFlagsService,
   ) {}
 
   async findAll(
     userId: string,
     query: AgentListingMarketQueryDto,
   ): Promise<AgentListingMarketPage> {
+    this.assertMarketplaceReleaseEnabled();
     const access = await this.usersService.getAgencyAccessContext(userId);
 
     if (!access.entitlements.features.agentListingMarket) {
@@ -140,10 +143,11 @@ export class AgentListingMarketService {
       .take(limit);
 
     const [listings, total] = await qb.getManyAndCount();
-    const submittedProposalListingIds = await this.findSubmittedProposalListingIds(
-      access.agent.id,
-      listings.map((listing) => listing.id),
-    );
+    const submittedProposalListingIds =
+      await this.findSubmittedProposalListingIds(
+        access.agent.id,
+        listings.map((listing) => listing.id),
+      );
 
     return {
       data: listings.map((listing) =>
@@ -175,6 +179,18 @@ export class AgentListingMarketService {
       .getRawMany<{ listingId: string }>();
 
     return new Set(rows.map((row) => row.listingId));
+  }
+
+  private assertMarketplaceReleaseEnabled(): void {
+    if (this.releaseFlagsService.getFlags().agentListingMarketplaceEnabled) {
+      return;
+    }
+
+    throw new FeatureAccessDeniedException({
+      feature: 'agentListingMarketplace',
+      planCode: 'release_flag',
+      message: 'Rynek ofert agentów nie jest jeszcze włączony.',
+    });
   }
 }
 
