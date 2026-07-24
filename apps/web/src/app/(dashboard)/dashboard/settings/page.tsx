@@ -70,6 +70,12 @@ const NOTIFICATION_PREFERENCE_OPTIONS: Array<{
     description: 'Nowe zapytania z publicznych ofert i profilu agenta.',
   },
   {
+    category: 'listing_agent_collaboration',
+    label: 'Współprace z właścicielami',
+    description:
+      'Decyzje właścicieli oraz zaakceptowane współprace wymagające działania.',
+  },
+  {
     category: 'client',
     label: 'Klienci CRM',
     description: 'Nowi klienci oczekujący pierwszej obsługi.',
@@ -130,13 +136,13 @@ export default function AccountSettingsPage() {
           description="Zarządzaj profilem agenta, bezpieczeństwem konta, planem i dostępem do aplikacji."
           icon={Settings}
           actions={
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
-          >
-            Wróć do dashboardu
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+            >
+              Wróć do dashboardu
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           }
         />
       </section>

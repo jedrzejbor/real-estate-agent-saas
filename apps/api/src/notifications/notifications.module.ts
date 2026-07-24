@@ -11,6 +11,10 @@ import { PublicLead } from '../public-leads/entities';
 import { Task } from '../tasks/entities';
 import { ListingDocumentsModule } from '../listing-documents';
 import {
+  ListingAgentAssignment,
+  ListingAgentProposal,
+} from '../listing-agent-proposals/entities';
+import {
   NotificationPreference,
   NotificationRead,
   NotificationRuleSettings,
@@ -25,6 +29,8 @@ import {
       Client,
       PublicLead,
       Task,
+      ListingAgentProposal,
+      ListingAgentAssignment,
       NotificationRead,
       NotificationPreference,
       NotificationRuleSettings,

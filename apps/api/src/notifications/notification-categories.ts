@@ -3,6 +3,7 @@ export const NOTIFICATION_CATEGORIES = [
   'client',
   'document',
   'listing',
+  'listing_agent_collaboration',
   'public_lead',
   'task',
 ] as const;

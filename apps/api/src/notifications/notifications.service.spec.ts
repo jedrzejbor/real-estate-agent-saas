@@ -1,5 +1,7 @@
 import {
   ClientStatus,
+  ListingAgentAssignmentStatus,
+  ListingAgentProposalStatus,
   ListingStatus,
   TaskStatus,
   TaskType,
@@ -23,12 +25,16 @@ describe('NotificationsService', () => {
   function createService({
     overdueFollowUps = [],
     staleActiveListings = [],
+    listingAgentProposalDecisions = [],
+    listingAgentAssignments = [],
     readIds = [],
     preferences = [],
     ruleSettings = null,
   }: {
     overdueFollowUps?: unknown[];
     staleActiveListings?: unknown[];
+    listingAgentProposalDecisions?: unknown[];
+    listingAgentAssignments?: unknown[];
     readIds?: string[];
     preferences?: unknown[];
     ruleSettings?: unknown;
@@ -48,6 +54,12 @@ describe('NotificationsService', () => {
     };
     const taskRepo = {
       find: jest.fn().mockResolvedValue(overdueFollowUps),
+    };
+    const listingAgentProposalRepo = {
+      find: jest.fn().mockResolvedValue(listingAgentProposalDecisions),
+    };
+    const listingAgentAssignmentRepo = {
+      find: jest.fn().mockResolvedValue(listingAgentAssignments),
     };
     const readQueryBuilder = {
       where: jest.fn().mockReturnThis(),
@@ -85,6 +97,8 @@ describe('NotificationsService', () => {
       clientRepo as never,
       publicLeadRepo as never,
       taskRepo as never,
+      listingAgentProposalRepo as never,
+      listingAgentAssignmentRepo as never,
       notificationReadRepo as never,
       notificationPreferenceRepo as never,
       notificationRuleSettingsRepo as never,
@@ -96,6 +110,8 @@ describe('NotificationsService', () => {
       service,
       taskRepo,
       listingRepo,
+      listingAgentProposalRepo,
+      listingAgentAssignmentRepo,
       notificationReadRepo,
       notificationPreferenceRepo,
       notificationRuleSettingsRepo,
@@ -271,6 +287,95 @@ describe('NotificationsService', () => {
       expect.objectContaining({
         id: 'task-overdue-follow-up-task-critical',
         severity: 'critical',
+      }),
+    );
+  });
+
+  it('returns accepted listing agent assignments awaiting CRM copy as critical collaboration notifications', async () => {
+    const { service, listingAgentAssignmentRepo } = createService({
+      listingAgentAssignments: [
+        {
+          id: 'assignment-1',
+          agentId,
+          listingId: 'listing-1',
+          proposalId: 'proposal-1',
+          status: ListingAgentAssignmentStatus.ACTIVE,
+          agentListingId: null,
+          createdAt: new Date('2026-06-30T09:30:00.000Z'),
+          listing: {
+            id: 'listing-1',
+            title: 'Dom właściciela',
+            publicTitle: 'Publiczny dom właściciela',
+          },
+        },
+      ],
+    });
+
+    const result = await service.findAll(userId, { limit: 8 });
+
+    expect(listingAgentAssignmentRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          agentId,
+          status: ListingAgentAssignmentStatus.ACTIVE,
+          agentListingId: expect.objectContaining({ _type: 'isNull' }),
+        }),
+        relations: ['listing', 'proposal'],
+      }),
+    );
+    expect(result.items).toContainEqual(
+      expect.objectContaining({
+        id: 'listing-agent-assignment-copy-pending-assignment-1',
+        category: 'listing_agent_collaboration',
+        variant: 'success',
+        severity: 'critical',
+        title: 'Właściciel zaakceptował współpracę',
+        href: '/dashboard/agent-assignments',
+        isRead: false,
+      }),
+    );
+  });
+
+  it('returns recent rejected listing agent proposals as collaboration notifications', async () => {
+    const { service, listingAgentProposalRepo } = createService({
+      listingAgentProposalDecisions: [
+        {
+          id: 'proposal-1',
+          agentId,
+          listingId: 'listing-1',
+          status: ListingAgentProposalStatus.REJECTED,
+          updatedAt: new Date('2026-06-30T08:30:00.000Z'),
+          listing: {
+            id: 'listing-1',
+            title: 'Mieszkanie właściciela',
+          },
+        },
+      ],
+    });
+
+    const result = await service.findAll(userId, { limit: 8 });
+
+    expect(listingAgentProposalRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          agentId,
+          status: expect.objectContaining({
+            _value: [
+              ListingAgentProposalStatus.ACCEPTED,
+              ListingAgentProposalStatus.REJECTED,
+            ],
+          }),
+        }),
+        relations: ['listing'],
+      }),
+    );
+    expect(result.items).toContainEqual(
+      expect.objectContaining({
+        id: 'listing-agent-proposal-decision-proposal-1',
+        category: 'listing_agent_collaboration',
+        variant: 'warning',
+        title: 'Właściciel odrzucił propozycję',
+        href: '/dashboard/agent-proposals/proposal-1',
       }),
     );
   });

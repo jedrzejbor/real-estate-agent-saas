@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, MoreThanOrEqual, Repository } from 'typeorm';
+import { In, IsNull, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import {
   AppointmentStatus,
+  ListingAgentAssignmentStatus,
+  ListingAgentProposalStatus,
   ListingStatus,
   ClientStatus,
   TaskStatus,
@@ -11,6 +13,10 @@ import {
 } from '../common/enums';
 import { Client } from '../clients/entities/client.entity';
 import { Listing } from '../listings/entities/listing.entity';
+import {
+  ListingAgentAssignment,
+  ListingAgentProposal,
+} from '../listing-agent-proposals/entities';
 import { PublicLead } from '../public-leads/entities';
 import { Task } from '../tasks/entities';
 import { Agent } from '../users/entities/agent.entity';
@@ -89,6 +95,10 @@ export class NotificationsService {
     private readonly publicLeadRepo: Repository<PublicLead>,
     @InjectRepository(Task)
     private readonly taskRepo: Repository<Task>,
+    @InjectRepository(ListingAgentProposal)
+    private readonly listingAgentProposalRepo: Repository<ListingAgentProposal>,
+    @InjectRepository(ListingAgentAssignment)
+    private readonly listingAgentAssignmentRepo: Repository<ListingAgentAssignment>,
     @InjectRepository(NotificationRead)
     private readonly notificationReadRepo: Repository<NotificationRead>,
     @InjectRepository(NotificationPreference)
@@ -132,6 +142,8 @@ export class NotificationsService {
       staleActiveListings,
       staleDrafts,
       documentAttention,
+      recentListingAgentDecisions,
+      listingAgentAssignmentsAwaitingCopy,
     ] = await Promise.all([
       this.appointmentRepo.find({
         where: {
@@ -203,6 +215,29 @@ export class NotificationsService {
         },
       }),
       this.listingDocumentsService.getAttentionSummaryForAgent(agent.id),
+      this.listingAgentProposalRepo.find({
+        where: {
+          agentId: agent.id,
+          status: In([
+            ListingAgentProposalStatus.ACCEPTED,
+            ListingAgentProposalStatus.REJECTED,
+          ]),
+          updatedAt: MoreThanOrEqual(sevenDaysAgo),
+        },
+        order: { updatedAt: 'DESC' },
+        take: 5,
+        relations: ['listing'],
+      }),
+      this.listingAgentAssignmentRepo.find({
+        where: {
+          agentId: agent.id,
+          status: ListingAgentAssignmentStatus.ACTIVE,
+          agentListingId: IsNull(),
+        },
+        order: { createdAt: 'DESC' },
+        take: 5,
+        relations: ['listing', 'proposal'],
+      }),
     ]);
 
     const ranked: RankedNotification[] = [];
@@ -312,6 +347,22 @@ export class NotificationsService {
 
     for (const item of documentAttention.items.slice(0, 5)) {
       ranked.push(this.buildDocumentNotification(item));
+    }
+
+    for (const assignment of listingAgentAssignmentsAwaitingCopy) {
+      ranked.push(this.buildListingAgentAssignmentNotification(assignment));
+    }
+
+    const assignmentProposalIds = new Set(
+      listingAgentAssignmentsAwaitingCopy.map(
+        (assignment) => assignment.proposalId,
+      ),
+    );
+
+    for (const proposal of recentListingAgentDecisions.filter(
+      (proposal) => !assignmentProposalIds.has(proposal.id),
+    )) {
+      ranked.push(this.buildListingAgentProposalDecisionNotification(proposal));
     }
 
     const enabledCategories = await this.getEnabledCategorySet(agent.id);
@@ -511,6 +562,54 @@ export class NotificationsService {
       createdAt: item.createdAt,
       priority: getDocumentNotificationPriority(item.kind),
       sortTimestamp: new Date(item.createdAt).getTime(),
+    };
+  }
+
+  private buildListingAgentAssignmentNotification(
+    assignment: ListingAgentAssignment,
+  ): RankedNotification {
+    const listingTitle =
+      assignment.listing?.publicTitle ||
+      assignment.listing?.title ||
+      'oferty właściciela';
+
+    return {
+      id: `listing-agent-assignment-copy-pending-${assignment.id}`,
+      category: 'listing_agent_collaboration',
+      variant: 'success',
+      title: 'Właściciel zaakceptował współpracę',
+      description: `Możesz utworzyć kopię CRM dla "${listingTitle}" i rozpocząć pracę na ofercie.`,
+      href: '/dashboard/agent-assignments',
+      createdAt: assignment.createdAt.toISOString(),
+      severity: 'critical',
+      priority: 330,
+      sortTimestamp: assignment.createdAt.getTime(),
+    };
+  }
+
+  private buildListingAgentProposalDecisionNotification(
+    proposal: ListingAgentProposal,
+  ): RankedNotification {
+    const listingTitle =
+      proposal.listing?.publicTitle ||
+      proposal.listing?.title ||
+      'oferty właściciela';
+    const rejected = proposal.status === ListingAgentProposalStatus.REJECTED;
+
+    return {
+      id: `listing-agent-proposal-decision-${proposal.id}`,
+      category: 'listing_agent_collaboration',
+      variant: rejected ? 'warning' : 'success',
+      title: rejected
+        ? 'Właściciel odrzucił propozycję'
+        : 'Właściciel zaakceptował propozycję',
+      description: rejected
+        ? `Propozycja dla "${listingTitle}" została odrzucona przez właściciela.`
+        : `Propozycja dla "${listingTitle}" została zaakceptowana przez właściciela.`,
+      href: `/dashboard/agent-proposals/${proposal.id}`,
+      createdAt: proposal.updatedAt.toISOString(),
+      priority: rejected ? 170 : 260,
+      sortTimestamp: proposal.updatedAt.getTime(),
     };
   }
 

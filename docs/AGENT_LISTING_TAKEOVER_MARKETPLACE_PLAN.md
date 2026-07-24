@@ -492,18 +492,12 @@ danych bez przebudowy zalozen domenowych.
 - [x] `AT0.1` Potwierdzic decyzje `ATD1`-`ATD6`.
   - Data zakonczenia: 2026-07-22
   - Wykonano: potwierdzono wszystkie decyzje produktowe z sekcji 4.
-  - Decyzje:
-    - wlasciciel moze wybrac wielu agentow tylko po jawnym wlaczeniu trybu
-      `multi_agent`,
-    - zaakceptowany agent tworzy powiazana kopie oferty w swoim CRM i nie edytuje
-      oryginalu wlasciciela,
-    - `single_agent` zamyka nabor po akceptacji, a `multi_agent` moze przyjmowac
-      kolejne propozycje do limitu albo recznego zamkniecia,
-    - przed akceptacja agent widzi tylko dane juz udostepnione publicznie w
-      ogloszeniu,
-    - funkcja jest dostepna w platnych planach agentow, a plan Free dostaje
-      najwyzej teaser/CTA upgrade,
-    - nazwy UI: `Wspolpraca z agentami`, `Oferty szukajace agenta`, `Oferta
+  - Decyzje: - wlasciciel moze wybrac wielu agentow tylko po jawnym wlaczeniu trybu
+    `multi_agent`, - zaakceptowany agent tworzy powiazana kopie oferty w swoim CRM i nie edytuje
+    oryginalu wlasciciela, - `single_agent` zamyka nabor po akceptacji, a `multi_agent` moze przyjmowac
+    kolejne propozycje do limitu albo recznego zamkniecia, - przed akceptacja agent widzi tylko dane juz udostepnione publicznie w
+    ogloszeniu, - funkcja jest dostepna w platnych planach agentow, a plan Free dostaje
+    najwyzej teaser/CTA upgrade, - nazwy UI: `Wspolpraca z agentami`, `Oferty szukajace agenta`, `Oferta
 wspolpracy`.
 
 - [x] `AT0.2` Przejrzec obecny flow `/dodaj-oferte`, `/seller` i
@@ -1344,19 +1338,13 @@ Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
       do detalu propozycji.
 - [x] `AT7.8` Dodac stany braku uprawnien i CTA do logowania/rejestracji.
   - Data zakonczenia: 2026-07-23
-  - Wykonano:
-    - dodano helper `isAgentUser` w webowym module auth,
-    - dodano reuzywalny komponent
-      `apps/web/src/components/dashboard/agent-listing-marketplace-access-state.tsx`
-      dla stanow: blad, blokada planu, niewlasciwa rola,
-    - `/dashboard/agent-market`, `/dashboard/agent-proposals` i
-      `/dashboard/agent-proposals/[id]` nie odpalaja agentowych endpointow dla
-      uzytkownikow, ktorzy nie sa kontem agenta,
-    - dla kont bez funkcji `agentListingMarket` widoki pokazuja CTA do upgrade,
-    - dla nie-agentow widoki pokazuja czytelny stan `Dostep tylko dla kont
-agentow`,
-    - brak sesji pozostaje obslugiwany globalnie przez dashboard layout i
-      `auth:unauthorized`, z przekierowaniem do logowania.
+  - Wykonano: - dodano helper `isAgentUser` w webowym module auth, - dodano reuzywalny komponent
+    `apps/web/src/components/dashboard/agent-listing-marketplace-access-state.tsx`
+    dla stanow: blad, blokada planu, niewlasciwa rola, - `/dashboard/agent-market`, `/dashboard/agent-proposals` i
+    `/dashboard/agent-proposals/[id]` nie odpalaja agentowych endpointow dla
+    uzytkownikow, ktorzy nie sa kontem agenta, - dla kont bez funkcji `agentListingMarket` widoki pokazuja CTA do upgrade, - dla nie-agentow widoki pokazuja czytelny stan `Dostep tylko dla kont
+agentow`, - brak sesji pozostaje obslugiwany globalnie przez dashboard layout i
+    `auth:unauthorized`, z przekierowaniem do logowania.
 
 #### Weryfikacja
 
@@ -1501,7 +1489,24 @@ Domknac funkcje produkcyjnie: monitoring, analityka, testy E2E i edge case'y.
     - eventy marketplace sa kategoryzowane w admin analytics jako `matching`,
     - dodano testy regresji dla eventow: wyslanie propozycji, otwarcie przez
       wlasciciela, akceptacja, odrzucenie i utworzenie kopii CRM.
-- [ ] `AT9.2` Dodac powiadomienia in-app/email dla krytycznych zdarzen.
+- [x] `AT9.2` Dodac powiadomienia in-app/email dla krytycznych zdarzen.
+  - Data zakonczenia: 2026-07-24
+  - Wykonano:
+    - wykorzystano istniejace powiadomienia email dla krytycznych zdarzen:
+      nowa propozycja wysyla email do wlasciciela, a akceptacja/odrzucenie
+      wysyla email do agenta,
+    - dodano nowa kategorie powiadomien in-app
+      `listing_agent_collaboration`, zeby marketplace mozna bylo filtrowac
+      niezaleznie od zwyklych leadow, ofert i zadan,
+    - dodano in-app powiadomienie dla aktywnego assignmentu bez kopii CRM:
+      agent widzi krytyczne powiadomienie z linkiem do
+      `/dashboard/agent-assignments`,
+    - dodano in-app powiadomienie dla ostatnio odrzuconej propozycji z linkiem
+      do szczegolow propozycji w `/dashboard/agent-proposals/:id`,
+    - w UI dodano ikone i obsluge kategorii `listing_agent_collaboration` w
+      dropdownie powiadomien oraz preferencjach powiadomien,
+    - dodano testy regresji dla powiadomienia o zaakceptowanej wspolpracy
+      oczekujacej na kopie CRM oraz odrzuconej propozycji.
 - [ ] `AT9.3` Dodac testy E2E glownej sciezki:
       wlasciciel publikuje oferte -> agent sklada propozycje -> wlasciciel
       akceptuje -> agent tworzy kopie w CRM.

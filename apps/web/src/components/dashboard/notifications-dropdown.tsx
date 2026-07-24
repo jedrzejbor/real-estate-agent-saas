@@ -10,6 +10,7 @@ import {
   CalendarClock,
   CircleAlert,
   FileText,
+  Handshake,
   MessageSquareText,
   ListTodo,
   UserRoundPlus,
@@ -31,6 +32,7 @@ const CATEGORY_ICON: Record<NotificationCategory, typeof CalendarClock> = {
   client: UserRoundPlus,
   document: FileText,
   listing: Building2,
+  listing_agent_collaboration: Handshake,
   public_lead: MessageSquareText,
   task: ListTodo,
 };
@@ -56,10 +58,12 @@ const NOTIFICATION_GROUPS: Array<{
   },
   {
     id: 'leads',
-    label: 'Leady i klienci',
-    description: 'Nowe kontakty oraz zapytania z publicznych ofert.',
+    label: 'Leady i współprace',
+    description: 'Nowe kontakty oraz decyzje właścicieli ofert.',
     matches: (item) =>
-      item.category === 'public_lead' || item.category === 'client',
+      item.category === 'public_lead' ||
+      item.category === 'client' ||
+      item.category === 'listing_agent_collaboration',
   },
   {
     id: 'portfolio',

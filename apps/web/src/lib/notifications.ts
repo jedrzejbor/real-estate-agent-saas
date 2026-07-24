@@ -5,6 +5,7 @@ export type NotificationCategory =
   | 'client'
   | 'document'
   | 'listing'
+  | 'listing_agent_collaboration'
   | 'public_lead'
   | 'task';
 export type NotificationVariant = 'info' | 'warning' | 'success';
