@@ -449,9 +449,27 @@ export class PublicListingSubmissionsService {
       };
     }
 
-    const saved = await this.submissionRepo.save(submission);
+    let saved: PublicListingSubmission;
 
-    return toSellerDetail(saved);
+    const publishedListing = submission.publishedListing;
+
+    if (dto.agentCollaboration && publishedListing) {
+      Object.assign(
+        publishedListing,
+        buildListingAgentCollaborationData(submission.payload),
+      );
+      saved = await this.dataSource.transaction(async (manager) => {
+        await manager.save(Listing, publishedListing);
+        return manager.save(PublicListingSubmission, submission);
+      });
+    } else {
+      saved = await this.submissionRepo.save(submission);
+    }
+
+    return toSellerDetail({
+      ...saved,
+      publishedListing,
+    });
   }
 
   async renewForOwner(
