@@ -1,6 +1,8 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import {
   ActivityAction,
+  ListingAgentCollaborationMode,
+  ListingAgentCollaborationStatus,
   ListingPublicationStatus,
   ListingStatus,
   PropertyType,
@@ -488,6 +490,48 @@ describe('PublicListingSubmissionsService admin moderation', () => {
       'Zaktualizowane mieszkanie testowe',
     );
     expect(result.title).toBe('Zaktualizowane mieszkanie testowe');
+  });
+
+  it('syncs owner agent collaboration edits to the published listing', async () => {
+    const listing = buildListing({
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publicSlug: 'mieszkanie-testowe-warszawa',
+    });
+    const submission = buildSubmission({
+      publishedListing: listing,
+    });
+    const { service, submissionRepo } = buildService(submission);
+
+    const result = await service.updateForOwner('owner-1', submission.id, {
+      agentCollaboration: {
+        enabled: true,
+        mode: ListingAgentCollaborationMode.MULTI_AGENT,
+        preferences: {
+          allowsMultipleAgents: true,
+          preferredContactChannel: 'platform_chat',
+        },
+      },
+    });
+
+    expect(submissionRepo.save).not.toHaveBeenCalled();
+    expect(submission.agentCollaborationEnabled).toBe(true);
+    expect(submission.agentCollaborationMode).toBe(
+      ListingAgentCollaborationMode.MULTI_AGENT,
+    );
+    expect(submission.agentCollaborationStatus).toBe(
+      ListingAgentCollaborationStatus.OPEN,
+    );
+    expect(listing.agentCollaborationEnabled).toBe(true);
+    expect(listing.agentCollaborationMode).toBe(
+      ListingAgentCollaborationMode.MULTI_AGENT,
+    );
+    expect(listing.agentCollaborationStatus).toBe(
+      ListingAgentCollaborationStatus.OPEN,
+    );
+    expect(result.agentCollaborationEnabled).toBe(true);
+    expect(result.agentCollaborationMode).toBe(
+      ListingAgentCollaborationMode.MULTI_AGENT,
+    );
   });
 
   it('blocks owner edits while a claimed submission is waiting for moderation', async () => {
