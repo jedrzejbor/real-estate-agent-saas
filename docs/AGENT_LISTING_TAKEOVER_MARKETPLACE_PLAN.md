@@ -1596,17 +1596,17 @@ Domknac funkcje produkcyjnie: monitoring, analityka, testy E2E i edge case'y.
 
 ### Przygotowanie srodowiska
 
-- [ ] Uruchomic API i web po aktualnych migracjach.
-- [ ] Ustawic `RELEASE_FLAG_AGENT_LISTING_MARKETPLACE_ENABLED=false` i
+- [ X ] Uruchomic API i web po aktualnych migracjach.
+- [ X ] Ustawic `RELEASE_FLAG_AGENT_LISTING_MARKETPLACE_ENABLED=false` i
       potwierdzic, ze funkcja jest ukryta/zablokowana.
-- [ ] Ustawic `RELEASE_FLAG_AGENT_LISTING_MARKETPLACE_ENABLED=true`,
+- [ X ] Ustawic `RELEASE_FLAG_AGENT_LISTING_MARKETPLACE_ENABLED=true`,
       zrestartowac API i odswiezyc sesje uzytkownika.
-- [ ] Przygotowac minimum 4 konta:
+- [ X ] Przygotowac minimum 4 konta:
   - wlasciciel prywatny / zwykly uzytkownik,
   - agent w platnym planie z `agentListingMarket=true`,
   - agent w planie Free albo bez uprawnienia,
   - admin.
-- [ ] Przygotowac minimum 2 oferty wlasciciela:
+- [ X ] Przygotowac minimum 2 oferty wlasciciela:
   - oferta publiczna z wlaczona wspolpraca,
   - oferta publiczna bez wlaczonej wspolpracy.
 
@@ -1624,9 +1624,9 @@ Domknac funkcje produkcyjnie: monitoring, analityka, testy E2E i edge case'y.
 
 ### Wlasciciel - tworzenie i edycja oferty
 
-- [ ] Wlasciciel moze utworzyc/publikowac oferte bez wlaczania wspolpracy.
+- [ X  ] Wlasciciel moze utworzyc/publikowac oferte bez wlaczania wspolpracy.
 - [ ] Oferta bez wspolpracy nie pojawia sie na rynku ofert agentow.
-- [ ] Wlasciciel moze wlaczyc wspolprace dla opublikowanej, aktywnej oferty.
+- [ X ] Wlasciciel moze wlaczyc wspolprace dla opublikowanej, aktywnej oferty.
 - [ ] Wlasciciel moze wybrac tryb `single_agent`.
 - [ ] Wlasciciel moze wybrac tryb `multi_agent`.
 - [ ] Preferencje wspolpracy zapisuja sie po edycji i sa widoczne w panelu

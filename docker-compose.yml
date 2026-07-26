@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: real_estate_saas
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -50,6 +50,7 @@ services:
       SMTP_PORT: 1025
       SMTP_SECURE: false
       SMTP_FROM: PodAdresem <noreply@localhost>
+      RELEASE_FLAG_AGENT_LISTING_MARKETPLACE_ENABLED: ${RELEASE_FLAG_AGENT_LISTING_MARKETPLACE_ENABLED:-true}
     depends_on:
       db:
         condition: service_healthy

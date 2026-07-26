@@ -17,7 +17,7 @@ Adresy lokalne:
 - Web: http://localhost:3000
 - API: http://localhost:4000
 - Mailpit: http://localhost:8025
-- Postgres: localhost:5432
+- Postgres: localhost:5433
 
 Sprawdzenie statusu:
 
@@ -49,15 +49,26 @@ Uzywaj `down -v` tylko wtedy, gdy swiadomie chcesz wyczyscic lokalna baze.
 
 ## Gdy port 5432 jest zajety
 
-Jesli `docker compose up -d db` zwraca blad podobny do:
+Projekt mapuje lokalny port Postgresa na `5433`, zeby nie konfliktowac z
+Postgresem dzialajacym lokalnie na hoscie. API w Dockerze nadal laczy sie z
+baza przez wewnetrzny adres `db:5432`.
+
+Jesli w starszej konfiguracji `docker compose up -d db` zwraca blad podobny do:
 
 ```text
 bind: address already in use
 ```
 
-to znaczy, ze port `5432` na hoscie jest juz zajety. Wtedy mozna uruchomic baze
-bez wystawiania portu na hosta, ale nadal z aliasem `db` w sieci Dockera, tak
-aby API moglo sie polaczyc.
+to znaczy, ze port `5432` na hoscie jest juz zajety. Najpierw upewnij sie, ze
+masz w `docker-compose.yml` mapowanie `5433:5432`, a potem odtworz kontener:
+
+```bash
+docker rm -f real-estate-db
+docker compose up -d db
+```
+
+Jesli nadal chcesz uruchomic baze bez wystawiania zadnego portu na hosta, uzyj
+wariantu awaryjnego z aliasem `db` w sieci Dockera:
 
 ```bash
 cd "/Users/jedrek/Desktop/PROJEKT WARTY MILIONY/real-estate-agent-saas"
@@ -86,9 +97,8 @@ docker compose up -d --build --no-deps api web
 Uwagi:
 
 - w tym trybie API laczy sie z baza po nazwie `db` w sieci Dockera,
-- baza nie jest dostepna z hosta przez `localhost:5432`,
-- jesli chcesz dostep do bazy z hosta, zmien mapowanie portu w
-  `docker-compose.yml`, np. z `5432:5432` na `5433:5432`.
+- baza nie jest dostepna z hosta przez `localhost:5433`,
+- API w Dockerze dziala normalnie, bo uzywa wewnetrznego adresu `db:5432`.
 
 ## Reczne wykonanie migracji SQL
 
