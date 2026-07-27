@@ -616,6 +616,9 @@ describe('ListingAgentProposalsService', () => {
       { agentId: AGENT_ID },
     );
     expect(proposalQb.andWhere).toHaveBeenCalledWith(
+      'proposal.agentDeletedAt IS NULL',
+    );
+    expect(proposalQb.andWhere).toHaveBeenCalledWith(
       'proposal.status = :status',
       { status: ListingAgentProposalStatus.SENT },
     );
@@ -844,6 +847,43 @@ describe('ListingAgentProposalsService', () => {
     expect(result.status).toBe(ListingAgentProposalStatus.WITHDRAWN);
   });
 
+  it('hides terminal proposals from the current agent list', async () => {
+    const { service, proposalQb } = buildService();
+
+    const result = await service.hideForAgent(USER_ID, [
+      PROPOSAL_ID,
+      PROPOSAL_ID,
+      '22222222-2222-4222-8222-222222222222',
+    ]);
+
+    expect(proposalQb.update).toHaveBeenCalledWith(ListingAgentProposal);
+    expect(proposalQb.set).toHaveBeenCalledWith({
+      agentDeletedAt: expect.any(Date),
+    });
+    expect(proposalQb.where).toHaveBeenCalledWith('id IN (:...ids)', {
+      ids: [PROPOSAL_ID, '22222222-2222-4222-8222-222222222222'],
+    });
+    expect(proposalQb.andWhere).toHaveBeenCalledWith('agent_id = :agentId', {
+      agentId: AGENT_ID,
+    });
+    expect(proposalQb.andWhere).toHaveBeenCalledWith(
+      'agent_deleted_at IS NULL',
+    );
+    expect(proposalQb.andWhere).toHaveBeenCalledWith(
+      'status IN (:...statuses)',
+      {
+        statuses: [
+          ListingAgentProposalStatus.ACCEPTED,
+          ListingAgentProposalStatus.REJECTED,
+          ListingAgentProposalStatus.WITHDRAWN,
+          ListingAgentProposalStatus.EXPIRED,
+          ListingAgentProposalStatus.CLOSED,
+        ],
+      },
+    );
+    expect(result.deletedCount).toBe(1);
+  });
+
   it('lists proposals received by the current seller', async () => {
     const { service, proposalQb } = buildService({
       queryProposals: [buildProposal()],
@@ -858,6 +898,9 @@ describe('ListingAgentProposalsService', () => {
     expect(proposalQb.where).toHaveBeenCalledWith(
       'proposal.ownerUserId = :ownerUserId',
       { ownerUserId: OWNER_ID },
+    );
+    expect(proposalQb.andWhere).toHaveBeenCalledWith(
+      'proposal.ownerDeletedAt IS NULL',
     );
     expect(proposalQb.andWhere).toHaveBeenCalledWith(
       'proposal.listingId = :listingId',
@@ -876,7 +919,11 @@ describe('ListingAgentProposalsService', () => {
 
     expect(proposalRepo.findOne).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: PROPOSAL_ID, ownerUserId: OWNER_ID },
+        where: {
+          id: PROPOSAL_ID,
+          ownerUserId: OWNER_ID,
+          ownerDeletedAt: expect.anything(),
+        },
       }),
     );
     expect(analyticsService.trackSystemEvent).toHaveBeenCalledWith(
@@ -1009,6 +1056,40 @@ describe('ListingAgentProposalsService', () => {
       }),
     );
     expect(result.assignment).toBeNull();
+  });
+
+  it('hides terminal proposals from the current seller list', async () => {
+    const { service, proposalQb } = buildService();
+
+    const result = await service.hideForSeller(OWNER_ID, [PROPOSAL_ID]);
+
+    expect(proposalQb.update).toHaveBeenCalledWith(ListingAgentProposal);
+    expect(proposalQb.set).toHaveBeenCalledWith({
+      ownerDeletedAt: expect.any(Date),
+    });
+    expect(proposalQb.where).toHaveBeenCalledWith('id IN (:...ids)', {
+      ids: [PROPOSAL_ID],
+    });
+    expect(proposalQb.andWhere).toHaveBeenCalledWith(
+      'owner_user_id = :ownerUserId',
+      { ownerUserId: OWNER_ID },
+    );
+    expect(proposalQb.andWhere).toHaveBeenCalledWith(
+      'owner_deleted_at IS NULL',
+    );
+    expect(proposalQb.andWhere).toHaveBeenCalledWith(
+      'status IN (:...statuses)',
+      {
+        statuses: [
+          ListingAgentProposalStatus.ACCEPTED,
+          ListingAgentProposalStatus.REJECTED,
+          ListingAgentProposalStatus.WITHDRAWN,
+          ListingAgentProposalStatus.EXPIRED,
+          ListingAgentProposalStatus.CLOSED,
+        ],
+      },
+    );
+    expect(result.deletedCount).toBe(1);
   });
 
   it('closes recruitment for an owned listing without changing existing proposals', async () => {

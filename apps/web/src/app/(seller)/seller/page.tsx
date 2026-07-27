@@ -24,6 +24,7 @@ import {
   RefreshCw,
   EyeOff,
   Handshake,
+  Trash2,
   XCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
@@ -55,6 +56,8 @@ import {
 } from '@/lib/public-inquiries';
 import {
   acceptSellerListingAgentProposal,
+  deleteSellerListingAgentProposal,
+  deleteSellerListingAgentProposals,
   fetchSellerListingAgentProposals,
   rejectSellerListingAgentProposal,
   type ListingAgentProposal,
@@ -83,9 +86,15 @@ export default function SellerDashboardPage() {
   const [updatingProposalId, setUpdatingProposalId] = useState<string | null>(
     null,
   );
+  const [selectedProposalIds, setSelectedProposalIds] = useState<string[]>([]);
+  const [proposalDeleteRequest, setProposalDeleteRequest] = useState<{
+    ids: string[];
+  } | null>(null);
+  const [isDeletingProposals, setIsDeletingProposals] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [inquiryError, setInquiryError] = useState<string | null>(null);
   const [proposalError, setProposalError] = useState<string | null>(null);
+  const { success: showSuccessToast, error: showErrorToast } = useToast();
   const upgradeHref = getUpgradeHref({
     source: 'private_seller_dashboard_upgrade_cta',
     upsellId: 'higher-limits',
@@ -148,6 +157,7 @@ export default function SellerDashboardPage() {
 
           if (proposalResult.status === 'fulfilled') {
             setAgentProposals(proposalResult.value.data);
+            setSelectedProposalIds([]);
           } else {
             setProposalError(getApiErrorMessage(proposalResult.reason));
           }
@@ -255,6 +265,61 @@ export default function SellerDashboardPage() {
     }
   }
 
+  function toggleAgentProposalSelection(id: string) {
+    setSelectedProposalIds((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id],
+    );
+  }
+
+  function selectAllDeletableAgentProposals() {
+    const deletableIds = agentProposals
+      .filter(canDeleteSellerAgentProposal)
+      .map((proposal) => proposal.id);
+    setSelectedProposalIds((current) =>
+      current.length === deletableIds.length ? [] : deletableIds,
+    );
+  }
+
+  async function confirmDeleteAgentProposals() {
+    if (!proposalDeleteRequest || proposalDeleteRequest.ids.length === 0) {
+      return;
+    }
+
+    setIsDeletingProposals(true);
+    setProposalError(null);
+
+    try {
+      const result =
+        proposalDeleteRequest.ids.length === 1
+          ? await deleteSellerListingAgentProposal(proposalDeleteRequest.ids[0])
+          : await deleteSellerListingAgentProposals(proposalDeleteRequest.ids);
+      const deletedIds = new Set(proposalDeleteRequest.ids);
+      setAgentProposals((current) =>
+        current.filter((proposal) => !deletedIds.has(proposal.id)),
+      );
+      setSelectedProposalIds((current) =>
+        current.filter((id) => !deletedIds.has(id)),
+      );
+      setProposalDeleteRequest(null);
+      showSuccessToast({
+        title:
+          result.deletedCount === 1
+            ? 'Propozycja została usunięta'
+            : 'Propozycje zostały usunięte',
+        description: 'Tych pozycji nie da się przywrócić w panelu.',
+      });
+    } catch (error) {
+      showErrorToast({
+        title: 'Nie udało się usunąć propozycji',
+        description: getApiErrorMessage(error),
+      });
+    } finally {
+      setIsDeletingProposals(false);
+    }
+  }
+
   if (isLoading || !user || !isPrivateSeller) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background">
@@ -339,14 +404,28 @@ export default function SellerDashboardPage() {
               proposals={agentProposals}
               error={proposalError}
               updatingProposalId={updatingProposalId}
+              selectedProposalIds={selectedProposalIds}
               onAccept={acceptAgentProposal}
               onReject={rejectAgentProposal}
+              onToggleSelect={toggleAgentProposalSelection}
+              onSelectAll={selectAllDeletableAgentProposals}
+              onDelete={(ids) => setProposalDeleteRequest({ ids })}
             />
           </>
         ) : (
           <SellerEmptyState />
         )}
       </section>
+      {proposalDeleteRequest ? (
+        <SellerDeleteProposalsModal
+          count={proposalDeleteRequest.ids.length}
+          isDeleting={isDeletingProposals}
+          onConfirm={confirmDeleteAgentProposals}
+          onClose={() => {
+            if (!isDeletingProposals) setProposalDeleteRequest(null);
+          }}
+        />
+      ) : null}
     </main>
   );
 }
@@ -355,15 +434,25 @@ function SellerAgentProposalsSection({
   proposals,
   error,
   updatingProposalId,
+  selectedProposalIds,
   onAccept,
   onReject,
+  onToggleSelect,
+  onSelectAll,
+  onDelete,
 }: {
   proposals: ListingAgentProposal[];
   error: string | null;
   updatingProposalId: string | null;
+  selectedProposalIds: string[];
   onAccept: (id: string) => void;
   onReject: (id: string) => void;
+  onToggleSelect: (id: string) => void;
+  onSelectAll: () => void;
+  onDelete: (ids: string[]) => void;
 }) {
+  const hasDeletableProposals = proposals.some(canDeleteSellerAgentProposal);
+
   return (
     <section className="mt-8">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -375,6 +464,28 @@ function SellerAgentProposalsSection({
             Oferty współpracy wysłane do ogłoszeń, w których szukasz agenta.
           </p>
         </div>
+        {hasDeletableProposals ? (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onSelectAll}
+              className="inline-flex h-10 items-center justify-center rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted"
+            >
+              {selectedProposalIds.length > 0
+                ? 'Odznacz wszystkie'
+                : 'Zaznacz zakończone'}
+            </button>
+            <button
+              type="button"
+              disabled={selectedProposalIds.length === 0}
+              onClick={() => onDelete(selectedProposalIds)}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-destructive/10 px-4 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/20 disabled:pointer-events-none disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              Usuń zaznaczone
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {error ? (
@@ -401,8 +512,11 @@ function SellerAgentProposalsSection({
               key={proposal.id}
               proposal={proposal}
               isUpdating={updatingProposalId === proposal.id}
+              isSelected={selectedProposalIds.includes(proposal.id)}
               onAccept={onAccept}
               onReject={onReject}
+              onToggleSelect={onToggleSelect}
+              onDelete={(id) => onDelete([id])}
             />
           ))}
         </div>
@@ -414,18 +528,25 @@ function SellerAgentProposalsSection({
 function SellerAgentProposalCard({
   proposal,
   isUpdating,
+  isSelected,
   onAccept,
   onReject,
+  onToggleSelect,
+  onDelete,
 }: {
   proposal: ListingAgentProposal;
   isUpdating: boolean;
+  isSelected: boolean;
   onAccept: (id: string) => void;
   onReject: (id: string) => void;
+  onToggleSelect: (id: string) => void;
+  onDelete: (id: string) => void;
 }) {
   const status = SELLER_AGENT_PROPOSAL_STATUS_COPY[proposal.status];
   const agentName = getAgentDisplayName(proposal);
   const canDecide =
     proposal.status === 'sent' || proposal.status === 'updated';
+  const canDelete = canDeleteSellerAgentProposal(proposal);
 
   return (
     <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -535,13 +656,81 @@ function SellerAgentProposalCard({
               </button>
             </>
           ) : (
-            <p className="rounded-xl bg-muted/40 p-3 text-sm leading-6 text-muted-foreground">
-              {status.description}
-            </p>
+            <>
+              <p className="rounded-xl bg-muted/40 p-3 text-sm leading-6 text-muted-foreground">
+                {status.description}
+              </p>
+              {canDelete ? (
+                <>
+                  <label className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => onToggleSelect(proposal.id)}
+                      className="h-4 w-4 rounded border-border accent-primary"
+                    />
+                    Zaznacz
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(proposal.id)}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-destructive/10 px-4 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/20"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Usuń
+                  </button>
+                </>
+              ) : null}
+            </>
           )}
         </div>
       </div>
     </article>
+  );
+}
+
+function SellerDeleteProposalsModal({
+  count,
+  isDeleting,
+  onConfirm,
+  onClose,
+}: {
+  count: number;
+  isDeleting: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
+      <section className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-xl">
+        <h2 className="font-heading text-xl font-semibold">
+          Usunąć {count === 1 ? 'propozycję' : 'propozycje'}?
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Ta akcja usunie {count === 1 ? 'tę pozycję' : 'te pozycje'} z listy
+          propozycji agentów. Nie da się jej później przywrócić.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            disabled={isDeleting}
+            onClick={onClose}
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+          >
+            Anuluj
+          </button>
+          <button
+            type="button"
+            disabled={isDeleting}
+            onClick={onConfirm}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-destructive/10 px-4 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/20 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Usuń bezpowrotnie
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -1352,12 +1541,21 @@ function getAgentDisplayName(proposal: ListingAgentProposal): string {
   return name || 'Agent nieruchomości';
 }
 
+function canDeleteSellerAgentProposal(proposal: ListingAgentProposal): boolean {
+  return ['accepted', 'rejected', 'withdrawn', 'expired', 'closed'].includes(
+    proposal.status,
+  );
+}
+
 function formatProposalCommission(proposal: ListingAgentProposal): string {
   if (proposal.commissionType === 'none') {
     return 'brak';
   }
 
-  if (proposal.commissionValue === null || proposal.commissionValue === undefined) {
+  if (
+    proposal.commissionValue === null ||
+    proposal.commissionValue === undefined
+  ) {
     return 'do ustalenia';
   }
 

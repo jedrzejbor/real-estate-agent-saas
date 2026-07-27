@@ -169,6 +169,10 @@ export interface ListingAgentProposalInput {
   validUntil?: string | null;
 }
 
+export interface ListingAgentProposalDeleteResult {
+  deletedCount: number;
+}
+
 function buildQueryString(filters: ListingAgentProposalFilters): string {
   const params = new URLSearchParams();
 
@@ -273,6 +277,27 @@ export async function withdrawAgentListingAgentProposal(
   );
 }
 
+export async function deleteAgentListingAgentProposal(
+  id: string,
+): Promise<ListingAgentProposalDeleteResult> {
+  return apiFetch<ListingAgentProposalDeleteResult>(
+    `/listing-agent-proposals/agent/${id}`,
+    { method: 'DELETE' },
+  );
+}
+
+export async function deleteAgentListingAgentProposals(
+  ids: string[],
+): Promise<ListingAgentProposalDeleteResult> {
+  return apiFetch<ListingAgentProposalDeleteResult>(
+    '/listing-agent-proposals/agent/hide',
+    {
+      method: 'POST',
+      body: { ids },
+    },
+  );
+}
+
 export async function fetchSellerListingAgentProposal(
   id: string,
 ): Promise<ListingAgentProposal> {
@@ -296,6 +321,27 @@ export async function rejectSellerListingAgentProposal(
   return apiFetch<ListingAgentProposal>(
     `/listing-agent-proposals/seller/${id}/reject`,
     { method: 'POST' },
+  );
+}
+
+export async function deleteSellerListingAgentProposal(
+  id: string,
+): Promise<ListingAgentProposalDeleteResult> {
+  return apiFetch<ListingAgentProposalDeleteResult>(
+    `/listing-agent-proposals/seller/${id}`,
+    { method: 'DELETE' },
+  );
+}
+
+export async function deleteSellerListingAgentProposals(
+  ids: string[],
+): Promise<ListingAgentProposalDeleteResult> {
+  return apiFetch<ListingAgentProposalDeleteResult>(
+    '/listing-agent-proposals/seller/hide',
+    {
+      method: 'POST',
+      body: { ids },
+    },
   );
 }
 

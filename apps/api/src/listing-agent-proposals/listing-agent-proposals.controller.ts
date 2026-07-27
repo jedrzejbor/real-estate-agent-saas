@@ -6,6 +6,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Delete,
   Query,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -13,6 +14,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums';
 import {
   CreateListingAgentProposalMessageDto,
+  HideListingAgentProposalsDto,
   ListingAgentAssignmentQueryDto,
   ListingAgentProposalInputDto,
   ListingAgentProposalMessageQueryDto,
@@ -109,6 +111,26 @@ export class ListingAgentProposalsController {
     return this.listingAgentProposalsService.withdrawForAgent(userId, id);
   }
 
+  /** DELETE /api/listing-agent-proposals/agent/:id — hide one proposal from the current agent's sent proposals list. */
+  @Delete('agent/:id')
+  @Roles(UserRole.AGENT)
+  async hideOneForAgent(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.listingAgentProposalsService.hideForAgent(userId, [id]);
+  }
+
+  /** POST /api/listing-agent-proposals/agent/hide — hide multiple proposals from the current agent's sent proposals list. */
+  @Post('agent/hide')
+  @Roles(UserRole.AGENT)
+  async hideManyForAgent(
+    @CurrentUser('id') userId: string,
+    @Body() dto: HideListingAgentProposalsDto,
+  ) {
+    return this.listingAgentProposalsService.hideForAgent(userId, dto.ids);
+  }
+
   /** GET /api/listing-agent-proposals/seller — list proposals received by the current private seller. */
   @Get('seller')
   @Roles(UserRole.OWNER, UserRole.VIEWER)
@@ -147,6 +169,26 @@ export class ListingAgentProposalsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.listingAgentProposalsService.rejectForSeller(userId, id);
+  }
+
+  /** DELETE /api/listing-agent-proposals/seller/:id — hide one proposal from the current seller's received proposals list. */
+  @Delete('seller/:id')
+  @Roles(UserRole.OWNER, UserRole.VIEWER)
+  async hideOneForSeller(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.listingAgentProposalsService.hideForSeller(userId, [id]);
+  }
+
+  /** POST /api/listing-agent-proposals/seller/hide — hide multiple proposals from the current seller's received proposals list. */
+  @Post('seller/hide')
+  @Roles(UserRole.OWNER, UserRole.VIEWER)
+  async hideManyForSeller(
+    @CurrentUser('id') userId: string,
+    @Body() dto: HideListingAgentProposalsDto,
+  ) {
+    return this.listingAgentProposalsService.hideForSeller(userId, dto.ids);
   }
 
   /** POST /api/listing-agent-proposals/seller/listings/:listingId/close-recruitment — close agent recruitment for an owned listing. */

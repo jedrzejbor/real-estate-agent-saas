@@ -130,6 +130,12 @@ export class ListingAgentProposal {
   @Column({ type: 'timestamptz', name: 'withdrawn_at', nullable: true })
   withdrawnAt?: Date | null;
 
+  @Column({ type: 'timestamptz', name: 'agent_deleted_at', nullable: true })
+  agentDeletedAt?: Date | null;
+
+  @Column({ type: 'timestamptz', name: 'owner_deleted_at', nullable: true })
+  ownerDeletedAt?: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
 

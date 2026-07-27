@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Not, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Not, QueryFailedError, Repository } from 'typeorm';
 import { AnalyticsService } from '../analytics';
 import { EmailService } from '../email';
 import {
@@ -65,6 +65,13 @@ const MESSAGEABLE_PROPOSAL_STATUSES = new Set<ListingAgentProposalStatus>([
   ListingAgentProposalStatus.UPDATED,
   ListingAgentProposalStatus.ACCEPTED,
 ]);
+const HIDEABLE_PROPOSAL_STATUSES = [
+  ListingAgentProposalStatus.ACCEPTED,
+  ListingAgentProposalStatus.REJECTED,
+  ListingAgentProposalStatus.WITHDRAWN,
+  ListingAgentProposalStatus.EXPIRED,
+  ListingAgentProposalStatus.CLOSED,
+] as const;
 const LISTING_AGENT_ANALYTICS_EVENTS = {
   PROPOSAL_SENT: 'listing_agent_proposal_sent',
   PROPOSAL_OPENED_BY_SELLER: 'listing_agent_proposal_opened_by_seller',
@@ -330,7 +337,8 @@ export class ListingAgentProposalsService {
       .leftJoinAndSelect('listing.address', 'address')
       .leftJoinAndSelect('proposal.agent', 'agent')
       .leftJoinAndSelect('agent.agency', 'agency')
-      .where('proposal.agentId = :agentId', { agentId: access.agent.id });
+      .where('proposal.agentId = :agentId', { agentId: access.agent.id })
+      .andWhere('proposal.agentDeletedAt IS NULL');
 
     if (status) {
       qb.andWhere('proposal.status = :status', { status });
@@ -461,6 +469,33 @@ export class ListingAgentProposalsService {
     return toProposalResponse(saved);
   }
 
+  async hideForAgent(
+    userId: string,
+    ids: string[],
+  ): Promise<{ deletedCount: number }> {
+    this.assertMarketplaceReleaseEnabled();
+    const access = await this.resolvePaidAgentAccess(userId);
+    const uniqueIds = normalizeProposalIds(ids);
+
+    if (uniqueIds.length === 0) {
+      throw new BadRequestException('Wybierz propozycje do usunięcia');
+    }
+
+    const result = await this.proposalRepo
+      .createQueryBuilder()
+      .update(ListingAgentProposal)
+      .set({ agentDeletedAt: new Date() })
+      .where('id IN (:...ids)', { ids: uniqueIds })
+      .andWhere('agent_id = :agentId', { agentId: access.agent.id })
+      .andWhere('agent_deleted_at IS NULL')
+      .andWhere('status IN (:...statuses)', {
+        statuses: [...HIDEABLE_PROPOSAL_STATUSES],
+      })
+      .execute();
+
+    return { deletedCount: result.affected ?? 0 };
+  }
+
   async findForSeller(
     userId: string,
     query: ListingAgentProposalQueryDto,
@@ -481,7 +516,8 @@ export class ListingAgentProposalsService {
       .leftJoinAndSelect('listing.address', 'address')
       .leftJoinAndSelect('proposal.agent', 'agent')
       .leftJoinAndSelect('agent.agency', 'agency')
-      .where('proposal.ownerUserId = :ownerUserId', { ownerUserId: userId });
+      .where('proposal.ownerUserId = :ownerUserId', { ownerUserId: userId })
+      .andWhere('proposal.ownerDeletedAt IS NULL');
 
     if (status) {
       qb.andWhere('proposal.status = :status', { status });
@@ -677,6 +713,32 @@ export class ListingAgentProposalsService {
       ...toProposalResponse(saved),
       assignment: null,
     };
+  }
+
+  async hideForSeller(
+    userId: string,
+    ids: string[],
+  ): Promise<{ deletedCount: number }> {
+    this.assertMarketplaceReleaseEnabled();
+    const uniqueIds = normalizeProposalIds(ids);
+
+    if (uniqueIds.length === 0) {
+      throw new BadRequestException('Wybierz propozycje do usunięcia');
+    }
+
+    const result = await this.proposalRepo
+      .createQueryBuilder()
+      .update(ListingAgentProposal)
+      .set({ ownerDeletedAt: new Date() })
+      .where('id IN (:...ids)', { ids: uniqueIds })
+      .andWhere('owner_user_id = :ownerUserId', { ownerUserId: userId })
+      .andWhere('owner_deleted_at IS NULL')
+      .andWhere('status IN (:...statuses)', {
+        statuses: [...HIDEABLE_PROPOSAL_STATUSES],
+      })
+      .execute();
+
+    return { deletedCount: result.affected ?? 0 };
   }
 
   async closeRecruitmentForSeller(
@@ -959,11 +1021,11 @@ export class ListingAgentProposalsService {
       throw new NotFoundException('Oferta współpracy nie znaleziona');
     }
 
-    if (proposal.ownerUserId === userId) {
+    if (proposal.ownerUserId === userId && !proposal.ownerDeletedAt) {
       return { proposal, role: 'owner' };
     }
 
-    if (proposal.agent?.userId === userId) {
+    if (proposal.agent?.userId === userId && !proposal.agentDeletedAt) {
       return { proposal, role: 'agent' };
     }
 
@@ -975,7 +1037,7 @@ export class ListingAgentProposalsService {
     id: string,
   ): Promise<ListingAgentProposal> {
     const proposal = await this.proposalRepo.findOne({
-      where: { id, agentId },
+      where: { id, agentId, agentDeletedAt: IsNull() },
       relations: ['listing', 'listing.address', 'agent', 'agent.agency'],
     });
 
@@ -1020,7 +1082,7 @@ export class ListingAgentProposalsService {
     id: string,
   ): Promise<ListingAgentProposal> {
     const proposal = await this.proposalRepo.findOne({
-      where: { id, ownerUserId },
+      where: { id, ownerUserId, ownerDeletedAt: IsNull() },
       relations: [
         'listing',
         'listing.address',
@@ -1369,6 +1431,13 @@ function normalizeServices(services: string[]): string[] {
   return Array.from(
     new Set(services.map((service) => service.trim()).filter(Boolean)),
   ).slice(0, 20);
+}
+
+function normalizeProposalIds(ids: string[]): string[] {
+  return Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean))).slice(
+    0,
+    100,
+  );
 }
 
 function normalizeOptionalString(value: unknown): string | null {

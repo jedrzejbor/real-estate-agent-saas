@@ -18,10 +18,12 @@ describe('ListingAgentProposalsController', () => {
     findOneForAgent: jest.Mock;
     updateForAgent: jest.Mock;
     withdrawForAgent: jest.Mock;
+    hideForAgent: jest.Mock;
     findForSeller: jest.Mock;
     findOneForSeller: jest.Mock;
     acceptForSeller: jest.Mock;
     rejectForSeller: jest.Mock;
+    hideForSeller: jest.Mock;
     closeRecruitmentForSeller: jest.Mock;
     reopenRecruitmentForSeller: jest.Mock;
     findMessages: jest.Mock;
@@ -37,10 +39,12 @@ describe('ListingAgentProposalsController', () => {
       findOneForAgent: jest.fn(),
       updateForAgent: jest.fn(),
       withdrawForAgent: jest.fn(),
+      hideForAgent: jest.fn(),
       findForSeller: jest.fn(),
       findOneForSeller: jest.fn(),
       acceptForSeller: jest.fn(),
       rejectForSeller: jest.fn(),
+      hideForSeller: jest.fn(),
       closeRecruitmentForSeller: jest.fn(),
       reopenRecruitmentForSeller: jest.fn(),
       findMessages: jest.fn(),
@@ -154,6 +158,29 @@ describe('ListingAgentProposalsController', () => {
     );
   });
 
+  it('delegates single agent proposal hide to the service', async () => {
+    const response = { deletedCount: 1 };
+    service.hideForAgent.mockResolvedValue(response);
+
+    await expect(
+      controller.hideOneForAgent(USER_ID, PROPOSAL_ID),
+    ).resolves.toBe(response);
+
+    expect(service.hideForAgent).toHaveBeenCalledWith(USER_ID, [PROPOSAL_ID]);
+  });
+
+  it('delegates bulk agent proposal hide to the service', async () => {
+    const dto = { ids: [PROPOSAL_ID] };
+    const response = { deletedCount: 1 };
+    service.hideForAgent.mockResolvedValue(response);
+
+    await expect(controller.hideManyForAgent(USER_ID, dto)).resolves.toBe(
+      response,
+    );
+
+    expect(service.hideForAgent).toHaveBeenCalledWith(USER_ID, dto.ids);
+  });
+
   it('delegates seller proposal list lookup to the service', async () => {
     const query = { listingId: LISTING_ID };
     const response = { data: [], meta: { total: 0 } };
@@ -197,6 +224,29 @@ describe('ListingAgentProposalsController', () => {
     ).resolves.toBe(response);
 
     expect(service.rejectForSeller).toHaveBeenCalledWith(USER_ID, PROPOSAL_ID);
+  });
+
+  it('delegates single seller proposal hide to the service', async () => {
+    const response = { deletedCount: 1 };
+    service.hideForSeller.mockResolvedValue(response);
+
+    await expect(
+      controller.hideOneForSeller(USER_ID, PROPOSAL_ID),
+    ).resolves.toBe(response);
+
+    expect(service.hideForSeller).toHaveBeenCalledWith(USER_ID, [PROPOSAL_ID]);
+  });
+
+  it('delegates bulk seller proposal hide to the service', async () => {
+    const dto = { ids: [PROPOSAL_ID] };
+    const response = { deletedCount: 1 };
+    service.hideForSeller.mockResolvedValue(response);
+
+    await expect(controller.hideManyForSeller(USER_ID, dto)).resolves.toBe(
+      response,
+    );
+
+    expect(service.hideForSeller).toHaveBeenCalledWith(USER_ID, dto.ids);
   });
 
   it('delegates seller close recruitment action to the service', async () => {
@@ -285,6 +335,18 @@ describe('ListingAgentProposalsController', () => {
       Reflect.getMetadata(
         ROLES_KEY,
         ListingAgentProposalsController.prototype.findForSeller,
+      ),
+    ).toEqual([UserRole.OWNER, UserRole.VIEWER]);
+    expect(
+      Reflect.getMetadata(
+        ROLES_KEY,
+        ListingAgentProposalsController.prototype.hideManyForAgent,
+      ),
+    ).toEqual([UserRole.AGENT]);
+    expect(
+      Reflect.getMetadata(
+        ROLES_KEY,
+        ListingAgentProposalsController.prototype.hideManyForSeller,
       ),
     ).toEqual([UserRole.OWNER, UserRole.VIEWER]);
     expect(
