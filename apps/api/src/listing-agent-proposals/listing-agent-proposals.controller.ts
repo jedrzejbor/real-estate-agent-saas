@@ -111,7 +111,7 @@ export class ListingAgentProposalsController {
 
   /** GET /api/listing-agent-proposals/seller — list proposals received by the current private seller. */
   @Get('seller')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.VIEWER)
   async findForSeller(
     @CurrentUser('id') userId: string,
     @Query() query: ListingAgentProposalQueryDto,
@@ -121,7 +121,7 @@ export class ListingAgentProposalsController {
 
   /** GET /api/listing-agent-proposals/seller/:id — show one proposal received by the current private seller. */
   @Get('seller/:id')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.VIEWER)
   async findOneForSeller(
     @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -131,7 +131,7 @@ export class ListingAgentProposalsController {
 
   /** POST /api/listing-agent-proposals/seller/:id/accept — accept an agent proposal and create an assignment. */
   @Post('seller/:id/accept')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.VIEWER)
   async acceptForSeller(
     @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -141,7 +141,7 @@ export class ListingAgentProposalsController {
 
   /** POST /api/listing-agent-proposals/seller/:id/reject — reject an agent proposal. */
   @Post('seller/:id/reject')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.VIEWER)
   async rejectForSeller(
     @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -151,7 +151,7 @@ export class ListingAgentProposalsController {
 
   /** POST /api/listing-agent-proposals/seller/listings/:listingId/close-recruitment — close agent recruitment for an owned listing. */
   @Post('seller/listings/:listingId/close-recruitment')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.VIEWER)
   async closeRecruitmentForSeller(
     @CurrentUser('id') userId: string,
     @Param('listingId', ParseUUIDPipe) listingId: string,
@@ -164,7 +164,7 @@ export class ListingAgentProposalsController {
 
   /** POST /api/listing-agent-proposals/seller/listings/:listingId/reopen-recruitment — reopen agent recruitment for an owned listing. */
   @Post('seller/listings/:listingId/reopen-recruitment')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.VIEWER)
   async reopenRecruitmentForSeller(
     @CurrentUser('id') userId: string,
     @Param('listingId', ParseUUIDPipe) listingId: string,
@@ -177,7 +177,7 @@ export class ListingAgentProposalsController {
 
   /** GET /api/listing-agent-proposals/:id/messages — list chat messages for a proposal participant. */
   @Get(':id/messages')
-  @Roles(UserRole.OWNER, UserRole.AGENT)
+  @Roles(UserRole.OWNER, UserRole.VIEWER, UserRole.AGENT)
   async findMessages(
     @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -188,7 +188,7 @@ export class ListingAgentProposalsController {
 
   /** POST /api/listing-agent-proposals/:id/messages — send a chat message as a proposal participant. */
   @Post(':id/messages')
-  @Roles(UserRole.OWNER, UserRole.AGENT)
+  @Roles(UserRole.OWNER, UserRole.VIEWER, UserRole.AGENT)
   async createMessage(
     @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) id: string,

@@ -286,19 +286,19 @@ describe('ListingAgentProposalsController', () => {
         ROLES_KEY,
         ListingAgentProposalsController.prototype.findForSeller,
       ),
-    ).toEqual([UserRole.OWNER]);
+    ).toEqual([UserRole.OWNER, UserRole.VIEWER]);
     expect(
       Reflect.getMetadata(
         ROLES_KEY,
         ListingAgentProposalsController.prototype.closeRecruitmentForSeller,
       ),
-    ).toEqual([UserRole.OWNER]);
+    ).toEqual([UserRole.OWNER, UserRole.VIEWER]);
     expect(
       Reflect.getMetadata(
         ROLES_KEY,
         ListingAgentProposalsController.prototype.findMessages,
       ),
-    ).toEqual([UserRole.OWNER, UserRole.AGENT]);
+    ).toEqual([UserRole.OWNER, UserRole.VIEWER, UserRole.AGENT]);
   });
 });
 
