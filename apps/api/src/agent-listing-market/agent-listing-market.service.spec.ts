@@ -191,7 +191,11 @@ function createListingQueryBuilder(
 }
 
 function createProposalQueryBuilder(
-  rows: Array<{ listingId: string; status: ListingAgentProposalStatus }>,
+  rows: Array<{
+    listingId: string;
+    status: ListingAgentProposalStatus;
+    createdAt: Date | string;
+  }>,
 ) {
   return {
     select: jest.fn().mockReturnThis(),
@@ -214,6 +218,7 @@ function buildService({
   proposalRows?: Array<{
     listingId: string;
     status: ListingAgentProposalStatus;
+    createdAt: Date | string;
   }>;
   releaseFlags?: { agentListingMarketplaceEnabled: boolean };
 } = {}) {
@@ -250,6 +255,7 @@ describe('AgentListingMarketService', () => {
         {
           listingId: listing.id,
           status: ListingAgentProposalStatus.REJECTED,
+          createdAt: new Date('2026-07-04T00:00:00.000Z'),
         },
       ],
     });
@@ -297,6 +303,29 @@ describe('AgentListingMarketService', () => {
     });
     expect(result.data[0]).not.toHaveProperty('ownerUser');
     expect(result.data[0].primaryImage?.id).toBe('image-1');
+  });
+
+  it('ignores proposal history from previous recruitment cycles', async () => {
+    const listing = buildListing({
+      agentCollaborationOpenedAt: new Date('2026-07-10T00:00:00.000Z'),
+    });
+    const { service } = buildService({
+      listings: [listing],
+      proposalRows: [
+        {
+          listingId: listing.id,
+          status: ListingAgentProposalStatus.CLOSED,
+          createdAt: new Date('2026-07-09T23:00:00.000Z'),
+        },
+      ],
+    });
+
+    const result = await service.findAll(USER_ID, { page: 1, limit: 24 });
+
+    expect(result.data[0]).toMatchObject({
+      hasSubmittedProposal: false,
+      agentProposalStatus: null,
+    });
   });
 
   it('does not expose owner private, exact address or proposal fields in the agent market payload', async () => {

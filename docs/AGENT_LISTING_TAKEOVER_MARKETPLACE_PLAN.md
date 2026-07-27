@@ -1382,9 +1382,12 @@ agentow`, - brak sesji pozostaje obslugiwany globalnie przez dashboard layout i
   - Data zakonczenia: 2026-07-27
   - Wykonano:
     - `GET /api/agent-listing-market` zwraca teraz `agentProposalStatus` jako
-      ostatni znany status propozycji aktualnego agenta dla danej oferty,
-    - status jest liczony po najnowszej propozycji agenta, a nie jako prosty
-      boolean `hasSubmittedProposal`,
+      status propozycji aktualnego agenta z biezacego cyklu naboru,
+    - status jest liczony po najnowszej propozycji agenta utworzonej po
+      aktualnym `agentCollaborationOpenedAt`, a nie jako prosty boolean
+      `hasSubmittedProposal`,
+    - po zamknieciu i ponownym otwarciu naboru stare propozycje `closed` sa
+      traktowane jako historia i nie pokazuja badge na rynku ofert,
     - lista `/dashboard/agent-market` pokazuje badge `Odrzucona` dla
       odrzuconej propozycji,
     - odrzucona, wycofana, wygasla albo zamknieta propozycja nie blokuje juz

@@ -19,6 +19,11 @@ import type {
   AgentListingMarketPage,
 } from './agent-listing-market.types';
 
+interface AgentProposalMarketState {
+  status: ListingAgentProposalStatus;
+  createdAt: Date | string;
+}
+
 @Injectable()
 export class AgentListingMarketService {
   constructor(
@@ -144,15 +149,15 @@ export class AgentListingMarketService {
       .take(limit);
 
     const [listings, total] = await qb.getManyAndCount();
-    const proposalStatusByListingId =
-      await this.findAgentProposalStatusByListingId(
+    const proposalStateByListingId =
+      await this.findAgentProposalStateByListingId(
         access.agent.id,
         listings.map((listing) => listing.id),
       );
 
     return {
       data: listings.map((listing) =>
-        toAgentListingMarketItem(listing, proposalStatusByListingId),
+        toAgentListingMarketItem(listing, proposalStateByListingId),
       ),
       meta: {
         total,
@@ -164,10 +169,10 @@ export class AgentListingMarketService {
     };
   }
 
-  private async findAgentProposalStatusByListingId(
+  private async findAgentProposalStateByListingId(
     agentId: string,
     listingIds: string[],
-  ): Promise<Map<string, ListingAgentProposalStatus>> {
+  ): Promise<Map<string, AgentProposalMarketState>> {
     if (listingIds.length === 0) {
       return new Map();
     }
@@ -176,20 +181,28 @@ export class AgentListingMarketService {
       .createQueryBuilder('proposal')
       .select('proposal.listingId', 'listingId')
       .addSelect('proposal.status', 'status')
+      .addSelect('proposal.createdAt', 'createdAt')
       .where('proposal.agentId = :agentId', { agentId })
       .andWhere('proposal.listingId IN (:...listingIds)', { listingIds })
       .orderBy('proposal.createdAt', 'DESC')
-      .getRawMany<{ listingId: string; status: ListingAgentProposalStatus }>();
+      .getRawMany<{
+        listingId: string;
+        status: ListingAgentProposalStatus;
+        createdAt: Date | string;
+      }>();
 
-    const statusByListingId = new Map<string, ListingAgentProposalStatus>();
+    const stateByListingId = new Map<string, AgentProposalMarketState>();
 
     for (const row of rows) {
-      if (!statusByListingId.has(row.listingId)) {
-        statusByListingId.set(row.listingId, row.status);
+      if (!stateByListingId.has(row.listingId)) {
+        stateByListingId.set(row.listingId, {
+          status: row.status,
+          createdAt: row.createdAt,
+        });
       }
     }
 
-    return statusByListingId;
+    return stateByListingId;
   }
 
   private assertMarketplaceReleaseEnabled(): void {
@@ -221,9 +234,18 @@ function getSortColumn(sortBy: string): string {
 
 function toAgentListingMarketItem(
   listing: Listing,
-  proposalStatusByListingId: Map<string, ListingAgentProposalStatus>,
+  proposalStateByListingId: Map<string, AgentProposalMarketState>,
 ): AgentListingMarketItem {
-  const agentProposalStatus = proposalStatusByListingId.get(listing.id) ?? null;
+  const agentProposalState = proposalStateByListingId.get(listing.id) ?? null;
+  const isProposalFromCurrentRecruitment =
+    agentProposalState !== null &&
+    isDateOnOrAfter(
+      agentProposalState.createdAt,
+      listing.agentCollaborationOpenedAt ?? null,
+    );
+  const agentProposalStatus = isProposalFromCurrentRecruitment
+    ? agentProposalState.status
+    : null;
 
   return {
     ...toPublicCatalogItem(listing),
@@ -235,6 +257,16 @@ function toAgentListingMarketItem(
     hasSubmittedProposal: agentProposalStatus !== null,
     agentProposalStatus,
   };
+}
+
+function isDateOnOrAfter(value: Date | string, boundary: Date | null): boolean {
+  if (!boundary) {
+    return true;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+
+  return date.getTime() >= boundary.getTime();
 }
 
 function toPublicCatalogItem(listing: Listing): PublicListingCatalogItem {
