@@ -3,6 +3,15 @@ import type { PaginationMeta } from './clients';
 import type { PropertyType, TransactionType } from './listings';
 
 export type AgentListingCollaborationMode = 'single_agent' | 'multi_agent';
+export type AgentListingProposalStatus =
+  | 'draft'
+  | 'sent'
+  | 'updated'
+  | 'accepted'
+  | 'rejected'
+  | 'withdrawn'
+  | 'expired'
+  | 'closed';
 
 export interface AgentListingMarketImage {
   id: string;
@@ -38,6 +47,7 @@ export interface AgentListingMarketItem {
     preferences: Record<string, unknown> | null;
   };
   hasSubmittedProposal: boolean;
+  agentProposalStatus: AgentListingProposalStatus | null;
 }
 
 export interface AgentListingMarketFilters {

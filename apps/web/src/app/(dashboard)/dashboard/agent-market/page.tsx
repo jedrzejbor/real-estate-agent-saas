@@ -33,6 +33,7 @@ import {
   fetchAgentListingMarket,
   type AgentListingMarketFilters,
   type AgentListingMarketItem,
+  type AgentListingProposalStatus,
 } from '@/lib/agent-listing-market';
 import { createListingAgentProposal } from '@/lib/listing-agent-proposals';
 import {
@@ -163,7 +164,11 @@ export default function AgentListingMarketPage() {
       setItems((current) =>
         current.map((item) =>
           item.id === selectedListing.id
-            ? { ...item, hasSubmittedProposal: true }
+            ? {
+                ...item,
+                hasSubmittedProposal: true,
+                agentProposalStatus: 'sent',
+              }
             : item,
         ),
       );
@@ -316,6 +321,11 @@ function MarketListingCard({
   item: AgentListingMarketItem;
   onCreateProposal: (item: AgentListingMarketItem) => void;
 }) {
+  const proposalStatus = getAgentProposalStatusPresentation(
+    item.agentProposalStatus,
+  );
+  const canCreateProposal = canCreateProposalForMarketItem(item);
+
   return (
     <article className="grid overflow-hidden rounded-2xl border border-border bg-card shadow-sm sm:grid-cols-[180px_1fr]">
       <div
@@ -344,10 +354,14 @@ function MarketListingCard({
           <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
             {TRANSACTION_TYPE_LABELS[item.transactionType]}
           </span>
-          {item.hasSubmittedProposal ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-900">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Wysłano propozycję
+          {proposalStatus ? (
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${proposalStatus.className}`}
+            >
+              {proposalStatus.showCheck ? (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              ) : null}
+              {proposalStatus.label}
             </span>
           ) : null}
         </div>
@@ -373,18 +387,91 @@ function MarketListingCard({
             Zobacz ofertę
           </Link>
           <Button
-            disabled={item.hasSubmittedProposal}
+            disabled={!canCreateProposal}
             className="rounded-xl"
             onClick={() => onCreateProposal(item)}
           >
-            {item.hasSubmittedProposal
-              ? 'Propozycja wysłana'
-              : 'Złóż propozycję'}
+            {canCreateProposal
+              ? item.agentProposalStatus === 'rejected'
+                ? 'Złóż nową propozycję'
+                : 'Złóż propozycję'
+              : getDisabledProposalButtonLabel(item.agentProposalStatus)}
           </Button>
         </div>
       </div>
     </article>
   );
+}
+
+function canCreateProposalForMarketItem(item: AgentListingMarketItem): boolean {
+  return (
+    !item.agentProposalStatus ||
+    ['rejected', 'withdrawn', 'expired', 'closed'].includes(
+      item.agentProposalStatus,
+    )
+  );
+}
+
+function getDisabledProposalButtonLabel(
+  status: AgentListingProposalStatus | null,
+): string {
+  switch (status) {
+    case 'accepted':
+      return 'Propozycja zaakceptowana';
+    case 'sent':
+    case 'updated':
+    case 'draft':
+      return 'Propozycja wysłana';
+    default:
+      return 'Propozycja wysłana';
+  }
+}
+
+function getAgentProposalStatusPresentation(
+  status: AgentListingProposalStatus | null,
+): { label: string; className: string; showCheck: boolean } | null {
+  switch (status) {
+    case 'sent':
+    case 'updated':
+    case 'draft':
+      return {
+        label: 'Wysłano propozycję',
+        className: 'bg-emerald-100 text-emerald-900',
+        showCheck: true,
+      };
+    case 'accepted':
+      return {
+        label: 'Zaakceptowana',
+        className: 'bg-emerald-100 text-emerald-900',
+        showCheck: true,
+      };
+    case 'rejected':
+      return {
+        label: 'Odrzucona',
+        className: 'bg-red-100 text-red-900',
+        showCheck: false,
+      };
+    case 'withdrawn':
+      return {
+        label: 'Wycofana',
+        className: 'bg-muted text-muted-foreground',
+        showCheck: false,
+      };
+    case 'expired':
+      return {
+        label: 'Wygasła',
+        className: 'bg-muted text-muted-foreground',
+        showCheck: false,
+      };
+    case 'closed':
+      return {
+        label: 'Zamknięta',
+        className: 'bg-muted text-muted-foreground',
+        showCheck: false,
+      };
+    default:
+      return null;
+  }
 }
 
 function ProposalModal({

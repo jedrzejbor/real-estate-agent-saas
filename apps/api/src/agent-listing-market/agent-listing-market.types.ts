@@ -1,4 +1,7 @@
-import type { ListingAgentCollaborationMode } from '../common/enums';
+import type {
+  ListingAgentCollaborationMode,
+  ListingAgentProposalStatus,
+} from '../common/enums';
 import type { ListingAgentCollaborationPreferences } from '../listings/entities/listing.entity';
 import type { PublicListingCatalogItem } from '../listings/public-listing.model';
 
@@ -9,6 +12,7 @@ export interface AgentListingMarketItem extends PublicListingCatalogItem {
     preferences: ListingAgentCollaborationPreferences | null;
   };
   hasSubmittedProposal: boolean;
+  agentProposalStatus: ListingAgentProposalStatus | null;
 }
 
 export interface AgentListingMarketPage {
