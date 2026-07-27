@@ -3,6 +3,7 @@ import {
   AgencyPlan,
   ListingAgentCollaborationMode,
   ListingAgentCollaborationStatus,
+  ListingAgentProposalStatus,
   ListingPublicationStatus,
   ListingStatus,
   PropertyType,
@@ -189,11 +190,15 @@ function createListingQueryBuilder(
   return qb;
 }
 
-function createProposalQueryBuilder(rows: Array<{ listingId: string }>) {
+function createProposalQueryBuilder(
+  rows: Array<{ listingId: string; status: ListingAgentProposalStatus }>,
+) {
   return {
     select: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
     getRawMany: jest.fn().mockResolvedValue(rows),
   };
 }
@@ -206,7 +211,10 @@ function buildService({
 }: {
   access?: ReturnType<typeof buildAccess>;
   listings?: Listing[];
-  proposalRows?: Array<{ listingId: string }>;
+  proposalRows?: Array<{
+    listingId: string;
+    status: ListingAgentProposalStatus;
+  }>;
   releaseFlags?: { agentListingMarketplaceEnabled: boolean };
 } = {}) {
   const listingQb = createListingQueryBuilder(listings);
@@ -238,7 +246,12 @@ describe('AgentListingMarketService', () => {
     const listing = buildListing();
     const { service, listingQb, proposalQb } = buildService({
       listings: [listing],
-      proposalRows: [{ listingId: listing.id }],
+      proposalRows: [
+        {
+          listingId: listing.id,
+          status: ListingAgentProposalStatus.REJECTED,
+        },
+      ],
     });
 
     const result = await service.findAll(USER_ID, { page: 1, limit: 24 });
@@ -259,12 +272,17 @@ describe('AgentListingMarketService', () => {
       'proposal.agentId = :agentId',
       { agentId: 'agent-1' },
     );
+    expect(proposalQb.orderBy).toHaveBeenCalledWith(
+      'proposal.createdAt',
+      'DESC',
+    );
     expect(result.data).toHaveLength(1);
     expect(result.data[0]).toMatchObject({
       id: listing.id,
       slug: 'publiczne-mieszkanie-testowe',
       title: 'Publiczne mieszkanie testowe',
       hasSubmittedProposal: true,
+      agentProposalStatus: ListingAgentProposalStatus.REJECTED,
       collaboration: {
         mode: ListingAgentCollaborationMode.SINGLE_AGENT,
         preferences: {

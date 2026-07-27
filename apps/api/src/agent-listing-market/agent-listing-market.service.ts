@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import {
   ListingAgentCollaborationStatus,
+  ListingAgentProposalStatus,
   ListingPublicationStatus,
   ListingStatus,
 } from '../common/enums';
@@ -143,15 +144,15 @@ export class AgentListingMarketService {
       .take(limit);
 
     const [listings, total] = await qb.getManyAndCount();
-    const submittedProposalListingIds =
-      await this.findSubmittedProposalListingIds(
+    const proposalStatusByListingId =
+      await this.findAgentProposalStatusByListingId(
         access.agent.id,
         listings.map((listing) => listing.id),
       );
 
     return {
       data: listings.map((listing) =>
-        toAgentListingMarketItem(listing, submittedProposalListingIds),
+        toAgentListingMarketItem(listing, proposalStatusByListingId),
       ),
       meta: {
         total,
@@ -163,22 +164,32 @@ export class AgentListingMarketService {
     };
   }
 
-  private async findSubmittedProposalListingIds(
+  private async findAgentProposalStatusByListingId(
     agentId: string,
     listingIds: string[],
-  ): Promise<Set<string>> {
+  ): Promise<Map<string, ListingAgentProposalStatus>> {
     if (listingIds.length === 0) {
-      return new Set();
+      return new Map();
     }
 
     const rows = await this.proposalRepo
       .createQueryBuilder('proposal')
       .select('proposal.listingId', 'listingId')
+      .addSelect('proposal.status', 'status')
       .where('proposal.agentId = :agentId', { agentId })
       .andWhere('proposal.listingId IN (:...listingIds)', { listingIds })
-      .getRawMany<{ listingId: string }>();
+      .orderBy('proposal.createdAt', 'DESC')
+      .getRawMany<{ listingId: string; status: ListingAgentProposalStatus }>();
 
-    return new Set(rows.map((row) => row.listingId));
+    const statusByListingId = new Map<string, ListingAgentProposalStatus>();
+
+    for (const row of rows) {
+      if (!statusByListingId.has(row.listingId)) {
+        statusByListingId.set(row.listingId, row.status);
+      }
+    }
+
+    return statusByListingId;
   }
 
   private assertMarketplaceReleaseEnabled(): void {
@@ -210,8 +221,10 @@ function getSortColumn(sortBy: string): string {
 
 function toAgentListingMarketItem(
   listing: Listing,
-  submittedProposalListingIds: Set<string>,
+  proposalStatusByListingId: Map<string, ListingAgentProposalStatus>,
 ): AgentListingMarketItem {
+  const agentProposalStatus = proposalStatusByListingId.get(listing.id) ?? null;
+
   return {
     ...toPublicCatalogItem(listing),
     collaboration: {
@@ -219,7 +232,8 @@ function toAgentListingMarketItem(
       openedAt: listing.agentCollaborationOpenedAt ?? null,
       preferences: listing.agentCollaborationPreferences ?? null,
     },
-    hasSubmittedProposal: submittedProposalListingIds.has(listing.id),
+    hasSubmittedProposal: agentProposalStatus !== null,
+    agentProposalStatus,
   };
 }
 
