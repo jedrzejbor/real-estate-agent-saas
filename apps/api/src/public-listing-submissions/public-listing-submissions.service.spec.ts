@@ -3,6 +3,7 @@ import {
   ActivityAction,
   ListingAgentCollaborationMode,
   ListingAgentCollaborationStatus,
+  ListingAgentProposalStatus,
   ListingPublicationStatus,
   ListingStatus,
   PropertyType,
@@ -11,6 +12,8 @@ import {
   TransactionType,
 } from '../common/enums';
 import { Listing } from '../listings/entities/listing.entity';
+import { ListingImage } from '../listings/entities/listing-image.entity';
+import { ListingAgentProposal } from '../listing-agent-proposals';
 import { PublicListingSubmission } from './entities';
 import { PublicListingSubmissionsService } from './public-listing-submissions.service';
 
@@ -137,6 +140,15 @@ function buildSubmission(
 }
 
 function buildService(submission: PublicListingSubmission) {
+  const transactionQueryBuilder = {
+    delete: jest.fn().mockReturnThis(),
+    from: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    set: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    execute: jest.fn().mockResolvedValue(undefined),
+  };
   const submissionRepo = {
     find: jest.fn().mockResolvedValue([submission]),
     findOne: jest.fn().mockResolvedValue(submission),
@@ -161,20 +173,16 @@ function buildService(submission: PublicListingSubmission) {
   const configService = {
     get: jest.fn().mockReturnValue('https://podadresem.test'),
   };
+  const transactionManager = {
+    create: jest.fn((_entity: unknown, value: unknown) => value),
+    createQueryBuilder: jest.fn().mockReturnValue(transactionQueryBuilder),
+    delete: jest.fn().mockResolvedValue(undefined),
+    findOne: jest.fn().mockResolvedValue(null),
+    save: jest.fn(async (_entity: unknown, value: unknown) => value),
+  };
   const dataSource = {
     transaction: jest.fn(async (callback: (manager: unknown) => unknown) =>
-      callback({
-        create: jest.fn((_entity: unknown, value: unknown) => value),
-        createQueryBuilder: jest.fn().mockReturnValue({
-          delete: jest.fn().mockReturnThis(),
-          from: jest.fn().mockReturnThis(),
-          where: jest.fn().mockReturnThis(),
-          execute: jest.fn().mockResolvedValue(undefined),
-        }),
-        delete: jest.fn().mockResolvedValue(undefined),
-        findOne: jest.fn().mockResolvedValue(null),
-        save: jest.fn(async (_entity: unknown, value: unknown) => value),
-      }),
+      callback(transactionManager),
     ),
   };
 
@@ -198,6 +206,8 @@ function buildService(submission: PublicListingSubmission) {
     emailService,
     configService,
     listing: submission.publishedListing as Listing,
+    transactionManager,
+    transactionQueryBuilder,
   };
 }
 
@@ -532,6 +542,128 @@ describe('PublicListingSubmissionsService admin moderation', () => {
     expect(result.agentCollaborationMode).toBe(
       ListingAgentCollaborationMode.MULTI_AGENT,
     );
+  });
+
+  it('syncs owner image edits to the published listing images', async () => {
+    const listing = buildListing({
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publicSlug: 'mieszkanie-testowe-warszawa',
+      shareImageUrl: 'https://podadresem.test/old.jpg',
+    });
+    const submission = buildSubmission({
+      publishedListing: listing,
+    });
+    const {
+      service,
+      submissionRepo,
+      transactionManager,
+      transactionQueryBuilder,
+    } = buildService(submission);
+
+    const result = await service.updateForOwner('owner-1', submission.id, {
+      images: [
+        {
+          url: 'https://podadresem.test/uploads/first.webp',
+          altText: 'Pierwsze zdjęcie',
+          order: 1,
+        },
+        {
+          url: 'https://podadresem.test/uploads/main.webp',
+          altText: 'Główne zdjęcie',
+          order: 0,
+          isPrimary: true,
+        },
+      ],
+    });
+
+    expect(submissionRepo.save).not.toHaveBeenCalled();
+    expect(transactionQueryBuilder.delete).toHaveBeenCalled();
+    expect(transactionQueryBuilder.from).toHaveBeenCalledWith(ListingImage);
+    expect(transactionQueryBuilder.where).toHaveBeenCalledWith(
+      'listing_id = :listingId',
+      { listingId: listing.id },
+    );
+    expect(transactionManager.save).toHaveBeenCalledWith(
+      ListingImage,
+      expect.arrayContaining([
+        expect.objectContaining({
+          url: 'https://podadresem.test/uploads/main.webp',
+          order: 0,
+          isPrimary: true,
+          listing,
+        }),
+        expect.objectContaining({
+          url: 'https://podadresem.test/uploads/first.webp',
+          order: 1,
+          isPrimary: false,
+          listing,
+        }),
+      ]),
+    );
+    expect(listing.shareImageUrl).toBe(
+      'https://podadresem.test/uploads/main.webp',
+    );
+    expect(result.images).toHaveLength(2);
+  });
+
+  it('closes active agent proposals when the owner disables collaboration on a published listing', async () => {
+    const listing = buildListing({
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publicSlug: 'mieszkanie-testowe-warszawa',
+      agentCollaborationEnabled: true,
+      agentCollaborationMode: ListingAgentCollaborationMode.SINGLE_AGENT,
+      agentCollaborationStatus: ListingAgentCollaborationStatus.OPEN,
+      agentCollaborationOpenedAt: new Date('2026-01-02T00:00:00.000Z'),
+    });
+    const submission = buildSubmission({
+      publishedListing: listing,
+      agentCollaborationEnabled: true,
+      agentCollaborationMode: ListingAgentCollaborationMode.SINGLE_AGENT,
+      agentCollaborationStatus: ListingAgentCollaborationStatus.OPEN,
+      agentCollaborationOpenedAt: new Date('2026-01-02T00:00:00.000Z'),
+      payload: {
+        ...buildSubmission().payload,
+        agentCollaboration: {
+          enabled: true,
+          mode: ListingAgentCollaborationMode.SINGLE_AGENT,
+          status: ListingAgentCollaborationStatus.OPEN,
+          preferences: {},
+          openedAt: '2026-01-02T00:00:00.000Z',
+          closedAt: null,
+        },
+      },
+    });
+    const { service, transactionQueryBuilder } = buildService(submission);
+
+    const result = await service.updateForOwner('owner-1', submission.id, {
+      agentCollaboration: {
+        enabled: false,
+      },
+    });
+
+    expect(listing.agentCollaborationEnabled).toBe(false);
+    expect(listing.agentCollaborationStatus).toBeNull();
+    expect(transactionQueryBuilder.update).toHaveBeenCalledWith(
+      ListingAgentProposal,
+    );
+    expect(transactionQueryBuilder.set).toHaveBeenCalledWith({
+      status: ListingAgentProposalStatus.CLOSED,
+    });
+    expect(transactionQueryBuilder.where).toHaveBeenCalledWith(
+      'listing_id = :listingId',
+      { listingId: listing.id },
+    );
+    expect(transactionQueryBuilder.andWhere).toHaveBeenCalledWith(
+      'status IN (:...statuses)',
+      {
+        statuses: [
+          ListingAgentProposalStatus.DRAFT,
+          ListingAgentProposalStatus.SENT,
+          ListingAgentProposalStatus.UPDATED,
+        ],
+      },
+    );
+    expect(result.agentCollaborationEnabled).toBe(false);
   });
 
   it('blocks owner edits while a claimed submission is waiting for moderation', async () => {

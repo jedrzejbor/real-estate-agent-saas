@@ -18,6 +18,7 @@ import { EmailService } from '../email';
 import { Address } from '../listings/entities/address.entity';
 import { Listing } from '../listings/entities/listing.entity';
 import { ListingImage } from '../listings/entities/listing-image.entity';
+import { ListingAgentProposal } from '../listing-agent-proposals';
 import { MonitoringService } from '../monitoring';
 import { PublicLead } from '../public-leads/entities';
 import { UsersService } from '../users';
@@ -26,6 +27,7 @@ import {
   ActivityEntityType,
   ListingAgentCollaborationMode,
   ListingAgentCollaborationStatus,
+  ListingAgentProposalStatus,
   ListingStatus,
   ListingPublicationStatus,
   PropertyType,
@@ -453,13 +455,34 @@ export class PublicListingSubmissionsService {
 
     const publishedListing = submission.publishedListing;
 
-    if (dto.agentCollaboration && publishedListing) {
-      Object.assign(
-        publishedListing,
-        buildListingAgentCollaborationData(submission.payload),
+    if (publishedListing && (dto.agentCollaboration || dto.images)) {
+      const listingAgentCollaborationData = buildListingAgentCollaborationData(
+        submission.payload,
       );
+      const shouldCloseActiveAgentProposals =
+        dto.agentCollaboration !== undefined &&
+        publishedListing.agentCollaborationEnabled === true &&
+        listingAgentCollaborationData.agentCollaborationEnabled === false;
+
+      if (dto.agentCollaboration) {
+        Object.assign(publishedListing, listingAgentCollaborationData);
+      }
+
       saved = await this.dataSource.transaction(async (manager) => {
         await manager.save(Listing, publishedListing);
+        if (dto.images) {
+          await this.syncPublishedListingImagesFromSubmission(
+            manager,
+            publishedListing,
+            submission.payload,
+          );
+        }
+        if (shouldCloseActiveAgentProposals) {
+          await this.closeActiveAgentProposalsForListing(
+            manager,
+            publishedListing.id,
+          );
+        }
         return manager.save(PublicListingSubmission, submission);
       });
     } else {
@@ -470,6 +493,59 @@ export class PublicListingSubmissionsService {
       ...saved,
       publishedListing,
     });
+  }
+
+  private async syncPublishedListingImagesFromSubmission(
+    manager: Pick<
+      DataSource['manager'],
+      'create' | 'createQueryBuilder' | 'save'
+    >,
+    listing: Listing,
+    payload: PublicListingSubmissionPayload,
+  ): Promise<void> {
+    await manager
+      .createQueryBuilder()
+      .delete()
+      .from(ListingImage)
+      .where('listing_id = :listingId', { listingId: listing.id })
+      .execute();
+
+    const imageData = sortImageDataByPrimary(buildImageDataFromPayload(payload));
+    const primaryImageIndex = getPrimaryImageIndex(imageData);
+    const images = imageData.map((image, index) =>
+      manager.create(ListingImage, {
+        ...image,
+        order: index,
+        isPrimary: index === primaryImageIndex,
+        listing,
+      }),
+    );
+
+    listing.shareImageUrl = images[0]?.url ?? null;
+    await manager.save(Listing, listing);
+
+    if (images.length > 0) {
+      await manager.save(ListingImage, images);
+    }
+  }
+
+  private async closeActiveAgentProposalsForListing(
+    manager: Pick<DataSource['manager'], 'createQueryBuilder'>,
+    listingId: string,
+  ): Promise<void> {
+    await manager
+      .createQueryBuilder()
+      .update(ListingAgentProposal)
+      .set({ status: ListingAgentProposalStatus.CLOSED })
+      .where('listing_id = :listingId', { listingId })
+      .andWhere('status IN (:...statuses)', {
+        statuses: [
+          ListingAgentProposalStatus.DRAFT,
+          ListingAgentProposalStatus.SENT,
+          ListingAgentProposalStatus.UPDATED,
+        ],
+      })
+      .execute();
   }
 
   async renewForOwner(

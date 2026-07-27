@@ -1232,9 +1232,41 @@ Pozwolic wlascicielowi wlaczyc wspolprace i zarzadzac propozycjami.
     - czat ma empty state dla watku bez wiadomosci,
     - akcje decyzji i wysylki wiadomosci maja stany `loading/disabled`.
 
+- [x] `AT6.8` Zamykac aktywne propozycje po wylaczeniu naboru agentow.
+  - Data zakonczenia: 2026-07-27
+  - Wykonano:
+    - edycja opublikowanego ogloszenia przez wlasciciela wykrywa przejscie z
+      `agentCollaborationEnabled=true` na `false`,
+    - w tej samej transakcji backend zamyka aktywne propozycje (`draft`,
+      `sent`, `updated`) dla tej oferty przez status `closed`,
+    - historyczne statusy (`rejected`, `withdrawn`, `expired`, `closed`) oraz
+      zaakceptowane propozycje nie sa automatycznie reaktywowane ani zmieniane,
+    - ponowne wlaczenie naboru traktujemy jako nowy nabor: agent moze zlozyc
+      nowa propozycje na aktualnych warunkach, ale stara zamknieta propozycja
+      pozostaje historia.
+
+- [x] `AT6.9` Synchronizowac zdjecia po edycji opublikowanej oferty
+  wlasciciela.
+  - Data zakonczenia: 2026-07-27
+  - Wykonano:
+    - edycja opublikowanego ogloszenia przez wlasciciela zapisuje teraz
+      `dto.images` nie tylko w payloadzie zgłoszenia, ale takze w tabeli
+      `listing_images` powiazanej z publiczna oferta,
+    - backend usuwa stare zdjecia publicznego listingu i zapisuje aktualna
+      kolejnosc z payloadu w tej samej transakcji,
+    - pierwsze/oznaczone zdjecie staje sie `isPrimary=true`,
+    - `shareImageUrl` publicznej oferty jest aktualizowany na glowne zdjecie,
+    - lokalna oferta testowa `dqwdqwdqwd` zostala jednorazowo zsynchronizowana
+      w bazie: publiczny endpoint zwraca teraz 5 zdjec.
+
 #### Weryfikacja
 
 - `pnpm --filter web type-check` - przechodzi.
+- `pnpm --filter api test -- public-listing-submissions.service.spec.ts` -
+  przechodzi.
+- `pnpm --filter api type-check` - przechodzi.
+- `curl http://localhost:4000/api/listings/public/dqwdqwdqwd-elblag` -
+  zwraca 5 zdjec w `images`.
 
 #### Poza zakresem AT-6
 
@@ -1346,9 +1378,28 @@ Dac agentom kompletna sciezke od znalezienia oferty do wyslania propozycji.
 agentow`, - brak sesji pozostaje obslugiwany globalnie przez dashboard layout i
     `auth:unauthorized`, z przekierowaniem do logowania.
 
+- [x] `AT7.9` Poprawic stan odrzuconej propozycji na rynku ofert agenta.
+  - Data zakonczenia: 2026-07-27
+  - Wykonano:
+    - `GET /api/agent-listing-market` zwraca teraz `agentProposalStatus` jako
+      ostatni znany status propozycji aktualnego agenta dla danej oferty,
+    - status jest liczony po najnowszej propozycji agenta, a nie jako prosty
+      boolean `hasSubmittedProposal`,
+    - lista `/dashboard/agent-market` pokazuje badge `Odrzucona` dla
+      odrzuconej propozycji,
+    - odrzucona, wycofana, wygasla albo zamknieta propozycja nie blokuje juz
+      przycisku tworzenia kolejnej propozycji,
+    - dla odrzuconej propozycji CTA zmienia sie na `Zloz nowa propozycje`,
+      zeby agent mogl zaproponowac lepsze warunki,
+    - aktywne statusy `draft`, `sent`, `updated` nadal blokuja duplikat
+      propozycji, a zaakceptowana propozycja pozostaje zablokowana.
+
 #### Weryfikacja
 
 - `pnpm --filter web type-check` - przechodzi.
+- `pnpm --filter api test -- agent-listing-market.service.spec.ts` -
+  przechodzi.
+- `pnpm --filter api type-check` - przechodzi.
 
 #### Poza zakresem pierwszej iteracji AT-7
 
