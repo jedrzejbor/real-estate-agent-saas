@@ -1717,7 +1717,7 @@ preferencje wspolpracy.
     - istniejace testy nadal pokrywaja blokady obcego wlasciciela,
       niepublicznej oferty i statusu `assigned`.
 
-- [ ] `AT10.8` Dodac testy frontendu dla modali i stanow karty.
+- [!] `AT10.8` Dodac testy frontendu dla modali i stanow karty.
   - Minimum:
     - karta z otwartym naborem pokazuje `Zamknij nabor`,
     - klikniecie wymaga potwierdzenia w modalu,
@@ -1725,8 +1725,20 @@ preferencje wspolpracy.
       kwalifikuje sie do wspolpracy,
     - modal otwarcia waliduje wymagane pola,
     - po sukcesie UI pokazuje nowy status bez recznego odswiezenia.
+  - Data aktualizacji: 2026-07-29
+  - Status: zablokowane jako test automatyczny w tej iteracji, bo aplikacja web
+    nie ma obecnie skonfigurowanego test runnera ani istniejacych testow
+    komponentow. Nie dodajemy nowego frameworka testowego punktowo w ramach
+    tego sprintu.
+  - Wykonano zamiast tego:
+    - wyciagnieto logike statusu i dostepnej akcji naboru do czystego helpera
+      `seller-agent-recruitment`, z parametrem `now` pod przyszle testy
+      jednostkowe,
+    - utrzymano weryfikacje przez `pnpm --filter web type-check`,
+    - scenariusze UI zostaly dopisane do manualnej listy regresji w `AT10.9`.
 
-- [ ] `AT10.9` Uzupelnic manualna liste testow regresji.
+- [x] `AT10.9` Uzupelnic manualna liste testow regresji.
+  - Data zakonczenia: 2026-07-29
   - Dodac scenariusze:
     - zamkniecie naboru z karty oferty,
     - anulowanie modala zamkniecia,
@@ -1734,6 +1746,9 @@ preferencje wspolpracy.
     - brak akcji przy ofercie `assigned`,
     - ukrycie akcji przy wylaczonej fladze,
     - agent widzi oferte na rynku dopiero po ponownym otwarciu.
+  - Wykonano: lista manualnych testow regresji zostala rozszerzona o
+    scenariusze szybkiego zamykania i ponownego otwierania naboru z karty
+    oferty wlasciciela.
 
 #### Weryfikacja sprintu
 
@@ -1745,6 +1760,9 @@ preferencje wspolpracy.
   - `pnpm --filter api test -- listing-agent-proposals.service.spec.ts listing-agent-proposals.controller.spec.ts` - przechodzi,
   - `pnpm --filter api type-check` - przechodzi,
   - `pnpm --filter web type-check` - przechodzi.
+- 2026-07-29, kolejna iteracja:
+  - `pnpm --filter web type-check` - przechodzi po wyciagnieciu helpera statusu
+    naboru.
 - Manualnie:
   - wlasciciel zamyka nabor z karty oferty,
   - wlasciciel otwiera nabor z modala i zapisuje preferencje,
@@ -1820,10 +1838,27 @@ preferencje wspolpracy.
 - [ X ] Preferencje wspolpracy zapisuja sie po edycji i sa widoczne w panelu
       wlasciciela.
 - [ ] Wlasciciel moze zamknac nabor agentow.
+- [ ] Wlasciciel moze zamknac nabor agentow z karty oferty w `/seller`.
+- [ ] Klikniecie `Zamknij nabor` otwiera modal potwierdzenia.
+- [ ] Klikniecie `Anuluj` w modalu zamkniecia nie zmienia statusu naboru.
+- [ ] Potwierdzenie zamkniecia zmienia badge karty na `Nabor zamkniety` bez
+      recznego odswiezania strony.
 - [ ] Wlasciciel moze ponownie otworzyc zamkniety nabor dla aktywnej publicznej
       oferty.
+- [ ] Klikniecie `Otworz nabor` z karty oferty otwiera modal preferencji
+      wspolpracy.
+- [ ] W modalu otwarcia wlasciciel moze wybrac `single_agent` albo
+      `multi_agent`.
+- [ ] W modalu otwarcia wlasciciel moze zapisac preferencje prowizji, zakres
+      uslug, wylacznosc, notatki i kanal kontaktu.
+- [ ] Potwierdzenie otwarcia zmienia badge karty na `Szukasz agenta` bez
+      recznego odswiezania strony.
 - [ ] Nie da sie otworzyc naboru dla oferty niepublicznej, szkicu,
       zarchiwizowanej albo wygaslej.
+- [ ] Oferta ze statusem naboru `assigned` pokazuje badge `Agent wybrany` i nie
+      pokazuje akcji `Otworz nabor`.
+- [ ] Przy wylaczonej fladze marketplace karta oferty nie pokazuje badge ani
+      akcji naboru agentow.
 
 ### Publiczna oferta
 
@@ -1844,6 +1879,10 @@ preferencje wspolpracy.
 - [ ] Agent w platnym planie widzi zakladke `Oferty szukajace agenta`.
 - [ ] Rynek pokazuje tylko aktywne, opublikowane, niewygasle oferty z otwartym
       naborem.
+- [ ] Oferta, dla ktorej wlasciciel zamknal nabor z karty w `/seller`, znika z
+      rynku ofert agentow.
+- [ ] Oferta, dla ktorej wlasciciel ponownie otworzyl nabor z karty w
+      `/seller`, pojawia sie ponownie na rynku ofert agentow.
 - [ ] Rynek nie pokazuje ofert tego samego agenta/agencji, jesli nie powinien
       skladac propozycji do wlasnej oferty.
 - [ ] Filtry rynku dzialaja: typ nieruchomosci, transakcja, miasto, cena,

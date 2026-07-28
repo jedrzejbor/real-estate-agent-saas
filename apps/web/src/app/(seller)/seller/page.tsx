@@ -34,6 +34,10 @@ import { AGENT_DASHBOARD_PATH, isPrivateSellerUser } from '@/lib/auth';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { getResolvedReleaseFlags } from '@/lib/release-flags';
 import {
+  getSellerRecruitmentCardState,
+  isSellerSubmissionExpired,
+} from '@/lib/seller-agent-recruitment';
+import {
   formatPrice,
   ListingPublicationStatus,
   PROPERTY_TYPE_LABELS,
@@ -1790,74 +1794,6 @@ function getSellerSubmissionStatusCopy(
   }
 
   return SELLER_STATUS_COPY[submission.status];
-}
-
-function isSellerSubmissionExpired(
-  submission: SellerPublicListingSubmissionListItem,
-): boolean {
-  return Boolean(
-    submission.expiresAt &&
-    new Date(submission.expiresAt).getTime() <= Date.now(),
-  );
-}
-
-function getSellerRecruitmentCardState(
-  submission: SellerPublicListingSubmissionListItem,
-  isAgentMarketplaceEnabled: boolean,
-): {
-  label: string;
-  className: string;
-  action: 'close' | 'open' | null;
-} | null {
-  if (!isAgentMarketplaceEnabled) {
-    return null;
-  }
-
-  const canManageRecruitment = Boolean(
-    submission.publishedListingId &&
-      submission.publicationStatus === ListingPublicationStatus.PUBLISHED &&
-      !isSellerSubmissionExpired(submission),
-  );
-
-  if (submission.agentCollaborationStatus === 'assigned') {
-    return {
-      label: 'Agent wybrany',
-      className: 'bg-emerald-100 text-emerald-900',
-      action: null,
-    };
-  }
-
-  if (
-    submission.agentCollaborationEnabled &&
-    submission.agentCollaborationStatus === 'open'
-  ) {
-    return {
-      label: 'Szukasz agenta',
-      className: 'bg-primary/10 text-primary',
-      action: canManageRecruitment ? 'close' : null,
-    };
-  }
-
-  if (
-    submission.agentCollaborationEnabled &&
-    submission.agentCollaborationStatus === 'closed'
-  ) {
-    return {
-      label: 'Nabór zamknięty',
-      className: 'bg-stone-200 text-stone-800',
-      action: canManageRecruitment ? 'open' : null,
-    };
-  }
-
-  if (canManageRecruitment) {
-    return {
-      label: 'Bez naboru',
-      className: 'bg-muted text-muted-foreground',
-      action: 'open',
-    };
-  }
-
-  return null;
 }
 
 const SELLER_INQUIRY_STATUS_COPY: Record<
