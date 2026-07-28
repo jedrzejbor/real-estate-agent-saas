@@ -959,6 +959,26 @@ describe('ListingAgentProposalsService', () => {
 
     const result = await service.acceptForSeller(OWNER_ID, PROPOSAL_ID);
 
+    expect(proposalRepo.findOne).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: PROPOSAL_ID,
+          ownerUserId: OWNER_ID,
+          ownerDeletedAt: expect.anything(),
+        }),
+        lock: { mode: 'pessimistic_write' },
+      }),
+    );
+    expect(proposalRepo.findOne.mock.calls[0][0]).not.toHaveProperty(
+      'relations',
+    );
+    expect(listingRepo.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: LISTING_ID },
+        lock: { mode: 'pessimistic_write' },
+      }),
+    );
     expect(assignmentRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({
         listingId: LISTING_ID,
@@ -1006,13 +1026,15 @@ describe('ListingAgentProposalsService', () => {
   });
 
   it('keeps multi-agent recruitment open after accepting a proposal', async () => {
+    const listing = buildListing({
+      agentCollaborationMode: ListingAgentCollaborationMode.MULTI_AGENT,
+    });
     const proposal = buildProposal({
-      listing: buildListing({
-        agentCollaborationMode: ListingAgentCollaborationMode.MULTI_AGENT,
-      }),
+      listing,
     });
     const { service, listingRepo, proposalQb } = buildService({
       ownedProposal: proposal,
+      listing,
     });
 
     await service.acceptForSeller(OWNER_ID, PROPOSAL_ID);

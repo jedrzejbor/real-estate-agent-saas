@@ -7,7 +7,14 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, IsNull, Not, QueryFailedError, Repository } from 'typeorm';
+import {
+  DataSource,
+  In,
+  IsNull,
+  Not,
+  QueryFailedError,
+  Repository,
+} from 'typeorm';
 import { AnalyticsService } from '../analytics';
 import { EmailService } from '../email';
 import {
@@ -576,14 +583,7 @@ export class ListingAgentProposalsService {
         const listingRepo = manager.getRepository(Listing);
         const assignmentRepo = manager.getRepository(ListingAgentAssignment);
         const proposal = await proposalRepo.findOne({
-          where: { id, ownerUserId: userId },
-          relations: [
-            'listing',
-            'listing.address',
-            'agent',
-            'agent.user',
-            'agent.agency',
-          ],
+          where: { id, ownerUserId: userId, ownerDeletedAt: IsNull() },
           lock: { mode: 'pessimistic_write' },
         });
 
@@ -593,7 +593,15 @@ export class ListingAgentProposalsService {
 
         this.assertProposalCanBeAccepted(proposal);
 
-        const listing = proposal.listing;
+        const listing = await listingRepo.findOne({
+          where: { id: proposal.listingId },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        if (!listing) {
+          throw new NotFoundException('Ogłoszenie nie zostało znalezione');
+        }
+
         if (
           !listing.agentCollaborationEnabled ||
           listing.agentCollaborationStatus !==
@@ -642,29 +650,45 @@ export class ListingAgentProposalsService {
             .execute();
         }
 
-        savedProposal.listing = listing;
-        savedProposal.agent = proposal.agent;
-        savedProposal.agency = proposal.agent.agency ?? null;
-        savedAssignment.proposal = savedProposal;
-
-        return { proposal: savedProposal, assignment: savedAssignment };
+        return {
+          proposalId: savedProposal.id,
+          assignmentId: savedAssignment.id,
+        };
       });
 
-      await this.notifyAgentAboutSellerDecision(result.proposal, 'accepted');
+      const [proposal, assignment] = await Promise.all([
+        this.proposalRepo.findOne({
+          where: { id: result.proposalId },
+          relations: [
+            'listing',
+            'listing.address',
+            'agent',
+            'agent.user',
+            'agent.agency',
+          ],
+        }),
+        this.assignmentRepo.findOne({ where: { id: result.assignmentId } }),
+      ]);
+
+      if (!proposal || !assignment) {
+        throw new NotFoundException('Zaakceptowana współpraca nie znaleziona');
+      }
+
+      await this.notifyAgentAboutSellerDecision(proposal, 'accepted');
       await this.trackListingAgentProposalEvent(
         LISTING_AGENT_ANALYTICS_EVENTS.PROPOSAL_ACCEPTED,
-        result.proposal,
+        proposal,
         userId,
         {
-          assignmentId: result.assignment.id,
+          assignmentId: assignment.id,
           collaborationMode:
-            result.proposal.listing?.agentCollaborationMode ?? null,
+            proposal.listing?.agentCollaborationMode ?? null,
         },
       );
 
       return {
-        ...toProposalResponse(result.proposal),
-        assignment: toAssignmentResponse(result.assignment),
+        ...toProposalResponse(proposal),
+        assignment: toAssignmentResponse(assignment),
       };
     } catch (error) {
       if (isUniqueViolation(error)) {
