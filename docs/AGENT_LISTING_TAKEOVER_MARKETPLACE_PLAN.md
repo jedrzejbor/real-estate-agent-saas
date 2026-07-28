@@ -1570,6 +1570,194 @@ Domknac funkcje produkcyjnie: monitoring, analityka, testy E2E i edge case'y.
     - dodano testy release flag oraz testy regresji blokady rynku/propozycji
       przy wylaczonej fladze.
 
+### Sprint AT-10 - Szybkie zarzadzanie naborem z dashboardu wlasciciela
+
+**Cel sprintu:**
+Dodac operacyjne akcje `Zamknij nabor` i `Otworz nabor` bezposrednio przy
+ofertach wlasciciela w dashboardzie, z modalami potwierdzajacymi i bez
+koniecznosci wchodzenia w pelna edycje ogloszenia.
+
+**Rezultat sprintu:**
+Wlasciciel moze zarzadzac naborem agentow z karty danej oferty w panelu,
+a UI pokazuje jednoznaczny status naboru i konsekwencje akcji. Zamkniecie
+naboru wymaga potwierdzenia, a ponowne otwarcie pozwala uzupelnic potrzebne
+preferencje wspolpracy.
+
+#### Decyzje zakresowe
+
+- Szybkie akcje sa dodatkiem do edycji oferty, nie zastepuja jej.
+- `Zamknij nabor` ma byc akcja szybka, ale zawsze przez modal potwierdzajacy.
+- `Otworz nabor` ma otwierac modal z formularzem preferencji wspolpracy, zeby
+  wlasciciel mogl swiadomie ustawic tryb i warunki nowego cyklu naboru.
+- Ponowne otwarcie naboru rozpoczyna nowy cykl przez nowe
+  `agentCollaborationOpenedAt`.
+- Stare propozycje z poprzednich cykli nie powinny automatycznie wracac do
+  aktywnego statusu. Agent moze zlozyc nowa propozycje, jesli poprzednia jest
+  terminalna albo pochodzi z poprzedniego cyklu.
+- Oferta ze statusem `assigned` nie pokazuje akcji ponownego otwarcia w MVP,
+  dopoki nie dodamy osobnego procesu zakonczenia/wygaszenia wspolpracy.
+
+#### Zadania
+
+- [x] `AT10.1` Przejrzec aktualny dashboard wlasciciela i wskazac docelowe
+      miejsce akcji.
+  - Data zakonczenia: 2026-07-29
+  - Zakres:
+    - karta/lista ofert wlasciciela w dashboardzie,
+    - widok szczegolow oferty wlasciciela, jesli juz pokazuje status naboru,
+    - spojnosc z istniejacymi CTA, zeby nie dublowac sprzecznych akcji.
+  - Oczekiwany rezultat: jedna glowna akcja przy danej ofercie oraz ewentualnie
+    link do szczegolow propozycji.
+  - Wykonano: jako pierwsze miejsce wdrozenia wybrano karte oferty w `/seller`,
+    bo jest to operacyjna lista ogloszen wlasciciela z akcjami `Odnów`,
+    `Wycofaj`, `Edytuj` i `Szczegoly`.
+
+- [x] `AT10.2` Ustalic stan UI dla statusow naboru na karcie oferty.
+  - Data zakonczenia: 2026-07-29
+  - Statusy do pokazania:
+    - `open` -> badge `Szukasz agenta` i akcja `Zamknij nabor`,
+    - `closed` -> badge `Nabor zamkniety` i akcja `Otworz nabor`,
+    - `assigned` -> badge `Agent wybrany`, bez akcji otwarcia w MVP,
+    - brak wspolpracy -> opcjonalna akcja `Otworz nabor`, jesli oferta jest
+      publiczna i aktywna.
+  - UI nie powinno pokazywac akcji, jesli feature flaga marketplace jest
+    wylaczona.
+  - Wykonano: dodano helper statusu karty, ktory centralizuje badge i dostepna
+    akcje na podstawie flagi rolloutowej, publikacji, wygasniecia i statusu
+    naboru.
+
+- [x] `AT10.3` Dodac modal potwierdzenia dla `Zamknij nabor`.
+  - Data zakonczenia: 2026-07-29
+  - Tresc modala:
+    - tytul: `Zamknac nabor agentow?`,
+    - opis: wyjasnia, ze nowi agenci nie beda mogli skladac propozycji,
+    - informacja, co stanie sie z aktywnymi propozycjami zgodnie z backendowym
+      kontraktem,
+    - przyciski: `Anuluj` i `Zamknij nabor`.
+  - UX:
+    - akcja destrukcyjna wizualnie spokojna, ale jednoznaczna,
+    - loading state na przycisku potwierdzenia,
+    - po sukcesie karta oferty aktualizuje status bez pelnego reloadu strony.
+  - Wykonano: dodano modal `SellerCloseRecruitmentModal` w `/seller`, akcja
+    korzysta z istniejacego endpointu close i aktualizuje karte oferty po
+    odpowiedzi API.
+
+- [x] `AT10.4` Dodac modal formularza dla `Otworz nabor`.
+  - Data zakonczenia: 2026-07-29
+  - Pola MVP:
+    - tryb wspolpracy: `single_agent` / `multi_agent`,
+    - czy wlasciciel dopuszcza wylacznosc,
+    - preferowany typ prowizji,
+    - preferowana wartosc prowizji,
+    - oczekiwany zakres uslug,
+    - dodatkowe oczekiwania,
+    - preferowany kanal kontaktu.
+  - Rekomendacja techniczna:
+    - uzyc istniejacego komponentu/normalizacji `AgentCollaborationFields`,
+      jesli da sie go osadzic w modalu bez duplikowania logiki,
+    - wspolne mapowanie payloadu trzymac w helperze formularza, nie w samej
+      stronie dashboardu.
+  - Wykonano:
+    - dodano modal `SellerReopenRecruitmentModal`,
+    - rozszerzono `AgentCollaborationFields` o tryb bez checkboxa i bez wlasnej
+      powierzchni karty, zeby mozna bylo uzyc tego samego komponentu w modalu,
+    - payload jest budowany przez istniejacy `buildAgentCollaborationPayload`.
+
+- [x] `AT10.5` Zweryfikowac i ewentualnie rozszerzyc kontrakt API dla
+      ponownego otwierania naboru.
+  - Data zakonczenia: 2026-07-29
+  - Obecny endpoint:
+    - `POST /api/listing-agent-proposals/seller/listings/:listingId/reopen-recruitment`.
+  - Do sprawdzenia:
+    - czy endpoint przyjmuje preferencje wspolpracy,
+    - czy pozwala wlaczyc nabor dla oferty, ktora nie miala jeszcze
+      `agentCollaborationEnabled`,
+    - czy waliduje aktywna, publiczna, niewygasla oferte,
+    - czy ustawia nowe `agentCollaborationOpenedAt`.
+  - Jesli endpoint nie przyjmuje preferencji, dodac DTO i walidacje zamiast
+    wysylac osobny PATCH edycji oferty.
+  - Wykonano:
+    - dodano `ReopenListingAgentRecruitmentDto`,
+    - endpoint `reopen-recruitment` przyjmuje opcjonalne `mode` i
+      `preferences`,
+    - zachowano kompatybilnosc: request bez body nadal otwiera nabor na
+      dotychczasowych/defaultowych ustawieniach,
+    - serwis zapisuje nowe preferencje, tryb wspolpracy, nowe
+      `agentCollaborationOpenedAt` i czysci `agentCollaborationClosedAt`.
+
+- [x] `AT10.6` Dodac klienta web i hook/handler akcji dashboardowych.
+  - Data zakonczenia: 2026-07-29
+  - Zakres:
+    - wykorzystac istniejace funkcje
+      `closeSellerListingAgentRecruitment` i
+      `reopenSellerListingAgentRecruitment`,
+    - dodac obsluge optimistic albo controlled update po odpowiedzi API,
+    - zapewnic spojnosc stanu listy, licznikow propozycji i badge statusu.
+  - Reuzywalnosc: logike statusu i dostepnosci akcji wyniesc do helpera, zeby
+    karta dashboardowa i szczegoly oferty nie mialy rozjechanych warunkow.
+  - Wykonano:
+    - rozszerzono klienta web `reopenSellerListingAgentRecruitment` o opcjonalny
+      payload,
+    - dodano handlery zamykania i otwierania naboru w `/seller`,
+    - po sukcesie lista ofert aktualizuje status naboru bez pelnego reloadu.
+
+- [x] `AT10.7` Dodac testy backendowe, jesli zmieni sie DTO reopen.
+  - Data zakonczenia: 2026-07-29
+  - Scenariusze:
+    - wlasciciel moze otworzyc nabor z preferencjami,
+    - obcy wlasciciel nie moze otworzyc/zamknac naboru,
+    - niepublicznej/wygaslej oferty nie da sie otworzyc,
+    - `assigned` nie przechodzi z powrotem na `open`,
+    - nowe `agentCollaborationOpenedAt` oddziela nowy cykl od starych
+      propozycji.
+  - Wykonano:
+    - dodano test serwisu dla reopen z preferencjami,
+    - zaktualizowano test controllera, zeby pilnowal przekazywania DTO do
+      serwisu,
+    - istniejace testy nadal pokrywaja blokady obcego wlasciciela,
+      niepublicznej oferty i statusu `assigned`.
+
+- [ ] `AT10.8` Dodac testy frontendu dla modali i stanow karty.
+  - Minimum:
+    - karta z otwartym naborem pokazuje `Zamknij nabor`,
+    - klikniecie wymaga potwierdzenia w modalu,
+    - karta z zamknietym/brakiem naboru pokazuje `Otworz nabor`, gdy oferta
+      kwalifikuje sie do wspolpracy,
+    - modal otwarcia waliduje wymagane pola,
+    - po sukcesie UI pokazuje nowy status bez recznego odswiezenia.
+
+- [ ] `AT10.9` Uzupelnic manualna liste testow regresji.
+  - Dodac scenariusze:
+    - zamkniecie naboru z karty oferty,
+    - anulowanie modala zamkniecia,
+    - ponowne otwarcie naboru z nowymi preferencjami,
+    - brak akcji przy ofercie `assigned`,
+    - ukrycie akcji przy wylaczonej fladze,
+    - agent widzi oferte na rynku dopiero po ponownym otwarciu.
+
+#### Weryfikacja sprintu
+
+- `pnpm --filter api test -- listing-agent-proposals.service.spec.ts`
+- `pnpm --filter api test -- listing-agent-proposals.controller.spec.ts`
+- `pnpm --filter api type-check`
+- `pnpm --filter web type-check`
+- 2026-07-29:
+  - `pnpm --filter api test -- listing-agent-proposals.service.spec.ts listing-agent-proposals.controller.spec.ts` - przechodzi,
+  - `pnpm --filter api type-check` - przechodzi,
+  - `pnpm --filter web type-check` - przechodzi.
+- Manualnie:
+  - wlasciciel zamyka nabor z karty oferty,
+  - wlasciciel otwiera nabor z modala i zapisuje preferencje,
+  - agent widzi/nie widzi oferty na rynku zgodnie ze statusem naboru,
+  - feature flaga ukrywa akcje w dashboardzie.
+
+#### Poza zakresem AT-10
+
+- Zakonczenie juz zaakceptowanej wspolpracy z agentem.
+- Reaktywacja starych propozycji z poprzednich cykli.
+- Automatyczne wiadomosci do agentow po recznym zamknieciu naboru.
+- Limity liczby ponownych otwarc naboru.
+
 ---
 
 ## 11. Kryteria akceptacji MVP

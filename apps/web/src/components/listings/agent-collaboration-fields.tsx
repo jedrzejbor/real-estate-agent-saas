@@ -31,13 +31,21 @@ interface AgentCollaborationFieldsProps {
   value: AgentCollaborationFormValue;
   onChange: (value: AgentCollaborationFormValue) => void;
   className?: string;
+  description?: string;
+  showEnabledToggle?: boolean;
+  surface?: 'card' | 'plain';
 }
 
 export function AgentCollaborationFields({
   value,
   onChange,
   className,
+  description = 'Po publikacji agenci z płatnym planem będą mogli wysłać propozycję współpracy dla tej oferty.',
+  showEnabledToggle = true,
+  surface = 'card',
 }: AgentCollaborationFieldsProps) {
+  const fieldsVisible = showEnabledToggle ? value.enabled : true;
+
   function update<K extends keyof AgentCollaborationFormValue>(
     key: K,
     nextValue: AgentCollaborationFormValue[K],
@@ -48,7 +56,9 @@ export function AgentCollaborationFields({
   return (
     <section
       className={cn(
-        'rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5',
+        surface === 'card'
+          ? 'rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5'
+          : 'p-0',
         className,
       )}
     >
@@ -61,31 +71,32 @@ export function AgentCollaborationFields({
             Współpraca z agentami
           </h2>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Po publikacji agenci z płatnym planem będą mogli wysłać propozycję
-            współpracy dla tej oferty.
+            {description}
           </p>
         </div>
       </div>
 
-      <label className="mt-5 flex gap-3 rounded-xl border border-border bg-muted/20 p-3">
-        <input
-          type="checkbox"
-          checked={value.enabled}
-          onChange={(event) => update('enabled', event.target.checked)}
-          className="mt-1 h-4 w-4 shrink-0 accent-primary"
-        />
-        <span>
-          <span className="block text-sm font-medium text-foreground">
-            Jestem otwarty na przejęcie prowadzenia oferty przez agenta
+      {showEnabledToggle ? (
+        <label className="mt-5 flex gap-3 rounded-xl border border-border bg-muted/20 p-3">
+          <input
+            type="checkbox"
+            checked={value.enabled}
+            onChange={(event) => update('enabled', event.target.checked)}
+            className="mt-1 h-4 w-4 shrink-0 accent-primary"
+          />
+          <span>
+            <span className="block text-sm font-medium text-foreground">
+              Jestem otwarty na przejęcie prowadzenia oferty przez agenta
+            </span>
+            <span className="mt-0.5 block text-sm text-muted-foreground">
+              Publicznie pokażemy tylko informację, że właściciel szuka agenta.
+              Szczegóły współpracy będą widoczne w propozycjach i czacie.
+            </span>
           </span>
-          <span className="mt-0.5 block text-sm text-muted-foreground">
-            Publicznie pokażemy tylko informację, że właściciel szuka agenta.
-            Szczegóły współpracy będą widoczne w propozycjach i czacie.
-          </span>
-        </span>
-      </label>
+        </label>
+      ) : null}
 
-      {value.enabled ? (
+      {fieldsVisible ? (
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="block space-y-1.5">
             <span className="text-sm font-medium text-foreground">

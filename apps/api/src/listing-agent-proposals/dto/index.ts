@@ -4,4 +4,5 @@ export { ListingAgentAssignmentQueryDto } from './listing-agent-assignment-query
 export { ListingAgentProposalInputDto } from './listing-agent-proposal-input.dto';
 export { ListingAgentProposalMessageQueryDto } from './listing-agent-proposal-message-query.dto';
 export { ListingAgentProposalQueryDto } from './listing-agent-proposal-query.dto';
+export { ReopenListingAgentRecruitmentDto } from './reopen-listing-agent-recruitment.dto';
 export { UpdateListingAgentProposalDto } from './update-listing-agent-proposal.dto';

@@ -38,6 +38,7 @@ import {
   ListingAgentProposalInputDto,
   ListingAgentProposalMessageQueryDto,
   ListingAgentProposalQueryDto,
+  ReopenListingAgentRecruitmentDto,
   UpdateListingAgentProposalDto,
 } from './dto';
 import {
@@ -805,6 +806,7 @@ export class ListingAgentProposalsService {
   async reopenRecruitmentForSeller(
     userId: string,
     listingId: string,
+    input: ReopenListingAgentRecruitmentDto = {},
   ): Promise<ListingAgentRecruitmentResponse> {
     this.assertMarketplaceReleaseEnabled();
     const listing = await this.findSellerListingForRecruitmentOrFail(
@@ -828,6 +830,18 @@ export class ListingAgentProposalsService {
     }
 
     listing.agentCollaborationEnabled = true;
+    listing.agentCollaborationMode =
+      input.mode ??
+      listing.agentCollaborationMode ??
+      ListingAgentCollaborationMode.SINGLE_AGENT;
+    listing.agentCollaborationPreferences = input.preferences
+      ? normalizeRecruitmentPreferences(input, listing.agentCollaborationMode)
+      : (listing.agentCollaborationPreferences ?? {
+          allowsMultipleAgents:
+            listing.agentCollaborationMode ===
+            ListingAgentCollaborationMode.MULTI_AGENT,
+          preferredContactChannel: 'platform_chat',
+        });
     listing.agentCollaborationStatus = ListingAgentCollaborationStatus.OPEN;
     listing.agentCollaborationOpenedAt = new Date();
     listing.agentCollaborationClosedAt = null;
@@ -1488,6 +1502,31 @@ function normalizeNullableDate(value: unknown): Date | null {
 
   const date = new Date(String(value));
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function normalizeRecruitmentPreferences(
+  input: ReopenListingAgentRecruitmentDto,
+  mode: ListingAgentCollaborationMode,
+): NonNullable<Listing['agentCollaborationPreferences']> {
+  const preferences = input.preferences ?? {};
+
+  return {
+    allowsExclusiveAgreement: preferences.allowsExclusiveAgreement ?? false,
+    allowsMultipleAgents:
+      preferences.allowsMultipleAgents ??
+      (mode === ListingAgentCollaborationMode.MULTI_AGENT),
+    preferredCommissionType: preferences.preferredCommissionType ?? null,
+    preferredCommissionValue: preferences.preferredCommissionValue ?? null,
+    expectedServices: Array.isArray(preferences.expectedServices)
+      ? preferences.expectedServices
+          .map((service) => service.trim())
+          .filter(Boolean)
+          .slice(0, 20)
+      : [],
+    notes: normalizeOptionalString(preferences.notes) ?? null,
+    preferredContactChannel:
+      preferences.preferredContactChannel ?? 'platform_chat',
+  };
 }
 
 function getProposalSortColumn(sortBy: string): string {

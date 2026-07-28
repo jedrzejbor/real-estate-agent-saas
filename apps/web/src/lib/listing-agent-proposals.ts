@@ -173,6 +173,19 @@ export interface ListingAgentProposalDeleteResult {
   deletedCount: number;
 }
 
+export interface ReopenListingAgentRecruitmentInput {
+  mode?: ListingAgentCollaborationMode;
+  preferences?: {
+    allowsExclusiveAgreement?: boolean;
+    allowsMultipleAgents?: boolean;
+    preferredCommissionType?: 'percentage' | 'fixed' | null;
+    preferredCommissionValue?: number | null;
+    expectedServices?: string[];
+    notes?: string | null;
+    preferredContactChannel?: 'platform_chat' | 'phone_after_acceptance';
+  };
+}
+
 function buildQueryString(filters: ListingAgentProposalFilters): string {
   const params = new URLSearchParams();
 
@@ -383,9 +396,10 @@ export async function closeSellerListingAgentRecruitment(
 
 export async function reopenSellerListingAgentRecruitment(
   listingId: string,
+  input?: ReopenListingAgentRecruitmentInput,
 ): Promise<ListingAgentRecruitment> {
   return apiFetch<ListingAgentRecruitment>(
     `/listing-agent-proposals/seller/listings/${listingId}/reopen-recruitment`,
-    { method: 'POST' },
+    { method: 'POST', body: input },
   );
 }

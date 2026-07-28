@@ -19,6 +19,7 @@ import {
   ListingAgentProposalInputDto,
   ListingAgentProposalMessageQueryDto,
   ListingAgentProposalQueryDto,
+  ReopenListingAgentRecruitmentDto,
   UpdateListingAgentProposalDto,
 } from './dto';
 import { ListingAgentProposalsService } from './listing-agent-proposals.service';
@@ -210,10 +211,12 @@ export class ListingAgentProposalsController {
   async reopenRecruitmentForSeller(
     @CurrentUser('id') userId: string,
     @Param('listingId', ParseUUIDPipe) listingId: string,
+    @Body() dto: ReopenListingAgentRecruitmentDto = {},
   ) {
     return this.listingAgentProposalsService.reopenRecruitmentForSeller(
       userId,
       listingId,
+      dto,
     );
   }
 

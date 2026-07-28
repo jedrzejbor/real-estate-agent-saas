@@ -271,15 +271,23 @@ describe('ListingAgentProposalsController', () => {
       listingId: LISTING_ID,
       agentCollaborationStatus: 'open',
     };
+    const dto = {
+      mode: 'multi_agent',
+      preferences: {
+        allowsExclusiveAgreement: true,
+        allowsMultipleAgents: true,
+      },
+    };
     service.reopenRecruitmentForSeller.mockResolvedValue(response);
 
     await expect(
-      controller.reopenRecruitmentForSeller(USER_ID, LISTING_ID),
+      controller.reopenRecruitmentForSeller(USER_ID, LISTING_ID, dto as never),
     ).resolves.toBe(response);
 
     expect(service.reopenRecruitmentForSeller).toHaveBeenCalledWith(
       USER_ID,
       LISTING_ID,
+      dto,
     );
   });
 

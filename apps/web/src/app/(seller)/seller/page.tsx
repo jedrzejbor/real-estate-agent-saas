@@ -32,6 +32,7 @@ import { useToast } from '@/contexts/toast-context';
 import { APP_NAME } from '@/lib/brand';
 import { AGENT_DASHBOARD_PATH, isPrivateSellerUser } from '@/lib/auth';
 import { getApiErrorMessage } from '@/lib/api-client';
+import { getResolvedReleaseFlags } from '@/lib/release-flags';
 import {
   formatPrice,
   ListingPublicationStatus,
@@ -60,9 +61,19 @@ import {
   deleteSellerListingAgentProposals,
   fetchSellerListingAgentProposals,
   rejectSellerListingAgentProposal,
+  closeSellerListingAgentRecruitment,
+  reopenSellerListingAgentRecruitment,
+  type ListingAgentRecruitment,
   type ListingAgentProposal,
   type ListingAgentProposalStatus,
 } from '@/lib/listing-agent-proposals';
+import {
+  AgentCollaborationFields,
+  buildAgentCollaborationPayload,
+  INITIAL_AGENT_COLLABORATION_FORM_VALUE,
+  normalizeAgentCollaborationFormValue,
+  type AgentCollaborationFormValue,
+} from '@/components/listings/agent-collaboration-fields';
 import { Logo } from '@/components/common/logo';
 
 export default function SellerDashboardPage() {
@@ -90,11 +101,24 @@ export default function SellerDashboardPage() {
   const [proposalDeleteRequest, setProposalDeleteRequest] = useState<{
     ids: string[];
   } | null>(null);
+  const [closeRecruitmentRequest, setCloseRecruitmentRequest] =
+    useState<SellerPublicListingSubmissionListItem | null>(null);
+  const [reopenRecruitmentRequest, setReopenRecruitmentRequest] =
+    useState<SellerPublicListingSubmissionListItem | null>(null);
+  const [reopenRecruitmentDraft, setReopenRecruitmentDraft] =
+    useState<AgentCollaborationFormValue>({
+      ...INITIAL_AGENT_COLLABORATION_FORM_VALUE,
+      enabled: true,
+    });
   const [isDeletingProposals, setIsDeletingProposals] = useState(false);
+  const [isUpdatingRecruitment, setIsUpdatingRecruitment] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [inquiryError, setInquiryError] = useState<string | null>(null);
   const [proposalError, setProposalError] = useState<string | null>(null);
   const { success: showSuccessToast, error: showErrorToast } = useToast();
+  const releaseFlags = getResolvedReleaseFlags(user?.releaseFlags);
+  const isAgentMarketplaceEnabled =
+    releaseFlags.agentListingMarketplaceEnabled;
   const upgradeHref = getUpgradeHref({
     source: 'private_seller_dashboard_upgrade_cta',
     upsellId: 'higher-limits',
@@ -231,6 +255,107 @@ export default function SellerDashboardPage() {
     } finally {
       setUpdatingSubmissionId(null);
     }
+  }
+
+  function openCloseRecruitmentModal(
+    submission: SellerPublicListingSubmissionListItem,
+  ) {
+    setCloseRecruitmentRequest(submission);
+    setSubmissionError(null);
+  }
+
+  function openReopenRecruitmentModal(
+    submission: SellerPublicListingSubmissionListItem,
+  ) {
+    setReopenRecruitmentRequest(submission);
+    setReopenRecruitmentDraft({
+      ...normalizeAgentCollaborationFormValue({
+        enabled: true,
+        mode: submission.agentCollaborationMode ?? 'single_agent',
+        preferences: {
+          allowsMultipleAgents:
+            submission.agentCollaborationMode === 'multi_agent',
+          preferredContactChannel: 'platform_chat',
+        },
+      }),
+      enabled: true,
+    });
+    setSubmissionError(null);
+  }
+
+  async function confirmCloseRecruitment() {
+    if (!closeRecruitmentRequest?.publishedListingId) return;
+
+    setIsUpdatingRecruitment(true);
+    setSubmissionError(null);
+
+    try {
+      const updated = await closeSellerListingAgentRecruitment(
+        closeRecruitmentRequest.publishedListingId,
+      );
+      applyRecruitmentUpdate(updated);
+      setCloseRecruitmentRequest(null);
+      showSuccessToast({
+        title: 'Nabór agentów zamknięty',
+        description: 'Nowi agenci nie będą mogli wysyłać propozycji.',
+      });
+    } catch (error) {
+      showErrorToast({
+        title: 'Nie udało się zamknąć naboru',
+        description: getApiErrorMessage(error),
+      });
+    } finally {
+      setIsUpdatingRecruitment(false);
+    }
+  }
+
+  async function confirmReopenRecruitment() {
+    if (!reopenRecruitmentRequest?.publishedListingId) return;
+
+    setIsUpdatingRecruitment(true);
+    setSubmissionError(null);
+
+    try {
+      const payload = buildAgentCollaborationPayload({
+        ...reopenRecruitmentDraft,
+        enabled: true,
+      });
+      const updated = await reopenSellerListingAgentRecruitment(
+        reopenRecruitmentRequest.publishedListingId,
+        {
+          mode: payload.mode,
+          preferences: payload.preferences,
+        },
+      );
+      applyRecruitmentUpdate(updated);
+      setReopenRecruitmentRequest(null);
+      showSuccessToast({
+        title: 'Nabór agentów otwarty',
+        description: 'Agenci znów mogą wysyłać propozycje współpracy.',
+      });
+    } catch (error) {
+      showErrorToast({
+        title: 'Nie udało się otworzyć naboru',
+        description: getApiErrorMessage(error),
+      });
+    } finally {
+      setIsUpdatingRecruitment(false);
+    }
+  }
+
+  function applyRecruitmentUpdate(update: ListingAgentRecruitment) {
+    setSubmissions((current) =>
+      current.map((submission) =>
+        submission.publishedListingId === update.listingId
+          ? {
+              ...submission,
+              agentCollaborationEnabled: update.agentCollaborationEnabled,
+              agentCollaborationMode: update.agentCollaborationMode,
+              agentCollaborationStatus: update.agentCollaborationStatus,
+            }
+          : submission,
+      ),
+    );
   }
 
   async function acceptAgentProposal(id: string) {
@@ -391,8 +516,11 @@ export default function SellerDashboardPage() {
             <SellerSubmissionList
               submissions={submissions}
               updatingSubmissionId={updatingSubmissionId}
+              isAgentMarketplaceEnabled={isAgentMarketplaceEnabled}
               onRenew={renewSubmission}
               onUnpublish={unpublishSubmission}
+              onCloseRecruitment={openCloseRecruitmentModal}
+              onReopenRecruitment={openReopenRecruitmentModal}
             />
             <SellerInquiriesSection
               inquiries={inquiries}
@@ -423,6 +551,28 @@ export default function SellerDashboardPage() {
           onConfirm={confirmDeleteAgentProposals}
           onClose={() => {
             if (!isDeletingProposals) setProposalDeleteRequest(null);
+          }}
+        />
+      ) : null}
+      {closeRecruitmentRequest ? (
+        <SellerCloseRecruitmentModal
+          listingTitle={closeRecruitmentRequest.title}
+          isUpdating={isUpdatingRecruitment}
+          onConfirm={confirmCloseRecruitment}
+          onClose={() => {
+            if (!isUpdatingRecruitment) setCloseRecruitmentRequest(null);
+          }}
+        />
+      ) : null}
+      {reopenRecruitmentRequest ? (
+        <SellerReopenRecruitmentModal
+          listingTitle={reopenRecruitmentRequest.title}
+          value={reopenRecruitmentDraft}
+          isUpdating={isUpdatingRecruitment}
+          onChange={setReopenRecruitmentDraft}
+          onConfirm={confirmReopenRecruitment}
+          onClose={() => {
+            if (!isUpdatingRecruitment) setReopenRecruitmentRequest(null);
           }}
         />
       ) : null}
@@ -734,6 +884,131 @@ function SellerDeleteProposalsModal({
   );
 }
 
+function SellerCloseRecruitmentModal({
+  listingTitle,
+  isUpdating,
+  onConfirm,
+  onClose,
+}: {
+  listingTitle: string;
+  isUpdating: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
+      <section className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-xl">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+            <AlertCircle className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-xl font-semibold">
+              Zamknąć nabór agentów?
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Oferta „{listingTitle}” przestanie przyjmować nowe propozycje od
+              agentów. Dotychczasowe propozycje zostaną w panelu, żeby można
+              było wrócić do historii decyzji i rozmów.
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            disabled={isUpdating}
+            onClick={onClose}
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+          >
+            Anuluj
+          </button>
+          <button
+            type="button"
+            disabled={isUpdating}
+            onClick={onConfirm}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-destructive/10 px-4 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/20 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Zamknij nabór
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function SellerReopenRecruitmentModal({
+  listingTitle,
+  value,
+  isUpdating,
+  onChange,
+  onConfirm,
+  onClose,
+}: {
+  listingTitle: string;
+  value: AgentCollaborationFormValue;
+  isUpdating: boolean;
+  onChange: (value: AgentCollaborationFormValue) => void;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-background/80 p-4 backdrop-blur-sm">
+      <section className="mx-auto my-8 w-full max-w-2xl rounded-2xl border border-border bg-card p-5 shadow-xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-heading text-xl font-semibold">
+              Otwórz nabór agentów
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Ustaw warunki dla nowego cyklu naboru przy ofercie „
+              {listingTitle}”.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={isUpdating}
+            onClick={onClose}
+            aria-label="Zamknij modal"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+          >
+            <XCircle className="h-4 w-4" />
+          </button>
+        </div>
+
+        <AgentCollaborationFields
+          value={value}
+          onChange={(nextValue) => onChange({ ...nextValue, enabled: true })}
+          showEnabledToggle={false}
+          surface="plain"
+          className="mt-5"
+          description="Te ustawienia będą widoczne dla agentów w rynku ofert jako preferencje właściciela."
+        />
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            disabled={isUpdating}
+            onClick={onClose}
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+          >
+            Anuluj
+          </button>
+          <button
+            type="button"
+            disabled={isUpdating}
+            onClick={onConfirm}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Otwórz nabór
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function ProposalMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-3">
@@ -1021,13 +1296,21 @@ function ContactValueRow({
 function SellerSubmissionList({
   submissions,
   updatingSubmissionId,
+  isAgentMarketplaceEnabled,
   onRenew,
   onUnpublish,
+  onCloseRecruitment,
+  onReopenRecruitment,
 }: {
   submissions: SellerPublicListingSubmissionListItem[];
   updatingSubmissionId: string | null;
+  isAgentMarketplaceEnabled: boolean;
   onRenew: (id: string) => void;
   onUnpublish: (id: string) => void;
+  onCloseRecruitment: (submission: SellerPublicListingSubmissionListItem) => void;
+  onReopenRecruitment: (
+    submission: SellerPublicListingSubmissionListItem,
+  ) => void;
 }) {
   return (
     <section className="mt-8">
@@ -1055,8 +1338,11 @@ function SellerSubmissionList({
             key={submission.id}
             submission={submission}
             isUpdating={updatingSubmissionId === submission.id}
+            isAgentMarketplaceEnabled={isAgentMarketplaceEnabled}
             onRenew={onRenew}
             onUnpublish={onUnpublish}
+            onCloseRecruitment={onCloseRecruitment}
+            onReopenRecruitment={onReopenRecruitment}
           />
         ))}
       </div>
@@ -1067,13 +1353,21 @@ function SellerSubmissionList({
 function SellerSubmissionCard({
   submission,
   isUpdating,
+  isAgentMarketplaceEnabled,
   onRenew,
   onUnpublish,
+  onCloseRecruitment,
+  onReopenRecruitment,
 }: {
   submission: SellerPublicListingSubmissionListItem;
   isUpdating: boolean;
+  isAgentMarketplaceEnabled: boolean;
   onRenew: (id: string) => void;
   onUnpublish: (id: string) => void;
+  onCloseRecruitment: (submission: SellerPublicListingSubmissionListItem) => void;
+  onReopenRecruitment: (
+    submission: SellerPublicListingSubmissionListItem,
+  ) => void;
 }) {
   const status = getSellerSubmissionStatusCopy(submission);
   const isPublished =
@@ -1085,6 +1379,10 @@ function SellerSubmissionCard({
       : null;
   const canRenew = Boolean(submission.publishedListingId);
   const canUnpublish = Boolean(submission.publishedListingId && isPublished);
+  const recruitmentState = getSellerRecruitmentCardState(
+    submission,
+    isAgentMarketplaceEnabled,
+  );
 
   return (
     <article className="grid overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:grid-cols-[180px_1fr]">
@@ -1122,6 +1420,13 @@ function SellerSubmissionCard({
               <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
                 {TRANSACTION_TYPE_LABELS[submission.transactionType]}
               </span>
+              {recruitmentState ? (
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-semibold ${recruitmentState.className}`}
+                >
+                  {recruitmentState.label}
+                </span>
+              ) : null}
             </div>
             <h3 className="font-heading text-xl font-semibold">
               {submission.title}
@@ -1233,6 +1538,28 @@ function SellerSubmissionCard({
                 <EyeOff className="h-4 w-4" />
               )}
               Wycofaj
+            </button>
+          ) : null}
+          {recruitmentState?.action === 'close' ? (
+            <button
+              type="button"
+              disabled={isUpdating}
+              onClick={() => onCloseRecruitment(submission)}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-60"
+            >
+              <Handshake className="h-4 w-4" />
+              Zamknij nabór
+            </button>
+          ) : null}
+          {recruitmentState?.action === 'open' ? (
+            <button
+              type="button"
+              disabled={isUpdating}
+              onClick={() => onReopenRecruitment(submission)}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-60"
+            >
+              <Handshake className="h-4 w-4" />
+              Otwórz nabór
             </button>
           ) : null}
         </div>
@@ -1472,6 +1799,65 @@ function isSellerSubmissionExpired(
     submission.expiresAt &&
     new Date(submission.expiresAt).getTime() <= Date.now(),
   );
+}
+
+function getSellerRecruitmentCardState(
+  submission: SellerPublicListingSubmissionListItem,
+  isAgentMarketplaceEnabled: boolean,
+): {
+  label: string;
+  className: string;
+  action: 'close' | 'open' | null;
+} | null {
+  if (!isAgentMarketplaceEnabled) {
+    return null;
+  }
+
+  const canManageRecruitment = Boolean(
+    submission.publishedListingId &&
+      submission.publicationStatus === ListingPublicationStatus.PUBLISHED &&
+      !isSellerSubmissionExpired(submission),
+  );
+
+  if (submission.agentCollaborationStatus === 'assigned') {
+    return {
+      label: 'Agent wybrany',
+      className: 'bg-emerald-100 text-emerald-900',
+      action: null,
+    };
+  }
+
+  if (
+    submission.agentCollaborationEnabled &&
+    submission.agentCollaborationStatus === 'open'
+  ) {
+    return {
+      label: 'Szukasz agenta',
+      className: 'bg-primary/10 text-primary',
+      action: canManageRecruitment ? 'close' : null,
+    };
+  }
+
+  if (
+    submission.agentCollaborationEnabled &&
+    submission.agentCollaborationStatus === 'closed'
+  ) {
+    return {
+      label: 'Nabór zamknięty',
+      className: 'bg-stone-200 text-stone-800',
+      action: canManageRecruitment ? 'open' : null,
+    };
+  }
+
+  if (canManageRecruitment) {
+    return {
+      label: 'Bez naboru',
+      className: 'bg-muted text-muted-foreground',
+      action: 'open',
+    };
+  }
+
+  return null;
 }
 
 const SELLER_INQUIRY_STATUS_COPY: Record<

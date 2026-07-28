@@ -1180,6 +1180,46 @@ describe('ListingAgentProposalsService', () => {
     });
   });
 
+  it('reopens recruitment with updated collaboration preferences', async () => {
+    const listing = buildListing({
+      agentCollaborationEnabled: false,
+      agentCollaborationMode: null,
+      agentCollaborationStatus: null,
+      agentCollaborationPreferences: null,
+      agentCollaborationClosedAt: null,
+    });
+    const { service, listingRepo } = buildService({ listing });
+
+    await service.reopenRecruitmentForSeller(OWNER_ID, LISTING_ID, {
+      mode: ListingAgentCollaborationMode.MULTI_AGENT,
+      preferences: {
+        allowsExclusiveAgreement: true,
+        preferredCommissionType: 'percentage',
+        preferredCommissionValue: 2,
+        expectedServices: ['Wycena', '  ', 'Zdjecia'],
+        notes: 'Szukam agenta lokalnego.',
+        preferredContactChannel: 'platform_chat',
+      },
+    });
+
+    expect(listingRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentCollaborationEnabled: true,
+        agentCollaborationMode: ListingAgentCollaborationMode.MULTI_AGENT,
+        agentCollaborationStatus: ListingAgentCollaborationStatus.OPEN,
+        agentCollaborationPreferences: expect.objectContaining({
+          allowsExclusiveAgreement: true,
+          allowsMultipleAgents: true,
+          preferredCommissionType: 'percentage',
+          preferredCommissionValue: 2,
+          expectedServices: ['Wycena', 'Zdjecia'],
+          notes: 'Szukam agenta lokalnego.',
+          preferredContactChannel: 'platform_chat',
+        }),
+      }),
+    );
+  });
+
   it('blocks reopening recruitment for a non-public listing', async () => {
     const { service } = buildService({
       listing: buildListing({
