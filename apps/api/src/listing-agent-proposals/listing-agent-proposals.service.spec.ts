@@ -1114,9 +1114,9 @@ describe('ListingAgentProposalsService', () => {
     expect(result.deletedCount).toBe(1);
   });
 
-  it('closes recruitment for an owned listing without changing existing proposals', async () => {
+  it('closes recruitment for an owned listing and closes active proposals', async () => {
     const listing = buildListing();
-    const { service, listingRepo, proposalRepo } = buildService({ listing });
+    const { service, listingRepo, proposalQb } = buildService({ listing });
 
     const result = await service.closeRecruitmentForSeller(
       OWNER_ID,
@@ -1125,6 +1125,7 @@ describe('ListingAgentProposalsService', () => {
 
     expect(listingRepo.findOne).toHaveBeenCalledWith({
       where: { id: LISTING_ID, ownerUserId: OWNER_ID },
+      lock: { mode: 'pessimistic_write' },
     });
     expect(listingRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1132,7 +1133,23 @@ describe('ListingAgentProposalsService', () => {
         agentCollaborationClosedAt: expect.any(Date),
       }),
     );
-    expect(proposalRepo.save).not.toHaveBeenCalled();
+    expect(proposalQb.update).toHaveBeenCalledWith(ListingAgentProposal);
+    expect(proposalQb.set).toHaveBeenCalledWith({
+      status: ListingAgentProposalStatus.CLOSED,
+    });
+    expect(proposalQb.where).toHaveBeenCalledWith('listing_id = :listingId', {
+      listingId: LISTING_ID,
+    });
+    expect(proposalQb.andWhere).toHaveBeenCalledWith(
+      'status IN (:...statuses)',
+      {
+        statuses: [
+          ListingAgentProposalStatus.DRAFT,
+          ListingAgentProposalStatus.SENT,
+          ListingAgentProposalStatus.UPDATED,
+        ],
+      },
+    );
     expect(result).toMatchObject({
       listingId: LISTING_ID,
       agentCollaborationEnabled: true,

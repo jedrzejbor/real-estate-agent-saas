@@ -771,36 +771,54 @@ export class ListingAgentProposalsService {
     listingId: string,
   ): Promise<ListingAgentRecruitmentResponse> {
     this.assertMarketplaceReleaseEnabled();
-    const listing = await this.findSellerListingForRecruitmentOrFail(
-      userId,
-      listingId,
-    );
+    return this.dataSource.transaction(async (manager) => {
+      const listingRepo = manager.getRepository(Listing);
+      const proposalRepo = manager.getRepository(ListingAgentProposal);
+      const listing = await listingRepo.findOne({
+        where: { id: listingId, ownerUserId: userId },
+        lock: { mode: 'pessimistic_write' },
+      });
 
-    if (!listing.agentCollaborationEnabled) {
-      throw new BadRequestException(
-        'Współpraca z agentami nie jest włączona dla tej oferty',
-      );
-    }
+      if (!listing) {
+        throw new NotFoundException('Oferta nie została znaleziona');
+      }
 
-    if (
-      listing.agentCollaborationStatus ===
-      ListingAgentCollaborationStatus.CLOSED
-    ) {
-      throw new BadRequestException('Nabór agentów jest już zamknięty');
-    }
+      if (!listing.agentCollaborationEnabled) {
+        throw new BadRequestException(
+          'Współpraca z agentami nie jest włączona dla tej oferty',
+        );
+      }
 
-    if (
-      listing.agentCollaborationStatus ===
-      ListingAgentCollaborationStatus.ASSIGNED
-    ) {
-      throw new BadRequestException('Oferta ma już zaakceptowanego agenta');
-    }
+      if (
+        listing.agentCollaborationStatus ===
+        ListingAgentCollaborationStatus.CLOSED
+      ) {
+        throw new BadRequestException('Nabór agentów jest już zamknięty');
+      }
 
-    listing.agentCollaborationStatus = ListingAgentCollaborationStatus.CLOSED;
-    listing.agentCollaborationClosedAt = new Date();
+      if (
+        listing.agentCollaborationStatus ===
+        ListingAgentCollaborationStatus.ASSIGNED
+      ) {
+        throw new BadRequestException('Oferta ma już zaakceptowanego agenta');
+      }
 
-    const saved = await this.listingRepo.save(listing);
-    return toRecruitmentResponse(saved);
+      listing.agentCollaborationStatus = ListingAgentCollaborationStatus.CLOSED;
+      listing.agentCollaborationClosedAt = new Date();
+
+      const saved = await listingRepo.save(listing);
+      await proposalRepo
+        .createQueryBuilder()
+        .update(ListingAgentProposal)
+        .set({ status: ListingAgentProposalStatus.CLOSED })
+        .where('listing_id = :listingId', { listingId })
+        .andWhere('status IN (:...statuses)', {
+          statuses: [...ACTIVE_PROPOSAL_STATUSES],
+        })
+        .execute();
+
+      return toRecruitmentResponse(saved);
+    });
   }
 
   async reopenRecruitmentForSeller(

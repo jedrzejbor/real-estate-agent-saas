@@ -297,7 +297,8 @@ export default function SellerDashboardPage() {
       const updated = await closeSellerListingAgentRecruitment(
         closeRecruitmentRequest.publishedListingId,
       );
-      applyRecruitmentUpdate(updated);
+      applyRecruitmentUpdate(updated, closeRecruitmentRequest.id);
+      closeActiveProposalsForListing(updated.listingId);
       setCloseRecruitmentRequest(null);
       showSuccessToast({
         title: 'Nabór agentów zamknięty',
@@ -331,7 +332,7 @@ export default function SellerDashboardPage() {
           preferences: payload.preferences,
         },
       );
-      applyRecruitmentUpdate(updated);
+      applyRecruitmentUpdate(updated, reopenRecruitmentRequest.id);
       setReopenRecruitmentRequest(null);
       showSuccessToast({
         title: 'Nabór agentów otwarty',
@@ -347,10 +348,14 @@ export default function SellerDashboardPage() {
     }
   }
 
-  function applyRecruitmentUpdate(update: ListingAgentRecruitment) {
+  function applyRecruitmentUpdate(
+    update: ListingAgentRecruitment,
+    submissionId?: string,
+  ) {
     setSubmissions((current) =>
       current.map((submission) =>
-        submission.publishedListingId === update.listingId
+        submission.publishedListingId === update.listingId ||
+        submission.id === submissionId
           ? {
               ...submission,
               agentCollaborationEnabled: update.agentCollaborationEnabled,
@@ -359,6 +364,25 @@ export default function SellerDashboardPage() {
             }
           : submission,
       ),
+    );
+  }
+
+  function closeActiveProposalsForListing(listingId: string) {
+    setAgentProposals((current) =>
+      current.map((proposal) =>
+        proposal.listingId === listingId &&
+        (proposal.status === 'draft' ||
+          proposal.status === 'sent' ||
+          proposal.status === 'updated')
+          ? { ...proposal, status: 'closed' }
+          : proposal,
+      ),
+    );
+    setSelectedProposalIds((current) =>
+      current.filter((id) => {
+        const proposal = agentProposals.find((item) => item.id === id);
+        return proposal ? proposal.listingId !== listingId : true;
+      }),
     );
   }
 

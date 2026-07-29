@@ -1021,9 +1021,10 @@ Pozwolic wlascicielowi porownywac propozycje i podejmowac decyzje.
     - wlasciciel moze zamknac nabor tylko dla swojej oferty,
     - zamkniecie ustawia `agentCollaborationStatus = closed` i
       `agentCollaborationClosedAt`,
-    - zamkniecie naboru nie zmienia statusow istniejacych propozycji, zeby
-      wlasciciel mogl nadal je porownac albo wrocic do nich po ponownym
-      otwarciu,
+    - zamkniecie naboru zamyka aktywne propozycje (`draft`, `sent`, `updated`)
+      statusem `closed`, zeby UI nie pozwalalo ich zaakceptowac po zamknieciu
+      naboru,
+    - historyczne propozycje terminalne pozostaja bez zmian,
     - ponowne otwarcie ustawia `agentCollaborationEnabled = true`,
       `agentCollaborationStatus = open`, nowe `agentCollaborationOpenedAt` i
       czysci `agentCollaborationClosedAt`,
@@ -1763,6 +1764,10 @@ preferencje wspolpracy.
 - 2026-07-29, kolejna iteracja:
   - `pnpm --filter web type-check` - przechodzi po wyciagnieciu helpera statusu
     naboru.
+- 2026-07-29, poprawka regresji zamykania naboru:
+  - `pnpm --filter api test -- listing-agent-proposals.service.spec.ts listing-agent-proposals.controller.spec.ts` - przechodzi,
+  - `pnpm --filter api type-check` - przechodzi,
+  - `pnpm --filter web type-check` - przechodzi.
 - Manualnie:
   - wlasciciel zamyka nabor z karty oferty,
   - wlasciciel otwiera nabor z modala i zapisuje preferencje,
