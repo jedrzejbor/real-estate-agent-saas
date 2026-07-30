@@ -20,6 +20,7 @@ import {
   TransactionType,
 } from '../common/enums';
 import { Address, Listing, ListingImage } from '../listings/entities';
+import { PublicListingSubmission } from '../public-listing-submissions/entities';
 import {
   ListingAgentAssignment,
   ListingAgentProposal,
@@ -202,6 +203,7 @@ function buildAssignment(
 function createListingQueryBuilder(listing: Listing | null) {
   return {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
+    setLock: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
     getOne: jest.fn().mockResolvedValue(listing),
@@ -318,6 +320,14 @@ function buildService({
     create: jest.fn((input) => input),
     save: jest.fn(async (entity) => entity),
   };
+  const submissionRepo = {
+    findOne: jest.fn().mockResolvedValue({
+      id: 'submission-1',
+      publishedListingId: LISTING_ID,
+      payload: {},
+    }),
+    save: jest.fn(async (entity) => entity),
+  };
   const assignmentRepo = {
     findOne: jest.fn().mockResolvedValue(ownedAssignment),
     createQueryBuilder: jest.fn().mockReturnValue(assignmentQb),
@@ -347,6 +357,7 @@ function buildService({
           if (entity === ListingAgentProposal) return proposalRepo;
           if (entity === Address) return addressRepo;
           if (entity === ListingImage) return listingImageRepo;
+          if (entity === PublicListingSubmission) return submissionRepo;
           if (typeof entity === 'function' && entity.name === 'Listing') {
             return listingRepo;
           }
@@ -396,6 +407,7 @@ function buildService({
     addressRepo,
     listingImageRepo,
     assignmentRepo,
+    submissionRepo,
     assignmentQb,
     messageRepo,
     dataSource,
@@ -1116,17 +1128,24 @@ describe('ListingAgentProposalsService', () => {
 
   it('closes recruitment for an owned listing and closes active proposals', async () => {
     const listing = buildListing();
-    const { service, listingRepo, proposalQb } = buildService({ listing });
+    const { service, listingRepo, listingQb, proposalQb, submissionRepo } =
+      buildService({ listing });
 
     const result = await service.closeRecruitmentForSeller(
       OWNER_ID,
       LISTING_ID,
     );
 
-    expect(listingRepo.findOne).toHaveBeenCalledWith({
-      where: { id: LISTING_ID, ownerUserId: OWNER_ID },
-      lock: { mode: 'pessimistic_write' },
-    });
+    expect(listingRepo.createQueryBuilder).toHaveBeenCalledWith('listing');
+    expect(listingQb.setLock).toHaveBeenCalledWith('pessimistic_write');
+    expect(listingQb.where).toHaveBeenCalledWith(
+      'listing.id = :listingId',
+      { listingId: LISTING_ID },
+    );
+    expect(listingQb.andWhere).toHaveBeenCalledWith(
+      'listing.ownerUserId = :userId',
+      { userId: OWNER_ID },
+    );
     expect(listingRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         agentCollaborationStatus: ListingAgentCollaborationStatus.CLOSED,
@@ -1149,6 +1168,17 @@ describe('ListingAgentProposalsService', () => {
           ListingAgentProposalStatus.UPDATED,
         ],
       },
+    );
+    expect(submissionRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentCollaborationStatus: ListingAgentCollaborationStatus.CLOSED,
+        agentCollaborationClosedAt: expect.any(Date),
+        payload: expect.objectContaining({
+          agentCollaboration: expect.objectContaining({
+            status: ListingAgentCollaborationStatus.CLOSED,
+          }),
+        }),
+      }),
     );
     expect(result).toMatchObject({
       listingId: LISTING_ID,

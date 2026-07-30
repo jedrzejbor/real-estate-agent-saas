@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   DataSource,
+  EntityManager,
   In,
   IsNull,
   Not,
@@ -30,6 +31,7 @@ import { FeatureAccessDeniedException } from '../common/exceptions/feature-acces
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { Address, Listing, ListingImage } from '../listings/entities';
 import { MonitoringService } from '../monitoring';
+import { PublicListingSubmission } from '../public-listing-submissions/entities';
 import { ReleaseFlagsService } from '../release-flags';
 import { UsersService } from '../users';
 import {
@@ -774,10 +776,12 @@ export class ListingAgentProposalsService {
     return this.dataSource.transaction(async (manager) => {
       const listingRepo = manager.getRepository(Listing);
       const proposalRepo = manager.getRepository(ListingAgentProposal);
-      const listing = await listingRepo.findOne({
-        where: { id: listingId, ownerUserId: userId },
-        lock: { mode: 'pessimistic_write' },
-      });
+      const listing = await listingRepo
+        .createQueryBuilder('listing')
+        .setLock('pessimistic_write')
+        .where('listing.id = :listingId', { listingId })
+        .andWhere('listing.ownerUserId = :userId', { userId })
+        .getOne();
 
       if (!listing) {
         throw new NotFoundException('Oferta nie została znaleziona');
@@ -807,6 +811,7 @@ export class ListingAgentProposalsService {
       listing.agentCollaborationClosedAt = new Date();
 
       const saved = await listingRepo.save(listing);
+      await syncPublishedSubmissionRecruitment(manager, saved);
       await proposalRepo
         .createQueryBuilder()
         .update(ListingAgentProposal)
@@ -827,45 +832,56 @@ export class ListingAgentProposalsService {
     input: ReopenListingAgentRecruitmentDto = {},
   ): Promise<ListingAgentRecruitmentResponse> {
     this.assertMarketplaceReleaseEnabled();
-    const listing = await this.findSellerListingForRecruitmentOrFail(
-      userId,
-      listingId,
-    );
+    return this.dataSource.transaction(async (manager) => {
+      const listingRepo = manager.getRepository(Listing);
+      const listing = await listingRepo
+        .createQueryBuilder('listing')
+        .setLock('pessimistic_write')
+        .where('listing.id = :listingId', { listingId })
+        .andWhere('listing.ownerUserId = :userId', { userId })
+        .getOne();
 
-    this.assertListingCanOpenRecruitment(listing);
+      if (!listing) {
+        throw new NotFoundException('Oferta nie została znaleziona');
+      }
 
-    if (
-      listing.agentCollaborationStatus === ListingAgentCollaborationStatus.OPEN
-    ) {
-      throw new BadRequestException('Nabór agentów jest już otwarty');
-    }
+      this.assertListingCanOpenRecruitment(listing);
 
-    if (
-      listing.agentCollaborationStatus ===
-      ListingAgentCollaborationStatus.ASSIGNED
-    ) {
-      throw new BadRequestException('Oferta ma już zaakceptowanego agenta');
-    }
+      if (
+        listing.agentCollaborationStatus ===
+        ListingAgentCollaborationStatus.OPEN
+      ) {
+        throw new BadRequestException('Nabór agentów jest już otwarty');
+      }
 
-    listing.agentCollaborationEnabled = true;
-    listing.agentCollaborationMode =
-      input.mode ??
-      listing.agentCollaborationMode ??
-      ListingAgentCollaborationMode.SINGLE_AGENT;
-    listing.agentCollaborationPreferences = input.preferences
-      ? normalizeRecruitmentPreferences(input, listing.agentCollaborationMode)
-      : (listing.agentCollaborationPreferences ?? {
-          allowsMultipleAgents:
-            listing.agentCollaborationMode ===
-            ListingAgentCollaborationMode.MULTI_AGENT,
-          preferredContactChannel: 'platform_chat',
-        });
-    listing.agentCollaborationStatus = ListingAgentCollaborationStatus.OPEN;
-    listing.agentCollaborationOpenedAt = new Date();
-    listing.agentCollaborationClosedAt = null;
+      if (
+        listing.agentCollaborationStatus ===
+        ListingAgentCollaborationStatus.ASSIGNED
+      ) {
+        throw new BadRequestException('Oferta ma już zaakceptowanego agenta');
+      }
 
-    const saved = await this.listingRepo.save(listing);
-    return toRecruitmentResponse(saved);
+      listing.agentCollaborationEnabled = true;
+      listing.agentCollaborationMode =
+        input.mode ??
+        listing.agentCollaborationMode ??
+        ListingAgentCollaborationMode.SINGLE_AGENT;
+      listing.agentCollaborationPreferences = input.preferences
+        ? normalizeRecruitmentPreferences(input, listing.agentCollaborationMode)
+        : (listing.agentCollaborationPreferences ?? {
+            allowsMultipleAgents:
+              listing.agentCollaborationMode ===
+              ListingAgentCollaborationMode.MULTI_AGENT,
+            preferredContactChannel: 'platform_chat',
+          });
+      listing.agentCollaborationStatus = ListingAgentCollaborationStatus.OPEN;
+      listing.agentCollaborationOpenedAt = new Date();
+      listing.agentCollaborationClosedAt = null;
+
+      const saved = await listingRepo.save(listing);
+      await syncPublishedSubmissionRecruitment(manager, saved);
+      return toRecruitmentResponse(saved);
+    });
   }
 
   async findMessages(
@@ -1545,6 +1561,46 @@ function normalizeRecruitmentPreferences(
     preferredContactChannel:
       preferences.preferredContactChannel ?? 'platform_chat',
   };
+}
+
+async function syncPublishedSubmissionRecruitment(
+  manager: EntityManager,
+  listing: Listing,
+): Promise<void> {
+  const submissionRepo = manager.getRepository(PublicListingSubmission);
+  const submission = await submissionRepo.findOne({
+    where: { publishedListingId: listing.id },
+  });
+
+  if (!submission) {
+    return;
+  }
+
+  const payloadAgentCollaboration = {
+    enabled: listing.agentCollaborationEnabled,
+    mode: listing.agentCollaborationMode ?? null,
+    status: listing.agentCollaborationStatus ?? null,
+    preferences: listing.agentCollaborationPreferences ?? null,
+    openedAt: listing.agentCollaborationOpenedAt?.toISOString() ?? null,
+    closedAt: listing.agentCollaborationClosedAt?.toISOString() ?? null,
+  };
+
+  submission.agentCollaborationEnabled = listing.agentCollaborationEnabled;
+  submission.agentCollaborationMode = listing.agentCollaborationMode ?? null;
+  submission.agentCollaborationStatus =
+    listing.agentCollaborationStatus ?? null;
+  submission.agentCollaborationPreferences =
+    listing.agentCollaborationPreferences ?? null;
+  submission.agentCollaborationOpenedAt =
+    listing.agentCollaborationOpenedAt ?? null;
+  submission.agentCollaborationClosedAt =
+    listing.agentCollaborationClosedAt ?? null;
+  submission.payload = {
+    ...submission.payload,
+    agentCollaboration: payloadAgentCollaboration,
+  };
+
+  await submissionRepo.save(submission);
 }
 
 function getProposalSortColumn(sortBy: string): string {
