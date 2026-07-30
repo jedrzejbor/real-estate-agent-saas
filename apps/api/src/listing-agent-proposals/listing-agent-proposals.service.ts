@@ -585,10 +585,13 @@ export class ListingAgentProposalsService {
         const proposalRepo = manager.getRepository(ListingAgentProposal);
         const listingRepo = manager.getRepository(Listing);
         const assignmentRepo = manager.getRepository(ListingAgentAssignment);
-        const proposal = await proposalRepo.findOne({
-          where: { id, ownerUserId: userId, ownerDeletedAt: IsNull() },
-          lock: { mode: 'pessimistic_write' },
-        });
+        const proposal = await proposalRepo
+          .createQueryBuilder('proposal')
+          .setLock('pessimistic_write')
+          .where('proposal.id = :id', { id })
+          .andWhere('proposal.ownerUserId = :userId', { userId })
+          .andWhere('proposal.ownerDeletedAt IS NULL')
+          .getOne();
 
         if (!proposal) {
           throw new NotFoundException('Oferta współpracy nie znaleziona');
@@ -596,10 +599,11 @@ export class ListingAgentProposalsService {
 
         this.assertProposalCanBeAccepted(proposal);
 
-        const listing = await listingRepo.findOne({
-          where: { id: proposal.listingId },
-          lock: { mode: 'pessimistic_write' },
-        });
+        const listing = await listingRepo
+          .createQueryBuilder('listing')
+          .setLock('pessimistic_write')
+          .where('listing.id = :listingId', { listingId: proposal.listingId })
+          .getOne();
 
         if (!listing) {
           throw new NotFoundException('Ogłoszenie nie zostało znalezione');
@@ -639,7 +643,8 @@ export class ListingAgentProposalsService {
           listing.agentCollaborationStatus =
             ListingAgentCollaborationStatus.ASSIGNED;
           listing.agentCollaborationClosedAt = now;
-          await listingRepo.save(listing);
+          const savedListing = await listingRepo.save(listing);
+          await syncPublishedSubmissionRecruitment(manager, savedListing);
 
           await proposalRepo
             .createQueryBuilder()

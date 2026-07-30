@@ -213,9 +213,11 @@ function createListingQueryBuilder(listing: Listing | null) {
 function createProposalQueryBuilder(
   proposals: ListingAgentProposal[],
   total = proposals.length,
+  proposal: ListingAgentProposal | null = proposals[0] ?? null,
 ) {
   return {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
+    setLock: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
@@ -225,6 +227,7 @@ function createProposalQueryBuilder(
     update: jest.fn().mockReturnThis(),
     set: jest.fn().mockReturnThis(),
     execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    getOne: jest.fn().mockResolvedValue(proposal),
     getManyAndCount: jest.fn().mockResolvedValue([proposals, total]),
   };
 }
@@ -282,7 +285,7 @@ function buildService({
   releaseFlags?: { agentListingMarketplaceEnabled: boolean };
 } = {}) {
   const listingQb = createListingQueryBuilder(listing);
-  const proposalQb = createProposalQueryBuilder(queryProposals);
+  const proposalQb = createProposalQueryBuilder(queryProposals, queryProposals.length, ownedProposal);
   const assignmentQb = createAssignmentQueryBuilder(queryAssignments);
   const messageQb = createMessageQueryBuilder(unreadCount);
   const proposalRepo = {
@@ -964,32 +967,32 @@ describe('ListingAgentProposalsService', () => {
       service,
       proposalRepo,
       listingRepo,
+      listingQb,
       assignmentRepo,
       proposalQb,
+      submissionRepo,
       analyticsService,
     } = buildService({ ownedProposal: proposal });
 
     const result = await service.acceptForSeller(OWNER_ID, PROPOSAL_ID);
 
-    expect(proposalRepo.findOne).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        where: expect.objectContaining({
-          id: PROPOSAL_ID,
-          ownerUserId: OWNER_ID,
-          ownerDeletedAt: expect.anything(),
-        }),
-        lock: { mode: 'pessimistic_write' },
-      }),
+    expect(proposalRepo.createQueryBuilder).toHaveBeenCalledWith('proposal');
+    expect(proposalQb.setLock).toHaveBeenCalledWith('pessimistic_write');
+    expect(proposalQb.where).toHaveBeenCalledWith('proposal.id = :id', {
+      id: PROPOSAL_ID,
+    });
+    expect(proposalQb.andWhere).toHaveBeenCalledWith(
+      'proposal.ownerUserId = :userId',
+      { userId: OWNER_ID },
     );
-    expect(proposalRepo.findOne.mock.calls[0][0]).not.toHaveProperty(
-      'relations',
+    expect(proposalQb.andWhere).toHaveBeenCalledWith(
+      'proposal.ownerDeletedAt IS NULL',
     );
-    expect(listingRepo.findOne).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: LISTING_ID },
-        lock: { mode: 'pessimistic_write' },
-      }),
+    expect(listingRepo.createQueryBuilder).toHaveBeenCalledWith('listing');
+    expect(listingQb.setLock).toHaveBeenCalledWith('pessimistic_write');
+    expect(listingQb.where).toHaveBeenCalledWith(
+      'listing.id = :listingId',
+      { listingId: LISTING_ID },
     );
     expect(assignmentRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1015,6 +1018,17 @@ describe('ListingAgentProposalsService', () => {
       expect.objectContaining({
         agentCollaborationStatus: ListingAgentCollaborationStatus.ASSIGNED,
         agentCollaborationClosedAt: expect.any(Date),
+      }),
+    );
+    expect(submissionRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentCollaborationStatus: ListingAgentCollaborationStatus.ASSIGNED,
+        agentCollaborationClosedAt: expect.any(Date),
+        payload: expect.objectContaining({
+          agentCollaboration: expect.objectContaining({
+            status: ListingAgentCollaborationStatus.ASSIGNED,
+          }),
+        }),
       }),
     );
     expect(proposalQb.update).toHaveBeenCalledWith(ListingAgentProposal);

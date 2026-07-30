@@ -1768,6 +1768,17 @@ preferencje wspolpracy.
   - `pnpm --filter api test -- listing-agent-proposals.service.spec.ts listing-agent-proposals.controller.spec.ts` - przechodzi,
   - `pnpm --filter api type-check` - przechodzi,
   - `pnpm --filter web type-check` - przechodzi.
+- 2026-07-29, poprawka regresji akceptacji propozycji:
+  - akceptacja propozycji uzywa blokad transakcyjnych przez query builder tylko
+    na glownych aliasach `proposal` i `listing`, zeby nie lockowac relacji z
+    lewych joinow,
+  - po akceptacji w trybie `single_agent` synchronizowany jest rowniez
+    `PublicListingSubmission`, dzieki czemu dashboard widzi status `assigned`,
+  - `pnpm --filter api test -- listing-agent-proposals.service.spec.ts listing-agent-proposals.controller.spec.ts` - przechodzi,
+  - `pnpm --filter api type-check` - przechodzi,
+  - `pnpm --filter web type-check` - przechodzi,
+  - lokalna baza potwierdzila status `accepted`, aktywny assignment i
+    `agent_collaboration_status = assigned` dla testowanej propozycji.
 - Manualnie:
   - wlasciciel zamyka nabor z karty oferty,
   - wlasciciel otwiera nabor z modala i zapisuje preferencje,
