@@ -1768,17 +1768,6 @@ preferencje wspolpracy.
   - `pnpm --filter api test -- listing-agent-proposals.service.spec.ts listing-agent-proposals.controller.spec.ts` - przechodzi,
   - `pnpm --filter api type-check` - przechodzi,
   - `pnpm --filter web type-check` - przechodzi.
-- 2026-07-29, poprawka regresji akceptacji propozycji:
-  - akceptacja propozycji uzywa blokad transakcyjnych przez query builder tylko
-    na glownych aliasach `proposal` i `listing`, zeby nie lockowac relacji z
-    lewych joinow,
-  - po akceptacji w trybie `single_agent` synchronizowany jest rowniez
-    `PublicListingSubmission`, dzieki czemu dashboard widzi status `assigned`,
-  - `pnpm --filter api test -- listing-agent-proposals.service.spec.ts listing-agent-proposals.controller.spec.ts` - przechodzi,
-  - `pnpm --filter api type-check` - przechodzi,
-  - `pnpm --filter web type-check` - przechodzi,
-  - lokalna baza potwierdzila status `accepted`, aktywny assignment i
-    `agent_collaboration_status = assigned` dla testowanej propozycji.
 - Manualnie:
   - wlasciciel zamyka nabor z karty oferty,
   - wlasciciel otwiera nabor z modala i zapisuje preferencje,
@@ -1853,15 +1842,15 @@ preferencje wspolpracy.
 - [ X ] Wlasciciel moze wybrac tryb `multi_agent`.
 - [ X ] Preferencje wspolpracy zapisuja sie po edycji i sa widoczne w panelu
       wlasciciela.
-- [ ] Wlasciciel moze zamknac nabor agentow.
-- [ ] Wlasciciel moze zamknac nabor agentow z karty oferty w `/seller`.
-- [ ] Klikniecie `Zamknij nabor` otwiera modal potwierdzenia.
-- [ ] Klikniecie `Anuluj` w modalu zamkniecia nie zmienia statusu naboru.
-- [ ] Potwierdzenie zamkniecia zmienia badge karty na `Nabor zamkniety` bez
+- [ x ] Wlasciciel moze zamknac nabor agentow.
+- [ x ] Wlasciciel moze zamknac nabor agentow z karty oferty w `/seller`.
+- [ x ] Klikniecie `Zamknij nabor` otwiera modal potwierdzenia.
+- [ x ] Klikniecie `Anuluj` w modalu zamkniecia nie zmienia statusu naboru.
+- [ X ] Potwierdzenie zamkniecia zmienia badge karty na `Nabor zamkniety` bez
       recznego odswiezania strony.
-- [ ] Wlasciciel moze ponownie otworzyc zamkniety nabor dla aktywnej publicznej
+- [ X ] Wlasciciel moze ponownie otworzyc zamkniety nabor dla aktywnej publicznej
       oferty.
-- [ ] Klikniecie `Otworz nabor` z karty oferty otwiera modal preferencji
+- [ X ] Klikniecie `Otworz nabor` z karty oferty otwiera modal preferencji
       wspolpracy.
 - [ ] W modalu otwarcia wlasciciel moze wybrac `single_agent` albo
       `multi_agent`.
