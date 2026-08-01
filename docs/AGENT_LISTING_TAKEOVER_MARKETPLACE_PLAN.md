@@ -1852,7 +1852,7 @@ preferencje wspolpracy.
       oferty.
 - [ X ] Klikniecie `Otworz nabor` z karty oferty otwiera modal preferencji
       wspolpracy.
-- [ ] W modalu otwarcia wlasciciel moze wybrac `single_agent` albo
+- [ X ] W modalu otwarcia wlasciciel moze wybrac `single_agent` albo
       `multi_agent`.
 - [ ] W modalu otwarcia wlasciciel moze zapisac preferencje prowizji, zakres
       uslug, wylacznosc, notatki i kanal kontaktu.
