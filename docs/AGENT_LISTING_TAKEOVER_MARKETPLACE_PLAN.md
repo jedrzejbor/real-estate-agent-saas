@@ -1854,7 +1854,7 @@ preferencje wspolpracy.
       wspolpracy.
 - [ X ] W modalu otwarcia wlasciciel moze wybrac `single_agent` albo
       `multi_agent`.
-- [ ] W modalu otwarcia wlasciciel moze zapisac preferencje prowizji, zakres
+- [ X ] W modalu otwarcia wlasciciel moze zapisac preferencje prowizji, zakres
       uslug, wylacznosc, notatki i kanal kontaktu.
 - [ ] Potwierdzenie otwarcia zmienia badge karty na `Szukasz agenta` bez
       recznego odswiezania strony.
