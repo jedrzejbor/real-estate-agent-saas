@@ -1858,7 +1858,7 @@ preferencje wspolpracy.
       uslug, wylacznosc, notatki i kanal kontaktu.
 - [ X ] Potwierdzenie otwarcia zmienia badge karty na `Szukasz agenta` bez
       recznego odswiezania strony.
-- [ ] Nie da sie otworzyc naboru dla oferty niepublicznej, szkicu,
+- [ X ] Nie da sie otworzyc naboru dla oferty niepublicznej, szkicu,
       zarchiwizowanej albo wygaslej.
 - [ ] Oferta ze statusem naboru `assigned` pokazuje badge `Agent wybrany` i nie
       pokazuje akcji `Otworz nabor`.
