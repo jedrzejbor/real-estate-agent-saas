@@ -64,3 +64,19 @@ Dostępne pod:
 | `pnpm lint` | Lint wszystkich pakietów |
 | `pnpm turbo build --filter=web` | Build tylko frontendu |
 | `pnpm turbo dev --filter=api` | Dev tylko backendu |
+
+## Deployment
+
+Instrukcja wdrozenia testowego/stagingowego dla domeny `podadresem24.pl` jest w [DEPLOYMENT.md](./DEPLOYMENT.md).
+
+Docelowy uklad:
+
+- `podadresem24.pl` - publiczny portal / landing / katalog ofert
+- `www.podadresem24.pl` - redirect lub alias publicznego portalu
+- `app.podadresem24.pl` - panel agenta
+- `api.podadresem24.pl` - backend API
+
+CI/CD:
+
+- pull requesty: `.github/workflows/pr-checks.yml`
+- staging deploy po merge do `main`: `.github/workflows/deploy.yml`
