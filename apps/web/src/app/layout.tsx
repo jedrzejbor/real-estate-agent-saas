@@ -33,6 +33,14 @@ export const metadata: Metadata = {
   title: `${APP_NAME} — Platforma dla agentów nieruchomości`,
   description:
     'Kompleksowe narzędzie SaaS do zarządzania ofertami, klientami i spotkaniami dla agentów nieruchomości.',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/brand/icon-192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/brand/icon-512.png', type: 'image/png', sizes: '512x512' },
+    ],
+    apple: [{ url: '/brand/apple-touch-icon.png', sizes: '180x180' }],
+  },
 };
 
 export default function RootLayout({
