@@ -43,6 +43,7 @@ import { Agent, User } from '../users/entities';
 import {
   CreatePublicLeadDto,
   PublicLeadQueryDto,
+  SELLER_PUBLIC_LEAD_STATUSES,
   UpdateSellerPublicLeadDto,
 } from './dto';
 import { PublicLead } from './entities';
@@ -295,10 +296,7 @@ export class PublicLeadsService {
     id: string,
     dto: UpdateSellerPublicLeadDto,
   ): Promise<PublicLeadListItem> {
-    if (
-      dto.status !== PublicLeadStatus.CONTACTED &&
-      dto.status !== PublicLeadStatus.ARCHIVED
-    ) {
+    if (!SELLER_PUBLIC_LEAD_STATUSES.includes(dto.status)) {
       throw new ForbiddenException(
         'Ten status nie jest dostępny w panelu właściciela',
       );
@@ -320,13 +318,9 @@ export class PublicLeadsService {
     const now = new Date();
     lead.status = dto.status;
 
-    if (dto.status === PublicLeadStatus.CONTACTED) {
-      lead.handledAt = now;
-    }
-
-    if (dto.status === PublicLeadStatus.ARCHIVED) {
-      lead.archivedAt = now;
-    }
+    lead.handledAt = this.resolveSellerHandledAt(lead.handledAt, dto.status, now);
+    lead.archivedAt =
+      dto.status === PublicLeadStatus.ARCHIVED ? now : null;
 
     lead.metadata = {
       ...lead.metadata,
@@ -339,6 +333,27 @@ export class PublicLeadsService {
     const saved = await this.publicLeadRepo.save(lead);
 
     return mapPublicLeadListItem(saved);
+  }
+
+  private resolveSellerHandledAt(
+    currentValue: Date | null | undefined,
+    status: UpdateSellerPublicLeadDto['status'],
+    now: Date,
+  ): Date | null {
+    if (status === PublicLeadStatus.NEW) {
+      return null;
+    }
+
+    if (
+      status === PublicLeadStatus.CONTACTED ||
+      status === PublicLeadStatus.QUALIFIED ||
+      status === PublicLeadStatus.SPAM ||
+      status === PublicLeadStatus.ARCHIVED
+    ) {
+      return currentValue ?? now;
+    }
+
+    return currentValue ?? null;
   }
 
   async createForPublicListing(

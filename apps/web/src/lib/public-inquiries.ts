@@ -24,6 +24,17 @@ export const PublicLeadStatus = {
 export type PublicLeadStatus =
   (typeof PublicLeadStatus)[keyof typeof PublicLeadStatus];
 
+export const SellerPublicLeadStatus = {
+  NEW: PublicLeadStatus.NEW,
+  CONTACTED: PublicLeadStatus.CONTACTED,
+  QUALIFIED: PublicLeadStatus.QUALIFIED,
+  SPAM: PublicLeadStatus.SPAM,
+  ARCHIVED: PublicLeadStatus.ARCHIVED,
+} as const;
+
+export type SellerPublicLeadStatus =
+  (typeof SellerPublicLeadStatus)[keyof typeof SellerPublicLeadStatus];
+
 export const PUBLIC_LEAD_SOURCE_LABELS: Record<PublicLeadSource, string> = {
   public_listing_page: 'Strona oferty',
   public_listing_share: 'Udostępnienie',
@@ -140,7 +151,7 @@ export async function fetchSellerPublicInquiries(
 
 export async function updateSellerPublicInquiryStatus(
   id: string,
-  status: typeof PublicLeadStatus.CONTACTED | typeof PublicLeadStatus.ARCHIVED,
+  status: SellerPublicLeadStatus,
 ): Promise<PublicInquiry> {
   return apiFetch<PublicInquiry>(`/public-leads/seller/${id}`, {
     method: 'PATCH',

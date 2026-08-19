@@ -10,7 +10,6 @@ import {
   Clock,
   Edit3,
   Eye,
-  Archive,
   CheckCircle2,
   Copy,
   Home,
@@ -54,10 +53,11 @@ import {
 import {
   fetchSellerPublicInquiries,
   PublicLeadStatus,
-  PUBLIC_LEAD_STATUS_LABELS,
+  SellerPublicLeadStatus,
   updateSellerPublicInquiryStatus,
   type PublicInquiry,
   type PublicLeadStatus as PublicLeadStatusValue,
+  type SellerPublicLeadStatus as SellerPublicLeadStatusValue,
 } from '@/lib/public-inquiries';
 import {
   acceptSellerListingAgentProposal,
@@ -206,9 +206,7 @@ export default function SellerDashboardPage() {
 
   async function updateInquiryStatus(
     id: string,
-    status:
-      | typeof PublicLeadStatus.CONTACTED
-      | typeof PublicLeadStatus.ARCHIVED,
+    status: SellerPublicLeadStatusValue,
   ) {
     setUpdatingInquiryId(id);
     setInquiryError(null);
@@ -1059,9 +1057,7 @@ function SellerInquiriesSection({
   updatingInquiryId: string | null;
   onStatusChange: (
     id: string,
-    status:
-      | typeof PublicLeadStatus.CONTACTED
-      | typeof PublicLeadStatus.ARCHIVED,
+    status: SellerPublicLeadStatusValue,
   ) => void;
 }) {
   return (
@@ -1117,9 +1113,7 @@ function SellerInquiryCard({
   isUpdating: boolean;
   onStatusChange: (
     id: string,
-    status:
-      | typeof PublicLeadStatus.CONTACTED
-      | typeof PublicLeadStatus.ARCHIVED,
+    status: SellerPublicLeadStatusValue,
   ) => void;
 }) {
   const status = SELLER_INQUIRY_STATUS_COPY[inquiry.status];
@@ -1178,7 +1172,7 @@ function SellerInquiryCard({
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${status.className}`}
               >
-                {PUBLIC_LEAD_STATUS_LABELS[inquiry.status]}
+                {SELLER_PUBLIC_LEAD_STATUS_LABELS[inquiry.status]}
               </span>
               <span className="text-xs text-muted-foreground">
                 {formatDate(inquiry.createdAt)}
@@ -1229,40 +1223,33 @@ function SellerInquiryCard({
               onOpen={markContacted}
             />
           ) : null}
-          {inquiry.status !== PublicLeadStatus.CONTACTED ? (
-            <button
-              type="button"
-              disabled={isUpdating}
-              onClick={() =>
-                onStatusChange(inquiry.id, PublicLeadStatus.CONTACTED)
-              }
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border px-3 font-semibold transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-60"
-            >
+          <label className="grid gap-1.5">
+            <span className="text-xs font-semibold uppercase text-muted-foreground">
+              Status zapytania
+            </span>
+            <span className="relative">
+              <select
+                value={toSellerPublicLeadStatus(inquiry.status)}
+                disabled={isUpdating}
+                onChange={(event) =>
+                  onStatusChange(
+                    inquiry.id,
+                    event.target.value as SellerPublicLeadStatusValue,
+                  )
+                }
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 pr-9 text-sm font-semibold text-foreground shadow-sm outline-none transition-colors hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-wait disabled:opacity-60"
+              >
+                {SELLER_PUBLIC_LEAD_STATUS_OPTIONS.map((option) => (
+                  <option key={option.status} value={option.status}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
               {isUpdating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4" />
-              )}
-              Oznacz kontakt
-            </button>
-          ) : null}
-          {inquiry.status !== PublicLeadStatus.ARCHIVED ? (
-            <button
-              type="button"
-              disabled={isUpdating}
-              onClick={() =>
-                onStatusChange(inquiry.id, PublicLeadStatus.ARCHIVED)
-              }
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border px-3 font-semibold transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-60"
-            >
-              {isUpdating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Archive className="h-4 w-4" />
-              )}
-              Archiwizuj
-            </button>
-          ) : null}
+                <Loader2 className="pointer-events-none absolute right-8 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+              ) : null}
+            </span>
+          </label>
         </div>
       </div>
     </article>
@@ -1831,6 +1818,50 @@ const SELLER_INQUIRY_STATUS_COPY: Record<
   spam: { className: 'bg-red-100 text-red-900' },
   archived: { className: 'bg-stone-200 text-stone-800' },
 };
+
+const SELLER_PUBLIC_LEAD_STATUS_LABELS: Record<PublicLeadStatusValue, string> =
+  {
+    new: 'Nowe',
+    contacted: 'Skontaktowany',
+    qualified: 'Zainteresowany',
+    converted_to_client: 'Zainteresowany',
+    spam: 'Spam',
+    archived: 'Archiwum',
+  };
+
+const SELLER_PUBLIC_LEAD_STATUS_OPTIONS: Array<{
+  status: SellerPublicLeadStatusValue;
+  label: string;
+}> = [
+  {
+    status: SellerPublicLeadStatus.NEW,
+    label: SELLER_PUBLIC_LEAD_STATUS_LABELS.new,
+  },
+  {
+    status: SellerPublicLeadStatus.CONTACTED,
+    label: SELLER_PUBLIC_LEAD_STATUS_LABELS.contacted,
+  },
+  {
+    status: SellerPublicLeadStatus.QUALIFIED,
+    label: SELLER_PUBLIC_LEAD_STATUS_LABELS.qualified,
+  },
+  {
+    status: SellerPublicLeadStatus.SPAM,
+    label: SELLER_PUBLIC_LEAD_STATUS_LABELS.spam,
+  },
+  {
+    status: SellerPublicLeadStatus.ARCHIVED,
+    label: SELLER_PUBLIC_LEAD_STATUS_LABELS.archived,
+  },
+];
+
+function toSellerPublicLeadStatus(
+  status: PublicLeadStatusValue,
+): SellerPublicLeadStatusValue {
+  return status === PublicLeadStatus.CONVERTED_TO_CLIENT
+    ? SellerPublicLeadStatus.QUALIFIED
+    : status;
+}
 
 const SELLER_AGENT_PROPOSAL_STATUS_COPY: Record<
   ListingAgentProposalStatus,
