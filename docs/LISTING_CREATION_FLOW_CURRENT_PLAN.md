@@ -4,6 +4,10 @@ Data: 2026-08-20
 
 Cel dokumentu: opisac obecny model dodawania ogloszenia w aplikacji, zeby przed wdrozeniem nowego ekranu startowego typu "Sprzedam / Wynajme + typ nieruchomosci" bylo jasne, ktore sciezki, komponenty, walidacje i kontrakty API sa juz w uzyciu.
 
+Szczegolowa matryca pol dla poszczegolnych typow ogloszen jest opisana w `docs/LISTING_FIELD_MATRIX.md`. Ten plik opisuje przeplyw i punkty integracji, a matryca opisuje, jakie pola maja pojawic sie po wyborze konkretnego typu nieruchomosci.
+
+Kolejnosc bezpiecznego wdrozenia jest rozpisana w `docs/LISTING_CREATION_IMPLEMENTATION_TASKS.md`.
+
 ## Zakres
 
 W aplikacji istnieja obecnie dwie glowne sciezki tworzenia ogloszenia:
@@ -316,4 +320,3 @@ Minimum do sprawdzenia:
 3. Czy po wyborze startowym uzytkownik moze pozniej zmienic `Sprzedam/Wynajme` i typ nieruchomosci w formularzu?
 4. Czy ekran startowy ma miec dodatkowe CTA dla biur/deweloperow, jak w inspiracji, czy zostawiamy to poza zakresem?
 5. Czy ceny/promocje widoczne w inspiracji maja znaczenie dla naszego produktu, czy chodzi tylko o model wyboru?
-
