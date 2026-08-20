@@ -135,17 +135,35 @@ Weryfikacja:
 
 ## Etap 4 — integracja w dashboardzie `/dashboard/listings/new`
 
-- [ ] Dodać stan wyboru startowego na stronie `dashboard/listings/new`.
-- [ ] Pokazać `ListingIntentSelector` przed formularzem.
-- [ ] Po wyborze renderować `ListingForm variant="guided"`.
-- [ ] Dodać do `ListingForm` propsy `initialPropertyType` i `initialTransactionType`.
-- [ ] Ustawić `propertyType` z propsa początkowego.
-- [ ] Dodać kontrolowany stan dla `transactionType`, analogicznie do `propertyType`.
-- [ ] Jeżeli selecty zostają widoczne, pozwolić zmienić wybór bez rozjazdu stanu.
-- [ ] Jeżeli selecty są ukryte, zapewnić ukryte pola formularza z poprawnymi `name`.
-- [ ] Nie zmieniać działania edycji istniejącego ogłoszenia.
+- [x] Dodać stan wyboru startowego na stronie `dashboard/listings/new`.
+- [x] Pokazać `ListingIntentSelector` przed formularzem.
+- [x] Po wyborze renderować `ListingForm variant="guided"`.
+- [x] Dodać do `ListingForm` propsy `initialPropertyType` i `initialTransactionType`.
+- [x] Ustawić `propertyType` z propsa początkowego.
+- [x] Dodać kontrolowany stan dla `transactionType`, analogicznie do `propertyType`.
+- [x] Jeżeli selecty zostają widoczne, pozwolić zmienić wybór bez rozjazdu stanu.
+- [x] Selecty pozostają widoczne; ukryte pola nie są potrzebne w tej wersji.
+- [x] Nie zmieniać działania edycji istniejącego ogłoszenia.
 
 Kryterium zakończenia: agent tworzy ogłoszenie z prewybranym typem, a edycja istniejącej oferty działa jak wcześniej.
+
+Wdrożenie:
+
+- `apps/web/src/app/(dashboard)/dashboard/listings/new/page.tsx`
+- `apps/web/src/components/listings/listing-form.tsx`
+- Strona `dashboard/listings/new` pokazuje najpierw wspólny `ListingIntentSelector`.
+- Po wyborze renderuje `ListingForm variant="guided"` z `initialPropertyType` i `initialTransactionType`.
+- Na ekranie formularza widoczne jest podsumowanie wyboru i przycisk `Zmień typ`.
+- `ListingForm` remountuje się po zmianie intencji przez `key={selectedIntent?.id}`, żeby nie przenosić przypadkowego stanu między typami.
+- `ListingForm` przyjmuje nowe propsy tylko dla create mode; edycja nadal używa wartości z `listing`.
+- `propertyType` i `transactionType` są kontrolowane w formularzu, więc selecty można nadal zmienić bez rozjazdu stanu.
+- Asystent opisu dostaje początkowe `propertyType` i `transactionType`.
+- Selecty pozostały widoczne w formularzu, więc nie były potrzebne ukryte inputy.
+
+Weryfikacja:
+
+- `pnpm --filter web type-check` — OK.
+- `pnpm --filter web lint` — OK, tylko istniejące ostrzeżenia niezwiązane z Etapem 4.
 
 ## Etap 5 — dynamiczne pola Fali 1
 

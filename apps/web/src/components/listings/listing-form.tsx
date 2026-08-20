@@ -43,6 +43,7 @@ import {
   TRANSACTION_TYPE_LABELS,
   ListingCommissionType,
   PropertyType,
+  TransactionType,
   calculateListingCommissionAmount,
   createListing,
   formatPrice,
@@ -64,6 +65,10 @@ import { cn } from '@/lib/utils';
 interface ListingFormProps {
   /** Pass existing listing for edit mode, omit for create mode. */
   listing?: Listing;
+  /** Initial property type for create mode after the intent selector. */
+  initialPropertyType?: PropertyType;
+  /** Initial transaction type for create mode after the intent selector. */
+  initialTransactionType?: TransactionType;
   /** Uses a shorter first-listing flow for onboarding activation. */
   variant?: 'standard' | 'guided';
 }
@@ -89,6 +94,8 @@ interface ListingQualityTask {
 /** Form for creating or editing a listing. */
 export function ListingForm({
   listing,
+  initialPropertyType,
+  initialTransactionType,
   variant = 'standard',
 }: ListingFormProps) {
   const router = useRouter();
@@ -103,7 +110,10 @@ export function ListingForm({
   const formRef = React.useRef<HTMLFormElement>(null);
   const descriptionRef = React.useRef<HTMLTextAreaElement>(null);
   const [propertyType, setPropertyType] = useState<PropertyType | ''>(
-    listing?.propertyType ?? '',
+    listing?.propertyType ?? initialPropertyType ?? '',
+  );
+  const [transactionType, setTransactionType] = useState<TransactionType | ''>(
+    listing?.transactionType ?? initialTransactionType ?? '',
   );
   const [pricePreview, setPricePreview] = useState<number | string>(
     listing?.price ?? '',
@@ -135,7 +145,10 @@ export function ListingForm({
   const [showDetails, setShowDetails] = useState(!isGuidedCreate);
   const [assistantInput, setAssistantInput] =
     useState<ListingDescriptionAssistantInput>(() =>
-      getInitialAssistantInput(listing),
+      getInitialAssistantInput(listing, {
+        propertyType: initialPropertyType,
+        transactionType: initialTransactionType,
+      }),
     );
   const [assistantUsage, setAssistantUsage] = useState(() =>
     getStoredDescriptionAssistantUsage(),
@@ -202,7 +215,12 @@ export function ListingForm({
 
   function syncAssistantInput() {
     setAssistantInput(
-      collectAssistantInput(formRef.current, propertyType, listing),
+      collectAssistantInput(
+        formRef.current,
+        propertyType,
+        transactionType,
+        listing,
+      ),
     );
   }
 
@@ -228,6 +246,7 @@ export function ListingForm({
     const nextInput = collectAssistantInput(
       formRef.current,
       propertyType,
+      transactionType,
       listing,
     );
     const generatedDescription = buildListingDescription(nextInput);
@@ -545,11 +564,15 @@ export function ListingForm({
             <FormSelect
               name="transactionType"
               defaultValue={listing?.transactionType}
+              value={transactionType}
               placeholder="Wybierz typ"
               options={Object.entries(TRANSACTION_TYPE_LABELS).map(
                 ([value, label]) => ({ value, label }),
               )}
               error={!!getFieldError('transactionType')}
+              onChange={(value) =>
+                setTransactionType(value as TransactionType | '')
+              }
             />
           </FormField>
 
@@ -1623,11 +1646,15 @@ function FormField({
 
 function getInitialAssistantInput(
   listing: Listing | undefined,
+  initial?: {
+    propertyType?: PropertyType;
+    transactionType?: TransactionType;
+  },
 ): ListingDescriptionAssistantInput {
   return {
     title: listing?.title ?? '',
-    propertyType: listing?.propertyType ?? '',
-    transactionType: listing?.transactionType ?? '',
+    propertyType: listing?.propertyType ?? initial?.propertyType ?? '',
+    transactionType: listing?.transactionType ?? initial?.transactionType ?? '',
     price: toNumberOrNull(listing?.price),
     currency: listing?.currency ?? 'PLN',
     city: listing?.address?.city ?? '',
@@ -1647,6 +1674,7 @@ function getInitialAssistantInput(
 function collectAssistantInput(
   form: HTMLFormElement | null,
   fallbackPropertyType: PropertyType | '',
+  fallbackTransactionType: TransactionType | '',
   listing: Listing | undefined,
 ): ListingDescriptionAssistantInput {
   if (!form) return getInitialAssistantInput(listing);
@@ -1656,9 +1684,10 @@ function collectAssistantInput(
     propertyType:
       (getFormValue(form, 'propertyType') as PropertyType | '') ||
       fallbackPropertyType,
-    transactionType: getFormValue(form, 'transactionType') as
-      | ListingDescriptionAssistantInput['transactionType']
-      | '',
+    transactionType:
+      (getFormValue(form, 'transactionType') as
+        | ListingDescriptionAssistantInput['transactionType']
+        | '') || fallbackTransactionType,
     price: toNumberOrNull(getFormValue(form, 'price')),
     currency: listing?.currency ?? 'PLN',
     city: getFormValue(form, 'address.city'),
