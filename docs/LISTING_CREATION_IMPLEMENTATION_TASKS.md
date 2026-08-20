@@ -21,13 +21,25 @@ Powiązane dokumenty:
 
 ## Etap 0 — przygotowanie i decyzje
 
-- [ ] Potwierdzić zakres Fali 1: tylko obecne typy `apartment`, `house`, `land`, `commercial`, `office`, `garage`.
-- [ ] Potwierdzić, że `Pokój` nie wchodzi do pierwszego wdrożenia.
-- [ ] Potwierdzić, czy ekran startowy wdrażamy jednocześnie dla `/dodaj-oferte` i `/dashboard/listings/new`.
-- [ ] Potwierdzić, czy `title` zostaje wymagany w Fali 1.
-- [ ] Potwierdzić, czy zdjęcia mają być wymagane w publicznym flow, czy tylko rekomendowane.
+- [x] Potwierdzić zakres Fali 1: tylko obecne typy `apartment`, `house`, `land`, `commercial`, `office`, `garage`.
+- [x] Potwierdzić, że `Pokój` nie wchodzi do pierwszego wdrożenia.
+- [x] Potwierdzić, czy ekran startowy wdrażamy jednocześnie dla `/dodaj-oferte` i `/dashboard/listings/new`.
+- [x] Potwierdzić, czy `title` zostaje wymagany w Fali 1.
+- [x] Potwierdzić, czy zdjęcia mają być wymagane w publicznym flow, czy tylko rekomendowane.
 
 Kryterium zakończenia: decyzje są zapisane w dokumentach i nie blokują implementacji.
+
+Decyzje zaakceptowane:
+
+- Fala 1 obejmuje tylko obecne typy: `apartment`, `house`, `land`, `commercial`, `office`, `garage`.
+- `Pokój` pomijamy w pierwszej wersji i nie mapujemy go tymczasowo na `apartment`.
+- Ekran startowy wdrażamy w obu miejscach: `/dodaj-oferte` i `/dashboard/listings/new`.
+- Ekran startowy ma korzystać ze wspólnego komponentu i wspólnej konfiguracji.
+- `title` zostaje wymagany w Fali 1.
+- Zdjęcia są wymagane: minimum 3.
+- Fala 1 nie dodaje migracji pól jakościowych; robimy UX i dynamiczne pola na obecnym modelu.
+
+Uwaga wdrożeniowa dla zdjęć: wymóg minimum 3 zdjęć trzeba spiąć z miejscem zapisu. Publiczny wizard może walidować `draft.images.length >= 3` przed wysłaniem zgłoszenia. Dashboardowy `ListingForm` tworzy ofertę i dopiero potem uploaduje zdjęcia, więc w Fali 1 trzeba dodać walidację po stronie formularza przed `createListing`, aby nie tworzyć nowego ogłoszenia bez co najmniej 3 wybranych plików.
 
 ## Etap 1 — wspólna konfiguracja wyboru typu
 
@@ -116,6 +128,8 @@ Kryterium zakończenia: użytkownik nie może wysłać niepoprawnej kombinacji p
 - [ ] Utworzenie biura.
 - [ ] Utworzenie garażu.
 - [ ] Publiczny wizard zapisuje i odczytuje szkic z `localStorage`.
+- [ ] Publiczny wizard blokuje wysyłkę, jeśli wybrano mniej niż 3 zdjęcia.
+- [ ] Dashboard blokuje utworzenie nowej oferty, jeśli wybrano mniej niż 3 zdjęcia.
 - [ ] Publiczny wizard buduje poprawny payload zgłoszenia.
 - [ ] Dashboard zapisuje poprawny `POST /listings`.
 - [ ] Edycja istniejącej oferty nie wymusza ponownego przejścia przez ekran startowy.
@@ -147,4 +161,3 @@ Fala 2 nie powinna być mieszana z pierwszym wdrożeniem ekranu startowego.
 - [ ] Dodać testy pod nowe pola i migracje.
 
 Kryterium zakończenia: Fala 2 ma osobny zakres, osobne migracje i nie blokuje releasu Fali 1.
-

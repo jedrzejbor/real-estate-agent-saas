@@ -24,6 +24,15 @@ Aktualnie nie obsługujemy osobnych typów:
 
 Decyzja na pierwsze wdrożenie: nie dodajemy jeszcze `room` ani `building` jako nowych `PropertyType`. Dla obiektów/hali/magazynu używamy tymczasowo `commercial` albo `office`, a pełne `building` traktujemy jako osobny etap migracyjny.
 
+Decyzje Fali 1:
+
+- wdrażamy ekran startowy w `/dodaj-oferte` i `/dashboard/listings/new`
+- używamy wspólnego komponentu wyboru typu
+- `Pokój` pomijamy w pierwszej wersji
+- `title` pozostaje wymagany
+- zdjęcia są wymagane: minimum 3
+- nie dodajemy nowych migracji pól jakościowych w Fali 1
+
 ## 2. Jak czytać statusy
 
 Status techniczny pola:
@@ -113,7 +122,7 @@ Pola, które są już w publicznym wizardzie, ale nie są zapisane jako pełne p
 | Kod pocztowy | `address.postalCode` | `core` | `optional` | pomocniczo do geokodowania |
 | Punkt mapy | `address.lat`, `address.lng` | `core` | `recommended` | w publicznym flow może pochodzić z miasta/dzielnicy |
 | Dokładny adres publiczny | `showExactAddressOnPublicPage` | `core` | `optional` | przełącznik prywatności |
-| Zdjęcia | `images` | `core` | `recommended` | docelowo min. 1 do publikacji publicznej |
+| Zdjęcia | `images` | `core` | `required` | minimum 3 w Fali 1 |
 | Film | `videoUrl` | `future` | `optional` | YouTube/upload |
 | Wirtualny spacer | `virtualTourUrl` | `future` | `optional` | Matterport itp. |
 | Rzut | `floorPlanImages` | `future` | `optional` | może być też dokumentem oferty |
@@ -703,5 +712,5 @@ To powinno być generowane ze struktury danych, a nie z opisu użytkownika.
 1. Czy nowy ekran startowy wdrażamy jednocześnie dla `/dodaj-oferte` i `/dashboard/listings/new`?
 2. Czy w pierwszej wersji pomijamy `Pokój`? Rekomendacja: tak.
 3. Czy `title` pozostaje wymagany, czy generujemy go automatycznie i pozwalamy edytować? Rekomendacja: generować, ale w Falę 1 można zostawić wymagany.
-4. Czy zdjęcia mają być wymagane do publicznej publikacji? Rekomendacja: minimum 1 w publicznym flow, opcjonalne w szkicu agenta.
+4. Czy zdjęcia mają być wymagane do publicznej publikacji? Decyzja Fali 1: minimum 3 zdjęcia.
 5. Czy pola z Fali 2 zapisujemy jeszcze w `Listing`, czy od razu tworzymy encje `*Details`? Rekomendacja: jeśli dodajemy więcej niż kilka pól, przejść od razu na modele szczegółowe.
