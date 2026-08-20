@@ -99,16 +99,39 @@ Weryfikacja:
 
 ## Etap 3 — integracja w publicznym wizardzie `/dodaj-oferte`
 
-- [ ] Dodać krok startowy przed obecnym krokiem `Podstawy` albo przebudować `StepBasics`.
-- [ ] Po wyborze zapisać `transactionType` i `propertyType` w `draft`.
-- [ ] Upewnić się, że `localStorage` zachowuje wybór.
-- [ ] Zmienić walidację kroków tak, aby typ transakcji i typ nieruchomości były walidowane w kroku startowym.
-- [ ] Usunąć albo zamienić selecty `transactionType` i `propertyType` w `StepBasics` na podsumowanie z opcją zmiany.
-- [ ] Upewnić się, że `StepParameters` nadal dostaje ustawione typy.
-- [ ] Upewnić się, że `buildSubmissionPayload` wysyła te same wartości co przed zmianą.
-- [ ] Zachować przekierowanie zalogowanego agenta do `/dashboard/listings/new`.
+- [x] Dodać krok startowy przed obecnym krokiem `Podstawy` albo przebudować `StepBasics`.
+- [x] Po wyborze zapisać `transactionType` i `propertyType` w `draft`.
+- [x] Upewnić się, że `localStorage` zachowuje wybór.
+- [x] Zmienić walidację kroków tak, aby typ transakcji i typ nieruchomości były walidowane w kroku startowym.
+- [x] Usunąć albo zamienić selecty `transactionType` i `propertyType` w `StepBasics` na podsumowanie z opcją zmiany.
+- [x] Upewnić się, że `StepParameters` nadal dostaje ustawione typy.
+- [x] Upewnić się, że `buildSubmissionPayload` wysyła te same wartości co przed zmianą.
+- [x] Zachować przekierowanie zalogowanego agenta do `/dashboard/listings/new`.
 
 Kryterium zakończenia: publiczny użytkownik wybiera intencję na starcie, przechodzi przez wizard i wysyła zgłoszenie bez zmiany kontraktu API.
+
+Wdrożenie:
+
+- `apps/web/src/app/(public)/dodaj-oferte/page.tsx`
+- Dodano krok `Typ oferty` przed `Podstawy`.
+- Publiczny wizard ma teraz 6 kroków: `Typ oferty`, `Podstawy`, `Parametry`, `Zdjęcia`, `Kontakt`, `Podsumowanie`.
+- Krok startowy używa wspólnego `ListingIntentSelector`.
+- Wybór zapisuje `transactionType` i `propertyType` do `draft` jednym update'em.
+- Istniejący zapis szkicu w `localStorage` zachowuje wybrane wartości bez dodatkowej migracji.
+- `StepBasics` nie pokazuje już dwóch selectów; pokazuje podsumowanie wyboru i przycisk `Zmień`.
+- Walidacja kroku 0 sprawdza tylko typ transakcji i typ nieruchomości.
+- Walidacja podstaw została przesunięta na krok 1, parametrów na krok 2, kontaktu na kroki 4/5.
+- `buildSubmissionPayload` nadal korzysta z `draft.transactionType` i `draft.propertyType`, więc kontrakt API nie został zmieniony.
+- Przekierowanie zalogowanego agenta do `/dashboard/listings/new` nie zostało zmienione.
+
+Poza zakresem tej iteracji:
+
+- Walidacja minimum 3 zdjęć zostaje do osobnego kroku walidacyjnego, żeby nie mieszać jej z przebudową indeksów wizardu.
+
+Weryfikacja:
+
+- `pnpm --filter web type-check` — OK.
+- `pnpm --filter web lint` — OK, tylko istniejące ostrzeżenia niezwiązane z Etapem 3.
 
 ## Etap 4 — integracja w dashboardzie `/dashboard/listings/new`
 

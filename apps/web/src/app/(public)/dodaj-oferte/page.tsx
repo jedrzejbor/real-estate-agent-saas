@@ -28,6 +28,7 @@ import {
   buildAgentCollaborationPayload,
   type AgentCollaborationFormValue,
 } from '@/components/listings/agent-collaboration-fields';
+import { ListingIntentSelector } from '@/components/listings/listing-intent-selector';
 import { PublicListingSubmissionProcess } from '@/components/listings/public-listing-submission-process';
 import { useToast } from '@/contexts/toast-context';
 import { useAuth } from '@/contexts/auth-context';
@@ -44,6 +45,10 @@ import {
   type PropertyType as PropertyTypeValue,
   type TransactionType as TransactionTypeValue,
 } from '@/lib/listings';
+import {
+  getListingIntentOption,
+  type ListingIntentSelection,
+} from '@/lib/listing-intent-options';
 import { LEGAL_COPY, LEGAL_LINKS } from '@/lib/legal';
 import {
   createPublicListingSubmission,
@@ -61,7 +66,7 @@ import {
 } from '@/lib/public-listing-form-fields';
 import { cn } from '@/lib/utils';
 
-type WizardStep = 0 | 1 | 2 | 3 | 4;
+type WizardStep = 0 | 1 | 2 | 3 | 4 | 5;
 
 interface PublicListingWizardDraft {
   transactionType: TransactionTypeValue | '';
@@ -140,12 +145,15 @@ const INITIAL_DRAFT: PublicListingWizardDraft = {
 };
 
 const STEPS = [
+  'Typ oferty',
   'Podstawy',
   'Parametry',
   'Zdjęcia',
   'Kontakt',
   'Podsumowanie',
 ] as const;
+
+const LAST_STEP_INDEX: WizardStep = 5;
 
 export default function PublicListingSubmissionWizardPage() {
   const router = useRouter();
@@ -246,6 +254,20 @@ export default function PublicListingSubmissionWizardPage() {
     });
   }
 
+  function updateListingIntent(selection: ListingIntentSelection) {
+    setDraft((current) => ({
+      ...current,
+      transactionType: selection.transactionType,
+      propertyType: selection.propertyType,
+    }));
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next.transactionType;
+      delete next.propertyType;
+      return next;
+    });
+  }
+
   function goNext() {
     const validation = validateStep(step, draft);
     if (!validation.success) {
@@ -254,7 +276,7 @@ export default function PublicListingSubmissionWizardPage() {
     }
 
     setFieldErrors({});
-    setStep((current) => Math.min(current + 1, 4) as WizardStep);
+    setStep((current) => Math.min(current + 1, LAST_STEP_INDEX) as WizardStep);
   }
 
   function goBack() {
@@ -313,7 +335,7 @@ export default function PublicListingSubmissionWizardPage() {
     const submissionDraft = isAuthenticatedPrivateSeller
       ? { ...draft, agencyName: '' }
       : draft;
-    const validation = validateStep(4, submissionDraft);
+    const validation = validateStep(LAST_STEP_INDEX, submissionDraft);
     if (!validation.success) {
       setFieldErrors(validation.errors);
       return;
@@ -415,7 +437,7 @@ export default function PublicListingSubmissionWizardPage() {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-2 sm:grid-cols-5">
+            <div className="mt-5 grid gap-2 sm:grid-cols-6">
               {STEPS.map((label, index) => (
                 <button
                   key={label}
@@ -435,20 +457,28 @@ export default function PublicListingSubmissionWizardPage() {
 
           <div className="p-5 sm:p-6">
             {step === 0 ? (
+              <StepIntent
+                draft={draft}
+                errors={fieldErrors}
+                onSelect={updateListingIntent}
+              />
+            ) : null}
+            {step === 1 ? (
               <StepBasics
                 draft={draft}
                 errors={fieldErrors}
                 updateDraft={updateDraft}
+                onChangeIntent={() => setStep(0)}
               />
             ) : null}
-            {step === 1 ? (
+            {step === 2 ? (
               <StepParameters
                 draft={draft}
                 errors={fieldErrors}
                 updateDraft={updateDraft}
               />
             ) : null}
-            {step === 2 ? (
+            {step === 3 ? (
               <StepImages
                 draft={draft}
                 isUploading={isUploadingImages}
@@ -457,7 +487,7 @@ export default function PublicListingSubmissionWizardPage() {
                 updateDraft={updateDraft}
               />
             ) : null}
-            {step === 3 ? (
+            {step === 4 ? (
               <StepContact
                 draft={draft}
                 errors={fieldErrors}
@@ -465,7 +495,7 @@ export default function PublicListingSubmissionWizardPage() {
                 updateDraft={updateDraft}
               />
             ) : null}
-            {step === 4 ? <StepSummary draft={draft} /> : null}
+            {step === 5 ? <StepSummary draft={draft} /> : null}
           </div>
 
           <div className="flex flex-col-reverse gap-3 border-t border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -479,7 +509,7 @@ export default function PublicListingSubmissionWizardPage() {
               Wróć
             </Button>
 
-            {step < 4 ? (
+            {step < LAST_STEP_INDEX ? (
               <Button
                 type="button"
                 onClick={goNext}
@@ -511,20 +541,56 @@ export default function PublicListingSubmissionWizardPage() {
   );
 }
 
+function StepIntent({
+  draft,
+  errors,
+  onSelect,
+}: {
+  draft: PublicListingWizardDraft;
+  errors: Partial<Record<'transactionType' | 'propertyType', string>>;
+  onSelect: (selection: ListingIntentSelection) => void;
+}) {
+  const value =
+    draft.transactionType && draft.propertyType
+      ? {
+          transactionType: draft.transactionType,
+          propertyType: draft.propertyType,
+        }
+      : null;
+
+  const error = errors.transactionType ?? errors.propertyType;
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        icon={Home}
+        title="Co chcesz dodać?"
+        description="Najpierw wybierz, czy chcesz sprzedać czy wynająć nieruchomość. Na tej podstawie dopasujemy kolejne pola formularza."
+      />
+      <ListingIntentSelector value={value} onChange={onSelect} />
+      {error ? <FieldError>{error}</FieldError> : null}
+    </div>
+  );
+}
+
 function StepBasics({
   draft,
   errors,
   updateDraft,
+  onChangeIntent,
 }: StepProps<
-  | 'transactionType'
-  | 'propertyType'
-  | 'title'
-  | 'price'
-  | 'city'
-  | 'voivodeship'
-  | 'lat'
-  | 'lng'
->) {
+  'title' | 'price' | 'city' | 'voivodeship' | 'lat' | 'lng'
+> & {
+  onChangeIntent: () => void;
+}) {
+  const selectedIntent =
+    draft.transactionType && draft.propertyType
+      ? getListingIntentOption({
+          transactionType: draft.transactionType,
+          propertyType: draft.propertyType,
+        })
+      : undefined;
+
   return (
     <div className="space-y-6">
       <SectionHeader
@@ -532,29 +598,27 @@ function StepBasics({
         title="Podstawy"
         description="Zbierzemy tylko dane potrzebne do przygotowania publicznej karty oferty."
       />
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-foreground">
+            {selectedIntent
+              ? `${TRANSACTION_TYPE_LABELS[selectedIntent.transactionType]}: ${selectedIntent.label}`
+              : 'Nie wybrano typu oferty'}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Ten wybór steruje polami w kolejnych krokach.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onChangeIntent}
+          className="h-9 rounded-xl sm:self-start"
+        >
+          Zmień
+        </Button>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <SelectField
-          label="Typ transakcji"
-          value={draft.transactionType}
-          error={errors.transactionType}
-          onChange={(value) =>
-            updateDraft('transactionType', value as TransactionTypeValue)
-          }
-          options={Object.entries(TRANSACTION_TYPE_LABELS).map(
-            ([value, label]) => ({ value, label }),
-          )}
-        />
-        <SelectField
-          label="Typ nieruchomości"
-          value={draft.propertyType}
-          error={errors.propertyType}
-          onChange={(value) =>
-            updateDraft('propertyType', value as PropertyTypeValue)
-          }
-          options={Object.entries(PROPERTY_TYPE_LABELS).map(
-            ([value, label]) => ({ value, label }),
-          )}
-        />
         <TextField
           label="Tytuł"
           value={draft.title}
@@ -1189,44 +1253,6 @@ function TextAreaField({
   );
 }
 
-function SelectField({
-  label,
-  value,
-  error,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  error?: string;
-  options: Array<{ value: string; label: string }>;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="block space-y-1.5">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        aria-invalid={Boolean(error)}
-        className={cn(
-          'h-10 w-full rounded-xl border border-border/80 bg-card px-3 text-sm shadow-sm outline-none transition-colors',
-          'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
-          error ? 'border-destructive ring-3 ring-destructive/20' : '',
-        )}
-      >
-        <option value="">Wybierz</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      {error ? <FieldError>{error}</FieldError> : null}
-    </label>
-  );
-}
-
 function CheckboxField({
   checked,
   error,
@@ -1328,6 +1354,17 @@ function validateStep(
           PropertyType.OFFICE,
           PropertyType.GARAGE,
         ]),
+      })
+      .safeParse(draft);
+
+    if (!result.success) {
+      return { success: false, errors: mapZodErrors(result.error) };
+    }
+  }
+
+  if (step === 1) {
+    const result = z
+      .object({
         title: z.string().trim().min(10).max(120),
         price: z.coerce.number().min(1),
         city: z.string().trim().min(1),
@@ -1339,7 +1376,7 @@ function validateStep(
     }
   }
 
-  if (step === 1) {
+  if (step === 2) {
     for (const field of getPublicListingParameterFields(draft.propertyType)) {
       if (
         isPublicListingParameterFieldRequired(draft.propertyType, field.key) &&
@@ -1381,7 +1418,7 @@ function validateStep(
     }
   }
 
-  if (step === 3 || step === 4) {
+  if (step === 4 || step === 5) {
     const result = z
       .object({
         ownerName: z.string().trim().min(1),
