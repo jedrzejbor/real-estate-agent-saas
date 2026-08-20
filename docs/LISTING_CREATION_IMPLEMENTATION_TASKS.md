@@ -43,14 +43,23 @@ Uwaga wdrożeniowa dla zdjęć: wymóg minimum 3 zdjęć trzeba spiąć z miejsc
 
 ## Etap 1 — wspólna konfiguracja wyboru typu
 
-- [ ] Dodać wspólną konfigurację opcji, np. `listing-intent-options.ts`.
-- [ ] Zdefiniować pary `transactionType + propertyType` dla sekcji `Sprzedam`.
-- [ ] Zdefiniować pary `transactionType + propertyType` dla sekcji `Wynajmę`.
-- [ ] Pominąć `Pokój` albo oznaczyć jako niedostępny bez mapowania na `apartment`.
-- [ ] Dodać typ TypeScript dla wyboru startowego, np. `ListingIntentSelection`.
-- [ ] Dodać helper walidujący, czy para jest dozwolona.
+- [x] Dodać wspólną konfigurację opcji, np. `listing-intent-options.ts`.
+- [x] Zdefiniować pary `transactionType + propertyType` dla sekcji `Sprzedam`.
+- [x] Zdefiniować pary `transactionType + propertyType` dla sekcji `Wynajmę`.
+- [x] Pominąć `Pokój` albo oznaczyć jako niedostępny bez mapowania na `apartment`.
+- [x] Dodać typ TypeScript dla wyboru startowego, np. `ListingIntentSelection`.
+- [x] Dodać helper walidujący, czy para jest dozwolona.
 
 Kryterium zakończenia: konfiguracja jest importowalna przez publiczny wizard i dashboard bez duplikowania tablic.
+
+Wdrożenie:
+
+- `apps/web/src/lib/listing-intent-options.ts`
+- `LISTING_INTENT_SECTIONS` zawiera sekcje `Sprzedam` i `Wynajmę`.
+- `LISTING_INTENT_OPTIONS` spłaszcza wszystkie dozwolone pary.
+- `ListingIntentSelection` opisuje wybór startowy.
+- `isAllowedListingIntentSelection` waliduje parę `transactionType + propertyType`.
+- `Pokój` nie został dodany do konfiguracji Fali 1.
 
 ## Etap 2 — komponent ekranu startowego
 
