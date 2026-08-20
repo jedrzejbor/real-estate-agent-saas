@@ -20,10 +20,10 @@ export interface ListingIntentSection {
   id: ListingIntentSectionId;
   title: string;
   transactionType: TransactionTypeValue;
-  options: ListingIntentOption[];
+  options: readonly ListingIntentOption[];
 }
 
-const SALE_OPTIONS: ListingIntentOption[] = [
+const SALE_OPTIONS = [
   buildIntentOption(TransactionType.SALE, PropertyType.APARTMENT, 'Mieszkanie'),
   buildIntentOption(TransactionType.SALE, PropertyType.HOUSE, 'Dom'),
   buildIntentOption(TransactionType.SALE, PropertyType.LAND, 'Działka'),
@@ -38,9 +38,9 @@ const SALE_OPTIONS: ListingIntentOption[] = [
     PropertyType.GARAGE,
     'Garaż / miejsce',
   ),
-];
+] as const satisfies readonly ListingIntentOption[];
 
-const RENT_OPTIONS: ListingIntentOption[] = [
+const RENT_OPTIONS = [
   buildIntentOption(TransactionType.RENT, PropertyType.APARTMENT, 'Mieszkanie'),
   buildIntentOption(TransactionType.RENT, PropertyType.HOUSE, 'Dom'),
   buildIntentOption(TransactionType.RENT, PropertyType.LAND, 'Działka'),
@@ -55,9 +55,9 @@ const RENT_OPTIONS: ListingIntentOption[] = [
     PropertyType.GARAGE,
     'Garaż / miejsce',
   ),
-];
+] as const satisfies readonly ListingIntentOption[];
 
-export const LISTING_INTENT_SECTIONS: ListingIntentSection[] = [
+export const LISTING_INTENT_SECTIONS = [
   {
     id: 'sale',
     title: 'Sprzedam',
@@ -70,9 +70,9 @@ export const LISTING_INTENT_SECTIONS: ListingIntentSection[] = [
     transactionType: TransactionType.RENT,
     options: RENT_OPTIONS,
   },
-];
+] as const satisfies readonly ListingIntentSection[];
 
-export const LISTING_INTENT_OPTIONS: ListingIntentOption[] =
+export const LISTING_INTENT_OPTIONS: readonly ListingIntentOption[] =
   LISTING_INTENT_SECTIONS.flatMap((section) => section.options);
 
 const LISTING_INTENT_OPTION_IDS = new Set(
@@ -87,6 +87,12 @@ export function getListingIntentOption(
       option.transactionType === selection.transactionType &&
       option.propertyType === selection.propertyType,
   );
+}
+
+export function getListingIntentSection(
+  sectionId: ListingIntentSectionId,
+): ListingIntentSection | undefined {
+  return LISTING_INTENT_SECTIONS.find((section) => section.id === sectionId);
 }
 
 export function isAllowedListingIntentSelection(

@@ -59,7 +59,14 @@ Wdrożenie:
 - `LISTING_INTENT_OPTIONS` spłaszcza wszystkie dozwolone pary.
 - `ListingIntentSelection` opisuje wybór startowy.
 - `isAllowedListingIntentSelection` waliduje parę `transactionType + propertyType`.
+- `getListingIntentSection` pozwala pobrać konfigurację konkretnej sekcji.
+- Eksportowane kolekcje są traktowane jako `readonly`, żeby kolejne komponenty nie mutowały konfiguracji w runtime.
 - `Pokój` nie został dodany do konfiguracji Fali 1.
+
+Weryfikacja:
+
+- `pnpm --filter web type-check` — OK.
+- `pnpm --filter web lint` — OK, tylko istniejące ostrzeżenia niezwiązane z Etapem 1.
 
 ## Etap 2 — komponent ekranu startowego
 
