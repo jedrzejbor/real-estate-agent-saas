@@ -509,11 +509,8 @@ export default function SellerDashboardPage() {
       <section className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-10">
         <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
           <div>
-            <p className="text-sm font-semibold uppercase text-primary">
+            <h1 className="font-heading text-3xl font-bold leading-tight sm:text-4xl">
               Panel właściciela
-            </p>
-            <h1 className="mt-2 max-w-3xl font-heading text-3xl font-bold leading-tight sm:text-4xl">
-              Zarządzaj swoim ogłoszeniem bez panelu CRM
             </h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
               Dodaj ogłoszenie, przejdź weryfikację i pokaż nieruchomość w
@@ -524,9 +521,6 @@ export default function SellerDashboardPage() {
           <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <p className="text-sm font-semibold text-foreground">
               Konto: {user.email}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Widok uproszczony dla właścicieli prywatnych.
             </p>
           </div>
         </div>
