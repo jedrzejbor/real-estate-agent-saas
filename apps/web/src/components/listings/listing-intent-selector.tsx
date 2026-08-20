@@ -60,6 +60,7 @@ export function ListingIntentSelector({
                 <IntentOptionButton
                   key={option.id}
                   option={option}
+                  sectionTitle={section.title}
                   selected={option.id === selectedId}
                   disabled={disabled}
                   onSelect={onChange}
@@ -75,11 +76,13 @@ export function ListingIntentSelector({
 
 function IntentOptionButton({
   option,
+  sectionTitle,
   selected,
   disabled,
   onSelect,
 }: {
   option: ListingIntentOption;
+  sectionTitle: string;
   selected: boolean;
   disabled: boolean;
   onSelect: (selection: ListingIntentSelection) => void;
@@ -89,6 +92,7 @@ function IntentOptionButton({
       type="button"
       disabled={disabled}
       aria-pressed={selected}
+      aria-label={`${sectionTitle}: ${option.label}`}
       onClick={() =>
         onSelect({
           transactionType: option.transactionType,

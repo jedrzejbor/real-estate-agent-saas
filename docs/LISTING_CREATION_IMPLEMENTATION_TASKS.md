@@ -87,13 +87,15 @@ Wdrożenie:
 - Komponent korzysta z `LISTING_INTENT_SECTIONS`, więc nie duplikuje listy typów.
 - Komponent zwraca wyłącznie `ListingIntentSelection`; nie zna routera, API ani localStorage.
 - Zaznaczenie jest reprezentowane przez `aria-pressed`, wizualny check i style focus.
+- Przyciski mają pełniejsze `aria-label` w formacie `Sekcja: typ`, np. `Sprzedam: Mieszkanie`.
 - Obsługa klawiatury opiera się o natywne przyciski `button`.
 - Layout jest responsywny: jedna kolumna na małych ekranach, dwie kolumny od `lg`.
+- `ListingIntentSelectorProps` jest eksportowany z indeksu komponentów listingów, żeby kolejne etapy mogły typować integracje bez importu z pliku implementacji.
 
 Weryfikacja:
 
-- `pnpm --filter web type-check` — OK.
-- `pnpm --filter web lint` — OK, tylko istniejące ostrzeżenia niezwiązane z Etapem 2.
+- `pnpm --filter web type-check` — OK po pierwszej i drugiej iteracji Etapu 2.
+- `pnpm --filter web lint` — OK po pierwszej i drugiej iteracji Etapu 2, tylko istniejące ostrzeżenia niezwiązane z tym etapem.
 
 ## Etap 3 — integracja w publicznym wizardzie `/dodaj-oferte`
 
