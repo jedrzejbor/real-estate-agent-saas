@@ -280,20 +280,48 @@ Etap 6 jest zakończony. Walidacja domenowa, payloady oraz ograniczenia galerii 
 - [ ] Utworzenie mieszkania na sprzedaż.
 - [ ] Utworzenie mieszkania na wynajem.
 - [ ] Utworzenie domu z wymaganą powierzchnią działki.
-- [ ] Próba utworzenia domu bez `plotAreaM2` kończy się błędem walidacji.
+- [x] Próba utworzenia domu bez `plotAreaM2` kończy się błędem walidacji.
 - [ ] Utworzenie działki z `plotAreaM2`.
 - [ ] Utworzenie lokalu użytkowego.
 - [ ] Utworzenie biura.
 - [ ] Utworzenie garażu.
 - [ ] Publiczny wizard zapisuje i odczytuje szkic z `localStorage`.
-- [ ] Publiczny wizard blokuje wysyłkę, jeśli wybrano mniej niż 3 zdjęcia.
-- [ ] Dashboard blokuje utworzenie nowej oferty, jeśli wybrano mniej niż 3 zdjęcia.
-- [ ] Publiczny wizard buduje poprawny payload zgłoszenia.
+- [x] Publiczny wizard blokuje wysyłkę, jeśli wybrano mniej niż 3 zdjęcia.
+- [x] Dashboard blokuje utworzenie nowej oferty, jeśli wybrano mniej niż 3 zdjęcia.
+- [x] Publiczny wizard buduje poprawny payload zgłoszenia.
 - [ ] Dashboard zapisuje poprawny `POST /listings`.
 - [ ] Edycja istniejącej oferty nie wymusza ponownego przejścia przez ekran startowy.
 - [ ] Katalog publiczny i szczegóły oferty renderują utworzone ogłoszenia.
 
 Kryterium zakończenia: wszystkie scenariusze krytyczne przechodzą ręcznie albo automatycznie.
+
+### Wykonane w Etapie 7 — iteracja 1
+
+Architektura testów:
+
+- Wydzielono model szkicu, wartość początkową, walidację kroków i builder payloadu do `apps/web/src/lib/public-listing-wizard.ts`. Strona kreatora odpowiada teraz za orkiestrację UI, a reguły można testować bez renderowania komponentu Next.js.
+- Transformacje formularza współpracy z agentem przeniesiono z komponentu UI do `apps/web/src/lib/agent-collaboration-form.ts`. Komponent zachowuje kompatybilne re-eksporty, więc istniejący kod nie wymaga migracji atomowej.
+- Typ `CreatePublicListingSubmissionInput` wymaga tablicy `images`, zgodnie z kontraktem DTO API z Etapu 6.
+- Konfiguracja Jest obsługuje alias `@/`, używany przez produkcyjne moduły aplikacji.
+
+Pokryte scenariusze:
+
+- Macierz publicznego payloadu obejmuje wszystkie sześć typów nieruchomości oraz mieszkanie w wariancie sprzedaży i wynajmu.
+- Builder usuwa z serializowanego payloadu pola niewidoczne dla danego typu oraz pola czynszowe dla sprzedaży.
+- Galeria otrzymuje deterministyczną kolejność i dokładnie jedno zdjęcie główne.
+- Walidator publicznego kreatora akceptuje wymagane parametry wszystkich sześciu typów i odrzuca dom bez `plotAreaM2`.
+- Walidator publicznego kreatora odrzuca dwa zdjęcia i akceptuje trzy.
+- Schemat dashboardu przechodzi macierz `6 typów × 2 transakcje` i odrzuca dom bez `plotAreaM2`.
+- Istniejący test procesu `createListingWithImages` potwierdza, że dashboard nie wywołuje API tworzenia poniżej trzech zdjęć.
+
+Weryfikacja:
+
+- Testy web: `42` testy w `4` zestawach — OK.
+- Pełna regresja API: `374` testy w `65` zestawach — OK.
+- Typecheck web i API — OK.
+- Lint API — OK; lint web — bez błędów, `13` istniejących ostrzeżeń.
+
+Etap 7 pozostaje otwarty. Testy kontraktowe przygotowują bezpieczną bazę, ale punktów „utworzenie oferty” nie oznaczono jako wykonane bez przejścia przez rzeczywisty endpoint. Kolejna iteracja powinna objąć żądania API dashboardu i publicznych zgłoszeń, a następnie scenariusze przeglądarkowe `localStorage`, edycji i katalogu publicznego.
 
 ## Etap 8 — cleanup i jakość kodu
 

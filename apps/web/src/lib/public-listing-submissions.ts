@@ -64,7 +64,7 @@ export interface CreatePublicListingSubmissionInput {
     publicDescription?: string;
     showExactAddressOnPublicPage?: boolean;
   };
-  images?: PublicListingSubmissionImage[];
+  images: PublicListingSubmissionImage[];
   agentCollaboration?: PublicListingSubmissionAgentCollaboration;
   ownerName: string;
   email: string;

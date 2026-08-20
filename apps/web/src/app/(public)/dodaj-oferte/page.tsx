@@ -15,19 +15,13 @@ import {
   Star,
   Trash2,
 } from 'lucide-react';
-import { z } from 'zod';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BulkSelectionToolbar } from '@/components/common/bulk-selection-toolbar';
 import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { DistrictAutocomplete } from '@/components/locations/district-autocomplete';
 import { Input } from '@/components/ui/input';
-import {
-  AgentCollaborationFields,
-  INITIAL_AGENT_COLLABORATION_FORM_VALUE,
-  buildAgentCollaborationPayload,
-  type AgentCollaborationFormValue,
-} from '@/components/listings/agent-collaboration-fields';
+import { AgentCollaborationFields } from '@/components/listings/agent-collaboration-fields';
 import { ListingIntentSelector } from '@/components/listings/listing-intent-selector';
 import { PublicListingSubmissionProcess } from '@/components/listings/public-listing-submission-process';
 import { useToast } from '@/contexts/toast-context';
@@ -39,22 +33,24 @@ import { isPrivateSellerUser, type AuthUser } from '@/lib/auth';
 import { readMigratedStorageValue, STORAGE_KEYS } from '@/lib/storage-keys';
 import {
   PROPERTY_TYPE_LABELS,
-  PropertyType,
   TRANSACTION_TYPE_LABELS,
-  TransactionType,
-  type PropertyType as PropertyTypeValue,
-  type TransactionType as TransactionTypeValue,
 } from '@/lib/listings';
+import type { AgentCollaborationFormValue } from '@/lib/agent-collaboration-form';
 import {
   getListingIntentOption,
   type ListingIntentSelection,
 } from '@/lib/listing-intent-options';
 import {
-  getListingImageCountError,
   MAX_LISTING_IMAGES as MAX_IMAGES,
   MIN_LISTING_IMAGES,
 } from '@/lib/listing-image-rules';
 import { LEGAL_COPY, LEGAL_LINKS } from '@/lib/legal';
+import {
+  buildPublicListingSubmissionPayload,
+  INITIAL_PUBLIC_LISTING_WIZARD_DRAFT,
+  type PublicListingWizardDraft,
+  validatePublicListingWizardStep,
+} from '@/lib/public-listing-wizard';
 import {
   createPublicListingSubmission,
   createSellerPublicListingSubmission,
@@ -65,7 +61,6 @@ import {
   getPublicListingParameterFields,
   getPublicListingPriceLabel,
   getPublicListingTransactionFields,
-  validatePublicListingParameterFieldValue,
   type PublicListingParameterField,
   type PublicListingTransactionField,
 } from '@/lib/public-listing-form-fields';
@@ -73,80 +68,12 @@ import { cn } from '@/lib/utils';
 
 type WizardStep = 0 | 1 | 2 | 3 | 4 | 5;
 
-interface PublicListingWizardDraft {
-  transactionType: TransactionTypeValue | '';
-  propertyType: PropertyTypeValue | '';
-  title: string;
-  price: string;
-  city: string;
-  district: string;
-  street: string;
-  postalCode: string;
-  voivodeship: string;
-  lat: string;
-  lng: string;
-  showExactAddressOnPublicPage: boolean;
-  areaM2: string;
-  plotAreaM2: string;
-  rooms: string;
-  bathrooms: string;
-  floor: string;
-  totalFloors: string;
-  yearBuilt: string;
-  rentAdministrativeFee: string;
-  deposit: string;
-  description: string;
-  images: PublicListingSubmissionImage[];
-  ownerName: string;
-  email: string;
-  phone: string;
-  agencyName: string;
-  contactConsent: boolean;
-  termsConsent: boolean;
-  marketingConsent: boolean;
-  website: string;
-  agentCollaboration: AgentCollaborationFormValue;
-}
-
 const STORAGE_KEY = STORAGE_KEYS.publicListingWizard;
 const LEGACY_STORAGE_KEY = STORAGE_KEYS.legacyPublicListingWizard;
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 
-const INITIAL_DRAFT: PublicListingWizardDraft = {
-  transactionType: '',
-  propertyType: '',
-  title: '',
-  price: '',
-  city: '',
-  district: '',
-  street: '',
-  postalCode: '',
-  voivodeship: '',
-  lat: '',
-  lng: '',
-  showExactAddressOnPublicPage: false,
-  areaM2: '',
-  plotAreaM2: '',
-  rooms: '',
-  bathrooms: '',
-  floor: '',
-  totalFloors: '',
-  yearBuilt: '',
-  rentAdministrativeFee: '',
-  deposit: '',
-  description: '',
-  images: [],
-  ownerName: '',
-  email: '',
-  phone: '',
-  agencyName: '',
-  contactConsent: false,
-  termsConsent: false,
-  marketingConsent: false,
-  website: '',
-  agentCollaboration: INITIAL_AGENT_COLLABORATION_FORM_VALUE,
-};
+const INITIAL_DRAFT = INITIAL_PUBLIC_LISTING_WIZARD_DRAFT;
 
 const STEPS = [
   'Typ oferty',
@@ -273,7 +200,7 @@ export default function PublicListingSubmissionWizardPage() {
   }
 
   function goNext() {
-    const validation = validateStep(step, draft);
+    const validation = validatePublicListingWizardStep(step, draft);
     if (!validation.success) {
       setFieldErrors(validation.errors);
       return;
@@ -339,7 +266,10 @@ export default function PublicListingSubmissionWizardPage() {
     const submissionDraft = isAuthenticatedPrivateSeller
       ? { ...draft, agencyName: '' }
       : draft;
-    const validation = validateStep(LAST_STEP_INDEX, submissionDraft);
+    const validation = validatePublicListingWizardStep(
+      LAST_STEP_INDEX,
+      submissionDraft,
+    );
     if (!validation.success) {
       setFieldErrors(validation.errors);
       setStep(validation.errors.images ? 3 : 4);
@@ -347,7 +277,7 @@ export default function PublicListingSubmissionWizardPage() {
     }
 
     const urlSearchParams = new URLSearchParams(window.location.search);
-    const payload = buildSubmissionPayload(submissionDraft, {
+    const payload = buildPublicListingSubmissionPayload(submissionDraft, {
       formStartedAt: formStartedAt.current,
       sourceUrl: window.location.href,
       referrer: document.referrer || undefined,
@@ -1351,128 +1281,6 @@ function LegalLink({
   );
 }
 
-function validateStep(
-  step: WizardStep,
-  draft: PublicListingWizardDraft,
-): { success: true } | { success: false; errors: Record<string, string> } {
-  const errors: Record<string, string> = {};
-
-  if (step === 0) {
-    const result = z
-      .object({
-        transactionType: z.enum([TransactionType.SALE, TransactionType.RENT]),
-        propertyType: z.enum([
-          PropertyType.APARTMENT,
-          PropertyType.HOUSE,
-          PropertyType.LAND,
-          PropertyType.COMMERCIAL,
-          PropertyType.OFFICE,
-          PropertyType.GARAGE,
-        ]),
-      })
-      .safeParse(draft);
-
-    if (!result.success) {
-      return { success: false, errors: mapZodErrors(result.error) };
-    }
-  }
-
-  if (step === 1) {
-    const result = z
-      .object({
-        title: z.string().trim().min(10).max(120),
-        price: z.coerce.number().min(1),
-        city: z.string().trim().min(1),
-      })
-      .safeParse(draft);
-
-    if (!result.success) {
-      return { success: false, errors: mapZodErrors(result.error) };
-    }
-  }
-
-  if (step === 2) {
-    for (const field of getPublicListingParameterFields(draft.propertyType)) {
-      const fieldError = validatePublicListingParameterFieldValue(
-        draft.propertyType,
-        field,
-        draft[field.key],
-      );
-      if (fieldError) {
-        errors[field.key] = fieldError;
-      }
-    }
-
-    for (const field of getPublicListingTransactionFields(
-      draft.transactionType,
-    )) {
-      if (draft[field.key] && !nonNegativeNumber(draft[field.key])) {
-        errors[field.key] =
-          `${field.label} musi być liczbą większą lub równą 0`;
-      }
-    }
-
-    const description = draft.description.trim();
-    if (!description) {
-      errors.description = 'Opis jest wymagany';
-    } else if (description.length > 3000) {
-      errors.description = 'Opis może mieć maksymalnie 3000 znaków';
-    }
-  }
-
-  if (step === 3 || step === LAST_STEP_INDEX) {
-    const imageError = getListingImageCountError(draft.images.length);
-    if (imageError) {
-      errors.images = imageError;
-    }
-  }
-
-  if (step === 4 || step === 5) {
-    const result = z
-      .object({
-        ownerName: z.string().trim().min(1),
-        email: z.string().trim().email(),
-        phone: z.string().trim().min(6).max(30),
-        contactConsent: z.literal(true),
-        termsConsent: z.literal(true),
-      })
-      .safeParse(draft);
-
-    if (!result.success) {
-      Object.assign(errors, mapZodErrors(result.error));
-    }
-  }
-
-  return Object.keys(errors).length > 0
-    ? { success: false, errors }
-    : { success: true };
-}
-
-function mapZodErrors(error: z.ZodError): Record<string, string> {
-  const errors: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const field = String(issue.path[0]);
-    errors[field] = getValidationMessage(field, issue.message);
-  }
-  return errors;
-}
-
-function getValidationMessage(field: string, fallback: string): string {
-  const messages: Record<string, string> = {
-    transactionType: 'Wybierz typ transakcji',
-    propertyType: 'Wybierz typ nieruchomości',
-    title: 'Tytuł powinien mieć 10-120 znaków',
-    price: 'Cena musi być większa od zera',
-    city: 'Miasto jest wymagane',
-    ownerName: 'Imię i nazwisko są wymagane',
-    email: 'Podaj poprawny email',
-    phone: 'Telefon powinien mieć co najmniej 6 znaków',
-    contactConsent: 'Zgoda na kontakt jest wymagana',
-    termsConsent: 'Akceptacja regulaminu jest wymagana',
-  };
-  return messages[field] ?? fallback;
-}
-
 function applyAuthenticatedContactDefaults(
   draft: PublicListingWizardDraft,
   user: AuthUser,
@@ -1538,108 +1346,6 @@ function clearErrorsForFilledContactDefaults(
   return updated;
 }
 
-function buildSubmissionPayload(
-  draft: PublicListingWizardDraft,
-  context: {
-    formStartedAt: number;
-    sourceUrl?: string;
-    referrer?: string;
-    entrySource?: string;
-    blogPost?: string;
-    utmSource?: string;
-    utmMedium?: string;
-    utmCampaign?: string;
-  },
-) {
-  const visibleParameterFields = new Set(
-    getPublicListingParameterFields(draft.propertyType).map(
-      (field) => field.key,
-    ),
-  );
-  const visibleTransactionFields = new Set(
-    getPublicListingTransactionFields(draft.transactionType).map(
-      (field) => field.key,
-    ),
-  );
-  const optionalVisibleNumber = (field: PublicListingParameterField) =>
-    visibleParameterFields.has(field)
-      ? optionalNumber(draft[field])
-      : undefined;
-
-  return {
-    listing: {
-      title: draft.title.trim(),
-      description: optionalString(draft.description),
-      propertyType: draft.propertyType as PropertyTypeValue,
-      transactionType: draft.transactionType as TransactionTypeValue,
-      price: Number(draft.price),
-      currency: 'PLN',
-      areaM2: optionalVisibleNumber('areaM2'),
-      plotAreaM2: optionalVisibleNumber('plotAreaM2'),
-      rooms: optionalVisibleNumber('rooms'),
-      bathrooms: optionalVisibleNumber('bathrooms'),
-      floor: optionalVisibleNumber('floor'),
-      totalFloors: optionalVisibleNumber('totalFloors'),
-      yearBuilt: optionalVisibleNumber('yearBuilt'),
-    },
-    address: {
-      city: draft.city.trim(),
-      street: optionalString(draft.street),
-      postalCode: optionalString(draft.postalCode),
-      district: optionalString(draft.district),
-      voivodeship: optionalString(draft.voivodeship),
-      lat: optionalNumber(draft.lat),
-      lng: optionalNumber(draft.lng),
-    },
-    publicSettings: {
-      publicTitle: draft.title.trim(),
-      publicDescription: optionalString(draft.description),
-      showExactAddressOnPublicPage: draft.showExactAddressOnPublicPage,
-    },
-    images: draft.images.map((image, index) => ({
-      url: image.url,
-      altText: image.altText || draft.title.trim(),
-      order: index,
-      isPrimary: image.isPrimary || index === 0,
-    })),
-    agentCollaboration: buildAgentCollaborationPayload(draft.agentCollaboration),
-    ownerName: draft.ownerName.trim(),
-    email: draft.email.trim(),
-    phone: draft.phone.trim(),
-    agencyName: optionalString(draft.agencyName),
-    contactConsent: draft.contactConsent,
-    termsConsent: draft.termsConsent,
-    marketingConsent: draft.marketingConsent,
-    consentText: [
-      LEGAL_COPY.publicListingContactConsent,
-      LEGAL_COPY.publicationConsent,
-      LEGAL_COPY.responsePurpose,
-    ].join(' '),
-    source: 'public_wizard' as const,
-    sourceUrl: context.sourceUrl,
-    referrer: context.referrer,
-    utmSource: context.utmSource,
-    utmMedium: context.utmMedium,
-    utmCampaign: context.utmCampaign,
-    website: draft.website,
-    formStartedAt: context.formStartedAt,
-    metadata: {
-      uiVersion: 'public-listing-wizard-v1',
-      imageCount: draft.images.length,
-      entrySource: context.entrySource,
-      blogPost: context.blogPost,
-      rentAdministrativeFee: visibleTransactionFields.has(
-        'rentAdministrativeFee',
-      )
-        ? optionalNumber(draft.rentAdministrativeFee)
-        : undefined,
-      deposit: visibleTransactionFields.has('deposit')
-        ? optionalNumber(draft.deposit)
-        : undefined,
-    },
-  };
-}
-
 function getAgentCollaborationSummaryRows(
   value: AgentCollaborationFormValue,
 ): Array<[string, string]> {
@@ -1676,22 +1382,6 @@ function normalizeSubmissionImages(
     order: index,
     isPrimary: index === 0,
   }));
-}
-
-function nonNegativeNumber(value: string): boolean {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) && numeric >= 0;
-}
-
-function optionalNumber(value: string): number | undefined {
-  if (!value) return undefined;
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : undefined;
-}
-
-function optionalString(value: string): string | undefined {
-  const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
 }
 
 function getCityFromCurrentUrl(): string | undefined {
