@@ -1,17 +1,15 @@
-import { PropertyType, TransactionType } from './listings';
+import {
+  getListingDynamicFieldLabel,
+  getListingDynamicFields,
+  TransactionType,
+} from './listings';
 import type {
+  ListingDynamicField,
   PropertyType as PropertyTypeValue,
   TransactionType as TransactionTypeValue,
 } from './listings';
 
-export type PublicListingParameterField =
-  | 'areaM2'
-  | 'plotAreaM2'
-  | 'rooms'
-  | 'bathrooms'
-  | 'floor'
-  | 'totalFloors'
-  | 'yearBuilt';
+export type PublicListingParameterField = ListingDynamicField;
 
 export type PublicListingTransactionField = 'rentAdministrativeFee' | 'deposit';
 
@@ -94,42 +92,9 @@ const TRANSACTION_FIELD_CONFIG: Record<
   },
 };
 
-const PARAMETER_FIELDS_BY_PROPERTY_TYPE: Record<
-  PropertyTypeValue,
-  PublicListingParameterField[]
-> = {
-  apartment: [
-    'areaM2',
-    'rooms',
-    'bathrooms',
-    'floor',
-    'totalFloors',
-    'yearBuilt',
-  ],
-  house: [
-    'areaM2',
-    'plotAreaM2',
-    'rooms',
-    'bathrooms',
-    'totalFloors',
-    'yearBuilt',
-  ],
-  land: ['plotAreaM2'],
-  commercial: [
-    'areaM2',
-    'rooms',
-    'bathrooms',
-    'floor',
-    'totalFloors',
-    'yearBuilt',
-  ],
-  office: ['areaM2', 'rooms', 'bathrooms', 'floor', 'totalFloors', 'yearBuilt'],
-  garage: ['areaM2'],
-};
-
 const REQUIRED_PARAMETER_FIELDS_BY_PROPERTY_TYPE: Record<
   PropertyTypeValue,
-  PublicListingParameterField[]
+  readonly PublicListingParameterField[]
 > = {
   apartment: ['areaM2', 'rooms'],
   house: ['areaM2', 'plotAreaM2', 'rooms'],
@@ -152,7 +117,7 @@ export function getPublicListingParameterFields(
     return [];
   }
 
-  return PARAMETER_FIELDS_BY_PROPERTY_TYPE[propertyType].map((key) =>
+  return getListingDynamicFields(propertyType).map((key) =>
     buildParameterFieldConfig(propertyType, key),
   );
 }
@@ -177,8 +142,8 @@ export function isPublicListingParameterFieldRequired(
     return false;
   }
 
-  return REQUIRED_PARAMETER_FIELDS_BY_PROPERTY_TYPE[propertyType].includes(
-    field,
+  return REQUIRED_PARAMETER_FIELDS_BY_PROPERTY_TYPE[propertyType].some(
+    (requiredField) => requiredField === field,
   );
 }
 
@@ -194,14 +159,9 @@ function buildParameterFieldConfig(
 ): PublicListingParameterFieldConfig {
   const base = PARAMETER_FIELD_CONFIG[key];
   const required = isPublicListingParameterFieldRequired(propertyType, key);
-
-  if (propertyType === PropertyType.HOUSE && key === 'areaM2') {
-    return { ...base, label: 'Powierzchnia domu (m²)', required };
-  }
-
-  if (propertyType === PropertyType.HOUSE && key === 'totalFloors') {
-    return { ...base, label: 'Liczba kondygnacji', required };
-  }
-
-  return { ...base, required };
+  return {
+    ...base,
+    label: getListingDynamicFieldLabel(propertyType, key),
+    required,
+  };
 }

@@ -687,37 +687,92 @@ export const LISTING_DYNAMIC_FIELDS = {
 export type ListingDynamicField =
   (typeof LISTING_DYNAMIC_FIELDS)[keyof typeof LISTING_DYNAMIC_FIELDS];
 
-export const LISTING_FIELD_VISIBILITY: Partial<
-  Record<PropertyType, ListingDynamicField[]>
-> = {
-  apartment: [
+export const LISTING_FIELD_VISIBILITY = {
+  [PropertyType.APARTMENT]: [
     'areaM2',
     'rooms',
-    'bathrooms',
     'floor',
+    'totalFloors',
+    'bathrooms',
+    'yearBuilt',
+  ],
+  [PropertyType.HOUSE]: [
+    'areaM2',
+    'plotAreaM2',
+    'rooms',
+    'bathrooms',
     'totalFloors',
     'yearBuilt',
   ],
-  house: ['areaM2', 'plotAreaM2', 'rooms', 'bathrooms', 'yearBuilt'],
-  land: ['plotAreaM2'],
-  commercial: [
+  [PropertyType.LAND]: ['plotAreaM2'],
+  [PropertyType.COMMERCIAL]: [
     'areaM2',
     'rooms',
-    'bathrooms',
     'floor',
+    'bathrooms',
     'totalFloors',
     'yearBuilt',
   ],
-  office: ['areaM2', 'rooms', 'bathrooms', 'floor', 'totalFloors', 'yearBuilt'],
-  garage: ['areaM2'],
+  [PropertyType.OFFICE]: [
+    'areaM2',
+    'rooms',
+    'floor',
+    'bathrooms',
+    'totalFloors',
+    'yearBuilt',
+  ],
+  [PropertyType.GARAGE]: ['areaM2', 'floor'],
+} as const satisfies Record<
+  PropertyType,
+  readonly ListingDynamicField[]
+>;
+
+const LISTING_DYNAMIC_FIELD_LABELS: Record<ListingDynamicField, string> = {
+  areaM2: 'Powierzchnia (m²)',
+  plotAreaM2: 'Powierzchnia działki (m²)',
+  rooms: 'Pokoje',
+  bathrooms: 'Łazienki',
+  floor: 'Piętro',
+  totalFloors: 'Liczba pięter',
+  yearBuilt: 'Rok budowy',
 };
+
+export function getListingDynamicFields(
+  propertyType: PropertyType | '' | undefined,
+): readonly ListingDynamicField[] {
+  return propertyType ? LISTING_FIELD_VISIBILITY[propertyType] : [];
+}
+
+export function getListingDynamicFieldLabel(
+  propertyType: PropertyType | '' | undefined,
+  field: ListingDynamicField,
+): string {
+  if (propertyType === PropertyType.HOUSE && field === 'areaM2') {
+    return 'Powierzchnia domu (m²)';
+  }
+
+  if (propertyType === PropertyType.HOUSE && field === 'totalFloors') {
+    return 'Liczba kondygnacji';
+  }
+
+  if (
+    (propertyType === PropertyType.COMMERCIAL ||
+      propertyType === PropertyType.OFFICE) &&
+    field === 'rooms'
+  ) {
+    return 'Liczba pomieszczeń';
+  }
+
+  return LISTING_DYNAMIC_FIELD_LABELS[field];
+}
 
 export function shouldShowListingField(
   propertyType: PropertyType | '' | undefined,
   field: ListingDynamicField,
 ): boolean {
-  if (!propertyType) return false;
-  return LISTING_FIELD_VISIBILITY[propertyType]?.includes(field) ?? false;
+  return getListingDynamicFields(propertyType).some(
+    (visibleField) => visibleField === field,
+  );
 }
 
 // ── Zod Schemas (frontend validation, mirrors backend DTOs) ──

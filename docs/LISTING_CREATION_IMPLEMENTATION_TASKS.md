@@ -167,18 +167,41 @@ Weryfikacja:
 
 ## Etap 5 — dynamiczne pola Fali 1
 
-- [ ] Uporządkować logikę widoczności pól według `docs/LISTING_FIELD_MATRIX.md`.
-- [ ] `apartment`: pokazać `areaM2`, `rooms`, `floor`, `totalFloors`, `bathrooms`, `yearBuilt`.
-- [ ] `house`: pokazać `areaM2`, `plotAreaM2`, `rooms`, `bathrooms`, `totalFloors`, `yearBuilt`.
-- [ ] `land`: pokazać `plotAreaM2`; ukryć lokalowe pola.
-- [ ] `commercial`: pokazać `areaM2`, `rooms`, `floor`, `bathrooms`, `totalFloors`, `yearBuilt`.
-- [ ] `office`: pokazać `areaM2`, `rooms`, `floor`, `bathrooms`, `totalFloors`, `yearBuilt`.
-- [ ] `garage`: pokazać `areaM2`, opcjonalnie `floor`; ukryć pokoje i łazienki.
-- [ ] Zmienić label `totalFloors` dla domu na `Liczba kondygnacji`.
-- [ ] Zachować wymaganie `plotAreaM2` dla domu i działki.
-- [ ] Ujednolicić reguły między `ListingForm` i publicznym wizardem.
+- [x] Uporządkować logikę widoczności pól według `docs/LISTING_FIELD_MATRIX.md`.
+- [x] `apartment`: pokazać `areaM2`, `rooms`, `floor`, `totalFloors`, `bathrooms`, `yearBuilt`.
+- [x] `house`: pokazać `areaM2`, `plotAreaM2`, `rooms`, `bathrooms`, `totalFloors`, `yearBuilt`.
+- [x] `land`: pokazać `plotAreaM2`; ukryć lokalowe pola.
+- [x] `commercial`: pokazać `areaM2`, `rooms`, `floor`, `bathrooms`, `totalFloors`, `yearBuilt`.
+- [x] `office`: pokazać `areaM2`, `rooms`, `floor`, `bathrooms`, `totalFloors`, `yearBuilt`.
+- [x] `garage`: pokazać `areaM2`, opcjonalnie `floor`; ukryć pokoje i łazienki.
+- [x] Zmienić label `totalFloors` dla domu na `Liczba kondygnacji`.
+- [x] Zachować wymaganie `plotAreaM2` dla domu i działki.
+- [x] Ujednolicić reguły między `ListingForm` i publicznym wizardem.
 
 Kryterium zakończenia: formularz nie pokazuje pól bez sensu dla wybranego typu, a istniejące walidacje nadal działają.
+
+### Wykonane w Etapie 5
+
+Pliki:
+
+- `apps/web/src/lib/listings.ts`
+- `apps/web/src/lib/public-listing-form-fields.ts`
+- `apps/web/src/components/listings/listing-form.tsx`
+
+Zmiany:
+
+- `LISTING_FIELD_VISIBILITY` jest kompletną, typowaną konfiguracją wszystkich obsługiwanych `PropertyType` i stanowi jedno źródło prawdy dla obu formularzy oraz publicznego widoku oferty.
+- Dodano `getListingDynamicFields`, dzięki któremu publiczny wizard nie utrzymuje już osobnej kopii mapy pól.
+- Dodano `getListingDynamicFieldLabel`, aby oba formularze używały tych samych etykiet zależnych od typu nieruchomości.
+- Dom otrzymał brakujące pole `totalFloors` z etykietą `Liczba kondygnacji`.
+- Garaż otrzymał opcjonalne pole `floor`; pola `rooms` i `bathrooms` pozostają ukryte.
+- Dla `commercial` i `office` istniejące pole `rooms` ma etykietę `Liczba pomieszczeń`, bez zmiany kontraktu danych.
+- Reguły wymaganych parametrów publicznego wizardu pozostały bez zmian, w tym wymagane `plotAreaM2` dla domu i działki. Pełne ujednolicenie walidacji dashboard/API pozostaje zakresem Etapu 6.
+
+Weryfikacja:
+
+- `pnpm --filter web type-check` — OK.
+- `pnpm --filter web lint` — OK, tylko istniejące ostrzeżenia niezwiązane z Etapem 5.
 
 ## Etap 6 — walidacja frontend i backend
 

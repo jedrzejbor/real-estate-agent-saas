@@ -35,6 +35,7 @@ import { getApiErrorMessage } from '@/lib/api-client';
 import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import {
   createListingSchema,
+  getListingDynamicFieldLabel,
   type CreateListingFormData,
   type Listing,
   LISTING_COMMISSION_TYPE_LABELS,
@@ -758,11 +759,7 @@ export function ListingForm({
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {shouldShowListingField(propertyType, 'areaM2') && (
                 <FormField
-                  label={
-                    propertyType === PropertyType.HOUSE
-                      ? 'Powierzchnia domu (m²)'
-                      : 'Powierzchnia (m²)'
-                  }
+                  label={getListingDynamicFieldLabel(propertyType, 'areaM2')}
                   name="areaM2"
                   error={getFieldError('areaM2')}
                 >
@@ -809,7 +806,7 @@ export function ListingForm({
 
               {shouldShowListingField(propertyType, 'rooms') && (
                 <FormField
-                  label="Pokoje"
+                  label={getListingDynamicFieldLabel(propertyType, 'rooms')}
                   name="rooms"
                   error={getFieldError('rooms')}
                 >
@@ -827,7 +824,10 @@ export function ListingForm({
 
               {shouldShowListingField(propertyType, 'bathrooms') && (
                 <FormField
-                  label="Łazienki"
+                  label={getListingDynamicFieldLabel(
+                    propertyType,
+                    'bathrooms',
+                  )}
                   name="bathrooms"
                   error={getFieldError('bathrooms')}
                 >
@@ -845,7 +845,7 @@ export function ListingForm({
 
               {shouldShowListingField(propertyType, 'floor') && (
                 <FormField
-                  label="Piętro"
+                  label={getListingDynamicFieldLabel(propertyType, 'floor')}
                   name="floor"
                   error={getFieldError('floor')}
                 >
@@ -861,7 +861,10 @@ export function ListingForm({
 
               {shouldShowListingField(propertyType, 'totalFloors') && (
                 <FormField
-                  label="Liczba pięter"
+                  label={getListingDynamicFieldLabel(
+                    propertyType,
+                    'totalFloors',
+                  )}
                   name="totalFloors"
                   error={getFieldError('totalFloors')}
                 >
@@ -877,7 +880,10 @@ export function ListingForm({
 
               {shouldShowListingField(propertyType, 'yearBuilt') && (
                 <FormField
-                  label="Rok budowy"
+                  label={getListingDynamicFieldLabel(
+                    propertyType,
+                    'yearBuilt',
+                  )}
                   name="yearBuilt"
                   error={getFieldError('yearBuilt')}
                 >
