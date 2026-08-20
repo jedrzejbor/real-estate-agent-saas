@@ -205,15 +205,49 @@ Weryfikacja:
 
 ## Etap 6 — walidacja frontend i backend
 
-- [ ] Sprawdzić `createListingSchema` dla dashboardu.
-- [ ] Sprawdzić `validateStep` w publicznym wizardzie.
-- [ ] Sprawdzić `CreateListingDto` w API.
-- [ ] Sprawdzić DTO publicznych zgłoszeń.
-- [ ] Upewnić się, że wymagane pola Fali 1 są spójne po obu stronach.
-- [ ] Upewnić się, że ukryte pola nie wysyłają przypadkowych pustych wartości, które psują walidację.
-- [ ] Dodać testy jednostkowe helperów widoczności pól, jeśli zostaną wydzielone.
+- [x] Sprawdzić `createListingSchema` dla dashboardu.
+- [x] Sprawdzić `validateStep` w publicznym wizardzie.
+- [x] Sprawdzić `CreateListingDto` w API.
+- [x] Sprawdzić DTO publicznych zgłoszeń.
+- [x] Upewnić się, że wymagane pola Fali 1 są spójne po obu stronach.
+- [x] Upewnić się, że ukryte pola nie wysyłają przypadkowych pustych wartości, które psują walidację.
+- [ ] Dodać testy jednostkowe helperów widoczności pól po stronie webowej; helper API i DTO są już pokryte testami.
+- [ ] Wymusić minimum 3 zdjęcia w publicznym wizardzie i DTO zgłoszenia.
+- [ ] Zaprojektować bezpieczne minimum 3 zdjęcia w dashboardzie bez pozostawiania oferty po nieudanym uploadzie.
 
 Kryterium zakończenia: użytkownik nie może wysłać niepoprawnej kombinacji pól, a valid payload przechodzi przez frontend i backend.
+
+### Wykonane w Etapie 6 — iteracja 1
+
+Frontend:
+
+- Dodano wspólną mapę `LISTING_REQUIRED_DYNAMIC_FIELDS` oraz helpery wymagalności i komunikatów walidacyjnych.
+- `createListingSchema` wymaga teraz pól zgodnych z matrycą: `areaM2` poza działką, `plotAreaM2` dla domu i działki oraz `rooms` dla mieszkania i domu.
+- W uproszczonym formularzu dashboardu wymagane parametry są widoczne od razu w sekcji podstawowej; opcjonalne pozostają w rozwijanych szczegółach.
+- Wydzielono reużywalny renderer `ListingDynamicFields`, który odpowiada za etykiety, ograniczenia, błędy i oznaczenie pól wymaganych.
+- Publiczny wizard waliduje obecność, zakres i całkowitość wszystkich widocznych parametrów, a opis jest wymagany.
+- Formularz edycji właściciela korzysta z tej samej konfiguracji pól i walidatora co publiczny wizard.
+- Payload dashboardu oraz payloady publicznego create/edit usuwają parametry niewidoczne dla wybranego typu nieruchomości.
+
+API:
+
+- Dodano wspólny helper `apps/api/src/common/listing-field-rules.ts` używany przez oba DTO tworzenia.
+- `CreateListingDto` i `PublicSubmissionListingDto` wymagają tych samych parametrów dla każdego `PropertyType`.
+- Parametry licznikowe (`rooms`, `bathrooms`, `floor`, `totalFloors`, `yearBuilt`) wymagają liczb całkowitych.
+- Publiczne zgłoszenie wymaga niepustego opisu; zabezpieczono również tekst składający się wyłącznie ze spacji.
+
+Testy i weryfikacja:
+
+- Dodano test mapy reguł domenowych API.
+- Dodano testy kontraktowe obu DTO dla wszystkich sześciu typów nieruchomości, brakujących pól i wartości niecałkowitych.
+- Testy celowane: `44` testy w `4` powiązanych zestawach — OK.
+- Pełna regresja API: `371` testów w `65` zestawach — OK.
+- `pnpm --filter web type-check` — OK.
+- `pnpm --filter web lint` — OK, tylko `13` istniejących ostrzeżeń niezwiązanych z Etapem 6.
+- `pnpm --filter api type-check` — OK.
+- `pnpm --filter api lint` — OK.
+
+Etap 6 pozostaje otwarty do czasu wykonania testów jednostkowych warstwy webowej oraz walidacji minimum trzech zdjęć. Dashboard zapisuje obecnie encję przed uploadem plików, dlatego ten punkt wymaga osobnej iteracji projektowej, a nie tylko dopisania warunku w komponencie.
 
 ## Etap 7 — testy regresji
 

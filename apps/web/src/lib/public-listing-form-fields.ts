@@ -1,6 +1,8 @@
 import {
   getListingDynamicFieldLabel,
+  getListingDynamicFieldRequiredMessage,
   getListingDynamicFields,
+  isListingDynamicFieldRequired,
   TransactionType,
 } from './listings';
 import type {
@@ -19,6 +21,7 @@ export interface PublicListingNumberFieldConfig {
   placeholder?: string;
   min?: string;
   max?: string;
+  integer?: boolean;
   required?: boolean;
 }
 
@@ -51,26 +54,32 @@ const PARAMETER_FIELD_CONFIG: Record<
     label: 'Pokoje',
     min: '1',
     max: '99',
+    integer: true,
   },
   bathrooms: {
     key: 'bathrooms',
     label: 'Łazienki',
     min: '0',
     max: '20',
+    integer: true,
   },
   floor: {
     key: 'floor',
     label: 'Piętro',
+    integer: true,
   },
   totalFloors: {
     key: 'totalFloors',
     label: 'Liczba pięter',
     min: '1',
+    integer: true,
   },
   yearBuilt: {
     key: 'yearBuilt',
     label: 'Rok budowy',
     min: '1800',
+    max: String(new Date().getFullYear() + 5),
+    integer: true,
   },
 };
 
@@ -90,18 +99,6 @@ const TRANSACTION_FIELD_CONFIG: Record<
     placeholder: 'np. 4000',
     min: '0',
   },
-};
-
-const REQUIRED_PARAMETER_FIELDS_BY_PROPERTY_TYPE: Record<
-  PropertyTypeValue,
-  readonly PublicListingParameterField[]
-> = {
-  apartment: ['areaM2', 'rooms'],
-  house: ['areaM2', 'plotAreaM2', 'rooms'],
-  land: ['plotAreaM2'],
-  commercial: ['areaM2'],
-  office: ['areaM2'],
-  garage: ['areaM2'],
 };
 
 const TRANSACTION_FIELDS_BY_TRANSACTION_TYPE: Partial<
@@ -142,15 +139,46 @@ export function isPublicListingParameterFieldRequired(
     return false;
   }
 
-  return REQUIRED_PARAMETER_FIELDS_BY_PROPERTY_TYPE[propertyType].some(
-    (requiredField) => requiredField === field,
-  );
+  return isListingDynamicFieldRequired(propertyType, field);
 }
 
 export function getPublicListingPriceLabel(
   transactionType: TransactionTypeValue | '',
 ): string {
   return transactionType === TransactionType.RENT ? 'Czynsz najmu' : 'Cena';
+}
+
+export function validatePublicListingParameterFieldValue(
+  propertyType: PropertyTypeValue | '',
+  field: PublicListingParameterFieldConfig,
+  value: string,
+): string | null {
+  const normalizedValue = value.trim();
+
+  if (!normalizedValue) {
+    return field.required
+      ? getListingDynamicFieldRequiredMessage(propertyType, field.key)
+      : null;
+  }
+
+  const numberValue = Number(normalizedValue);
+  if (!Number.isFinite(numberValue)) {
+    return `${field.label} musi być liczbą`;
+  }
+
+  if (field.integer && !Number.isInteger(numberValue)) {
+    return `${field.label} musi być liczbą całkowitą`;
+  }
+
+  if (field.min !== undefined && numberValue < Number(field.min)) {
+    return `${field.label} nie może być mniejsze niż ${field.min}`;
+  }
+
+  if (field.max !== undefined && numberValue > Number(field.max)) {
+    return `${field.label} nie może być większe niż ${field.max}`;
+  }
+
+  return null;
 }
 
 function buildParameterFieldConfig(

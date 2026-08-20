@@ -1,9 +1,11 @@
 import {
   IsBoolean,
   IsArray,
+  IsDefined,
   IsEmail,
   IsEnum,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsObject,
@@ -11,6 +13,7 @@ import {
   IsString,
   Max,
   MaxLength,
+  Matches,
   Min,
   ValidateIf,
   ValidateNested,
@@ -22,6 +25,7 @@ import {
   PublicListingSubmissionSource,
   TransactionType,
 } from '../../common/enums';
+import { shouldValidateListingDynamicField } from '../../common/listing-field-rules';
 
 export class PublicSubmissionAddressDto {
   @IsOptional()
@@ -67,13 +71,15 @@ export class PublicSubmissionAddressDto {
 export class PublicSubmissionListingDto {
   @IsNotEmpty({ message: 'Tytuł jest wymagany' })
   @IsString()
+  @Matches(/\S/, { message: 'Tytuł jest wymagany' })
   @MaxLength(120)
   title: string;
 
-  @IsOptional()
+  @IsNotEmpty({ message: 'Opis jest wymagany' })
   @IsString()
+  @Matches(/\S/, { message: 'Opis jest wymagany' })
   @MaxLength(3000)
-  description?: string;
+  description: string;
 
   @IsEnum(PropertyType)
   propertyType: PropertyType;
@@ -91,54 +97,55 @@ export class PublicSubmissionListingDto {
   @MaxLength(3)
   currency?: string;
 
-  @ValidateIf((value) => value.propertyType !== PropertyType.LAND)
+  @ValidateIf((dto: PublicSubmissionListingDto, value: unknown) =>
+    shouldValidateListingDynamicField(dto.propertyType, 'areaM2', value),
+  )
+  @IsDefined({ message: 'Powierzchnia jest wymagana' })
   @Type(() => Number)
   @IsNumber()
   @Min(1)
   areaM2?: number;
 
-  @ValidateIf(
-    (value) =>
-      value.propertyType === PropertyType.HOUSE ||
-      value.propertyType === PropertyType.LAND,
+  @ValidateIf((dto: PublicSubmissionListingDto, value: unknown) =>
+    shouldValidateListingDynamicField(dto.propertyType, 'plotAreaM2', value),
   )
+  @IsDefined({ message: 'Powierzchnia działki jest wymagana' })
   @Type(() => Number)
   @IsNumber()
   @Min(1)
   plotAreaM2?: number;
 
-  @ValidateIf(
-    (value) =>
-      value.propertyType === PropertyType.APARTMENT ||
-      value.propertyType === PropertyType.HOUSE,
+  @ValidateIf((dto: PublicSubmissionListingDto, value: unknown) =>
+    shouldValidateListingDynamicField(dto.propertyType, 'rooms', value),
   )
+  @IsDefined({ message: 'Liczba pokoi jest wymagana' })
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   @Min(1)
   @Max(99)
   rooms?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   @Min(0)
   @Max(20)
   bathrooms?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   floor?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   @Min(1)
   totalFloors?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   @Min(1800)
   @Max(new Date().getFullYear() + 5)
   yearBuilt?: number;

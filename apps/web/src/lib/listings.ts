@@ -727,6 +727,18 @@ export const LISTING_FIELD_VISIBILITY = {
   readonly ListingDynamicField[]
 >;
 
+export const LISTING_REQUIRED_DYNAMIC_FIELDS = {
+  [PropertyType.APARTMENT]: ['areaM2', 'rooms'],
+  [PropertyType.HOUSE]: ['areaM2', 'plotAreaM2', 'rooms'],
+  [PropertyType.LAND]: ['plotAreaM2'],
+  [PropertyType.COMMERCIAL]: ['areaM2'],
+  [PropertyType.OFFICE]: ['areaM2'],
+  [PropertyType.GARAGE]: ['areaM2'],
+} as const satisfies Record<
+  PropertyType,
+  readonly ListingDynamicField[]
+>;
+
 const LISTING_DYNAMIC_FIELD_LABELS: Record<ListingDynamicField, string> = {
   areaM2: 'Powierzchnia (m²)',
   plotAreaM2: 'Powierzchnia działki (m²)',
@@ -741,6 +753,21 @@ export function getListingDynamicFields(
   propertyType: PropertyType | '' | undefined,
 ): readonly ListingDynamicField[] {
   return propertyType ? LISTING_FIELD_VISIBILITY[propertyType] : [];
+}
+
+export function getRequiredListingDynamicFields(
+  propertyType: PropertyType | '' | undefined,
+): readonly ListingDynamicField[] {
+  return propertyType ? LISTING_REQUIRED_DYNAMIC_FIELDS[propertyType] : [];
+}
+
+export function isListingDynamicFieldRequired(
+  propertyType: PropertyType | '' | undefined,
+  field: ListingDynamicField,
+): boolean {
+  return getRequiredListingDynamicFields(propertyType).some(
+    (requiredField) => requiredField === field,
+  );
 }
 
 export function getListingDynamicFieldLabel(
@@ -764,6 +791,20 @@ export function getListingDynamicFieldLabel(
   }
 
   return LISTING_DYNAMIC_FIELD_LABELS[field];
+}
+
+export function getListingDynamicFieldRequiredMessage(
+  propertyType: PropertyType | '' | undefined,
+  field: ListingDynamicField,
+): string {
+  if (field === 'rooms') {
+    return propertyType === PropertyType.COMMERCIAL ||
+      propertyType === PropertyType.OFFICE
+      ? 'Liczba pomieszczeń jest wymagana'
+      : 'Liczba pokoi jest wymagana';
+  }
+
+  return `${getListingDynamicFieldLabel(propertyType, field)} jest wymagana`;
 }
 
 export function shouldShowListingField(
@@ -841,16 +882,17 @@ export const createListingSchema = z
     address: addressSchema,
   })
   .superRefine((data, ctx) => {
-    if (
-      (data.propertyType === PropertyType.HOUSE ||
-        data.propertyType === PropertyType.LAND) &&
-      (data.plotAreaM2 === '' || data.plotAreaM2 === undefined)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['plotAreaM2'],
-        message: 'Powierzchnia działki jest wymagana',
-      });
+    for (const field of getRequiredListingDynamicFields(data.propertyType)) {
+      if (data[field] === '' || data[field] === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [field],
+          message: getListingDynamicFieldRequiredMessage(
+            data.propertyType,
+            field,
+          ),
+        });
+      }
     }
 
     const hasCommissionType =
@@ -1288,7 +1330,7 @@ function cleanPayload(data: Record<string, unknown>): Record<string, unknown> {
 function cleanListingPayload(
   data: Record<string, unknown>,
 ): Record<string, unknown> {
-  const result = cleanPayload(data);
+  const result = sanitizeListingDynamicFields(cleanPayload(data));
   const hasCommissionType = Object.prototype.hasOwnProperty.call(
     data,
     'commissionType',
@@ -1300,6 +1342,31 @@ function cleanListingPayload(
   ) {
     result.commissionType = null;
     result.commissionValue = null;
+  }
+
+  return result;
+}
+
+export function sanitizeListingDynamicFields(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  const propertyType = data.propertyType;
+  if (
+    typeof propertyType !== 'string' ||
+    !Object.values(PropertyType).some((value) => value === propertyType)
+  ) {
+    return { ...data };
+  }
+
+  const visibleFields = new Set(
+    getListingDynamicFields(propertyType as PropertyType),
+  );
+  const result = { ...data };
+
+  for (const field of Object.values(LISTING_DYNAMIC_FIELDS)) {
+    if (!visibleFields.has(field)) {
+      delete result[field];
+    }
   }
 
   return result;

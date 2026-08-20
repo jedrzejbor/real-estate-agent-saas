@@ -487,6 +487,7 @@ describe('PublicListingSubmissionsService admin moderation', () => {
     const result = await service.updateForOwner('owner-1', submission.id, {
       listing: {
         title: 'Zaktualizowane mieszkanie testowe',
+        description: 'Zaktualizowany opis mieszkania testowego.',
         propertyType: PropertyType.APARTMENT,
         transactionType: TransactionType.SALE,
         price: 525000,
@@ -679,6 +680,7 @@ describe('PublicListingSubmissionsService admin moderation', () => {
       service.updateForOwner('owner-1', submission.id, {
         listing: {
           title: 'Próba edycji w moderacji',
+          description: 'Opis oferty oczekującej na moderację.',
           propertyType: PropertyType.APARTMENT,
           transactionType: TransactionType.SALE,
           price: 525000,

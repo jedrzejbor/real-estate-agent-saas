@@ -5,6 +5,7 @@ import {
   IsOptional,
   ValidateIf,
   IsEnum,
+  IsInt,
   IsNumber,
   IsBoolean,
   IsPositive,
@@ -20,6 +21,7 @@ import {
   PropertyType,
   TransactionType,
 } from '../../common/enums';
+import { shouldValidateListingDynamicField } from '../../common/listing-field-rules';
 
 /** Nested DTO for the address embedded in a listing. */
 export class CreateAddressDto {
@@ -94,42 +96,48 @@ export class CreateListingDto {
   @Min(0)
   commissionValue?: number | null;
 
-  @IsOptional()
+  @ValidateIf((dto: CreateListingDto, value: unknown) =>
+    shouldValidateListingDynamicField(dto.propertyType, 'areaM2', value),
+  )
+  @IsDefined({ message: 'Powierzchnia jest wymagana' })
   @IsNumber()
   @IsPositive()
   areaM2?: number;
 
-  @ValidateIf((o) =>
-    o.propertyType === PropertyType.HOUSE || o.propertyType === PropertyType.LAND,
+  @ValidateIf((dto: CreateListingDto, value: unknown) =>
+    shouldValidateListingDynamicField(dto.propertyType, 'plotAreaM2', value),
   )
-  @IsNotEmpty({ message: 'Powierzchnia działki jest wymagana' })
+  @IsDefined({ message: 'Powierzchnia działki jest wymagana' })
   @IsNumber()
   @IsPositive()
   plotAreaM2?: number;
 
-  @IsOptional()
-  @IsNumber()
+  @ValidateIf((dto: CreateListingDto, value: unknown) =>
+    shouldValidateListingDynamicField(dto.propertyType, 'rooms', value),
+  )
+  @IsDefined({ message: 'Liczba pokoi jest wymagana' })
+  @IsInt()
   @Min(1)
   @Max(99)
   rooms?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
   @Max(20)
   bathrooms?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   floor?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(1)
   totalFloors?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(1800)
   @Max(new Date().getFullYear() + 5)
   yearBuilt?: number;

@@ -36,6 +36,11 @@ import {
   type PublicListingSubmissionImage,
   type SellerPublicListingSubmissionDetail,
 } from '@/lib/public-listing-submissions';
+import {
+  getPublicListingParameterFields,
+  validatePublicListingParameterFieldValue,
+  type PublicListingParameterField,
+} from '@/lib/public-listing-form-fields';
 import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { Logo } from '@/components/common/logo';
 import { BulkSelectionToolbar } from '@/components/common/bulk-selection-toolbar';
@@ -497,58 +502,29 @@ export default function SellerListingEditPage() {
               description="Uzupełnij dane, które pomagają kupującym porównać ofertę."
             />
             <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {draft.propertyType !== PropertyType.LAND ? (
-                <TextField
-                  label="Powierzchnia (m²)"
-                  type="number"
-                  min="1"
-                  value={draft.areaM2}
-                  error={fieldErrors.areaM2}
-                  onChange={(value) => updateDraft('areaM2', value)}
-                />
+              {getPublicListingParameterFields(draft.propertyType).map(
+                (field) => (
+                  <TextField
+                    key={field.key}
+                    label={field.required ? `${field.label} *` : field.label}
+                    type="number"
+                    min={field.min}
+                    max={field.max}
+                    value={draft[field.key]}
+                    error={fieldErrors[field.key]}
+                    onChange={(value) => updateDraft(field.key, value)}
+                  />
+                ),
+              )}
+              {!draft.propertyType ? (
+                <p className="text-sm text-muted-foreground sm:col-span-2 lg:col-span-3">
+                  Wybierz typ nieruchomości, aby zobaczyć dopasowane pola
+                  parametryczne.
+                </p>
               ) : null}
-              {draft.propertyType === PropertyType.HOUSE ||
-              draft.propertyType === PropertyType.LAND ? (
-                <TextField
-                  label="Powierzchnia działki (m²)"
-                  type="number"
-                  min="1"
-                  value={draft.plotAreaM2}
-                  error={fieldErrors.plotAreaM2}
-                  onChange={(value) => updateDraft('plotAreaM2', value)}
-                />
-              ) : null}
-              {draft.propertyType === PropertyType.APARTMENT ||
-              draft.propertyType === PropertyType.HOUSE ? (
-                <TextField
-                  label="Pokoje"
-                  type="number"
-                  min="1"
-                  max="99"
-                  value={draft.rooms}
-                  error={fieldErrors.rooms}
-                  onChange={(value) => updateDraft('rooms', value)}
-                />
-              ) : null}
-              <TextField
-                label="Łazienki"
-                type="number"
-                min="0"
-                max="20"
-                value={draft.bathrooms}
-                onChange={(value) => updateDraft('bathrooms', value)}
-              />
-              <TextField
-                label="Rok budowy"
-                type="number"
-                min="1800"
-                value={draft.yearBuilt}
-                error={fieldErrors.yearBuilt}
-                onChange={(value) => updateDraft('yearBuilt', value)}
-              />
             </div>
             <TextAreaField
-              label="Opis"
+              label="Opis *"
               value={draft.description}
               error={fieldErrors.description}
               onChange={(value) => updateDraft('description', value)}
@@ -748,21 +724,31 @@ function toDraft(
 }
 
 function buildUpdatePayload(draft: SellerListingEditDraft) {
+  const visibleParameterFields = new Set(
+    getPublicListingParameterFields(draft.propertyType).map(
+      (field) => field.key,
+    ),
+  );
+  const optionalVisibleNumber = (field: PublicListingParameterField) =>
+    visibleParameterFields.has(field)
+      ? optionalNumber(draft[field])
+      : undefined;
+
   return {
     listing: {
       title: draft.title.trim(),
-      description: optionalString(draft.description),
+      description: draft.description.trim(),
       propertyType: draft.propertyType as PropertyTypeValue,
       transactionType: draft.transactionType as TransactionTypeValue,
       price: Number(draft.price),
       currency: 'PLN',
-      areaM2: optionalNumber(draft.areaM2),
-      plotAreaM2: optionalNumber(draft.plotAreaM2),
-      rooms: optionalNumber(draft.rooms),
-      bathrooms: optionalNumber(draft.bathrooms),
-      floor: optionalNumber(draft.floor),
-      totalFloors: optionalNumber(draft.totalFloors),
-      yearBuilt: optionalNumber(draft.yearBuilt),
+      areaM2: optionalVisibleNumber('areaM2'),
+      plotAreaM2: optionalVisibleNumber('plotAreaM2'),
+      rooms: optionalVisibleNumber('rooms'),
+      bathrooms: optionalVisibleNumber('bathrooms'),
+      floor: optionalVisibleNumber('floor'),
+      totalFloors: optionalVisibleNumber('totalFloors'),
+      yearBuilt: optionalVisibleNumber('yearBuilt'),
     },
     address: {
       city: draft.city.trim(),
@@ -775,7 +761,7 @@ function buildUpdatePayload(draft: SellerListingEditDraft) {
     },
     publicSettings: {
       publicTitle: draft.title.trim(),
-      publicDescription: optionalString(draft.description),
+      publicDescription: draft.description.trim(),
       showExactAddressOnPublicPage: draft.showExactAddressOnPublicPage,
     },
     images: draft.images.map((image, index) => ({
@@ -826,38 +812,21 @@ function validateDraft(
     Object.assign(errors, mapZodErrors(result.error));
   }
 
-  if (
-    draft.propertyType !== PropertyType.LAND &&
-    !positiveNumber(draft.areaM2)
-  ) {
-    errors.areaM2 = 'Powierzchnia jest wymagana';
-  }
-  if (
-    (draft.propertyType === PropertyType.HOUSE ||
-      draft.propertyType === PropertyType.LAND) &&
-    !positiveNumber(draft.plotAreaM2)
-  ) {
-    errors.plotAreaM2 = 'Powierzchnia działki jest wymagana';
-  }
-  if (
-    (draft.propertyType === PropertyType.APARTMENT ||
-      draft.propertyType === PropertyType.HOUSE) &&
-    !positiveNumber(draft.rooms)
-  ) {
-    errors.rooms = 'Liczba pokoi jest wymagana';
-  }
-  if (draft.yearBuilt) {
-    const maxYear = new Date().getFullYear() + 5;
-    const yearBuilt = Number(draft.yearBuilt);
-    if (
-      !Number.isFinite(yearBuilt) ||
-      yearBuilt < 1800 ||
-      yearBuilt > maxYear
-    ) {
-      errors.yearBuilt = `Rok budowy musi być między 1800 a ${maxYear}`;
+  for (const field of getPublicListingParameterFields(draft.propertyType)) {
+    const fieldError = validatePublicListingParameterFieldValue(
+      draft.propertyType,
+      field,
+      draft[field.key],
+    );
+    if (fieldError) {
+      errors[field.key] = fieldError;
     }
   }
-  if (draft.description.length > 3000) {
+
+  const description = draft.description.trim();
+  if (!description) {
+    errors.description = 'Opis jest wymagany';
+  } else if (description.length > 3000) {
     errors.description = 'Opis może mieć maksymalnie 3000 znaków';
   }
 
@@ -1036,11 +1005,6 @@ function getValidationMessage(field: string, fallback: string): string {
 
 function asString(value: unknown): string {
   return value === undefined || value === null ? '' : String(value);
-}
-
-function positiveNumber(value: string): boolean {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) && numeric > 0;
 }
 
 function optionalNumber(value: string): number | undefined {

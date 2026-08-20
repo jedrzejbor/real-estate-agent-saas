@@ -36,11 +36,14 @@ import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import {
   createListingSchema,
   getListingDynamicFieldLabel,
+  getListingDynamicFields,
+  getRequiredListingDynamicFields,
+  isListingDynamicFieldRequired,
   type CreateListingFormData,
   type Listing,
+  type ListingDynamicField,
   LISTING_COMMISSION_TYPE_LABELS,
   PROPERTY_TYPE_LABELS,
-  shouldShowListingField,
   TRANSACTION_TYPE_LABELS,
   ListingCommissionType,
   PropertyType,
@@ -620,27 +623,14 @@ export function ListingForm({
             />
           </FormField>
 
-          {isGuidedCreate &&
-            shouldShowListingField(propertyType, 'plotAreaM2') && (
-              <FormField
-                label="Powierzchnia działki (m²)"
-                name="plotAreaM2"
-                required={
-                  propertyType === PropertyType.HOUSE ||
-                  propertyType === PropertyType.LAND
-                }
-                error={getFieldError('plotAreaM2')}
-              >
-                <Input
-                  name="plotAreaM2"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="np. 850"
-                  className="h-10 rounded-xl"
-                />
-              </FormField>
-            )}
+          {isGuidedCreate ? (
+            <ListingDynamicFields
+              fields={getRequiredListingDynamicFields(propertyType)}
+              propertyType={propertyType}
+              listing={listing}
+              getFieldError={getFieldError}
+            />
+          ) : null}
 
           <FormField
             label="Opis"
@@ -757,146 +747,16 @@ export function ListingForm({
           {/* === Section: Price & Details === */}
           <FormSection title="Parametry nieruchomości">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {shouldShowListingField(propertyType, 'areaM2') && (
-                <FormField
-                  label={getListingDynamicFieldLabel(propertyType, 'areaM2')}
-                  name="areaM2"
-                  error={getFieldError('areaM2')}
-                >
-                  <Input
-                    name="areaM2"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    defaultValue={
-                      listing?.areaM2 ? Number(listing.areaM2) : undefined
-                    }
-                    placeholder="np. 65"
-                    className="h-10 rounded-xl"
-                  />
-                </FormField>
-              )}
-
-              {!isGuidedCreate &&
-                shouldShowListingField(propertyType, 'plotAreaM2') && (
-                  <FormField
-                    label="Powierzchnia działki (m²)"
-                    name="plotAreaM2"
-                    required={
-                      propertyType === PropertyType.HOUSE ||
-                      propertyType === PropertyType.LAND
-                    }
-                    error={getFieldError('plotAreaM2')}
-                  >
-                    <Input
-                      name="plotAreaM2"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      defaultValue={
-                        listing?.plotAreaM2
-                          ? Number(listing.plotAreaM2)
-                          : undefined
-                      }
-                      placeholder="np. 850"
-                      className="h-10 rounded-xl"
-                    />
-                  </FormField>
+              <ListingDynamicFields
+                fields={getListingDynamicFields(propertyType).filter(
+                  (field) =>
+                    !isGuidedCreate ||
+                    !isListingDynamicFieldRequired(propertyType, field),
                 )}
-
-              {shouldShowListingField(propertyType, 'rooms') && (
-                <FormField
-                  label={getListingDynamicFieldLabel(propertyType, 'rooms')}
-                  name="rooms"
-                  error={getFieldError('rooms')}
-                >
-                  <Input
-                    name="rooms"
-                    type="number"
-                    min="1"
-                    max="99"
-                    defaultValue={listing?.rooms ?? undefined}
-                    placeholder="np. 3"
-                    className="h-10 rounded-xl"
-                  />
-                </FormField>
-              )}
-
-              {shouldShowListingField(propertyType, 'bathrooms') && (
-                <FormField
-                  label={getListingDynamicFieldLabel(
-                    propertyType,
-                    'bathrooms',
-                  )}
-                  name="bathrooms"
-                  error={getFieldError('bathrooms')}
-                >
-                  <Input
-                    name="bathrooms"
-                    type="number"
-                    min="0"
-                    max="20"
-                    defaultValue={listing?.bathrooms ?? undefined}
-                    placeholder="np. 1"
-                    className="h-10 rounded-xl"
-                  />
-                </FormField>
-              )}
-
-              {shouldShowListingField(propertyType, 'floor') && (
-                <FormField
-                  label={getListingDynamicFieldLabel(propertyType, 'floor')}
-                  name="floor"
-                  error={getFieldError('floor')}
-                >
-                  <Input
-                    name="floor"
-                    type="number"
-                    defaultValue={listing?.floor ?? undefined}
-                    placeholder="np. 3"
-                    className="h-10 rounded-xl"
-                  />
-                </FormField>
-              )}
-
-              {shouldShowListingField(propertyType, 'totalFloors') && (
-                <FormField
-                  label={getListingDynamicFieldLabel(
-                    propertyType,
-                    'totalFloors',
-                  )}
-                  name="totalFloors"
-                  error={getFieldError('totalFloors')}
-                >
-                  <Input
-                    name="totalFloors"
-                    type="number"
-                    defaultValue={listing?.totalFloors ?? undefined}
-                    placeholder="np. 10"
-                    className="h-10 rounded-xl"
-                  />
-                </FormField>
-              )}
-
-              {shouldShowListingField(propertyType, 'yearBuilt') && (
-                <FormField
-                  label={getListingDynamicFieldLabel(
-                    propertyType,
-                    'yearBuilt',
-                  )}
-                  name="yearBuilt"
-                  error={getFieldError('yearBuilt')}
-                >
-                  <Input
-                    name="yearBuilt"
-                    type="number"
-                    min="1800"
-                    defaultValue={listing?.yearBuilt ?? undefined}
-                    placeholder="np. 2020"
-                    className="h-10 rounded-xl"
-                  />
-                </FormField>
-              )}
+                propertyType={propertyType}
+                listing={listing}
+                getFieldError={getFieldError}
+              />
 
               {!propertyType && (
                 <p className="text-sm text-muted-foreground sm:col-span-2 lg:col-span-3">
@@ -1648,6 +1508,67 @@ function FormField({
       )}
     </div>
   );
+}
+
+const LISTING_DYNAMIC_INPUT_CONFIG: Record<
+  ListingDynamicField,
+  {
+    step?: string;
+    min?: string;
+    max?: string;
+    placeholder: string;
+  }
+> = {
+  areaM2: { step: '0.01', min: '0', placeholder: 'np. 65' },
+  plotAreaM2: { step: '0.01', min: '0', placeholder: 'np. 850' },
+  rooms: { min: '1', max: '99', placeholder: 'np. 3' },
+  bathrooms: { min: '0', max: '20', placeholder: 'np. 1' },
+  floor: { placeholder: 'np. 3' },
+  totalFloors: { min: '1', placeholder: 'np. 10' },
+  yearBuilt: {
+    min: '1800',
+    max: String(new Date().getFullYear() + 5),
+    placeholder: 'np. 2020',
+  },
+};
+
+function ListingDynamicFields({
+  fields,
+  propertyType,
+  listing,
+  getFieldError,
+}: {
+  fields: readonly ListingDynamicField[];
+  propertyType: PropertyType | '';
+  listing?: Listing;
+  getFieldError: (field: string) => string | null;
+}) {
+  return fields.map((field) => {
+    const error = getFieldError(field);
+    const inputConfig = LISTING_DYNAMIC_INPUT_CONFIG[field];
+
+    return (
+      <FormField
+        key={field}
+        label={getListingDynamicFieldLabel(propertyType, field)}
+        name={field}
+        required={isListingDynamicFieldRequired(propertyType, field)}
+        error={error}
+      >
+        <Input
+          name={field}
+          type="number"
+          step={inputConfig.step}
+          min={inputConfig.min}
+          max={inputConfig.max}
+          defaultValue={listing?.[field] ?? undefined}
+          placeholder={inputConfig.placeholder}
+          className="h-10 rounded-xl"
+          aria-invalid={!!error}
+        />
+      </FormField>
+    );
+  });
 }
 
 function getInitialAssistantInput(

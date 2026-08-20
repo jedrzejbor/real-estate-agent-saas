@@ -60,7 +60,7 @@ import {
   getPublicListingParameterFields,
   getPublicListingPriceLabel,
   getPublicListingTransactionFields,
-  isPublicListingParameterFieldRequired,
+  validatePublicListingParameterFieldValue,
   type PublicListingParameterField,
   type PublicListingTransactionField,
 } from '@/lib/public-listing-form-fields';
@@ -736,7 +736,7 @@ function StepParameters({
         ) : null}
       </div>
       <TextAreaField
-        label="Opis"
+        label="Opis *"
         value={draft.description}
         error={errors.description}
         placeholder="Opisz lokalizację, standard, układ i atuty nieruchomości."
@@ -1378,29 +1378,13 @@ function validateStep(
 
   if (step === 2) {
     for (const field of getPublicListingParameterFields(draft.propertyType)) {
-      if (
-        isPublicListingParameterFieldRequired(draft.propertyType, field.key) &&
-        !positiveNumber(draft[field.key])
-      ) {
-        errors[field.key] = `${field.label} jest wymagane`;
-      }
-    }
-
-    const visibleParameterKeys = new Set(
-      getPublicListingParameterFields(draft.propertyType).map(
-        (field) => field.key,
-      ),
-    );
-
-    if (visibleParameterKeys.has('yearBuilt') && draft.yearBuilt) {
-      const yearBuilt = Number(draft.yearBuilt);
-      const maxYear = new Date().getFullYear() + 5;
-      if (
-        !Number.isFinite(yearBuilt) ||
-        yearBuilt < 1800 ||
-        yearBuilt > maxYear
-      ) {
-        errors.yearBuilt = `Rok budowy musi być między 1800 a ${maxYear}`;
+      const fieldError = validatePublicListingParameterFieldValue(
+        draft.propertyType,
+        field,
+        draft[field.key],
+      );
+      if (fieldError) {
+        errors[field.key] = fieldError;
       }
     }
 
@@ -1413,7 +1397,10 @@ function validateStep(
       }
     }
 
-    if (draft.description.length > 3000) {
+    const description = draft.description.trim();
+    if (!description) {
+      errors.description = 'Opis jest wymagany';
+    } else if (description.length > 3000) {
       errors.description = 'Opis może mieć maksymalnie 3000 znaków';
     }
   }
@@ -1667,11 +1654,6 @@ function normalizeSubmissionImages(
     order: index,
     isPrimary: index === 0,
   }));
-}
-
-function positiveNumber(value: string): boolean {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) && numeric > 0;
 }
 
 function nonNegativeNumber(value: string): boolean {
