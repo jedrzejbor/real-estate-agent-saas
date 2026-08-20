@@ -5,6 +5,7 @@ export { FavoriteListingsList } from './favorite-listings-list';
 export { ListingFiltersBar } from './listing-filters';
 export { ListingForm } from './listing-form';
 export { ListingImageManager } from './listing-image-manager';
+export { ListingIntentSelector } from './listing-intent-selector';
 export { ListingPublicationPanel } from './listing-publication-panel';
 export { PublicListingAnalytics } from './public-listing-analytics';
 export { PublicListingAbuseReport } from './public-listing-abuse-report';

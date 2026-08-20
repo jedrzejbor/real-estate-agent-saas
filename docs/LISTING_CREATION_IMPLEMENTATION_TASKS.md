@@ -70,14 +70,30 @@ Weryfikacja:
 
 ## Etap 2 — komponent ekranu startowego
 
-- [ ] Utworzyć komponent `ListingIntentSelector`.
-- [ ] Renderować dwie sekcje: `Sprzedam` i `Wynajmę`.
-- [ ] Renderować typy nieruchomości z konfiguracji, nie z ręcznie wpisanych przycisków.
-- [ ] Po kliknięciu zwracać `transactionType` i `propertyType`.
-- [ ] Dodać stan zaznaczenia, focus, obsługę klawiatury i responsywność.
-- [ ] Nie wykonywać zapisu API z poziomu tego komponentu.
+- [x] Utworzyć komponent `ListingIntentSelector`.
+- [x] Renderować dwie sekcje: `Sprzedam` i `Wynajmę`.
+- [x] Renderować typy nieruchomości z konfiguracji, nie z ręcznie wpisanych przycisków.
+- [x] Po kliknięciu zwracać `transactionType` i `propertyType`.
+- [x] Dodać stan zaznaczenia, focus, obsługę klawiatury i responsywność.
+- [x] Nie wykonywać zapisu API z poziomu tego komponentu.
 
 Kryterium zakończenia: komponent jest czysty, sterowany propsami i nie zna szczegółów publicznego/dashbordowego flow.
+
+Wdrożenie:
+
+- `apps/web/src/components/listings/listing-intent-selector.tsx`
+- `apps/web/src/components/listings/index.ts`
+- Komponent jest sterowany przez `value`, `onChange`, `disabled` i `className`.
+- Komponent korzysta z `LISTING_INTENT_SECTIONS`, więc nie duplikuje listy typów.
+- Komponent zwraca wyłącznie `ListingIntentSelection`; nie zna routera, API ani localStorage.
+- Zaznaczenie jest reprezentowane przez `aria-pressed`, wizualny check i style focus.
+- Obsługa klawiatury opiera się o natywne przyciski `button`.
+- Layout jest responsywny: jedna kolumna na małych ekranach, dwie kolumny od `lg`.
+
+Weryfikacja:
+
+- `pnpm --filter web type-check` — OK.
+- `pnpm --filter web lint` — OK, tylko istniejące ostrzeżenia niezwiązane z Etapem 2.
 
 ## Etap 3 — integracja w publicznym wizardzie `/dodaj-oferte`
 
