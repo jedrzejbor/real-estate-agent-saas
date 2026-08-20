@@ -30,7 +30,6 @@ import { useBulkSelection } from '@/hooks/use-bulk-selection';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { APP_NAME } from '@/lib/brand';
 import { isPrivateSellerUser, type AuthUser } from '@/lib/auth';
-import { readMigratedStorageValue, STORAGE_KEYS } from '@/lib/storage-keys';
 import {
   PROPERTY_TYPE_LABELS,
   TRANSACTION_TYPE_LABELS,
@@ -47,9 +46,12 @@ import {
 import { LEGAL_COPY, LEGAL_LINKS } from '@/lib/legal';
 import {
   buildPublicListingSubmissionPayload,
+  clearStoredPublicListingWizardDraft,
   INITIAL_PUBLIC_LISTING_WIZARD_DRAFT,
+  readStoredPublicListingWizardDraft,
   type PublicListingWizardDraft,
   validatePublicListingWizardStep,
+  writeStoredPublicListingWizardDraft,
 } from '@/lib/public-listing-wizard';
 import {
   createPublicListingSubmission,
@@ -68,8 +70,6 @@ import { cn } from '@/lib/utils';
 
 type WizardStep = 0 | 1 | 2 | 3 | 4 | 5;
 
-const STORAGE_KEY = STORAGE_KEYS.publicListingWizard;
-const LEGACY_STORAGE_KEY = STORAGE_KEYS.legacyPublicListingWizard;
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -109,28 +109,11 @@ export default function PublicListingSubmissionWizardPage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   React.useEffect(() => {
-    const stored = readMigratedStorageValue(
-      localStorage,
-      STORAGE_KEY,
-      LEGACY_STORAGE_KEY,
+    setDraft(
+      readStoredPublicListingWizardDraft(localStorage, {
+        cityFromUrl: getCityFromCurrentUrl(),
+      }),
     );
-    const cityFromUrl = getCityFromCurrentUrl();
-    let nextDraft = INITIAL_DRAFT;
-
-    if (stored) {
-      try {
-        nextDraft = { ...INITIAL_DRAFT, ...JSON.parse(stored) };
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(LEGACY_STORAGE_KEY);
-      }
-    }
-
-    if (!nextDraft.city && cityFromUrl) {
-      nextDraft = { ...nextDraft, city: cityFromUrl };
-    }
-
-    setDraft(nextDraft);
     setIsHydrated(true);
   }, []);
 
@@ -162,7 +145,7 @@ export default function PublicListingSubmissionWizardPage() {
 
   React.useEffect(() => {
     if (!isHydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+    writeStoredPublicListingWizardDraft(localStorage, draft);
   }, [draft, isHydrated]);
 
   if (isAuthLoading || shouldRedirectAuthenticatedAgent) {
@@ -295,8 +278,7 @@ export default function PublicListingSubmissionWizardPage() {
           ? createSellerPublicListingSubmission
           : createPublicListingSubmission;
       const result = await submit(payload);
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      clearStoredPublicListingWizardDraft(localStorage);
       const nextParams = new URLSearchParams({
         email: result.emailMasked,
         expiresAt: result.expiresAt,

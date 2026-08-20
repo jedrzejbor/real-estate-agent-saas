@@ -22,6 +22,7 @@ import type {
   CreatePublicListingSubmissionInput,
   PublicListingSubmissionImage,
 } from './public-listing-submissions';
+import { readMigratedStorageValue, STORAGE_KEYS } from './storage-keys';
 
 export interface PublicListingWizardDraft {
   transactionType: TransactionTypeValue | '';
@@ -75,6 +76,11 @@ export interface PublicListingSubmissionContext {
   utmCampaign?: string;
 }
 
+type PublicListingWizardStorage = Pick<
+  Storage,
+  'getItem' | 'setItem' | 'removeItem'
+>;
+
 export const INITIAL_PUBLIC_LISTING_WIZARD_DRAFT: PublicListingWizardDraft = {
   transactionType: '',
   propertyType: '',
@@ -109,6 +115,49 @@ export const INITIAL_PUBLIC_LISTING_WIZARD_DRAFT: PublicListingWizardDraft = {
   website: '',
   agentCollaboration: INITIAL_AGENT_COLLABORATION_FORM_VALUE,
 };
+
+export function readStoredPublicListingWizardDraft(
+  storage: PublicListingWizardStorage,
+  options: { cityFromUrl?: string } = {},
+): PublicListingWizardDraft {
+  const stored = readMigratedStorageValue(
+    storage,
+    STORAGE_KEYS.publicListingWizard,
+    STORAGE_KEYS.legacyPublicListingWizard,
+  );
+  let nextDraft = INITIAL_PUBLIC_LISTING_WIZARD_DRAFT;
+
+  if (stored) {
+    try {
+      nextDraft = {
+        ...INITIAL_PUBLIC_LISTING_WIZARD_DRAFT,
+        ...JSON.parse(stored),
+      };
+    } catch {
+      clearStoredPublicListingWizardDraft(storage);
+    }
+  }
+
+  if (!nextDraft.city && options.cityFromUrl) {
+    nextDraft = { ...nextDraft, city: options.cityFromUrl };
+  }
+
+  return nextDraft;
+}
+
+export function writeStoredPublicListingWizardDraft(
+  storage: PublicListingWizardStorage,
+  draft: PublicListingWizardDraft,
+): void {
+  storage.setItem(STORAGE_KEYS.publicListingWizard, JSON.stringify(draft));
+}
+
+export function clearStoredPublicListingWizardDraft(
+  storage: PublicListingWizardStorage,
+): void {
+  storage.removeItem(STORAGE_KEYS.publicListingWizard);
+  storage.removeItem(STORAGE_KEYS.legacyPublicListingWizard);
+}
 
 export function buildPublicListingSubmissionPayload(
   draft: PublicListingWizardDraft,

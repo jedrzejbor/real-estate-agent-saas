@@ -5,10 +5,14 @@ import {
 import { TransactionType } from './listings';
 import {
   buildPublicListingSubmissionPayload,
+  clearStoredPublicListingWizardDraft,
   INITIAL_PUBLIC_LISTING_WIZARD_DRAFT,
+  readStoredPublicListingWizardDraft,
   type PublicListingWizardDraft,
   validatePublicListingWizardStep,
+  writeStoredPublicListingWizardDraft,
 } from './public-listing-wizard';
+import { STORAGE_KEYS } from './storage-keys';
 
 const requiredFieldsByType: Record<
   PropertyTypeValue,
@@ -175,6 +179,92 @@ describe('public listing wizard validation regression', () => {
   });
 });
 
+describe('public listing wizard storage regression', () => {
+  it('saves and reads the public wizard draft from current localStorage key', () => {
+    const storage = new MemoryStorage();
+    const draft = buildDraft(PropertyType.APARTMENT, {
+      title: 'Zapamietany draft publicznego formularza',
+      city: 'Krakow',
+    });
+
+    writeStoredPublicListingWizardDraft(storage, draft);
+
+    expect(readStoredPublicListingWizardDraft(storage)).toMatchObject({
+      title: 'Zapamietany draft publicznego formularza',
+      city: 'Krakow',
+      propertyType: PropertyType.APARTMENT,
+      transactionType: TransactionType.SALE,
+      images: expect.arrayContaining([
+        expect.objectContaining({ url: expect.stringContaining('image-1') }),
+      ]),
+    });
+  });
+
+  it('migrates the legacy storage key without losing the draft', () => {
+    const storage = new MemoryStorage();
+    const draft = buildDraft(PropertyType.HOUSE, { city: 'Gdansk' });
+    storage.setItem(
+      STORAGE_KEYS.legacyPublicListingWizard,
+      JSON.stringify(draft),
+    );
+
+    const restored = readStoredPublicListingWizardDraft(storage);
+
+    expect(restored).toMatchObject({
+      city: 'Gdansk',
+      propertyType: PropertyType.HOUSE,
+    });
+    expect(storage.getItem(STORAGE_KEYS.publicListingWizard)).toEqual(
+      JSON.stringify(draft),
+    );
+  });
+
+  it('uses city from URL only when the stored draft has no city', () => {
+    const emptyStorage = new MemoryStorage();
+
+    expect(
+      readStoredPublicListingWizardDraft(emptyStorage, {
+        cityFromUrl: 'Wroclaw',
+      }),
+    ).toMatchObject({ city: 'Wroclaw' });
+
+    const storageWithCity = new MemoryStorage();
+    writeStoredPublicListingWizardDraft(
+      storageWithCity,
+      buildDraft(PropertyType.APARTMENT, { city: 'Poznan' }),
+    );
+
+    expect(
+      readStoredPublicListingWizardDraft(storageWithCity, {
+        cityFromUrl: 'Wroclaw',
+      }),
+    ).toMatchObject({ city: 'Poznan' });
+  });
+
+  it('clears invalid and submitted drafts from both current and legacy keys', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(STORAGE_KEYS.publicListingWizard, '{invalid');
+    storage.setItem(STORAGE_KEYS.legacyPublicListingWizard, '{invalid');
+
+    expect(readStoredPublicListingWizardDraft(storage)).toEqual(
+      INITIAL_PUBLIC_LISTING_WIZARD_DRAFT,
+    );
+    expect(storage.getItem(STORAGE_KEYS.publicListingWizard)).toBeNull();
+    expect(storage.getItem(STORAGE_KEYS.legacyPublicListingWizard)).toBeNull();
+
+    writeStoredPublicListingWizardDraft(
+      storage,
+      buildDraft(PropertyType.GARAGE),
+    );
+    storage.setItem(STORAGE_KEYS.legacyPublicListingWizard, '{}');
+
+    clearStoredPublicListingWizardDraft(storage);
+
+    expect(storage.getItem(STORAGE_KEYS.publicListingWizard)).toBeNull();
+    expect(storage.getItem(STORAGE_KEYS.legacyPublicListingWizard)).toBeNull();
+  });
+});
+
 function buildDraft(
   propertyType: PropertyTypeValue,
   overrides: Partial<PublicListingWizardDraft> = {},
@@ -217,4 +307,20 @@ function numericFields(
 
 function serialize<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+class MemoryStorage implements Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> {
+  private readonly values = new Map<string, string>();
+
+  getItem(key: string): string | null {
+    return this.values.get(key) ?? null;
+  }
+
+  setItem(key: string, value: string): void {
+    this.values.set(key, value);
+  }
+
+  removeItem(key: string): void {
+    this.values.delete(key);
+  }
 }

@@ -277,21 +277,21 @@ Etap 6 jest zakończony. Walidacja domenowa, payloady oraz ograniczenia galerii 
 
 ## Etap 7 — testy regresji
 
-- [ ] Utworzenie mieszkania na sprzedaż.
-- [ ] Utworzenie mieszkania na wynajem.
-- [ ] Utworzenie domu z wymaganą powierzchnią działki.
+- [x] Utworzenie mieszkania na sprzedaż.
+- [x] Utworzenie mieszkania na wynajem.
+- [x] Utworzenie domu z wymaganą powierzchnią działki.
 - [x] Próba utworzenia domu bez `plotAreaM2` kończy się błędem walidacji.
-- [ ] Utworzenie działki z `plotAreaM2`.
-- [ ] Utworzenie lokalu użytkowego.
-- [ ] Utworzenie biura.
-- [ ] Utworzenie garażu.
-- [ ] Publiczny wizard zapisuje i odczytuje szkic z `localStorage`.
+- [x] Utworzenie działki z `plotAreaM2`.
+- [x] Utworzenie lokalu użytkowego.
+- [x] Utworzenie biura.
+- [x] Utworzenie garażu.
+- [x] Publiczny wizard zapisuje i odczytuje szkic z `localStorage`.
 - [x] Publiczny wizard blokuje wysyłkę, jeśli wybrano mniej niż 3 zdjęcia.
 - [x] Dashboard blokuje utworzenie nowej oferty, jeśli wybrano mniej niż 3 zdjęcia.
 - [x] Publiczny wizard buduje poprawny payload zgłoszenia.
-- [ ] Dashboard zapisuje poprawny `POST /listings`.
-- [ ] Edycja istniejącej oferty nie wymusza ponownego przejścia przez ekran startowy.
-- [ ] Katalog publiczny i szczegóły oferty renderują utworzone ogłoszenia.
+- [x] Dashboard zapisuje poprawny `POST /listings`.
+- [x] Edycja istniejącej oferty nie wymusza ponownego przejścia przez ekran startowy.
+- [x] Katalog publiczny i szczegóły oferty renderują utworzone ogłoszenia.
 
 Kryterium zakończenia: wszystkie scenariusze krytyczne przechodzą ręcznie albo automatycznie.
 
@@ -321,7 +321,56 @@ Weryfikacja:
 - Typecheck web i API — OK.
 - Lint API — OK; lint web — bez błędów, `13` istniejących ostrzeżeń.
 
-Etap 7 pozostaje otwarty. Testy kontraktowe przygotowują bezpieczną bazę, ale punktów „utworzenie oferty” nie oznaczono jako wykonane bez przejścia przez rzeczywisty endpoint. Kolejna iteracja powinna objąć żądania API dashboardu i publicznych zgłoszeń, a następnie scenariusze przeglądarkowe `localStorage`, edycji i katalogu publicznego.
+Po iteracji 1 punkty „utworzenie oferty” pozostawały otwarte do czasu dodania testów granicy HTTP i zapisu serwisowego w iteracji 2.
+
+### Wykonane w Etapie 7 — iteracja 2
+
+Kontrakt HTTP web:
+
+- Dodano `apps/web/src/lib/listing-creation-http.spec.ts` z macierzą `6 typów × 2 transakcje` dla `createListing`.
+- Każdy wariant sprawdza metodę `POST`, endpoint `/listings`, wymagane dane i sanitację wszystkich dynamicznych pól niewidocznych dla wybranego typu.
+- Osobne testy potwierdzają publiczny `POST /public-listing-submissions` z `skipAuth: true` oraz uwierzytelniony `POST /public-listing-submissions/seller`.
+
+Przepływ zapisu API:
+
+- Dodano `apps/api/src/listings/listing-creation-flow.spec.ts` obejmujący tę samą macierz `6 × 2` na poziomie `ListingsService.create`.
+- Test potwierdza zapis encji oferty, zapis powiązanego adresu, przypisanie aktualnego agenta i utworzenie wpisu aktywności `CREATED`.
+- Ograniczenia planu, odczyt po zapisie i statystyki są izolowane jako granice serwisu; repozytoria pozostają jawnie testowane jako kontrakt persystencji.
+- W połączeniu z testami DTO z Etapu 6 daje to ciąg: walidacja formularza → sanitacja payloadu → żądanie HTTP → walidacja DTO → zapis serwisowy.
+
+Weryfikacja:
+
+- Testy web: `56` testów w `5` zestawach — OK.
+- Pełna regresja API: `386` testów w `66` zestawach — OK.
+- Typecheck web i API — OK.
+- Lint API — OK; lint web — bez błędów, `13` istniejących ostrzeżeń.
+
+Po iteracji 2 otwarte pozostawały scenariusze trwałości szkicu w `localStorage`, wejścia bezpośrednio w edycję istniejącej oferty oraz renderowania utworzonej oferty w katalogu i szczegółach. Zostały domknięte w iteracji 3.
+
+### Wykonane w Etapie 7 — iteracja 3
+
+Trwałość publicznego kreatora:
+
+- Wydzielono zapis, odczyt i czyszczenie draftu publicznego kreatora do `apps/web/src/lib/public-listing-wizard.ts`.
+- Strona `apps/web/src/app/(public)/dodaj-oferte/page.tsx` korzysta z tych helperów przy hydracji, autosave i czyszczeniu po wysłaniu zgłoszenia.
+- Testy pokrywają zapis/odczyt z aktualnego klucza, migrację z klucza legacy, fallback miasta z URL oraz czyszczenie niepoprawnego i wysłanego draftu.
+
+Regresja edycji i widoków publicznych:
+
+- Dodano `apps/web/src/lib/listing-edit-flow.spec.ts`, który pilnuje, że edycja dashboardu trafia bezpośrednio do `ListingForm listing={listing}`, a edycja sprzedawcy pozostaje formularzem edycji bez `ListingIntentSelector`.
+- Rozszerzono konfigurację Jest o `.tsx`, żeby testować render stron Next.js bez dodatkowego runnera.
+- Dodano `apps/web/src/app/(public)/oferty/public-listing-pages.spec.tsx`, który renderuje katalog z wynikiem API oraz szczegóły oferty po slug i sprawdza najważniejsze dane utworzonego ogłoszenia.
+
+Weryfikacja:
+
+- Testy punktowe web dla iteracji 3: `27` testów w `3` zestawach — OK.
+- Pełna regresja web: `64` testy w `7` zestawach — OK.
+- Pełna regresja API: `386` testów w `66` zestawach — OK.
+- Typecheck web i API — OK.
+- Lint API — OK; lint web — bez błędów, `13` istniejących ostrzeżeń.
+- `git diff --check` — OK.
+
+Etap 7 jest zakończony. Krytyczne regresje tworzenia, walidacji, zapisu HTTP/API, edycji, trwałości draftu i publicznego renderu są pokryte automatycznie.
 
 ## Etap 8 — cleanup i jakość kodu
 
