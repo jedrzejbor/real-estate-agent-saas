@@ -211,9 +211,9 @@ Weryfikacja:
 - [x] Sprawdzić DTO publicznych zgłoszeń.
 - [x] Upewnić się, że wymagane pola Fali 1 są spójne po obu stronach.
 - [x] Upewnić się, że ukryte pola nie wysyłają przypadkowych pustych wartości, które psują walidację.
-- [ ] Dodać testy jednostkowe helperów widoczności pól po stronie webowej; helper API i DTO są już pokryte testami.
-- [ ] Wymusić minimum 3 zdjęcia w publicznym wizardzie i DTO zgłoszenia.
-- [ ] Zaprojektować bezpieczne minimum 3 zdjęcia w dashboardzie bez pozostawiania oferty po nieudanym uploadzie.
+- [x] Dodać testy jednostkowe helperów widoczności pól po stronie webowej; helper API i DTO są już pokryte testami.
+- [x] Wymusić minimum 3 zdjęcia w publicznym wizardzie i DTO zgłoszenia.
+- [x] Zaprojektować bezpieczne minimum 3 zdjęcia w dashboardzie bez pozostawiania oferty po nieudanym uploadzie.
 
 Kryterium zakończenia: użytkownik nie może wysłać niepoprawnej kombinacji pól, a valid payload przechodzi przez frontend i backend.
 
@@ -247,7 +247,33 @@ Testy i weryfikacja:
 - `pnpm --filter api type-check` — OK.
 - `pnpm --filter api lint` — OK.
 
-Etap 6 pozostaje otwarty do czasu wykonania testów jednostkowych warstwy webowej oraz walidacji minimum trzech zdjęć. Dashboard zapisuje obecnie encję przed uploadem plików, dlatego ten punkt wymaga osobnej iteracji projektowej, a nie tylko dopisania warunku w komponencie.
+### Wykonane w Etapie 6 — iteracja 2
+
+Reguły i testowalność web:
+
+- Wydzielono czyste reguły pól dynamicznych do `apps/web/src/lib/listing-field-rules.ts`; dotychczasowy moduł `listings.ts` zachowuje kompatybilne re-eksporty.
+- Dodano osobny moduł `listing-image-rules.ts` z limitami galerii, komunikatem walidacyjnym i testowalnym procesem `create -> upload -> rollback`.
+- Dodano konfigurację Jest dla aplikacji webowej oraz `10` testów jednostkowych reguł pól i zdjęć.
+
+Minimum trzech zdjęć:
+
+- Publiczny wizard blokuje przejście i wysyłkę poniżej trzech zdjęć, pokazując błąd bezpośrednio przy galerii.
+- `CreatePublicListingSubmissionDto` wymaga od `3` do `15` zdjęć; aktualizacja zgłoszenia właściciela stosuje ten sam zakres, jeżeli galeria jest przesyłana.
+- Edycja zgłoszenia właściciela nie pozwala zapisać galerii zawierającej mniej niż trzy zdjęcia.
+- Dashboard sprawdza minimum przed utworzeniem encji. Ponieważ API tworzenia i upload zdjęć są osobnymi żądaniami, błąd uploadu uruchamia kompensujące usunięcie szkicu.
+- Jeśli kompensujące usunięcie również się nie powiedzie, użytkownik dostaje jednoznaczny komunikat i zostaje przekierowany do edycji zapisanej oferty. Id rekordu nie jest tracone.
+- Usuwanie szkicu po stronie API usuwa również lokalne pliki zdjęć, a częściowo zapisany batch uploadu jest sprzątany po błędzie zapisu kolejnego pliku.
+- Limity `3–15` mają wspólne stałe w obrębie każdej aplikacji i są używane przez walidację oraz konfigurację interceptorów uploadu.
+
+Weryfikacja:
+
+- Testy web: `10` testów w `2` zestawach — OK.
+- Pełna regresja API: `374` testy w `65` zestawach — OK.
+- `pnpm --filter web type-check` oraz `pnpm --filter api type-check` — OK.
+- `pnpm --filter web lint` — OK, tylko `13` istniejących ostrzeżeń; `pnpm --filter api lint` — OK bez ostrzeżeń.
+- `git diff --check` — OK.
+
+Etap 6 jest zakończony. Walidacja domenowa, payloady oraz ograniczenia galerii są spójne na obsługiwanych ścieżkach tworzenia i edycji. Scenariusze przekrojowe UI/API pozostają zakresem Etapu 7.
 
 ## Etap 7 — testy regresji
 

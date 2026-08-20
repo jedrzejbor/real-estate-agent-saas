@@ -1,12 +1,19 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsEmail,
+  IsArray,
   IsObject,
   IsOptional,
   IsString,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
+import {
+  MAX_LISTING_IMAGES,
+  MIN_LISTING_IMAGES,
+} from '../../common/listing-image-rules';
 import {
   PublicSubmissionAddressDto,
   PublicSubmissionAgentCollaborationDto,
@@ -32,6 +39,11 @@ export class UpdateSellerPublicListingSubmissionDto {
   publicSettings?: PublicSubmissionPublicSettingsDto;
 
   @IsOptional()
+  @IsArray()
+  @ArrayMinSize(MIN_LISTING_IMAGES, {
+    message: `Dodaj co najmniej ${MIN_LISTING_IMAGES} zdjęcia`,
+  })
+  @ArrayMaxSize(MAX_LISTING_IMAGES)
   @ValidateNested({ each: true })
   @Type(() => PublicSubmissionImageDto)
   images?: PublicSubmissionImageDto[];

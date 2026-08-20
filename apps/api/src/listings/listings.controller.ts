@@ -30,6 +30,7 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { PublicSlugPipe } from '../common/public-param-security';
+import { MAX_LISTING_IMAGES } from '../common/listing-image-rules';
 
 interface UploadedImageFile {
   buffer: Buffer;
@@ -49,29 +50,33 @@ const ALLOWED_LISTING_IMAGE_MIME_TYPES = new Set([
   'image/webp',
 ]);
 
-const listingImageUploadInterceptor = FilesInterceptor('images', 15, {
-  limits: {
-    fileSize: MAX_LISTING_IMAGE_SIZE_BYTES,
-    files: 15,
-  },
-  fileFilter: (
-    _req: unknown,
-    file: IncomingUploadFile,
-    callback: (error: Error | null, acceptFile: boolean) => void,
-  ) => {
-    if (!ALLOWED_LISTING_IMAGE_MIME_TYPES.has(file.mimetype)) {
-      callback(
-        new BadRequestException(
-          'Dozwolone formaty zdjęć to JPG, PNG oraz WebP',
-        ),
-        false,
-      );
-      return;
-    }
+const listingImageUploadInterceptor = FilesInterceptor(
+  'images',
+  MAX_LISTING_IMAGES,
+  {
+    limits: {
+      fileSize: MAX_LISTING_IMAGE_SIZE_BYTES,
+      files: MAX_LISTING_IMAGES,
+    },
+    fileFilter: (
+      _req: unknown,
+      file: IncomingUploadFile,
+      callback: (error: Error | null, acceptFile: boolean) => void,
+    ) => {
+      if (!ALLOWED_LISTING_IMAGE_MIME_TYPES.has(file.mimetype)) {
+        callback(
+          new BadRequestException(
+            'Dozwolone formaty zdjęć to JPG, PNG oraz WebP',
+          ),
+          false,
+        );
+        return;
+      }
 
-    callback(null, true);
+      callback(null, true);
+    },
   },
-});
+);
 
 @Controller('listings')
 export class ListingsController {

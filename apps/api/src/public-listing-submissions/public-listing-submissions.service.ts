@@ -51,6 +51,7 @@ import {
 } from '../common/public-listing-moderation';
 import { PlanLimitReachedException } from '../common/exceptions/plan-limit-reached.exception';
 import { assertSafeImageUpload } from '../common/image-upload-security';
+import { MAX_LISTING_IMAGES } from '../common/listing-image-rules';
 import {
   PUBLIC_UPLOAD_CATEGORIES,
   buildPublicUploadUrl,
@@ -400,7 +401,7 @@ export class PublicListingSubmissionsService {
     if (dto.images) {
       submission.payload = {
         ...submission.payload,
-        images: dto.images.slice(0, 15).map((image, index) => ({
+        images: dto.images.slice(0, MAX_LISTING_IMAGES).map((image, index) => ({
           url: image.url,
           altText: normalizeOptional(image.altText),
           order: image.order ?? index,
@@ -1816,22 +1817,24 @@ function buildAddressDataFromPayload(
 function buildImageDataFromPayload(
   payload: PublicListingSubmissionPayload,
 ): Array<Partial<ListingImage>> {
-  return (payload.images ?? []).slice(0, 15).flatMap((image) => {
-    const url = getOptionalString(image.url);
+  return (payload.images ?? [])
+    .slice(0, MAX_LISTING_IMAGES)
+    .flatMap((image) => {
+      const url = getOptionalString(image.url);
 
-    if (!url) {
-      return [];
-    }
+      if (!url) {
+        return [];
+      }
 
-    return [
-      {
-        url,
-        altText: getOptionalString(image.altText),
-        order: getOptionalNumber(image.order) ?? 0,
-        isPrimary: Boolean(image.isPrimary),
-      },
-    ];
-  });
+      return [
+        {
+          url,
+          altText: getOptionalString(image.altText),
+          order: getOptionalNumber(image.order) ?? 0,
+          isPrimary: Boolean(image.isPrimary),
+        },
+      ];
+    });
 }
 
 function getPrimaryImageIndex(images: Array<Partial<ListingImage>>): number {

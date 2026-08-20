@@ -41,6 +41,11 @@ import {
   validatePublicListingParameterFieldValue,
   type PublicListingParameterField,
 } from '@/lib/public-listing-form-fields';
+import {
+  getListingImageCountError,
+  MAX_LISTING_IMAGES as MAX_IMAGES,
+  MIN_LISTING_IMAGES,
+} from '@/lib/listing-image-rules';
 import { CityAutocomplete } from '@/components/locations/city-autocomplete';
 import { Logo } from '@/components/common/logo';
 import { BulkSelectionToolbar } from '@/components/common/bulk-selection-toolbar';
@@ -87,7 +92,6 @@ interface SellerListingEditDraft {
 
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
-const MAX_IMAGES = 15;
 
 export default function SellerListingEditPage() {
   const params = useParams<{ id: string }>();
@@ -535,7 +539,7 @@ export default function SellerListingEditPage() {
             <SectionHeader
               icon={ImagePlus}
               title="Zdjęcia"
-              description="Pierwsze zdjęcie traktujemy jako główne."
+              description={`Oferta musi mieć co najmniej ${MIN_LISTING_IMAGES} zdjęcia. Pierwsze zdjęcie traktujemy jako główne.`}
             />
             <input
               ref={fileInputRef}
@@ -548,6 +552,9 @@ export default function SellerListingEditPage() {
             <div className="mt-5 rounded-xl border border-dashed border-border bg-muted/30 p-5 text-center">
               <p className="text-sm font-medium">
                 Dodano {draft.images.length}/{MAX_IMAGES} zdjęć
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Wymagane minimum: {MIN_LISTING_IMAGES}.
               </p>
               <Button
                 type="button"
@@ -565,6 +572,12 @@ export default function SellerListingEditPage() {
                 {isUploadingImages ? 'Dodawanie...' : 'Dodaj zdjęcia'}
               </Button>
             </div>
+
+            {fieldErrors.images ? (
+              <p className="mt-3 text-sm text-destructive" role="alert">
+                {fieldErrors.images}
+              </p>
+            ) : null}
 
             {draft.images.length > 0 ? (
               <div className="mt-5 space-y-4">
@@ -828,6 +841,11 @@ function validateDraft(
     errors.description = 'Opis jest wymagany';
   } else if (description.length > 3000) {
     errors.description = 'Opis może mieć maksymalnie 3000 znaków';
+  }
+
+  const imageError = getListingImageCountError(draft.images.length);
+  if (imageError) {
+    errors.images = imageError;
   }
 
   return Object.keys(errors).length

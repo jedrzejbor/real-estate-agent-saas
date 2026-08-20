@@ -49,6 +49,11 @@ import {
   getListingIntentOption,
   type ListingIntentSelection,
 } from '@/lib/listing-intent-options';
+import {
+  getListingImageCountError,
+  MAX_LISTING_IMAGES as MAX_IMAGES,
+  MIN_LISTING_IMAGES,
+} from '@/lib/listing-image-rules';
 import { LEGAL_COPY, LEGAL_LINKS } from '@/lib/legal';
 import {
   createPublicListingSubmission,
@@ -107,7 +112,6 @@ const STORAGE_KEY = STORAGE_KEYS.publicListingWizard;
 const LEGACY_STORAGE_KEY = STORAGE_KEYS.legacyPublicListingWizard;
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
-const MAX_IMAGES = 15;
 
 const INITIAL_DRAFT: PublicListingWizardDraft = {
   transactionType: '',
@@ -338,6 +342,7 @@ export default function PublicListingSubmissionWizardPage() {
     const validation = validateStep(LAST_STEP_INDEX, submissionDraft);
     if (!validation.success) {
       setFieldErrors(validation.errors);
+      setStep(validation.errors.images ? 3 : 4);
       return;
     }
 
@@ -481,6 +486,7 @@ export default function PublicListingSubmissionWizardPage() {
             {step === 3 ? (
               <StepImages
                 draft={draft}
+                error={fieldErrors.images}
                 isUploading={isUploadingImages}
                 fileInputRef={fileInputRef}
                 onFilesSelected={handleImagesSelected}
@@ -748,12 +754,14 @@ function StepParameters({
 
 function StepImages({
   draft,
+  error,
   isUploading,
   fileInputRef,
   onFilesSelected,
   updateDraft,
 }: {
   draft: PublicListingWizardDraft;
+  error?: string;
   isUploading: boolean;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onFilesSelected: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -815,7 +823,7 @@ function StepImages({
       <SectionHeader
         icon={ImagePlus}
         title="Zdjęcia"
-        description="Zdjęcia nie są twardo wymagane, ale znacząco zwiększają szansę kontaktu."
+        description={`Dodaj co najmniej ${MIN_LISTING_IMAGES} zdjęcia nieruchomości.`}
       />
       <input
         ref={fileInputRef}
@@ -830,7 +838,8 @@ function StepImages({
           Dodano {draft.images.length}/{MAX_IMAGES} zdjęć
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          JPG, PNG lub WebP, maksymalnie 10 MB na plik.
+          Minimum {MIN_LISTING_IMAGES}. JPG, PNG lub WebP, maksymalnie 10 MB na
+          plik.
         </p>
         <Button
           type="button"
@@ -846,6 +855,12 @@ function StepImages({
           {isUploading ? 'Dodawanie...' : 'Wybierz zdjęcia'}
         </Button>
       </div>
+
+      {error ? (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       {draft.images.length > 0 ? (
         <div className="space-y-4">
@@ -1402,6 +1417,13 @@ function validateStep(
       errors.description = 'Opis jest wymagany';
     } else if (description.length > 3000) {
       errors.description = 'Opis może mieć maksymalnie 3000 znaków';
+    }
+  }
+
+  if (step === 3 || step === LAST_STEP_INDEX) {
+    const imageError = getListingImageCountError(draft.images.length);
+    if (imageError) {
+      errors.images = imageError;
     }
   }
 

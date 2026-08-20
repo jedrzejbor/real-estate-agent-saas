@@ -50,10 +50,17 @@ import {
   TransactionType,
   calculateListingCommissionAmount,
   createListing,
+  deleteListing,
   formatPrice,
   updateListing,
   uploadListingImages,
 } from '@/lib/listings';
+import {
+  createListingWithImages,
+  getListingImageCountError,
+  ListingCreationRollbackError,
+  MIN_LISTING_IMAGES,
+} from '@/lib/listing-image-rules';
 import {
   buildListingDescription,
   evaluateListingQuality,
@@ -158,6 +165,7 @@ export function ListingForm({
     getStoredDescriptionAssistantUsage(),
   );
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const listingsUsage = user?.usage.activeListings ?? 0;
   const listingsLimit = user?.entitlements.limits.activeListings ?? null;
@@ -183,20 +191,42 @@ export function ListingForm({
             },
           });
         } else {
-          const created = await createListing(data);
-          if (selectedImages.length > 0) {
-            try {
-              await uploadListingImages(created.id, selectedImages);
-            } catch (error) {
+          const nextImageError = getListingImageCountError(
+            selectedImages.length,
+          );
+          if (nextImageError) {
+            setImageError(nextImageError);
+            return;
+          }
+
+          let created: Listing;
+          try {
+            created = await createListingWithImages({
+              data,
+              files: selectedImages,
+              create: createListing,
+              upload: uploadListingImages,
+              rollback: deleteListing,
+            });
+          } catch (error) {
+            if (error instanceof ListingCreationRollbackError) {
               showErrorToast({
                 title: 'Oferta zapisana, zdjęć nie dodano',
-                description: getApiErrorMessage(error),
+                description:
+                  'Nie udało się wycofać szkicu po błędzie zdjęć. Otwórz ofertę i dodaj zdjęcia ponownie.',
               });
-              router.push(`/dashboard/listings/${created.id}/edit`);
+              router.push(`/dashboard/listings/${error.listingId}/edit`);
               router.refresh();
               return;
             }
+
+            showErrorToast({
+              title: 'Nie udało się utworzyć oferty',
+              description: getApiErrorMessage(error),
+            });
+            return;
           }
+
           showSuccessToast({
             title: 'Oferta została utworzona',
             description: 'Następny krok: sprawdź jakość danych, zdjęcia i ustawienia publikacji.',
@@ -432,6 +462,7 @@ export function ListingForm({
 
     if (validFiles.length === 0) return;
 
+    setImageError(null);
     setSelectedImages((current) => {
       const availableSlots =
         imageLimit === null ? validFiles.length : imageLimit - current.length;
@@ -462,6 +493,7 @@ export function ListingForm({
     setSelectedImages((current) =>
       current.filter((_, index) => index !== indexToRemove),
     );
+    setImageError(null);
   }
 
   function setSelectedImageAsPrimary(indexToPromote: number) {
@@ -708,6 +740,7 @@ export function ListingForm({
       {!isEdit ? (
         <CreateListingImagesSection
           files={selectedImages}
+          error={imageError}
           imageLimit={imageLimit}
           onFilesSelected={handleImageFilesSelected}
           onRemove={removeSelectedImage}
@@ -990,12 +1023,14 @@ export function ListingForm({
 
 function CreateListingImagesSection({
   files,
+  error,
   imageLimit,
   onFilesSelected,
   onRemove,
   onSetPrimary,
 }: {
   files: File[];
+  error: string | null;
   imageLimit: number | null;
   onFilesSelected: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onRemove: (index: number) => void;
@@ -1025,7 +1060,7 @@ function CreateListingImagesSection({
   return (
     <FormSection
       title="Zdjęcia oferty"
-      description="Dodaj zdjęcia od razu podczas tworzenia oferty. Po zapisie możesz zmienić kolejność, zdjęcie główne i opisy alternatywne."
+      description={`Dodaj minimum ${MIN_LISTING_IMAGES} zdjęcia. Po zapisie możesz zmienić kolejność, zdjęcie główne i opisy alternatywne.`}
     >
       <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1045,7 +1080,8 @@ function CreateListingImagesSection({
                 </Badge>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                JPG, PNG lub WebP, maksymalnie 10 MB na plik.
+                Minimum {MIN_LISTING_IMAGES}. JPG, PNG lub WebP, maksymalnie 10
+                MB na plik.
               </p>
             </div>
           </div>
@@ -1162,6 +1198,12 @@ function CreateListingImagesSection({
               })}
             </div>
           </div>
+        ) : null}
+
+        {error ? (
+          <p className="mt-3 text-sm text-destructive" role="alert">
+            {error}
+          </p>
         ) : null}
       </div>
     </FormSection>

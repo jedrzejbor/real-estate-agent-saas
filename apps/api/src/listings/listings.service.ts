@@ -1612,6 +1612,8 @@ export class ListingsService {
     const previousState = this.createListingSnapshot(listing);
 
     if (listing.status === ListingStatus.DRAFT) {
+      const localImageUrls = (listing.images ?? []).map((image) => image.url);
+
       await this.activityService.log({
         userId,
         entityType: ActivityEntityType.LISTING,
@@ -1621,6 +1623,9 @@ export class ListingsService {
       });
 
       await this.listingRepo.remove(listing);
+      await Promise.all(
+        localImageUrls.map((imageUrl) => this.removeLocalUpload(imageUrl)),
+      );
       this.logger.log(`Draft listing hard-deleted: ${id}`);
     } else {
       listing.status = ListingStatus.ARCHIVED;
@@ -3416,20 +3421,27 @@ export class ListingsService {
 
     const savedFiles: Array<{ filename: string; url: string }> = [];
 
-    for (const file of files) {
-      assertSafeImageUpload(file);
+    try {
+      for (const file of files) {
+        assertSafeImageUpload(file);
 
-      const filename = `${randomUUID()}${normalizeImageExtension(
-        file.originalname,
-        file.mimetype,
-      )}`;
-      const filePath = join(uploadDir, filename);
+        const filename = `${randomUUID()}${normalizeImageExtension(
+          file.originalname,
+          file.mimetype,
+        )}`;
+        const filePath = join(uploadDir, filename);
 
-      await writeFile(filePath, file.buffer);
-      savedFiles.push({
-        filename,
-        url: this.buildUploadPublicUrl(filename),
-      });
+        await writeFile(filePath, file.buffer);
+        savedFiles.push({
+          filename,
+          url: this.buildUploadPublicUrl(filename),
+        });
+      }
+    } catch (error) {
+      await Promise.all(
+        savedFiles.map((file) => this.removeLocalUpload(file.url)),
+      );
+      throw error;
     }
 
     return savedFiles;

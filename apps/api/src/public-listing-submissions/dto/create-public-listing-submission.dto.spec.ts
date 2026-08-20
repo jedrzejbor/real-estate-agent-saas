@@ -4,7 +4,11 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { PropertyType, TransactionType } from '../../common/enums';
-import { PublicSubmissionListingDto } from './create-public-listing-submission.dto';
+import {
+  CreatePublicListingSubmissionDto,
+  PublicSubmissionListingDto,
+} from './create-public-listing-submission.dto';
+import { UpdateSellerPublicListingSubmissionDto } from './update-seller-public-listing-submission.dto';
 
 const metadata: ArgumentMetadata = {
   type: 'body',
@@ -73,6 +77,66 @@ describe('PublicSubmissionListingDto dynamic field contract', () => {
       transactionType: TransactionType.SALE,
       price: 500000,
       ...requiredFieldsByType[propertyType],
+    };
+  }
+});
+
+describe('public submission image count contract', () => {
+  const pipe = new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+  });
+  const createMetadata: ArgumentMetadata = {
+    type: 'body',
+    metatype: CreatePublicListingSubmissionDto,
+  };
+  const updateMetadata: ArgumentMetadata = {
+    type: 'body',
+    metatype: UpdateSellerPublicListingSubmissionDto,
+  };
+  const images = [1, 2, 3].map((index) => ({
+    url: `/uploads/public-listing-submissions/image-${index}.jpg`,
+    order: index - 1,
+    isPrimary: index === 1,
+  }));
+
+  it('accepts a new submission with three images', async () => {
+    await expect(
+      pipe.transform(buildCreatePayload(images), createMetadata),
+    ).resolves.toMatchObject({ images });
+  });
+
+  it('rejects a new submission with fewer than three images', async () => {
+    await expect(
+      pipe.transform(buildCreatePayload(images.slice(0, 2)), createMetadata),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects a seller update that reduces the gallery below three images', async () => {
+    await expect(
+      pipe.transform({ images: images.slice(0, 2) }, updateMetadata),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  function buildCreatePayload(submissionImages: typeof images) {
+    return {
+      listing: {
+        title: 'Przykładowa oferta',
+        description: 'Kompletny opis przykładowej nieruchomości.',
+        propertyType: PropertyType.APARTMENT,
+        transactionType: TransactionType.SALE,
+        price: 500000,
+        areaM2: 55,
+        rooms: 3,
+      },
+      address: { city: 'Warszawa' },
+      images: submissionImages,
+      ownerName: 'Jan Kowalski',
+      email: 'jan@example.com',
+      phone: '500600700',
+      contactConsent: true,
+      termsConsent: true,
     };
   }
 });

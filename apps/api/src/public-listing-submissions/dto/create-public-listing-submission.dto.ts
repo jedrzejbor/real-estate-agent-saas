@@ -1,4 +1,6 @@
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsBoolean,
   IsArray,
   IsDefined,
@@ -26,6 +28,10 @@ import {
   TransactionType,
 } from '../../common/enums';
 import { shouldValidateListingDynamicField } from '../../common/listing-field-rules';
+import {
+  MAX_LISTING_IMAGES,
+  MIN_LISTING_IMAGES,
+} from '../../common/listing-image-rules';
 
 export class PublicSubmissionAddressDto {
   @IsOptional()
@@ -252,10 +258,15 @@ export class CreatePublicListingSubmissionDto {
   @Type(() => PublicSubmissionPublicSettingsDto)
   publicSettings?: PublicSubmissionPublicSettingsDto;
 
-  @IsOptional()
+  @IsDefined({ message: 'Zdjęcia są wymagane' })
+  @IsArray()
+  @ArrayMinSize(MIN_LISTING_IMAGES, {
+    message: `Dodaj co najmniej ${MIN_LISTING_IMAGES} zdjęcia`,
+  })
+  @ArrayMaxSize(MAX_LISTING_IMAGES)
   @ValidateNested({ each: true })
   @Type(() => PublicSubmissionImageDto)
-  images?: PublicSubmissionImageDto[];
+  images: PublicSubmissionImageDto[];
 
   @IsOptional()
   @ValidateNested()
