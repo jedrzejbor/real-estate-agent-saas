@@ -1716,6 +1716,7 @@ function buildListingDataFromPayload(
     floor: getOptionalNumber(listing.floor),
     totalFloors: getOptionalNumber(listing.totalFloors),
     yearBuilt: getOptionalNumber(listing.yearBuilt),
+    listingDetails: getOptionalObject(listing.listingDetails),
     isPremium: false,
     publicTitle,
     publicDescription,
@@ -2012,6 +2013,14 @@ function getNullableNumber(value: unknown): number | null {
 
 function getOptionalNumber(value: unknown): number | undefined {
   return getNullableNumber(value) ?? undefined;
+}
+
+function getOptionalObject(
+  value: unknown,
+): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
 }
 
 function getOptionalDate(value: unknown): Date | null {

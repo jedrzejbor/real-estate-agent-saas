@@ -23,6 +23,7 @@ import { Agent } from '../../users/entities/agent.entity';
 import { User } from '../../users/entities/user.entity';
 import { ListingImage } from './listing-image.entity';
 import { Address } from './address.entity';
+import type { ListingDetails } from '../../common/listing-details';
 
 export interface ListingAgentCollaborationPreferences {
   allowsExclusiveAgreement?: boolean;
@@ -92,6 +93,9 @@ export class Listing {
 
   @Column({ type: 'smallint', nullable: true })
   yearBuilt: number;
+
+  @Column({ type: 'jsonb', name: 'listing_details', nullable: true })
+  listingDetails?: ListingDetails | null;
 
   @Column({ type: 'boolean', default: false })
   isPremium: boolean;

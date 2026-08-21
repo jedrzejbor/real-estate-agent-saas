@@ -5,6 +5,10 @@ import {
   PropertyType,
   TransactionType,
 } from '../common/enums';
+import {
+  ListingCondition,
+  ListingMarketType,
+} from '../common/listing-details';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { Listing } from './entities/listing.entity';
 import { ListingsService } from './listings.service';
@@ -41,6 +45,11 @@ describe('ListingsService creation flow regression', () => {
         propertyType,
         transactionType,
         agentId: 'agent-1',
+        listingDetails: {
+          marketType: ListingMarketType.SECONDARY,
+          condition: ListingCondition.GOOD,
+          priceNegotiable: true,
+        },
         ...requiredFieldsByType[propertyType],
       }),
     );
@@ -76,6 +85,11 @@ function buildDto(
     propertyType,
     transactionType,
     price: 500000,
+    listingDetails: {
+      marketType: ListingMarketType.SECONDARY,
+      condition: ListingCondition.GOOD,
+      priceNegotiable: true,
+    },
     address: { city: 'Warszawa' },
     ...requiredFieldsByType[propertyType],
   };

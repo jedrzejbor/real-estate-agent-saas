@@ -427,12 +427,38 @@ Etap 8 jest zakończony. Wspólne pozostają tylko domenowe konfiguracje, selekt
 
 Fala 2 nie powinna być mieszana z pierwszym wdrożeniem ekranu startowego.
 
-- [ ] Zaprojektować miejsce zapisu pól jakościowych: `Listing` kontra osobne `*Details`.
-- [ ] Dodać migracje dla zaakceptowanych pól.
-- [ ] Dodać enumy i walidacje Zod/DTO.
+- [x] Zaprojektować miejsce zapisu pól jakościowych: `Listing` kontra osobne `*Details`.
+- [x] Dodać migracje dla zaakceptowanych pól.
+- [x] Dodać enumy i walidacje Zod/DTO.
 - [ ] Dodać UI sekcji charakterystyki.
 - [ ] Dodać wskaźnik kompletności.
 - [ ] Dodać generowanie "Najważniejszych informacji".
-- [ ] Dodać testy pod nowe pola i migracje.
+- [x] Dodać testy pod nowe pola i migracje.
 
 Kryterium zakończenia: Fala 2 ma osobny zakres, osobne migracje i nie blokuje releasu Fali 1.
+
+### Wykonane w Etapie 9 — iteracja 1
+
+Decyzja modelu danych:
+
+- Fala 2 zapisuje pierwsze pola jakościowe w `listings.listing_details` jako kontrolowany `jsonb`.
+- Nie tworzymy jeszcze osobnych `ApartmentDetails`, `HouseDetails`, `LandDetails`, itd. To pozostaje zakresem Fali 3 opisanej w `docs/LISTING_FIELD_MATRIX.md`, kiedy model szczegółów będzie stabilny i będzie realna potrzeba osobnych tabel.
+- Publiczne zgłoszenie przechowuje `listingDetails` w istniejącym `payload.listing`, a przy przejęciu/publikacji kopiuje je do `Listing.listingDetails`.
+
+Implementacja kontraktu API:
+
+- Dodano migrację `apps/api/migrations/20260821_listing_quality_details.sql` z kolumną `listing_details jsonb` i constraintem wymuszającym obiekt.
+- Dodano typy enumów i interfejs `ListingDetails` w `apps/api/src/common/listing-details.ts`.
+- Dodano `ListingDetailsDto` w `apps/api/src/common/listing-details.dto.ts` z walidacją enumów, booleanów, liczb i `availableFrom`.
+- Podłączono `listingDetails` do `CreateListingDto`, `UpdateListingDto` i `PublicSubmissionListingDto`.
+- Podłączono `listingDetails` do entity `Listing` oraz mapowania publicznego zgłoszenia na właściwą ofertę.
+
+Weryfikacja:
+
+- Testy punktowe API: `48` testów w `4` zestawach — OK.
+- Pełna regresja API: `391` testów w `67` zestawach — OK.
+- Typecheck API — OK.
+- Lint API — OK.
+- `git diff --check` — OK.
+
+Po iteracji 1 otwarte pozostają: UI sekcji charakterystyki, wskaźnik kompletności oraz generowanie "Najważniejszych informacji".

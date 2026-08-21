@@ -3,6 +3,10 @@ import {
   BadRequestException,
   ValidationPipe,
 } from '@nestjs/common';
+import {
+  ListingCondition,
+  ListingMarketType,
+} from '../../common/listing-details';
 import { PropertyType, TransactionType } from '../../common/enums';
 import { CreateListingDto } from './create-listing.dto';
 
@@ -60,6 +64,46 @@ describe('CreateListingDto dynamic field contract', () => {
     await expect(
       pipe.transform(
         { ...buildPayload(PropertyType.APARTMENT), rooms: 2.5 },
+        metadata,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('accepts validated listingDetails for quality fields', async () => {
+    await expect(
+      pipe.transform(
+        {
+          ...buildPayload(PropertyType.APARTMENT),
+          listingDetails: {
+            marketType: ListingMarketType.SECONDARY,
+            condition: ListingCondition.VERY_GOOD,
+            hasBalcony: true,
+            parkingSpaces: 1,
+            availableFrom: '2026-09-01',
+          },
+        },
+        metadata,
+      ),
+    ).resolves.toMatchObject({
+      listingDetails: {
+        marketType: ListingMarketType.SECONDARY,
+        condition: ListingCondition.VERY_GOOD,
+        hasBalcony: true,
+        parkingSpaces: 1,
+        availableFrom: '2026-09-01',
+      },
+    });
+  });
+
+  it('rejects unknown listingDetails fields', async () => {
+    await expect(
+      pipe.transform(
+        {
+          ...buildPayload(PropertyType.APARTMENT),
+          listingDetails: {
+            unsupportedField: true,
+          },
+        },
         metadata,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);

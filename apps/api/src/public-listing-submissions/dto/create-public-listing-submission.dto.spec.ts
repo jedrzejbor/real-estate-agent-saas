@@ -5,6 +5,10 @@ import {
 } from '@nestjs/common';
 import { PropertyType, TransactionType } from '../../common/enums';
 import {
+  ListingHeatingType,
+  ListingMarketType,
+} from '../../common/listing-details';
+import {
   CreatePublicListingSubmissionDto,
   PublicSubmissionListingDto,
 } from './create-public-listing-submission.dto';
@@ -64,6 +68,44 @@ describe('PublicSubmissionListingDto dynamic field contract', () => {
     await expect(
       pipe.transform(
         { ...buildPayload(PropertyType.APARTMENT), description: '   ' },
+        metadata,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('accepts validated listingDetails in the public listing payload', async () => {
+    await expect(
+      pipe.transform(
+        {
+          ...buildPayload(PropertyType.HOUSE),
+          listingDetails: {
+            marketType: ListingMarketType.SECONDARY,
+            heatingType: ListingHeatingType.HEAT_PUMP,
+            hasParking: true,
+            parkingSpaces: 2,
+          },
+        },
+        metadata,
+      ),
+    ).resolves.toMatchObject({
+      listingDetails: {
+        marketType: ListingMarketType.SECONDARY,
+        heatingType: ListingHeatingType.HEAT_PUMP,
+        hasParking: true,
+        parkingSpaces: 2,
+      },
+    });
+  });
+
+  it('rejects invalid listingDetails enum values in the public listing payload', async () => {
+    await expect(
+      pipe.transform(
+        {
+          ...buildPayload(PropertyType.HOUSE),
+          listingDetails: {
+            heatingType: 'fireplace_only',
+          },
+        },
         metadata,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);

@@ -18,6 +18,7 @@ import {
   ListingStatus,
   TransactionType,
 } from '../../common/enums';
+import { ListingDetailsDto } from '../../common/listing-details.dto';
 
 export class UpdateAddressDto {
   @IsOptional()
@@ -134,6 +135,11 @@ export class UpdateListingDto {
   @Min(1800)
   @Max(new Date().getFullYear() + 5)
   yearBuilt?: number;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ListingDetailsDto)
+  listingDetails?: ListingDetailsDto | null;
 
   @IsOptional()
   @IsBoolean()

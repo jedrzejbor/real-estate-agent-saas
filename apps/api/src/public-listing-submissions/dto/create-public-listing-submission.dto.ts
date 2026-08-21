@@ -28,6 +28,7 @@ import {
   TransactionType,
 } from '../../common/enums';
 import { shouldValidateListingDynamicField } from '../../common/listing-field-rules';
+import { ListingDetailsDto } from '../../common/listing-details.dto';
 import {
   MAX_LISTING_IMAGES,
   MIN_LISTING_IMAGES,
@@ -155,6 +156,11 @@ export class PublicSubmissionListingDto {
   @Min(1800)
   @Max(new Date().getFullYear() + 5)
   yearBuilt?: number;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ListingDetailsDto)
+  listingDetails?: ListingDetailsDto;
 }
 
 export class PublicSubmissionPublicSettingsDto {
