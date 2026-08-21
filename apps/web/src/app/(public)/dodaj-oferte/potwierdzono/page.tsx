@@ -13,7 +13,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PublicListingSubmissionProcess } from '@/components/listings/public-listing-submission-process';
+import { PublicListingSubmissionProcess } from '@/components/public-listing-submissions/public-listing-submission-process';
 import { APP_NAME } from '@/lib/brand';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';

@@ -376,7 +376,7 @@ Etap 7 jest zakończony. Krytyczne regresje tworzenia, walidacji, zapisu HTTP/AP
 
 - [x] Usunąć duplikaty tablic opcji typów nieruchomości.
 - [x] Upewnić się, że helpery formularza są nazwane domenowo, nie UI-owo.
-- [ ] Nie mieszać komponentów publicznego wizarda z komponentami dashboardu, poza wspólnym selektorem i konfiguracją.
+- [x] Nie mieszać komponentów publicznego wizarda z komponentami dashboardu, poza wspólnym selektorem i konfiguracją.
 - [x] Sprawdzić importy i dead code.
 - [x] Uruchomić lint/typecheck/testy dostępne dla zmienionych pakietów.
 - [x] Zaktualizować dokumenty, jeśli implementacja wymusi zmianę decyzji.
@@ -404,6 +404,24 @@ Weryfikacja:
 - Typecheck web — OK.
 - Lint web — bez błędów, `13` istniejących ostrzeżeń.
 - `git diff --check` — OK.
+
+### Wykonane w Etapie 8 — iteracja 2
+
+Granice public/dashboard:
+
+- Przeniesiono `PublicListingSubmissionProcess` z `apps/web/src/components/listings/` do `apps/web/src/components/public-listing-submissions/`, bo komponent opisuje proces publicznego zgłoszenia, a nie ogólny komponent oferty.
+- Zaktualizowano importy w publicznych stronach `/dodaj-oferte`, `/dodaj-oferte/sprawdz-email` i `/dodaj-oferte/potwierdzono`.
+- Dodano `apps/web/src/lib/listing-creation-boundaries.spec.ts`, który pilnuje, że publiczny wizard nie importuje komponentów dashboardu ani `ListingForm`, dashboardowe tworzenie nie importuje modułów publicznych zgłoszeń, a UI procesu zgłoszenia nie wraca do barrel exportu `components/listings`.
+
+Weryfikacja:
+
+- Testy punktowe web granic: `5` testów w `2` zestawach — OK.
+- Pełna regresja web: `67` testów w `8` zestawach — OK.
+- Typecheck web — OK.
+- Lint web — bez błędów, `13` istniejących ostrzeżeń.
+- `git diff --check` — OK.
+
+Etap 8 jest zakończony. Wspólne pozostają tylko domenowe konfiguracje, selektor intencji oraz celowo współdzielone komponenty formularzowe; przepływy publicznego zgłoszenia i dashboardowego tworzenia mają osobne granice.
 
 ## Etap 9 — Fala 2 po stabilizacji
 

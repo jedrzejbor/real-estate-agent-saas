@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, MailCheck, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PublicListingSubmissionProcess } from '@/components/listings/public-listing-submission-process';
+import { PublicListingSubmissionProcess } from '@/components/public-listing-submissions/public-listing-submission-process';
 import { APP_NAME } from '@/lib/brand';
 
 interface CheckEmailPageProps {

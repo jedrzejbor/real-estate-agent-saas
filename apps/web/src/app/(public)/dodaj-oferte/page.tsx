@@ -23,7 +23,7 @@ import { DistrictAutocomplete } from '@/components/locations/district-autocomple
 import { Input } from '@/components/ui/input';
 import { AgentCollaborationFields } from '@/components/listings/agent-collaboration-fields';
 import { ListingIntentSelector } from '@/components/listings/listing-intent-selector';
-import { PublicListingSubmissionProcess } from '@/components/listings/public-listing-submission-process';
+import { PublicListingSubmissionProcess } from '@/components/public-listing-submissions/public-listing-submission-process';
 import { useToast } from '@/contexts/toast-context';
 import { useAuth } from '@/contexts/auth-context';
 import { useBulkSelection } from '@/hooks/use-bulk-selection';
