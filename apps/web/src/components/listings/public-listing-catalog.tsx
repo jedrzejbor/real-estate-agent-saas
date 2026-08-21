@@ -30,9 +30,11 @@ import {
   formatArea,
   formatPrice,
   PROPERTY_TYPE_LABELS,
+  PROPERTY_TYPE_VALUES,
   PropertyType,
   PublicListingCatalogSort,
   TRANSACTION_TYPE_LABELS,
+  TRANSACTION_TYPE_VALUES,
   TransactionType,
   type PublicListingCatalogFilters,
   type PublicListingCatalogItem,
@@ -300,7 +302,7 @@ function PublicListingCatalogContent({
                   className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition focus:border-primary"
                 >
                   <option value="">Dowolny</option>
-                  {Object.values(PropertyType).map((type) => (
+                  {PROPERTY_TYPE_VALUES.map((type) => (
                     <option key={type} value={type}>
                       {PROPERTY_TYPE_LABELS[type]}
                     </option>
@@ -315,7 +317,7 @@ function PublicListingCatalogContent({
                   className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition focus:border-primary"
                 >
                   <option value="">Dowolna</option>
-                  {Object.values(TransactionType).map((type) => (
+                  {TRANSACTION_TYPE_VALUES.map((type) => (
                     <option key={type} value={type}>
                       {TRANSACTION_TYPE_LABELS[type]}
                     </option>

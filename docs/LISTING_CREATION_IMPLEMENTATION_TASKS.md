@@ -374,14 +374,36 @@ Etap 7 jest zakończony. Krytyczne regresje tworzenia, walidacji, zapisu HTTP/AP
 
 ## Etap 8 — cleanup i jakość kodu
 
-- [ ] Usunąć duplikaty tablic opcji typów nieruchomości.
-- [ ] Upewnić się, że helpery formularza są nazwane domenowo, nie UI-owo.
+- [x] Usunąć duplikaty tablic opcji typów nieruchomości.
+- [x] Upewnić się, że helpery formularza są nazwane domenowo, nie UI-owo.
 - [ ] Nie mieszać komponentów publicznego wizarda z komponentami dashboardu, poza wspólnym selektorem i konfiguracją.
-- [ ] Sprawdzić importy i dead code.
-- [ ] Uruchomić lint/typecheck/testy dostępne dla zmienionych pakietów.
-- [ ] Zaktualizować dokumenty, jeśli implementacja wymusi zmianę decyzji.
+- [x] Sprawdzić importy i dead code.
+- [x] Uruchomić lint/typecheck/testy dostępne dla zmienionych pakietów.
+- [x] Zaktualizować dokumenty, jeśli implementacja wymusi zmianę decyzji.
 
 Kryterium zakończenia: kod jest spójny, bez martwych gałęzi i bez rozjazdu między dokumentacją a implementacją.
+
+### Wykonane w Etapie 8 — iteracja 1
+
+Centralizacja opcji ofert:
+
+- Dodano `PROPERTY_TYPE_VALUES`, `TRANSACTION_TYPE_VALUES`, `PROPERTY_TYPE_OPTIONS` i `TRANSACTION_TYPE_OPTIONS` w `apps/web/src/lib/listings.ts`.
+- `apps/web/src/lib/listing-intent-options.ts` buduje teraz sekcje sprzedaży i wynajmu z jednej kolejności typów nieruchomości, zamiast utrzymywać dwie ręczne tablice.
+- Formularz dashboardu, edycja sprzedawcy, katalog publiczny, filtry listy ofert, raporty i agent market korzystają ze wspólnych opcji tam, gdzie wcześniej lokalnie mapowały te same etykiety.
+- Walidacja publicznego wizardu i edycji sprzedawcy używa wspólnych list wartości enumów, więc dopuszczalne typy nie są powielane w komponentach.
+
+Cleanup:
+
+- Usunięto importy, które stały się martwe po centralizacji opcji.
+- Pominięto obszar preferencji klientów w tej iteracji, bo ma inną semantykę transakcji (`Kupno`/`Najem`) i nie jest częścią przepływu tworzenia oferty.
+
+Weryfikacja:
+
+- Testy punktowe web: `43` testy w `4` zestawach — OK.
+- Pełna regresja web: `64` testy w `7` zestawach — OK.
+- Typecheck web — OK.
+- Lint web — bez błędów, `13` istniejących ostrzeżeń.
+- `git diff --check` — OK.
 
 ## Etap 9 — Fala 2 po stabilizacji
 

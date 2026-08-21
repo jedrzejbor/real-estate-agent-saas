@@ -6,8 +6,8 @@ import {
 } from './agent-collaboration-form';
 import { LEGAL_COPY } from './legal';
 import {
-  PropertyType,
-  TransactionType,
+  PROPERTY_TYPE_VALUES,
+  TRANSACTION_TYPE_VALUES,
   type PropertyType as PropertyTypeValue,
   type TransactionType as TransactionTypeValue,
 } from './listings';
@@ -267,15 +267,8 @@ export function validatePublicListingWizardStep(
   if (step === 0) {
     const result = z
       .object({
-        transactionType: z.enum([TransactionType.SALE, TransactionType.RENT]),
-        propertyType: z.enum([
-          PropertyType.APARTMENT,
-          PropertyType.HOUSE,
-          PropertyType.LAND,
-          PropertyType.COMMERCIAL,
-          PropertyType.OFFICE,
-          PropertyType.GARAGE,
-        ]),
+        transactionType: z.enum(TRANSACTION_TYPE_VALUES),
+        propertyType: z.enum(PROPERTY_TYPE_VALUES),
       })
       .safeParse(draft);
 

@@ -8,9 +8,9 @@ import {
   PropertyType,
   ListingStatus,
   TransactionType,
-  PROPERTY_TYPE_LABELS,
+  PROPERTY_TYPE_OPTIONS,
   LISTING_STATUS_LABELS,
-  TRANSACTION_TYPE_LABELS,
+  TRANSACTION_TYPE_OPTIONS,
   type ListingFilters,
 } from '@/lib/listings';
 
@@ -64,10 +64,7 @@ export function ListingFiltersBar({
             )
           }
           placeholder="Typ nieruchomości"
-          options={Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => ({
-            value,
-            label,
-          }))}
+          options={PROPERTY_TYPE_OPTIONS}
         />
 
         {/* Transaction type */}
@@ -81,9 +78,7 @@ export function ListingFiltersBar({
             )
           }
           placeholder="Typ transakcji"
-          options={Object.entries(TRANSACTION_TYPE_LABELS).map(
-            ([value, label]) => ({ value, label }),
-          )}
+          options={TRANSACTION_TYPE_OPTIONS}
         />
 
         {/* Status */}
@@ -118,5 +113,4 @@ export function ListingFiltersBar({
     </div>
   );
 }
-
 

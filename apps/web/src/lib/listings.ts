@@ -78,6 +78,20 @@ export const TransactionType = {
 export type TransactionType =
   (typeof TransactionType)[keyof typeof TransactionType];
 
+export const PROPERTY_TYPE_VALUES = [
+  PropertyType.APARTMENT,
+  PropertyType.HOUSE,
+  PropertyType.LAND,
+  PropertyType.COMMERCIAL,
+  PropertyType.OFFICE,
+  PropertyType.GARAGE,
+] as const satisfies readonly PropertyType[];
+
+export const TRANSACTION_TYPE_VALUES = [
+  TransactionType.SALE,
+  TransactionType.RENT,
+] as const satisfies readonly TransactionType[];
+
 // ── Labels (Polish) ──
 
 export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
@@ -112,6 +126,18 @@ export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
   sale: 'Sprzedaż',
   rent: 'Wynajem',
 };
+
+export const PROPERTY_TYPE_OPTIONS = PROPERTY_TYPE_VALUES.map((value) => ({
+  value,
+  label: PROPERTY_TYPE_LABELS[value],
+}));
+
+export const TRANSACTION_TYPE_OPTIONS = TRANSACTION_TYPE_VALUES.map(
+  (value) => ({
+    value,
+    label: TRANSACTION_TYPE_LABELS[value],
+  }),
+);
 
 export const LISTING_COMMISSION_TYPE_LABELS: Record<
   ListingCommissionType,

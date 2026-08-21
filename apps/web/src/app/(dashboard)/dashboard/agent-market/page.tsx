@@ -39,8 +39,10 @@ import { createListingAgentProposal } from '@/lib/listing-agent-proposals';
 import {
   formatPrice,
   PROPERTY_TYPE_LABELS,
+  PROPERTY_TYPE_OPTIONS,
   PropertyType,
   TRANSACTION_TYPE_LABELS,
+  TRANSACTION_TYPE_OPTIONS,
   TransactionType,
 } from '@/lib/listings';
 
@@ -217,7 +219,7 @@ export default function AgentListingMarketPage() {
               className="h-10 w-full rounded-xl border border-border/80 bg-card px-3 text-sm shadow-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <option value="">Wszystkie</option>
-              {Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => (
+              {PROPERTY_TYPE_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
@@ -237,7 +239,7 @@ export default function AgentListingMarketPage() {
               className="h-10 w-full rounded-xl border border-border/80 bg-card px-3 text-sm shadow-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <option value="">Wszystkie</option>
-              {Object.entries(TRANSACTION_TYPE_LABELS).map(([value, label]) => (
+              {TRANSACTION_TYPE_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value}>
                   {label}
                 </option>

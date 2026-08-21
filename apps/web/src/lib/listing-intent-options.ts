@@ -1,4 +1,9 @@
-import { PropertyType, TransactionType } from './listings';
+import {
+  PROPERTY_TYPE_LABELS,
+  PROPERTY_TYPE_VALUES,
+  PropertyType,
+  TransactionType,
+} from './listings';
 import type {
   PropertyType as PropertyTypeValue,
   TransactionType as TransactionTypeValue,
@@ -23,52 +28,18 @@ export interface ListingIntentSection {
   options: readonly ListingIntentOption[];
 }
 
-const SALE_OPTIONS = [
-  buildIntentOption(TransactionType.SALE, PropertyType.APARTMENT, 'Mieszkanie'),
-  buildIntentOption(TransactionType.SALE, PropertyType.HOUSE, 'Dom'),
-  buildIntentOption(TransactionType.SALE, PropertyType.LAND, 'Działka'),
-  buildIntentOption(
-    TransactionType.SALE,
-    PropertyType.COMMERCIAL,
-    'Lokal użytkowy',
-  ),
-  buildIntentOption(TransactionType.SALE, PropertyType.OFFICE, 'Biuro'),
-  buildIntentOption(
-    TransactionType.SALE,
-    PropertyType.GARAGE,
-    'Garaż / miejsce',
-  ),
-] as const satisfies readonly ListingIntentOption[];
-
-const RENT_OPTIONS = [
-  buildIntentOption(TransactionType.RENT, PropertyType.APARTMENT, 'Mieszkanie'),
-  buildIntentOption(TransactionType.RENT, PropertyType.HOUSE, 'Dom'),
-  buildIntentOption(TransactionType.RENT, PropertyType.LAND, 'Działka'),
-  buildIntentOption(
-    TransactionType.RENT,
-    PropertyType.COMMERCIAL,
-    'Lokal użytkowy',
-  ),
-  buildIntentOption(TransactionType.RENT, PropertyType.OFFICE, 'Biuro'),
-  buildIntentOption(
-    TransactionType.RENT,
-    PropertyType.GARAGE,
-    'Garaż / miejsce',
-  ),
-] as const satisfies readonly ListingIntentOption[];
-
 export const LISTING_INTENT_SECTIONS = [
   {
     id: 'sale',
     title: 'Sprzedam',
     transactionType: TransactionType.SALE,
-    options: SALE_OPTIONS,
+    options: buildIntentOptions(TransactionType.SALE),
   },
   {
     id: 'rent',
     title: 'Wynajmę',
     transactionType: TransactionType.RENT,
-    options: RENT_OPTIONS,
+    options: buildIntentOptions(TransactionType.RENT),
   },
 ] as const satisfies readonly ListingIntentSection[];
 
@@ -113,12 +84,25 @@ export function buildIntentOptionId(
 function buildIntentOption(
   transactionType: TransactionTypeValue,
   propertyType: PropertyTypeValue,
-  label: string,
 ): ListingIntentOption {
   return {
     id: buildIntentOptionId(transactionType, propertyType),
     transactionType,
     propertyType,
-    label,
+    label: getIntentPropertyTypeLabel(propertyType),
   };
+}
+
+function buildIntentOptions(
+  transactionType: TransactionTypeValue,
+): readonly ListingIntentOption[] {
+  return PROPERTY_TYPE_VALUES.map((propertyType) =>
+    buildIntentOption(transactionType, propertyType),
+  );
+}
+
+function getIntentPropertyTypeLabel(propertyType: PropertyTypeValue): string {
+  return propertyType === PropertyType.GARAGE
+    ? 'Garaż / miejsce'
+    : PROPERTY_TYPE_LABELS[propertyType];
 }

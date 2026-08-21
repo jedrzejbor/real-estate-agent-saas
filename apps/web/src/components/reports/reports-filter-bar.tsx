@@ -5,8 +5,8 @@ import { CalendarRange, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { InlineSelect } from '@/components/ui/inline-select';
 import {
-  PROPERTY_TYPE_LABELS,
-  TRANSACTION_TYPE_LABELS,
+  PROPERTY_TYPE_OPTIONS,
+  TRANSACTION_TYPE_OPTIONS,
   type PropertyType,
   type TransactionType,
 } from '@/lib/listings';
@@ -80,10 +80,7 @@ export function ReportsFilterBar({
               onChange('propertyType', (value || undefined) as PropertyType | undefined)
             }
             placeholder="Wszystkie typy"
-            options={Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => ({
-              value,
-              label,
-            }))}
+            options={PROPERTY_TYPE_OPTIONS}
           />
         </SelectField>
 
@@ -97,10 +94,7 @@ export function ReportsFilterBar({
               )
             }
             placeholder="Wszystkie transakcje"
-            options={Object.entries(TRANSACTION_TYPE_LABELS).map(([value, label]) => ({
-              value,
-              label,
-            }))}
+            options={TRANSACTION_TYPE_OPTIONS}
           />
         </SelectField>
       </div>

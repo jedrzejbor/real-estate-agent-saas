@@ -21,10 +21,10 @@ import { AGENT_DASHBOARD_PATH, isPrivateSellerUser } from '@/lib/auth';
 import { APP_NAME } from '@/lib/brand';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
-  PROPERTY_TYPE_LABELS,
-  PropertyType,
-  TRANSACTION_TYPE_LABELS,
-  TransactionType,
+  PROPERTY_TYPE_OPTIONS,
+  PROPERTY_TYPE_VALUES,
+  TRANSACTION_TYPE_OPTIONS,
+  TRANSACTION_TYPE_VALUES,
   type PropertyType as PropertyTypeValue,
   type TransactionType as TransactionTypeValue,
 } from '@/lib/listings';
@@ -452,9 +452,7 @@ export default function SellerListingEditPage() {
                 onChange={(value) =>
                   updateDraft('transactionType', value as TransactionTypeValue)
                 }
-                options={Object.entries(TRANSACTION_TYPE_LABELS).map(
-                  ([value, label]) => ({ value, label }),
-                )}
+                options={TRANSACTION_TYPE_OPTIONS}
               />
               <SelectField
                 label="Typ nieruchomości"
@@ -463,9 +461,7 @@ export default function SellerListingEditPage() {
                 onChange={(value) =>
                   updateDraft('propertyType', value as PropertyTypeValue)
                 }
-                options={Object.entries(PROPERTY_TYPE_LABELS).map(
-                  ([value, label]) => ({ value, label }),
-                )}
+                options={PROPERTY_TYPE_OPTIONS}
               />
               <TextField
                 label="Tytuł"
@@ -803,15 +799,8 @@ function validateDraft(
   const errors: Record<string, string> = {};
   const result = z
     .object({
-      transactionType: z.enum([TransactionType.SALE, TransactionType.RENT]),
-      propertyType: z.enum([
-        PropertyType.APARTMENT,
-        PropertyType.HOUSE,
-        PropertyType.LAND,
-        PropertyType.COMMERCIAL,
-        PropertyType.OFFICE,
-        PropertyType.GARAGE,
-      ]),
+      transactionType: z.enum(TRANSACTION_TYPE_VALUES),
+      propertyType: z.enum(PROPERTY_TYPE_VALUES),
       title: z.string().trim().min(10).max(120),
       price: z.coerce.number().min(1),
       city: z.string().trim().min(1),

@@ -43,8 +43,8 @@ import {
   type Listing,
   type ListingDynamicField,
   LISTING_COMMISSION_TYPE_LABELS,
-  PROPERTY_TYPE_LABELS,
-  TRANSACTION_TYPE_LABELS,
+  PROPERTY_TYPE_OPTIONS,
+  TRANSACTION_TYPE_OPTIONS,
   ListingCommissionType,
   PropertyType,
   TransactionType,
@@ -583,9 +583,7 @@ export function ListingForm({
               defaultValue={listing?.propertyType}
               value={propertyType}
               placeholder="Wybierz typ"
-              options={Object.entries(PROPERTY_TYPE_LABELS).map(
-                ([value, label]) => ({ value, label }),
-              )}
+              options={PROPERTY_TYPE_OPTIONS}
               error={!!getFieldError('propertyType')}
               onChange={(value) => setPropertyType(value as PropertyType | '')}
             />
@@ -602,9 +600,7 @@ export function ListingForm({
               defaultValue={listing?.transactionType}
               value={transactionType}
               placeholder="Wybierz typ"
-              options={Object.entries(TRANSACTION_TYPE_LABELS).map(
-                ([value, label]) => ({ value, label }),
-              )}
+              options={TRANSACTION_TYPE_OPTIONS}
               error={!!getFieldError('transactionType')}
               onChange={(value) =>
                 setTransactionType(value as TransactionType | '')
