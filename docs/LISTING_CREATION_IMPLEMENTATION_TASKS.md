@@ -430,7 +430,7 @@ Fala 2 nie powinna być mieszana z pierwszym wdrożeniem ekranu startowego.
 - [x] Zaprojektować miejsce zapisu pól jakościowych: `Listing` kontra osobne `*Details`.
 - [x] Dodać migracje dla zaakceptowanych pól.
 - [x] Dodać enumy i walidacje Zod/DTO.
-- [ ] Dodać UI sekcji charakterystyki.
+- [x] Dodać UI sekcji charakterystyki.
 - [ ] Dodać wskaźnik kompletności.
 - [ ] Dodać generowanie "Najważniejszych informacji".
 - [x] Dodać testy pod nowe pola i migracje.
@@ -462,3 +462,29 @@ Weryfikacja:
 - `git diff --check` — OK.
 
 Po iteracji 1 otwarte pozostają: UI sekcji charakterystyki, wskaźnik kompletności oraz generowanie "Najważniejszych informacji".
+
+### Wykonane w Etapie 9 — iteracja 2
+
+Implementacja sekcji charakterystyki w dashboardzie:
+
+- Dodano frontendowy kontrakt `apps/web/src/lib/listing-details.ts` z enumami, typem `ListingDetails`, schematem Zod i konfiguracją widoczności pól per `propertyType` oraz `transactionType`.
+- Podłączono `listingDetails` do `Listing`, `PublicListing` i `createListingSchema` w `apps/web/src/lib/listings.ts`.
+- Dodano sekcję "Charakterystyka" w `ListingForm`, renderowaną dynamicznie na podstawie wybranego typu nieruchomości i transakcji.
+- Obsłużono pola `select`, `number`, `date` i `checkbox` przez wspólny komponent pomocniczy `ListingDetailsFields`, z nazwami formularza w formacie `listingDetails.*`.
+- Poszerzono typ `InlineSelect` na `readonly` options, żeby mógł bezpiecznie przyjmować współdzielone konfiguracje pól.
+
+Testy:
+
+- Dodano `apps/web/src/lib/listing-details.spec.ts`, który sprawdza widoczność pól dla mieszkania sprzedaż/wynajem oraz działki.
+- Rozszerzono `apps/web/src/lib/create-listing-schema.spec.ts` o akceptację poprawnych `listingDetails` i odrzucanie nieznanych pól.
+- Rozszerzono `apps/web/src/lib/listing-creation-http.spec.ts`, żeby dashboardowy zapis oferty wysyłał `listingDetails` w payloadzie.
+
+Weryfikacja:
+
+- Testy punktowe web: `32` testy w `3` zestawach — OK.
+- Pełna regresja web: `72` testy w `9` zestawach — OK.
+- Typecheck web — OK.
+- Lint web — bez błędów, `13` istniejących ostrzeżeń.
+- `git diff --check` — OK.
+
+Po iteracji 2 otwarte pozostają: wskaźnik kompletności oraz generowanie "Najważniejszych informacji".

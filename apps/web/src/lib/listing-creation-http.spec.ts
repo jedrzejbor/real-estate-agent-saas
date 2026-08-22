@@ -7,6 +7,7 @@ jest.mock('./api-client', () => ({
 import { apiFetch } from './api-client';
 import {
   createListing,
+  ListingMarketType,
   PropertyType,
   TransactionType,
   type CreateListingFormData,
@@ -102,6 +103,7 @@ describe('listing creation HTTP contract', () => {
         transactionType,
         price: 500000,
         address: { city: 'Warszawa' },
+        listingDetails: buildListingDetailsInput(propertyType, transactionType),
         ...requiredFieldsByType[propertyType],
       }),
     });
@@ -177,8 +179,26 @@ function buildDashboardInput(
     transactionType,
     price: 500000,
     address: { city: 'Warszawa' },
+    listingDetails: buildListingDetailsInput(propertyType, transactionType),
     ...DYNAMIC_FIELD_VALUES,
     ...requiredFieldsByType[propertyType],
+  };
+}
+
+function buildListingDetailsInput(
+  propertyType: PropertyTypeValue,
+  transactionType: CreateListingFormData['transactionType'],
+): NonNullable<CreateListingFormData['listingDetails']> {
+  return {
+    availableFrom: '2026-09-01',
+    ...(propertyType !== PropertyType.LAND && propertyType !== PropertyType.GARAGE
+      ? { marketType: ListingMarketType.SECONDARY }
+      : {}),
+    ...(transactionType === TransactionType.SALE
+      ? { priceNegotiable: true }
+      : propertyType !== PropertyType.LAND
+        ? { deposit: 4000 }
+        : {}),
   };
 }
 

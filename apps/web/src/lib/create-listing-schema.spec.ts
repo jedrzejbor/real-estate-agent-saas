@@ -1,4 +1,6 @@
 import {
+  ListingCondition,
+  ListingMarketType,
   createListingSchema,
   PropertyType,
   TransactionType,
@@ -44,6 +46,50 @@ describe('dashboard create listing schema regression', () => {
       expect(result.error.issues).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ path: ['plotAreaM2'] }),
+        ]),
+      );
+    }
+  });
+
+  it('accepts validated listingDetails fields', () => {
+    const result = createListingSchema.safeParse({
+      ...buildPayload(PropertyType.APARTMENT, TransactionType.SALE),
+      listingDetails: {
+        marketType: ListingMarketType.SECONDARY,
+        condition: ListingCondition.VERY_GOOD,
+        hasBalcony: 'true',
+        parkingSpaces: '1',
+        priceNegotiable: true,
+        availableFrom: '2026-09-01',
+      },
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.listingDetails).toEqual({
+        marketType: ListingMarketType.SECONDARY,
+        condition: ListingCondition.VERY_GOOD,
+        hasBalcony: true,
+        parkingSpaces: 1,
+        priceNegotiable: true,
+        availableFrom: '2026-09-01',
+      });
+    }
+  });
+
+  it('rejects unknown listingDetails fields', () => {
+    const result = createListingSchema.safeParse({
+      ...buildPayload(PropertyType.APARTMENT, TransactionType.SALE),
+      listingDetails: {
+        unsupported: 'value',
+      },
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ path: ['listingDetails'] }),
         ]),
       );
     }

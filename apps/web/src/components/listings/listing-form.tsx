@@ -69,6 +69,11 @@ import {
   type ListingDescriptionAssistantInput,
   type ListingQualityReport,
 } from '@/lib/listing-description-assistant';
+import {
+  getListingDetailsFieldConfigs,
+  type ListingDetails,
+  type ListingDetailsFieldConfig,
+} from '@/lib/listing-details';
 import { useAuth } from '@/contexts/auth-context';
 import { isUsageExceeded, isUsageWarning } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -245,6 +250,10 @@ export function ListingForm({
   const qualityReport = React.useMemo(
     () => evaluateListingQuality(assistantInput),
     [assistantInput],
+  );
+  const listingDetailsFields = React.useMemo(
+    () => getListingDetailsFieldConfigs({ propertyType, transactionType }),
+    [propertyType, transactionType],
   );
 
   function syncAssistantInput() {
@@ -795,6 +804,21 @@ export function ListingForm({
               )}
             </div>
           </FormSection>
+
+          {listingDetailsFields.length > 0 ? (
+            <FormSection
+              title="Charakterystyka"
+              description="Dodatkowe dane dopasowane do typu oferty. Pomagają później filtrować, opisywać i oceniać kompletność ogłoszenia."
+            >
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <ListingDetailsFields
+                  fields={listingDetailsFields}
+                  listingDetails={listing?.listingDetails ?? null}
+                  getFieldError={getFieldError}
+                />
+              </div>
+            </FormSection>
+          ) : null}
 
           {/* === Section: Address === */}
           <FormSection title="Adres i lokalizacja">
@@ -1609,6 +1633,80 @@ function ListingDynamicFields({
   });
 }
 
+function ListingDetailsFields({
+  fields,
+  listingDetails,
+  getFieldError,
+}: {
+  fields: readonly ListingDetailsFieldConfig[];
+  listingDetails: ListingDetails | null;
+  getFieldError: (field: string) => string | null;
+}) {
+  return fields.map((field) => {
+    const name = `listingDetails.${field.key}`;
+    const error = getFieldError(name);
+    const value = listingDetails?.[field.key];
+
+    if (field.kind === 'select') {
+      return (
+        <FormField key={field.key} label={field.label} name={name} error={error}>
+          <FormSelect
+            name={name}
+            defaultValue={typeof value === 'string' ? value : undefined}
+            placeholder={field.placeholder ?? 'Wybierz'}
+            options={field.options ?? []}
+            error={!!error}
+          />
+        </FormField>
+      );
+    }
+
+    if (field.kind === 'checkbox') {
+      return (
+        <div key={field.key} className="space-y-1.5">
+          <input type="hidden" name={name} value="false" />
+          <label className="flex min-h-10 items-center gap-3 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground shadow-sm">
+            <input
+              type="checkbox"
+              name={name}
+              value="true"
+              defaultChecked={value === true}
+              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              aria-invalid={!!error}
+            />
+            <span>{field.label}</span>
+          </label>
+          {error ? (
+            <p className="text-xs text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      );
+    }
+
+    return (
+      <FormField key={field.key} label={field.label} name={name} error={error}>
+        <Input
+          name={name}
+          type={field.kind}
+          step={field.step}
+          min={field.min}
+          max={field.max}
+          defaultValue={
+            typeof value === 'number' || typeof value === 'string'
+              ? value
+              : undefined
+          }
+          placeholder={field.placeholder}
+          className="h-10 rounded-xl"
+          aria-invalid={!!error}
+        />
+      </FormField>
+    );
+  });
+}
+
 function getInitialAssistantInput(
   listing: Listing | undefined,
   initial?: {
@@ -1915,7 +2013,7 @@ function FormSelect({
   defaultValue?: string;
   value?: string;
   placeholder: string;
-  options: { value: string; label: string }[];
+  options: readonly { value: string; label: string }[];
   error?: boolean;
   onChange?: (value: string) => void;
 }) {

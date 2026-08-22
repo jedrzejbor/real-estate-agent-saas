@@ -7,8 +7,10 @@ import {
   getRequiredListingDynamicFields,
   sanitizeListingDynamicFields,
 } from './listing-field-rules';
+import { listingDetailsSchema, type ListingDetails } from './listing-details';
 
 export * from './listing-field-rules';
+export * from './listing-details';
 
 // ── Enums (mirroring backend) ──
 
@@ -237,6 +239,7 @@ export interface Listing {
   floor?: number;
   totalFloors?: number;
   yearBuilt?: number;
+  listingDetails?: ListingDetails | null;
   isPremium: boolean;
   publicSlug?: string | null;
   publicationStatus: ListingPublicationStatus;
@@ -336,6 +339,7 @@ export interface PublicListing {
   floor?: number | null;
   totalFloors?: number | null;
   yearBuilt?: number | null;
+  listingDetails?: ListingDetails | null;
   address?: Address;
   images: ListingImage[];
   agent?: PublicListingAgent | null;
@@ -752,6 +756,7 @@ export const createListingSchema = z
       .max(new Date().getFullYear() + 5)
       .optional()
       .or(z.literal('')),
+    listingDetails: listingDetailsSchema,
     showPublicViewCount: z
       .enum(['true', 'false'])
       .transform((value) => value === 'true')

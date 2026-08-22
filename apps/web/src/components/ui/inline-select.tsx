@@ -17,7 +17,7 @@ interface InlineSelectProps {
   /** Placeholder label shown when no value selected */
   placeholder: string;
   /** List of options */
-  options: InlineSelectOption[];
+  options: readonly InlineSelectOption[];
   /** Optional name for hidden input (form submission) */
   name?: string;
   /** Error state */
