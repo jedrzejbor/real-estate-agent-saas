@@ -431,7 +431,7 @@ Fala 2 nie powinna być mieszana z pierwszym wdrożeniem ekranu startowego.
 - [x] Dodać migracje dla zaakceptowanych pól.
 - [x] Dodać enumy i walidacje Zod/DTO.
 - [x] Dodać UI sekcji charakterystyki.
-- [ ] Dodać wskaźnik kompletności.
+- [x] Dodać wskaźnik kompletności.
 - [ ] Dodać generowanie "Najważniejszych informacji".
 - [x] Dodać testy pod nowe pola i migracje.
 
@@ -488,3 +488,27 @@ Weryfikacja:
 - `git diff --check` — OK.
 
 Po iteracji 2 otwarte pozostają: wskaźnik kompletności oraz generowanie "Najważniejszych informacji".
+
+### Wykonane w Etapie 9 — iteracja 3
+
+Wskaźnik kompletności charakterystyki:
+
+- Dodano `getListingDetailsCompleteness` w `apps/web/src/lib/listing-details.ts`.
+- Kompletność jest liczona na podstawie tej samej konfiguracji pól, która steruje UI, więc wynik automatycznie respektuje `propertyType` i `transactionType`.
+- Funkcja zwraca `total`, `completed`, `percent` oraz listę brakujących pól, bez zależności od Reacta i formularza.
+- W `ListingForm` dodano lokalny stan `listingDetailsDraft`, który aktualizuje kompletność przy zmianach pól `select`, `number`, `date` i `checkbox`.
+- W sekcji "Charakterystyka" dodano kompaktowy pasek kompletności z liczbą uzupełnionych pól i maksymalnie trzema brakującymi etykietami.
+
+Testy:
+
+- Rozszerzono `apps/web/src/lib/listing-details.spec.ts` o puste dane, częściowo uzupełnione dane i przypadek pól specyficznych dla wynajmu.
+
+Weryfikacja:
+
+- Testy punktowe web: `35` testów w `3` zestawach — OK.
+- Pełna regresja web: `75` testów w `9` zestawach — OK.
+- Typecheck web — OK.
+- Lint web — bez błędów, `13` istniejących ostrzeżeń.
+- `git diff --check` — OK.
+
+Po iteracji 3 otwarte pozostaje: generowanie "Najważniejszych informacji".

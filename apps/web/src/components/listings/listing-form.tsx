@@ -70,8 +70,11 @@ import {
   type ListingQualityReport,
 } from '@/lib/listing-description-assistant';
 import {
+  getListingDetailsCompleteness,
   getListingDetailsFieldConfigs,
   type ListingDetails,
+  type ListingDetailsCompleteness,
+  type ListingDetailsField,
   type ListingDetailsFieldConfig,
 } from '@/lib/listing-details';
 import { useAuth } from '@/contexts/auth-context';
@@ -171,6 +174,9 @@ export function ListingForm({
   );
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [listingDetailsDraft, setListingDetailsDraft] = useState<
+    Partial<ListingDetails>
+  >(() => listing?.listingDetails ?? {});
 
   const listingsUsage = user?.usage.activeListings ?? 0;
   const listingsLimit = user?.entitlements.limits.activeListings ?? null;
@@ -255,6 +261,25 @@ export function ListingForm({
     () => getListingDetailsFieldConfigs({ propertyType, transactionType }),
     [propertyType, transactionType],
   );
+  const listingDetailsCompleteness = React.useMemo(
+    () =>
+      getListingDetailsCompleteness({
+        propertyType,
+        transactionType,
+        details: listingDetailsDraft,
+      }),
+    [listingDetailsDraft, propertyType, transactionType],
+  );
+
+  function handleListingDetailsValueChange(
+    key: ListingDetailsField,
+    value: ListingDetails[ListingDetailsField] | string,
+  ) {
+    setListingDetailsDraft((current) => ({
+      ...current,
+      [key]: value === '' ? undefined : value,
+    }));
+  }
 
   function syncAssistantInput() {
     setAssistantInput(
@@ -810,11 +835,16 @@ export function ListingForm({
               title="Charakterystyka"
               description="Dodatkowe dane dopasowane do typu oferty. Pomagają później filtrować, opisywać i oceniać kompletność ogłoszenia."
             >
+              <ListingDetailsCompletenessSummary
+                completeness={listingDetailsCompleteness}
+              />
+
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <ListingDetailsFields
                   fields={listingDetailsFields}
                   listingDetails={listing?.listingDetails ?? null}
                   getFieldError={getFieldError}
+                  onFieldValueChange={handleListingDetailsValueChange}
                 />
               </div>
             </FormSection>
@@ -1633,14 +1663,67 @@ function ListingDynamicFields({
   });
 }
 
+function ListingDetailsCompletenessSummary({
+  completeness,
+}: {
+  completeness: ListingDetailsCompleteness;
+}) {
+  const missingLabels = completeness.missingFields
+    .slice(0, 3)
+    .map((field) => field.label);
+  const isHighCompleteness = completeness.percent >= 75;
+
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-foreground">
+            Kompletność charakterystyki
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {completeness.completed}/{completeness.total} pól uzupełnionych
+            {missingLabels.length > 0
+              ? `, brakuje: ${missingLabels.join(', ')}`
+              : ', zestaw wygląda kompletnie'}
+          </p>
+        </div>
+        <Badge variant={isHighCompleteness ? 'success' : 'outline'}>
+          {completeness.percent}%
+        </Badge>
+      </div>
+      <div
+        className="mt-3 h-2 overflow-hidden rounded-full bg-background"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={completeness.percent}
+        aria-label="Kompletność charakterystyki"
+      >
+        <div
+          className={cn(
+            'h-full rounded-full transition-all',
+            isHighCompleteness ? 'bg-status-success' : 'bg-status-warning',
+          )}
+          style={{ width: `${completeness.percent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function ListingDetailsFields({
   fields,
   listingDetails,
   getFieldError,
+  onFieldValueChange,
 }: {
   fields: readonly ListingDetailsFieldConfig[];
   listingDetails: ListingDetails | null;
   getFieldError: (field: string) => string | null;
+  onFieldValueChange: (
+    key: ListingDetailsField,
+    value: ListingDetails[ListingDetailsField] | string,
+  ) => void;
 }) {
   return fields.map((field) => {
     const name = `listingDetails.${field.key}`;
@@ -1656,6 +1739,9 @@ function ListingDetailsFields({
             placeholder={field.placeholder ?? 'Wybierz'}
             options={field.options ?? []}
             error={!!error}
+            onChange={(nextValue) =>
+              onFieldValueChange(field.key, nextValue)
+            }
           />
         </FormField>
       );
@@ -1673,6 +1759,9 @@ function ListingDetailsFields({
               defaultChecked={value === true}
               className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
               aria-invalid={!!error}
+              onChange={(event) =>
+                onFieldValueChange(field.key, event.target.checked)
+              }
             />
             <span>{field.label}</span>
           </label>
@@ -1701,6 +1790,9 @@ function ListingDetailsFields({
           placeholder={field.placeholder}
           className="h-10 rounded-xl"
           aria-invalid={!!error}
+          onChange={(event) =>
+            onFieldValueChange(field.key, event.target.value)
+          }
         />
       </FormField>
     );

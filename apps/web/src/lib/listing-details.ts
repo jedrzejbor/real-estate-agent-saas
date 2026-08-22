@@ -190,6 +190,13 @@ export interface ListingDetailsFieldConfig {
   step?: string;
 }
 
+export interface ListingDetailsCompleteness {
+  total: number;
+  completed: number;
+  percent: number;
+  missingFields: readonly ListingDetailsFieldConfig[];
+}
+
 const booleanFromFormSchema = z
   .boolean()
   .or(z.enum(['true', 'false']).transform((value) => value === 'true'))
@@ -540,4 +547,42 @@ export function getListingDetailsFieldConfigs(input: {
 
     return matchesProperty && matchesTransaction;
   });
+}
+
+export function getListingDetailsCompleteness(input: {
+  propertyType: string | '';
+  transactionType: string | '';
+  details?: Partial<ListingDetails> | null;
+}): ListingDetailsCompleteness {
+  const fields = getListingDetailsFieldConfigs(input);
+  const completedFields = fields.filter((field) =>
+    isListingDetailsValueFilled(input.details?.[field.key], field.kind),
+  );
+
+  return {
+    total: fields.length,
+    completed: completedFields.length,
+    percent:
+      fields.length === 0
+        ? 0
+        : Math.round((completedFields.length / fields.length) * 100),
+    missingFields: fields.filter(
+      (field) => !completedFields.some((completed) => completed.key === field.key),
+    ),
+  };
+}
+
+function isListingDetailsValueFilled(
+  value: ListingDetails[ListingDetailsField] | string | undefined,
+  kind: ListingDetailsInputKind,
+): boolean {
+  if (kind === 'checkbox') {
+    return value === true;
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value);
+  }
+
+  return typeof value === 'string' && value.trim().length > 0;
 }
