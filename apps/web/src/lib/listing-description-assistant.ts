@@ -3,6 +3,7 @@ import {
   PropertyType,
   TransactionType,
 } from './listings';
+import type { ListingDetails } from './listing-details';
 import { readMigratedStorageValue, STORAGE_KEYS } from './storage-keys';
 
 export interface ListingDescriptionAssistantInput {
@@ -21,6 +22,7 @@ export interface ListingDescriptionAssistantInput {
   floor?: number | null;
   totalFloors?: number | null;
   yearBuilt?: number | null;
+  listingDetails?: Partial<ListingDetails> | null;
   description?: string;
 }
 
@@ -88,6 +90,31 @@ export function buildListingDescription(
   ]
     .filter(Boolean)
     .join('\n\n');
+}
+
+export function buildListingHighlights(
+  input: ListingDescriptionAssistantInput,
+): string[] {
+  const highlights = [
+    formatAreaHighlight(input),
+    formatPlotAreaHighlight(input),
+    formatRoomsHighlight(input),
+    formatFloorHighlight(input),
+    formatListingDetailOption(input.listingDetails?.condition, CONDITION_LABELS),
+    formatListingDetailOption(input.listingDetails?.marketType, MARKET_TYPE_LABELS),
+    formatListingDetailOption(input.listingDetails?.heatingType, HEATING_TYPE_LABELS),
+    formatParkingHighlight(input.listingDetails),
+    formatListingDetailOption(input.listingDetails?.garageType, GARAGE_TYPE_LABELS),
+    formatListingDetailOption(input.listingDetails?.plotType, PLOT_TYPE_LABELS),
+    formatListingDetailOption(input.listingDetails?.localPlanStatus, LOCAL_PLAN_LABELS),
+    formatListingDetailOption(input.listingDetails?.accessRoadType, ACCESS_ROAD_LABELS),
+    input.listingDetails?.hasBalcony ? 'balkon' : '',
+    input.listingDetails?.hasElevator ? 'winda' : '',
+    input.listingDetails?.priceNegotiable ? 'cena do negocjacji' : '',
+    input.yearBuilt ? `${input.yearBuilt}` : '',
+  ].filter((highlight): highlight is string => Boolean(highlight));
+
+  return uniqueHighlights(highlights).slice(0, 7);
 }
 
 export function evaluateListingQuality(
@@ -267,6 +294,56 @@ function formatFloor(input: ListingDescriptionAssistantInput): string {
   return `Lokal znajduje się na ${input.floor}. piętrze.`;
 }
 
+function formatAreaHighlight(input: ListingDescriptionAssistantInput): string {
+  return input.areaM2 ? `${formatNumber(input.areaM2)} m²` : '';
+}
+
+function formatPlotAreaHighlight(input: ListingDescriptionAssistantInput): string {
+  if (!input.plotAreaM2) return '';
+  return input.propertyType === PropertyType.LAND
+    ? `${formatNumber(input.plotAreaM2)} m²`
+    : `działka ${formatNumber(input.plotAreaM2)} m²`;
+}
+
+function formatRoomsHighlight(input: ListingDescriptionAssistantInput): string {
+  if (!input.rooms) return '';
+  const label =
+    input.propertyType === PropertyType.COMMERCIAL ||
+    input.propertyType === PropertyType.OFFICE
+      ? pluralize(input.rooms, ['pomieszczenie', 'pomieszczenia', 'pomieszczeń'])
+      : pluralize(input.rooms, ['pokój', 'pokoje', 'pokoi']);
+
+  return `${input.rooms} ${label}`;
+}
+
+function formatFloorHighlight(input: ListingDescriptionAssistantInput): string {
+  if (input.floor === null || input.floor === undefined) return '';
+  return input.totalFloors
+    ? `piętro ${input.floor}/${input.totalFloors}`
+    : `piętro ${input.floor}`;
+}
+
+function formatParkingHighlight(
+  details: Partial<ListingDetails> | null | undefined,
+): string {
+  if (!details?.hasParking && !details?.parkingSpaces) return '';
+  if (details.parkingSpaces && details.parkingSpaces > 0) {
+    return `${details.parkingSpaces} ${pluralize(details.parkingSpaces, [
+      'miejsce parkingowe',
+      'miejsca parkingowe',
+      'miejsc parkingowych',
+    ])}`;
+  }
+  return 'parking';
+}
+
+function formatListingDetailOption(
+  value: string | undefined,
+  labels: Record<string, string>,
+): string {
+  return value ? labels[value] ?? '' : '';
+}
+
 function buildLifestyleSentence(
   propertyType: PropertyType | '' | undefined,
 ): string {
@@ -300,6 +377,68 @@ function formatNumber(value: number): string {
     maximumFractionDigits: 2,
   }).format(value);
 }
+
+function uniqueHighlights(highlights: string[]): string[] {
+  return Array.from(new Set(highlights));
+}
+
+const MARKET_TYPE_LABELS: Record<string, string> = {
+  primary: 'rynek pierwotny',
+  secondary: 'rynek wtórny',
+};
+
+const CONDITION_LABELS: Record<string, string> = {
+  developer_standard: 'stan deweloperski',
+  shell: 'do wykończenia',
+  to_renovate: 'do remontu',
+  to_refresh: 'do odświeżenia',
+  good: 'dobry stan',
+  very_good: 'bardzo dobry stan',
+};
+
+const HEATING_TYPE_LABELS: Record<string, string> = {
+  district: 'ogrzewanie miejskie',
+  gas: 'ogrzewanie gazowe',
+  electric: 'ogrzewanie elektryczne',
+  heat_pump: 'pompa ciepła',
+  solid_fuel: 'paliwo stałe',
+  oil: 'ogrzewanie olejowe',
+  other: 'inne ogrzewanie',
+};
+
+const GARAGE_TYPE_LABELS: Record<string, string> = {
+  underground: 'garaż podziemny',
+  garage_hall: 'hala garażowa',
+  detached: 'garaż wolnostojący',
+  parking_space: 'miejsce postojowe',
+  carport: 'wiata',
+  none: 'bez garażu',
+};
+
+const PLOT_TYPE_LABELS: Record<string, string> = {
+  building: 'budowlana',
+  agricultural: 'rolna',
+  recreational: 'rekreacyjna',
+  investment: 'inwestycyjna',
+  forest: 'leśna',
+  commercial: 'usługowa',
+};
+
+const LOCAL_PLAN_LABELS: Record<string, string> = {
+  yes: 'MPZP',
+  no: 'brak MPZP',
+  in_progress: 'MPZP w trakcie',
+  unknown: 'MPZP nieustalone',
+};
+
+const ACCESS_ROAD_LABELS: Record<string, string> = {
+  asphalt: 'droga asfaltowa',
+  paved: 'droga utwardzona',
+  gravel: 'droga szutrowa',
+  dirt: 'droga gruntowa',
+  easement: 'służebność dojazdu',
+  none: 'brak dojazdu',
+};
 
 function sentenceCase(value: string): string {
   const trimmed = value.trim();

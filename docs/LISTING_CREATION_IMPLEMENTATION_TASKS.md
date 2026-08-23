@@ -432,7 +432,7 @@ Fala 2 nie powinna być mieszana z pierwszym wdrożeniem ekranu startowego.
 - [x] Dodać enumy i walidacje Zod/DTO.
 - [x] Dodać UI sekcji charakterystyki.
 - [x] Dodać wskaźnik kompletności.
-- [ ] Dodać generowanie "Najważniejszych informacji".
+- [x] Dodać generowanie "Najważniejszych informacji".
 - [x] Dodać testy pod nowe pola i migracje.
 
 Kryterium zakończenia: Fala 2 ma osobny zakres, osobne migracje i nie blokuje releasu Fali 1.
@@ -512,3 +512,27 @@ Weryfikacja:
 - `git diff --check` — OK.
 
 Po iteracji 3 otwarte pozostaje: generowanie "Najważniejszych informacji".
+
+### Wykonane w Etapie 9 — iteracja 4
+
+Generowanie "Najważniejszych informacji":
+
+- Dodano `buildListingHighlights` w `apps/web/src/lib/listing-description-assistant.ts`.
+- Generator buduje krótką listę parametrów ze strukturalnych danych oferty: metraż, działka, pokoje/pomieszczenia, piętro, stan, rynek, ogrzewanie, parking/garaż, typ działki, MPZP, dojazd i wybrane booleanowe atuty.
+- Wynik jest deduplikowany i ograniczony do `7` elementów, żeby nadawał się do kompaktowego paska parametrów.
+- W `ListingForm` dodano podgląd "Najważniejsze informacje" w sekcji "Charakterystyka".
+- Podgląd aktualizuje się z danych formularza i `listingDetailsDraft`; nie dodaje nowego pola zapisu ani nie zmienia kontraktu API.
+
+Testy:
+
+- Dodano `apps/web/src/lib/listing-description-assistant.spec.ts` dla mieszkania, domu, działki i limitu liczby wygenerowanych elementów.
+
+Weryfikacja:
+
+- Testy punktowe web: `39` testów w `4` zestawach — OK.
+- Pełna regresja web: `79` testów w `10` zestawach — OK.
+- Typecheck web — OK.
+- Lint web — bez błędów, `13` istniejących ostrzeżeń.
+- `git diff --check` — OK.
+
+Etap 9 jest zakończony w zakresie Fali 2 opisanej powyżej.

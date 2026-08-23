@@ -63,6 +63,7 @@ import {
 } from '@/lib/listing-image-rules';
 import {
   buildListingDescription,
+  buildListingHighlights,
   evaluateListingQuality,
   getStoredDescriptionAssistantUsage,
   incrementStoredDescriptionAssistantUsage,
@@ -269,6 +270,16 @@ export function ListingForm({
         details: listingDetailsDraft,
       }),
     [listingDetailsDraft, propertyType, transactionType],
+  );
+  const listingHighlights = React.useMemo(
+    () =>
+      buildListingHighlights({
+        ...assistantInput,
+        propertyType,
+        transactionType,
+        listingDetails: listingDetailsDraft,
+      }),
+    [assistantInput, listingDetailsDraft, propertyType, transactionType],
   );
 
   function handleListingDetailsValueChange(
@@ -838,6 +849,7 @@ export function ListingForm({
               <ListingDetailsCompletenessSummary
                 completeness={listingDetailsCompleteness}
               />
+              <ListingHighlightsPreview highlights={listingHighlights} />
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <ListingDetailsFields
@@ -1706,6 +1718,25 @@ function ListingDetailsCompletenessSummary({
           )}
           style={{ width: `${completeness.percent}%` }}
         />
+      </div>
+    </div>
+  );
+}
+
+function ListingHighlightsPreview({ highlights }: { highlights: string[] }) {
+  if (highlights.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <p className="text-sm font-medium text-foreground">
+        Najważniejsze informacje
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {highlights.map((highlight) => (
+          <Badge key={highlight} variant="secondary">
+            {highlight}
+          </Badge>
+        ))}
       </div>
     </div>
   );
