@@ -434,3 +434,23 @@ Nie wypuszczamy publicznie, jeśli:
 - zdjęcia nie są przechowywane poza lokalnym filesystemem produkcji;
 - nie wiemy, kto moderuje ogłoszenia i w jakim SLA.
 
+
+
+
+
+
+
+TO DO CO MOIM ZDANIEM MUSIMY MIEĆ W APLIKACJI:
+
+- [ ] Mozliwosc utworzenia i zalogowania sie na konto uzytkownika 
+- [ ] Mozliwosc dodania ogłoszenia dla sprzedazy i wynajmu + edycja istniejącego 
+- [ ] Model płatności za ogłoszenie + pola rabatowe na uzycie kodu obnizającego cene
+- [ ] 
+- [ ]
+- [ ] 
+- [ ] 
+- [ ] 
+- [ ]
+- [ ] 
+- [ ] 
+- [ ] 
