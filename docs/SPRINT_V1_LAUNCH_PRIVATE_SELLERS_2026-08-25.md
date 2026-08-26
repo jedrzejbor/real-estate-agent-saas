@@ -445,10 +445,10 @@ TO DO CO MOIM ZDANIEM MUSIMY MIEĆ W APLIKACJI:
 - [ ] Mozliwosc utworzenia i zalogowania sie na konto uzytkownika 
 - [ ] Mozliwosc dodania ogłoszenia dla sprzedazy i wynajmu + edycja istniejącego 
 - [ ] Model płatności za ogłoszenie + pola rabatowe na uzycie kodu obnizającego cene
-- [ ] 
-- [ ]
-- [ ] 
-- [ ] 
+- [ ] Strona główna, FAQ, polityki prywatności
+- [ ] Cenniki
+- [ ] Strona z wyszukiwarką ofert, funkcjonalna mapa na której mozna sprawdzać oferty, oraz wybierać obszar na ktorym szukamy
+- [ ] cos trzeba fajnego marketingowo wymyslic aby oplacalo sie wchodzic na strone 
 - [ ] 
 - [ ]
 - [ ] 
