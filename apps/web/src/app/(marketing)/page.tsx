@@ -169,15 +169,16 @@ export default function Home() {
             {/* Left — copy */}
             <div>
               <h1 className="font-heading text-4xl font-bold leading-[1.1] tracking-tight text-foreground sm:text-5xl xl:text-6xl">
-                Znajdź, dodaj i <br className="hidden sm:inline" />
-                zarządzaj ofertami <br className="hidden sm:inline" />
-                nieruchomości
+                Znajdź ofertę.
+                <br />
+                Dodaj nieruchomość.
+                <br />
+                <span className="text-primary">Prowadź sprzedaż.</span>
               </h1>
 
               <p className="mt-6 max-w-lg text-base leading-relaxed text-muted-foreground lg:text-lg">
-                Przeglądaj publiczny katalog nieruchomości, dodaj własną ofertę
-                bez konta albo prowadź sprzedaż w CRM zaprojektowanym dla
-                agentów.
+                {APP_NAME} łączy publiczny katalog, prosty formularz dodawania
+                ofert i CRM dla agentów oraz biur nieruchomości.
               </p>
 
               <HomeHeroActions />
