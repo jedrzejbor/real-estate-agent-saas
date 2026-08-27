@@ -22,7 +22,6 @@ import {
   HomeHeroActions,
   HomePricingSection,
   HowItWorksStep,
-  TestimonialCard,
 } from '@/components/marketing';
 import { HeroPhotoGrid } from '@/components/marketing/hero-photo-grid';
 import type { HeroImage } from '@/components/marketing/hero-photo-grid';
@@ -163,28 +162,26 @@ const ownerSellerSteps = [
   },
 ] as const;
 
-const testimonials = [
+const workBenefits = [
   {
-    quote: `${APP_NAME} zmienił sposób, w jaki zarządzam swoimi ofertami. Oszczędzam minimum 2 godziny dziennie.`,
-    authorName: 'Anna Kowalska',
-    authorRole: 'Agent nieruchomości, Warszawa',
-    rating: 5,
+    icon: Building2,
+    title: 'Mniej chaosu w ofertach',
+    description:
+      'Widzisz, które oferty są gotowe do publikacji, wymagają uzupełnienia albo kolejnego działania.',
   },
   {
-    quote:
-      'Najlepsze narzędzie CRM dedykowane dla branży nieruchomości. Wszystko w jednym miejscu.',
-    authorName: 'Piotr Nowak',
-    authorRole: 'Właściciel biura, Kraków',
-    rating: 5,
+    icon: Users,
+    title: 'Lepszy kontakt z klientem',
+    description:
+      'Masz pod ręką dane, potrzeby i historię rozmów, więc łatwiej wrócić z właściwą propozycją.',
   },
   {
-    quote:
-      'Raporty i analityka pozwoliły mi zidentyfikować, które kanały pozyskiwania klientów działają najlepiej.',
-    authorName: 'Maria Wiśniewska',
-    authorRole: 'Senior Agent, Gdańsk',
-    rating: 5,
+    icon: CheckCircle2,
+    title: 'Jasny kolejny krok',
+    description:
+      'Od dodania oferty po spotkanie i kontakt z kupującym każdy etap ma swoje miejsce.',
   },
-];
+] as const;
 
 /* ──────────────────────────── Page ──────────────────────────── */
 
@@ -504,17 +501,17 @@ export default function Home() {
         </Container>
       </Section>
 
-      {/* ─── Testimonials ─── */}
-      <Section id="testimonials">
+      {/* ─── Work Benefits ─── */}
+      <Section id="benefits">
         <Container>
           <SectionHeader
-            badge="💬 Opinie"
-            title="Zaufali nam agenci z całej Polski"
-            description={`Dołącz do rosnącej społeczności agentów, którzy już korzystają z ${APP_NAME}.`}
+            badge="Efekty"
+            title={`Co zyskujesz z ${APP_NAME}`}
+            description="Najważniejsze efekty dla osób, które pracują z ofertami, właścicielami i kupującymi."
           />
           <div className="grid gap-6 md:grid-cols-3">
-            {testimonials.map((testimonial) => (
-              <TestimonialCard key={testimonial.authorName} {...testimonial} />
+            {workBenefits.map((benefit) => (
+              <FeatureCard key={benefit.title} {...benefit} />
             ))}
           </div>
         </Container>
