@@ -112,6 +112,36 @@ const catalogHighlights = [
   },
 ] as const;
 
+const audiencePaths = [
+  {
+    icon: Search,
+    eyebrow: 'Dla kupujących',
+    title: 'Szukam nieruchomości',
+    description:
+      'Przeglądaj oferty w katalogu i sprawdzaj lokalizację na mapie.',
+    href: '/oferty',
+    cta: 'Przejdź do ofert',
+  },
+  {
+    icon: PlusCircle,
+    eyebrow: 'Dla właścicieli',
+    title: 'Chcę dodać ofertę',
+    description:
+      'Dodaj mieszkanie, dom albo działkę bez zakładania konta agenta.',
+    href: '/dodaj-oferte',
+    cta: 'Dodaj ofertę',
+  },
+  {
+    icon: Users,
+    eyebrow: 'Dla agentów i biur',
+    title: 'Prowadzę sprzedaż',
+    description:
+      'Zarządzaj ofertami, klientami i kolejnymi krokami transakcji w CRM.',
+    href: '/register',
+    cta: 'Otwórz konto',
+  },
+] as const;
+
 const ownerSellerSteps = [
   {
     icon: ClipboardCheck,
@@ -188,6 +218,46 @@ export default function Home() {
             <div className="mx-auto w-full max-w-md lg:max-w-none">
               <HeroPhotoGrid images={heroImages} />
             </div>
+          </div>
+        </Container>
+      </Section>
+
+      {/* ─── Audience Paths ─── */}
+      <Section className="border-b border-border bg-background py-8 lg:py-10">
+        <Container>
+          <div className="grid gap-4 md:grid-cols-3">
+            {audiencePaths.map((path) => {
+              const Icon = path.icon;
+
+              return (
+                <Link
+                  key={path.title}
+                  href={path.href}
+                  className="group flex min-h-[188px] flex-col rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:border-primary/60 hover:bg-primary/5 hover:shadow-[0_16px_32px_-24px_rgba(28,25,23,0.45)]"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-emerald-light text-primary">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+                  </div>
+                  <div className="mt-5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                      {path.eyebrow}
+                    </p>
+                    <h2 className="mt-2 font-heading text-xl font-semibold leading-tight text-foreground">
+                      {path.title}
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      {path.description}
+                    </p>
+                  </div>
+                  <span className="mt-auto pt-4 text-sm font-semibold text-primary">
+                    {path.cta}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </Container>
       </Section>
