@@ -43,37 +43,37 @@ const features = [
     icon: Building2,
     title: 'Zarządzanie ofertami',
     description:
-      'Centralna baza ofert z pełnym CRUD, statusami, zdjęciami i automatycznym generowaniem kart ofertowych.',
+      'Dodawaj, edytuj i porządkuj oferty w jednym miejscu. Kontroluj status, zdjęcia i gotowość publikacji.',
   },
   {
     icon: Users,
     title: 'CRM i baza klientów',
     description:
-      'Prowadź bazę klientów z timeline kontaktów, preferencjami i automatycznym matchowaniem ofert.',
+      'Zapisuj kontakty, preferencje i historię rozmów, żeby łatwiej wracać do właściwych klientów.',
   },
   {
     icon: CalendarCheck,
     title: 'Kalendarz spotkań',
     description:
-      'Planuj prezentacje i spotkania z klientami. Automatyczne przypomnienia i synchronizacja.',
+      'Planuj prezentacje, zadania i kolejne kroki bez przełączania się między narzędziami.',
   },
   {
     icon: TrendingUp,
     title: 'Raporty i analityka',
     description:
-      'Dashboard z KPI: konwersje, przychody, aktywność zespołu. Eksport do PDF.',
+      'Sprawdzaj, które oferty i działania przynoszą efekty. Szybciej oceniaj, co warto poprawić.',
   },
   {
     icon: Globe,
     title: 'Strona publiczna',
     description:
-      'Profesjonalna wizytówka online z Twoimi ofertami. Własna domena i SEO.',
+      'Pokaż swoje oferty online i prowadź zainteresowanych prosto do kontaktu.',
   },
   {
     icon: Shield,
     title: 'Bezpieczeństwo i RODO',
     description:
-      'Pełna zgodność z RODO, szyfrowanie danych, regularne kopie zapasowe.',
+      'Porządkuj dane klientów, ofert i działań zespołu z myślą o bezpiecznej pracy.',
   },
 ];
 
@@ -165,8 +165,7 @@ const ownerSellerSteps = [
 
 const testimonials = [
   {
-    quote:
-      `${APP_NAME} zmienił sposób, w jaki zarządzam swoimi ofertami. Oszczędzam minimum 2 godziny dziennie.`,
+    quote: `${APP_NAME} zmienił sposób, w jaki zarządzam swoimi ofertami. Oszczędzam minimum 2 godziny dziennie.`,
     authorName: 'Anna Kowalska',
     authorRole: 'Agent nieruchomości, Warszawa',
     rating: 5,
@@ -474,8 +473,8 @@ export default function Home() {
         <Container>
           <SectionHeader
             badge="✨ Funkcje"
-            title="Wszystko czego potrzebujesz"
-            description={`${APP_NAME} zastępuje arkusze, notatniki, kalendarze i osobne strony internetowe — wszystko w jednym narzędziu.`}
+            title="Mniej chaosu w ofertach i kontaktach"
+            description={`${APP_NAME} pomaga uporządkować codzienną pracę z ofertami, klientami i spotkaniami w jednym miejscu.`}
           />
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature) => (
