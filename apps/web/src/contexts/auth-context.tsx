@@ -125,8 +125,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isHandlingUnauthorizedRef.current = true;
 
       const shouldRedirect = pathname?.startsWith('/dashboard') ?? false;
+      const shouldNotify = Boolean(user) || shouldRedirect;
 
-      notifyAuthorizationLost();
+      if (shouldNotify) {
+        notifyAuthorizationLost();
+      }
       performLogout(shouldRedirect);
 
       window.setTimeout(() => {
@@ -139,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       window.removeEventListener('auth:unauthorized', handleUnauthorized);
     };
-  }, [notifyAuthorizationLost, pathname, performLogout]);
+  }, [notifyAuthorizationLost, pathname, performLogout, user]);
 
   const login = useCallback(
     async (data: LoginFormData, options?: AuthRedirectOptions) => {

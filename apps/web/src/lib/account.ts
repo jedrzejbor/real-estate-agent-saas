@@ -78,7 +78,9 @@ export type DeactivateMyAccountPayload = DeactivateMyAccountFormData;
 // ── API functions ──
 
 export async function fetchCurrentUser(): Promise<AuthUser> {
-  return apiFetch<AuthUser>('/auth/me');
+  return apiFetch<AuthUser>('/auth/me', {
+    suppressUnauthorizedEvent: true,
+  });
 }
 
 export async function updateMyProfile(

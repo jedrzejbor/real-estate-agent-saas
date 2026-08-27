@@ -88,6 +88,8 @@ type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown;
   /** Skip Authorization header (for public endpoints). */
   skipAuth?: boolean;
+  /** Do not emit the global unauthorized event for expected auth probes. */
+  suppressUnauthorizedEvent?: boolean;
   /** Internal — prevents infinite retry loop after token refresh. */
   _retried?: boolean;
 };
@@ -126,6 +128,7 @@ export async function apiFetch<T = unknown>(
   {
     body,
     skipAuth,
+    suppressUnauthorizedEvent,
     _retried,
     headers: extraHeaders,
     ...init
@@ -159,13 +162,16 @@ export async function apiFetch<T = unknown>(
       return apiFetch<T>(path, {
         body,
         skipAuth,
+        suppressUnauthorizedEvent,
         _retried: true,
         headers: extraHeaders,
         ...init,
       });
     } catch {
       // Refresh itself failed — session is truly expired
-      notifyAuthorizationLost();
+      if (!suppressUnauthorizedEvent) {
+        notifyAuthorizationLost();
+      }
       throw new ApiError(401, {
         message: 'Sesja wygasła. Zaloguj się ponownie.',
       });
@@ -175,7 +181,7 @@ export async function apiFetch<T = unknown>(
   const json = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    if (!skipAuth && res.status === 401) {
+    if (!skipAuth && res.status === 401 && !suppressUnauthorizedEvent) {
       notifyAuthorizationLost();
     }
     throw new ApiError(res.status, json);
@@ -189,6 +195,7 @@ export async function apiFormDataFetch<T = unknown>(
   formData: FormData,
   {
     skipAuth,
+    suppressUnauthorizedEvent,
     _retried,
     headers: extraHeaders,
     ...init
@@ -211,12 +218,15 @@ export async function apiFormDataFetch<T = unknown>(
       await ensureRefreshed();
       return apiFormDataFetch<T>(path, formData, {
         skipAuth,
+        suppressUnauthorizedEvent,
         _retried: true,
         headers: extraHeaders,
         ...init,
       });
     } catch {
-      notifyAuthorizationLost();
+      if (!suppressUnauthorizedEvent) {
+        notifyAuthorizationLost();
+      }
       throw new ApiError(401, {
         message: 'Sesja wygasła. Zaloguj się ponownie.',
       });
@@ -226,7 +236,7 @@ export async function apiFormDataFetch<T = unknown>(
   const json = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    if (!skipAuth && res.status === 401) {
+    if (!skipAuth && res.status === 401 && !suppressUnauthorizedEvent) {
       notifyAuthorizationLost();
     }
     throw new ApiError(res.status, json);
@@ -239,6 +249,7 @@ export async function apiBlobFetch(
   path: string,
   {
     skipAuth,
+    suppressUnauthorizedEvent,
     _retried,
     headers: extraHeaders,
     ...init
@@ -260,12 +271,15 @@ export async function apiBlobFetch(
       await ensureRefreshed();
       return apiBlobFetch(path, {
         skipAuth,
+        suppressUnauthorizedEvent,
         _retried: true,
         headers: extraHeaders,
         ...init,
       });
     } catch {
-      notifyAuthorizationLost();
+      if (!suppressUnauthorizedEvent) {
+        notifyAuthorizationLost();
+      }
       throw new ApiError(401, {
         message: 'Sesja wygasła. Zaloguj się ponownie.',
       });
@@ -274,7 +288,7 @@ export async function apiBlobFetch(
 
   if (!res.ok) {
     const json = await res.json().catch(() => ({}));
-    if (!skipAuth && res.status === 401) {
+    if (!skipAuth && res.status === 401 && !suppressUnauthorizedEvent) {
       notifyAuthorizationLost();
     }
     throw new ApiError(res.status, json);
