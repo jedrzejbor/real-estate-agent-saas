@@ -533,19 +533,35 @@ export default function Home() {
       <Section>
         <Container className="text-center">
           <h2 className="font-heading text-3xl font-bold text-foreground lg:text-4xl">
-            Gotowy, by zwiększyć swoją efektywność?
+            Zacznij od tego, czego potrzebujesz
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-            Dołącz do tysięcy agentów, którzy już korzystają z {APP_NAME}.
-            Pierwsze 14 dni za darmo.
+            Przejdź do katalogu, dodaj swoją nieruchomość albo otwórz konto dla
+            agenta i prowadź cały proces w jednym miejscu.
           </p>
-          <Link
-            href="/register"
-            className="mt-8 inline-flex items-center justify-center rounded-full bg-primary px-8 py-3 text-base font-semibold text-white transition-colors hover:bg-primary/90"
-          >
-            Załóż darmowe konto
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
+          <div className="mx-auto mt-8 grid max-w-3xl gap-3 sm:grid-cols-3">
+            <Link
+              href="/oferty"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+            >
+              <Search className="h-4 w-4" />
+              Szukaj ofert
+            </Link>
+            <Link
+              href="/dodaj-oferte"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-primary bg-card px-5 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
+            >
+              <PlusCircle className="h-4 w-4" />
+              Dodaj ofertę
+            </Link>
+            <Link
+              href="/register"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border bg-card px-5 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
+            >
+              <Users className="h-4 w-4" />
+              Otwórz konto agenta
+            </Link>
+          </div>
         </Container>
       </Section>
     </>
