@@ -21,7 +21,7 @@ export async function generateMetadata({
   const page = getPageParam((await searchParams).page);
   const isFirstPage = page === 1;
   const title = isFirstPage
-    ? `Blog ${APP_NAME} | Poradniki nieruchomości i SEO dla agentów`
+    ? `Blog ${APP_NAME} | Poradniki nieruchomości`
     : `Blog ${APP_NAME}, strona ${page} | Poradniki nieruchomości`;
   const description =
     'Praktyczne poradniki o sprzedaży, kupnie i wynajmie nieruchomości oraz pracy agentów i biur nieruchomości.';
@@ -93,11 +93,11 @@ export default async function BlogIndexPage({
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">
-                    Content hub SEO
+                    Baza wiedzy {APP_NAME}
                   </p>
                   <p className="mt-1 break-words text-sm leading-6 text-muted-foreground">
-                    Artykuły są tworzone pod konkretne intencje wyszukiwania i
-                    linkują do ofert, formularzy oraz funkcji {APP_NAME}.
+                    Poradniki dla sprzedających, kupujących i agentów. Prosto,
+                    praktycznie i bez branżowego żargonu.
                   </p>
                 </div>
               </div>
