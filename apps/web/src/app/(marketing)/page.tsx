@@ -19,6 +19,7 @@ import {
 import { Container, Section, SectionHeader } from '@/components/layout';
 import {
   FeatureCard,
+  HomeHeroActions,
   HomePricingSection,
   HowItWorksStep,
   TestimonialCard,
@@ -179,28 +180,7 @@ export default function Home() {
                 agentów.
               </p>
 
-              <div className="mt-8 flex flex-wrap items-center gap-4">
-                <Link
-                  href="/oferty"
-                  className="inline-flex items-center justify-center rounded-full bg-primary px-7 py-3 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(5,150,105,0.3)] transition-all hover:bg-primary/90 hover:shadow-[0_6px_16px_rgba(5,150,105,0.4)]"
-                >
-                  <Search className="mr-2 h-4 w-4" />
-                  Szukaj nieruchomości
-                </Link>
-                <Link
-                  href="/dodaj-oferte"
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-primary bg-card px-7 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
-                >
-                  <PlusCircle className="h-4 w-4" />
-                  Dodaj ofertę bez konta
-                </Link>
-                <Link
-                  href="/register"
-                  className="inline-flex items-center justify-center rounded-full border border-border bg-card px-7 py-3 text-sm font-semibold text-foreground transition-colors hover:border-border hover:bg-muted"
-                >
-                  Otwórz konto agenta
-                </Link>
-              </div>
+              <HomeHeroActions />
             </div>
 
             {/* Right — photo grid */}
