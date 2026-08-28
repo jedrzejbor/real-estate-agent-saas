@@ -15,9 +15,9 @@ import { ThemeToggle } from '@/components/common/theme-toggle';
 import { getDefaultAuthenticatedPath } from '@/lib/auth';
 
 const navLinks = [
-  { label: 'Home', href: '/' },
+  { label: 'Start', href: '/' },
   { label: 'Oferty', href: '/oferty' },
-  { label: 'Cechy', href: '/#features' },
+  { label: 'Funkcje', href: '/#features' },
   { label: 'Cennik', href: '/#pricing' },
   { label: 'Blog', href: '/blog' },
 ] as const;

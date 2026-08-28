@@ -7,9 +7,9 @@ import { NavbarMobileMenu } from '@/components/layout/navbar-mobile-menu';
 import { APP_NAME } from '@/lib/brand';
 
 const navLinks = [
-  { label: 'Home', href: '/' },
+  { label: 'Start', href: '/' },
   { label: 'Oferty', href: '/oferty' },
-  { label: 'Cechy', href: '/#features' },
+  { label: 'Funkcje', href: '/#features' },
   { label: 'Cennik', href: '/#pricing' },
   { label: 'Blog', href: '/blog' },
 ] as const;
