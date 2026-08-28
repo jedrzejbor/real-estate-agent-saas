@@ -78,18 +78,19 @@ const features = [
 
 const steps = [
   {
-    title: 'Załóż konto',
+    title: 'Wybierz swoją ścieżkę',
     description:
-      'Rejestracja zajmuje 30 sekund. Bez karty kredytowej, bez zobowiązań.',
+      'Szukasz nieruchomości, dodajesz własną ofertę albo pracujesz jako agent? Zacznij od właściwego miejsca.',
   },
   {
-    title: 'Dodaj oferty',
-    description: 'Wprowadź swoje nieruchomości lub zaimportuj je z pliku CSV.',
+    title: 'Przejdź przez prosty proces',
+    description:
+      'Przeglądaj katalog, uzupełnij formularz oferty albo uporządkuj dane w panelu agenta.',
   },
   {
-    title: 'Zarządzaj i rozwijaj',
+    title: 'Kontynuuj bez chaosu',
     description:
-      'Korzystaj z CRM, kalendarza i raportów, aby zwiększyć swoją efektywność.',
+      'Wracaj do kontaktów, spotkań i kolejnych działań bez szukania informacji w kilku miejscach.',
   },
 ];
 
@@ -486,8 +487,8 @@ export default function Home() {
         <Container>
           <SectionHeader
             badge="🚀 Jak to działa"
-            title="Zacznij w 3 prostych krokach"
-            description={`Konfiguracja ${APP_NAME} jest szybka i bezbolesna.`}
+            title="Od potrzeby do kolejnego kroku"
+            description={`W ${APP_NAME} zaczynasz od tego, co chcesz zrobić: znaleźć ofertę, dodać nieruchomość albo prowadzić sprzedaż.`}
           />
           <div className="grid gap-10 md:grid-cols-3">
             {steps.map((step, index) => (
