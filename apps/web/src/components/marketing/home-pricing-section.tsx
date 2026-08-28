@@ -58,7 +58,7 @@ export function HomePricingSection() {
     <div className="pt-8">
       <div className="mx-auto mb-6 flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-muted-foreground">
-          Ceny i funkcje są pobierane z katalogu planów.
+          Porównaj ceny miesięczne i roczne.
         </div>
         <div className="inline-flex w-fit rounded-full border border-border bg-card p-1">
           <button

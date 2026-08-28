@@ -522,8 +522,8 @@ export default function Home() {
         <Container>
           <SectionHeader
             badge="💰 Cennik"
-            title="Prosty i przejrzysty cennik"
-            description="Nazwy, ceny, limity i funkcje są zgodne z aktualną konfiguracją planów."
+            title="Wybierz plan dla siebie lub biura"
+            description="Porównaj pakiety pod kątem liczby ofert, klientów, użytkowników i narzędzi potrzebnych na co dzień."
           />
           <HomePricingSection />
         </Container>
