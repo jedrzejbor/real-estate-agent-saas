@@ -18,7 +18,7 @@ const navLinks = [
 export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
-      <Container className="flex h-16 min-w-0 items-center justify-between gap-2 lg:h-20">
+      <Container className="flex h-16 min-w-0 items-center justify-between gap-2 px-4 sm:px-6 lg:h-20">
         <Link
           href="/"
           aria-label={`Strona główna ${APP_NAME}`}

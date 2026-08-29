@@ -374,12 +374,16 @@ export default function Home() {
       </Section>
 
       {/* ─── Private Owners ─── */}
-      <Section id="private-owners" variant="muted">
+      <Section
+        id="private-owners"
+        variant="muted"
+        className="overflow-hidden py-12 sm:py-16 lg:py-24"
+      >
         <Container>
-          <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+          <div className="grid items-center gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
             <div className="order-2 lg:order-1">
-              <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-[0_18px_45px_-30px_rgba(28,25,23,0.45)]">
-                <div className="relative aspect-[4/3] min-h-[320px]">
+              <div className="relative mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-[0_18px_45px_-30px_rgba(28,25,23,0.45)] lg:max-w-none">
+                <div className="relative aspect-[4/3] min-h-[292px] sm:min-h-[320px]">
                   <Image
                     src="/images/hero/interior-1.jpg"
                     alt="Właściciel przygotowuje mieszkanie do sprzedaży"
@@ -388,20 +392,20 @@ export default function Home() {
                     sizes="(max-width: 1024px) 100vw, 560px"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                  <div className="absolute left-4 right-4 top-4 flex flex-wrap gap-2 sm:left-6 sm:right-6 sm:top-6">
-                    <span className="rounded-full bg-card/95 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm">
+                  <div className="absolute left-3 right-3 top-3 flex flex-wrap gap-1.5 sm:left-6 sm:right-6 sm:top-6 sm:gap-2">
+                    <span className="rounded-full bg-card/95 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm sm:px-3 sm:py-1.5 sm:text-xs">
                       Bez konta na start
                     </span>
-                    <span className="rounded-full bg-brand-emerald-light px-3 py-1.5 text-xs font-semibold text-primary shadow-sm">
+                    <span className="rounded-full bg-brand-emerald-light px-2.5 py-1 text-[11px] font-semibold text-primary shadow-sm sm:px-3 sm:py-1.5 sm:text-xs">
                       Katalog i mapa
                     </span>
                   </div>
-                  <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6">
-                    <div className="max-w-md rounded-xl bg-card/95 p-4 shadow-lg backdrop-blur">
+                  <div className="absolute bottom-3 left-3 right-3 sm:bottom-6 sm:left-6 sm:right-6">
+                    <div className="max-w-md rounded-xl bg-card/95 p-3 shadow-lg backdrop-blur sm:p-4">
                       <p className="text-xs font-semibold uppercase tracking-wide text-primary">
                         Dla właściciela
                       </p>
-                      <p className="mt-1 font-heading text-xl font-semibold text-foreground">
+                      <p className="mt-1 font-heading text-lg font-semibold leading-tight text-foreground sm:text-xl">
                         Sprzedajesz mieszkanie, dom albo działkę?
                       </p>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -445,17 +449,17 @@ export default function Home() {
                 ))}
               </div>
 
-              <div className="mt-8 flex flex-wrap gap-3">
+              <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap">
                 <Link
                   href="/dodaj-oferte"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary/90 sm:w-auto"
                 >
                   <PlusCircle className="h-4 w-4" />
                   Dodaj ofertę bez konta
                 </Link>
                 <Link
                   href="/oferty"
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary sm:w-auto"
                 >
                   Zobacz katalog
                   <ArrowRight className="h-4 w-4" />
