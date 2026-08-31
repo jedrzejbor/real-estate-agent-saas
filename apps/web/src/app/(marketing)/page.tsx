@@ -534,7 +534,7 @@ export default function Home() {
         </Container>
       </Section>
 
-      {/* ─── Final CTA dsad───sdaasd */}
+      {/* ─── Final CTA ─── */}
       <Section>
         <Container className="text-center">
           <h2 className="font-heading text-3xl font-bold text-foreground lg:text-4xl">
