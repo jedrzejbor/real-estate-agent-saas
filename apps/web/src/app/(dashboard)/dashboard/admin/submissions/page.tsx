@@ -74,17 +74,6 @@ export default function AdminListingSubmissionsPage() {
   }, [isAdmin, refreshToken]);
 
   async function approveSubmission(item: AdminPublicListingSubmissionListItem) {
-    const checklist = getModerationChecklist(item);
-    const blockingItems = checklist.filter((entry) => entry.blocksApproval);
-
-    if (blockingItems.length > 0) {
-      showErrorToast({
-        title: 'Nie można zatwierdzić bez pełnej kontroli',
-        description: blockingItems.map((entry) => entry.label).join(', '),
-      });
-      return;
-    }
-
     const confirmed = await confirm({
       title: 'Zatwierdzić publiczną ofertę?',
       description: formatModerationDecisionSummary(
@@ -272,7 +261,6 @@ function SubmissionModerationCard({
   onReject: () => void;
 }) {
   const checklist = getModerationChecklist(item);
-  const canApprove = checklist.every((entry) => !entry.blocksApproval);
 
   return (
     <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -285,9 +273,10 @@ function SubmissionModerationCard({
             <Badge variant="secondary">
               {TRANSACTION_TYPE_LABELS[item.transactionType]}
             </Badge>
-            <span className="text-xs text-muted-foreground">
-              Claim {item.claimedAt ? formatDate(item.claimedAt) : 'brak daty'}
-            </span>
+            <Badge variant="outline">
+              Przejęto{' '}
+              {item.claimedAt ? formatDate(item.claimedAt) : 'brak daty'}
+            </Badge>
           </div>
 
           <h2 className="mt-3 font-heading text-lg font-semibold">
@@ -309,19 +298,16 @@ function SubmissionModerationCard({
             <span>Dodano {formatDate(item.createdAt)}</span>
           </div>
 
-          <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-            <span className="inline-flex items-center gap-1.5">
-              <Mail className="h-4 w-4" />
-              {item.email}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Phone className="h-4 w-4" />
-              {item.phone}
-            </span>
+          <div className="mt-4 rounded-xl border border-border bg-muted/20 p-3">
+            <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+              Dane właściciela
+            </p>
+            <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+              <ContactDetail label="Osoba" value={item.ownerName} />
+              <ContactDetail icon={Mail} label="Email" value={item.email} />
+              <ContactDetail icon={Phone} label="Telefon" value={item.phone} />
+            </div>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Właściciel: {item.ownerName}
-          </p>
         </div>
 
         <div className="grid gap-3">
@@ -329,7 +315,7 @@ function SubmissionModerationCard({
 
           <Button
             className="gap-2 rounded-xl"
-            disabled={isUpdating || !canApprove}
+            disabled={isUpdating}
             onClick={onApprove}
           >
             <CheckCircle2 className="h-4 w-4" />
@@ -360,6 +346,28 @@ function SubmissionModerationCard({
   );
 }
 
+function ContactDetail({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon?: typeof Mail;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-lg border border-border bg-card px-3 py-2">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+        {label}
+      </div>
+      <p className="mt-1 break-words text-sm font-medium text-foreground">
+        {value || 'Brak danych'}
+      </p>
+    </div>
+  );
+}
+
 interface ModerationChecklistItem {
   label: string;
   detail: string;
@@ -369,22 +377,25 @@ interface ModerationChecklistItem {
 
 function ModerationChecklist({ items }: { items: ModerationChecklistItem[] }) {
   return (
-    <section className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-950">
-        <ShieldAlert className="h-4 w-4 text-amber-700" />
+    <section className="rounded-xl border border-border bg-muted/20 p-3">
+      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+        <ShieldAlert className="h-4 w-4 text-status-warning" />
         Checklist moderacji
       </div>
       <ul className="space-y-2">
         {items.map((item) => (
           <li
             key={item.label}
-            className="flex items-start gap-2 rounded-lg border border-amber-200 bg-card px-3 py-2 text-sm"
+            className={cn(
+              'flex items-start gap-2 rounded-lg border px-3 py-2 text-sm',
+              getChecklistItemClasses(item.status),
+            )}
           >
             <span
               className={cn(
                 'mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full',
                 item.status === 'ok' && 'bg-status-success',
-                item.status === 'warning' && 'bg-amber-500',
+                item.status === 'warning' && 'bg-status-warning',
                 item.status === 'blocked' && 'bg-destructive',
               )}
             />
@@ -403,6 +414,20 @@ function ModerationChecklist({ items }: { items: ModerationChecklistItem[] }) {
   );
 }
 
+function getChecklistItemClasses(
+  status: ModerationChecklistItem['status'],
+): string {
+  if (status === 'ok') {
+    return 'border-status-success/25 bg-status-success-bg/60';
+  }
+
+  if (status === 'warning') {
+    return 'border-status-warning/25 bg-status-warning-bg/60';
+  }
+
+  return 'border-destructive/25 bg-destructive/10';
+}
+
 function getModerationChecklist(
   item: AdminPublicListingSubmissionListItem,
 ): ModerationChecklistItem[] {
@@ -418,7 +443,7 @@ function getModerationChecklist(
     {
       label: 'Dane kontaktowe',
       detail: hasContact
-        ? `${item.ownerName}, ${item.email}, ${item.phone}`
+        ? 'Imię, email i telefon są uzupełnione.'
         : 'Brakuje właściciela, emaila albo telefonu.',
       status: hasContact ? 'ok' : 'blocked',
       blocksApproval: !hasContact,
@@ -450,7 +475,7 @@ function getModerationChecklist(
     {
       label: 'Sygnały abuse',
       detail: hasAbuseSignals
-        ? item.moderationReasons.join(', ')
+        ? item.moderationReasons.map(formatModerationReason).join(', ')
         : 'Brak sygnałów abuse z automatycznej moderacji.',
       status: hasAbuseSignals ? 'blocked' : 'ok',
       blocksApproval: hasAbuseSignals,
@@ -467,6 +492,20 @@ function formatModerationDecisionSummary(
     .join(' ');
 
   return `${intro} Oferta: ${item.title}. Właściciel: ${item.ownerName}. ${checklist}`;
+}
+
+function formatModerationReason(reason: string): string {
+  const labels: Record<string, string> = {
+    contains_links: 'opis zawiera linki',
+    too_many_links: 'za dużo linków w opisie',
+    repeated_characters: 'podejrzane powtórzenia znaków',
+    suspicious_terms: 'podejrzane słowa w treści',
+    short_description: 'krótki opis',
+    missing_images: 'brak zdjęć',
+    very_low_price_per_m2: 'bardzo niska cena za m²',
+  };
+
+  return labels[reason] ?? reason;
 }
 
 function formatDate(value: string): string {
