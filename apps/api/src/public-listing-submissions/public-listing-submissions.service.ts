@@ -34,6 +34,7 @@ import {
   PublicListingSubmissionSource,
   PublicListingSubmissionStatus,
   TransactionType,
+  UserRole,
 } from '../common/enums';
 import { APP_NAME } from '../common/brand';
 import {
@@ -251,38 +252,44 @@ export class PublicListingSubmissionsService {
     request: Request,
     ownerUserId?: string | null,
   ): Promise<PublicListingSubmissionCreatedResult> {
-    this.assertHumanSubmission(dto);
-    this.assertConsents(dto);
+    const effectiveDto = await this.withAuthenticatedOwnerContact(
+      dto,
+      ownerUserId,
+    );
+
+    this.assertHumanSubmission(effectiveDto);
+    this.assertConsents(effectiveDto);
 
     const now = new Date();
     const fingerprint = getRequestFingerprint(request);
-    await this.assertCreateRateLimits(dto, fingerprint.ipHash, now);
+    await this.assertCreateRateLimits(effectiveDto, fingerprint.ipHash, now);
     const abuseReport = assertPublicTextAllowed(
       {
-        title: dto.listing.title,
-        description: dto.listing.description,
-        imageUrls: dto.images?.map((image) => image.url),
+        title: effectiveDto.listing.title,
+        description: effectiveDto.listing.description,
+        imageUrls: effectiveDto.images?.map((image) => image.url),
       },
       { maxLinks: MAX_DESCRIPTION_LINKS },
     );
     const verification = createTokenPair();
     const expiresAt = new Date(now.getTime() + VERIFICATION_TTL_MS);
     const agentCollaboration = normalizeAgentCollaborationInput(
-      dto.agentCollaboration,
+      effectiveDto.agentCollaboration,
       now,
     );
 
     const submission = this.submissionRepo.create({
       status: PublicListingSubmissionStatus.PENDING_EMAIL_VERIFICATION,
-      source: dto.source ?? PublicListingSubmissionSource.PUBLIC_WIZARD,
-      ownerName: dto.ownerName.trim(),
-      email: dto.email.toLowerCase().trim(),
-      phone: dto.phone.trim(),
-      agencyName: normalizeOptional(dto.agencyName),
-      contactConsent: dto.contactConsent,
-      termsConsent: dto.termsConsent,
-      marketingConsent: dto.marketingConsent ?? false,
-      consentText: normalizeOptional(dto.consentText),
+      source:
+        effectiveDto.source ?? PublicListingSubmissionSource.PUBLIC_WIZARD,
+      ownerName: effectiveDto.ownerName.trim(),
+      email: effectiveDto.email.toLowerCase().trim(),
+      phone: effectiveDto.phone.trim(),
+      agencyName: normalizeOptional(effectiveDto.agencyName),
+      contactConsent: effectiveDto.contactConsent,
+      termsConsent: effectiveDto.termsConsent,
+      marketingConsent: effectiveDto.marketingConsent ?? false,
+      consentText: normalizeOptional(effectiveDto.consentText),
       consentedAt: now,
       verificationTokenHash: verification.hash,
       verificationExpiresAt: expiresAt,
@@ -290,7 +297,7 @@ export class PublicListingSubmissionsService {
       verificationEmailCount: 1,
       ipHash: fingerprint.ipHash,
       userAgent: fingerprint.userAgent,
-      payload: buildSubmissionPayload(dto),
+      payload: buildSubmissionPayload(effectiveDto),
       agentCollaborationEnabled: agentCollaboration.enabled,
       agentCollaborationMode: agentCollaboration.mode,
       agentCollaborationStatus: agentCollaboration.status,
@@ -298,18 +305,18 @@ export class PublicListingSubmissionsService {
       agentCollaborationOpenedAt: agentCollaboration.openedAt,
       agentCollaborationClosedAt: agentCollaboration.closedAt,
       metadata: {
-        ...sanitizeMetadata(dto.metadata),
+        ...sanitizeMetadata(effectiveDto.metadata),
         abuse: {
           riskScore: abuseReport.riskScore,
           signals: abuseReport.signals,
         },
       },
-      sourceUrl: normalizeOptional(dto.sourceUrl),
-      referrer: normalizeOptional(dto.referrer),
+      sourceUrl: normalizeOptional(effectiveDto.sourceUrl),
+      referrer: normalizeOptional(effectiveDto.referrer),
       ownerUserId: ownerUserId ?? null,
-      utmSource: normalizeOptional(dto.utmSource),
-      utmMedium: normalizeOptional(dto.utmMedium),
-      utmCampaign: normalizeOptional(dto.utmCampaign),
+      utmSource: normalizeOptional(effectiveDto.utmSource),
+      utmMedium: normalizeOptional(effectiveDto.utmMedium),
+      utmCampaign: normalizeOptional(effectiveDto.utmCampaign),
     });
 
     const saved = await this.submissionRepo.save(submission);
@@ -322,6 +329,42 @@ export class PublicListingSubmissionsService {
       status: saved.status,
       emailMasked: maskEmail(saved.email),
       expiresAt,
+    };
+  }
+
+  private async withAuthenticatedOwnerContact(
+    dto: CreatePublicListingSubmissionDto,
+    ownerUserId?: string | null,
+  ): Promise<CreatePublicListingSubmissionDto> {
+    if (!ownerUserId) {
+      return dto;
+    }
+
+    const owner = await this.usersService.findById(ownerUserId);
+
+    if (!owner) {
+      throw new NotFoundException('Użytkownik nie znaleziony');
+    }
+
+    const ownerName = [
+      owner.agent?.firstName,
+      owner.agent?.lastName,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    const phone = owner.agent?.phone?.trim();
+    const agencyName =
+      owner.role === UserRole.VIEWER
+        ? undefined
+        : (owner.agent?.agency?.name?.trim() ?? dto.agencyName);
+
+    return {
+      ...dto,
+      ownerName: ownerName || dto.ownerName,
+      email: owner.email.toLowerCase().trim(),
+      phone: phone || dto.phone,
+      agencyName,
     };
   }
 

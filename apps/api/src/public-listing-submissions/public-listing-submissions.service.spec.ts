@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import type { Request } from 'express';
 import {
   ActivityAction,
   ListingAgentCollaborationMode,
@@ -10,10 +11,12 @@ import {
   PublicListingSubmissionSource,
   PublicListingSubmissionStatus,
   TransactionType,
+  UserRole,
 } from '../common/enums';
 import { Listing } from '../listings/entities/listing.entity';
 import { ListingImage } from '../listings/entities/listing-image.entity';
 import { ListingAgentProposal } from '../listing-agent-proposals';
+import type { CreatePublicListingSubmissionDto } from './dto';
 import { PublicListingSubmission } from './entities';
 import { PublicListingSubmissionsService } from './public-listing-submissions.service';
 
@@ -150,9 +153,14 @@ function buildService(submission: PublicListingSubmission) {
     execute: jest.fn().mockResolvedValue(undefined),
   };
   const submissionRepo = {
+    count: jest.fn().mockResolvedValue(0),
+    create: jest.fn((value: Partial<PublicListingSubmission>) => value),
     find: jest.fn().mockResolvedValue([submission]),
     findOne: jest.fn().mockResolvedValue(submission),
-    save: jest.fn(async (value: PublicListingSubmission) => value),
+    save: jest.fn(async (value: PublicListingSubmission) => ({
+      ...value,
+      id: value.id ?? 'created-submission-1',
+    })),
     createQueryBuilder: jest.fn(),
   };
   const listingRepo = {
@@ -185,6 +193,25 @@ function buildService(submission: PublicListingSubmission) {
       callback(transactionManager),
     ),
   };
+  const usersService = {
+    findById: jest.fn().mockResolvedValue({
+      id: 'owner-1',
+      email: 'owner@example.com',
+      role: UserRole.VIEWER,
+      agent: {
+        firstName: 'Jan',
+        lastName: 'Kowalski',
+        phone: '600100200',
+        agency: null,
+      },
+    }),
+  };
+  const monitoringService = {
+    monitor: jest.fn(
+      async (_options: unknown, callback: () => Promise<unknown>) =>
+        callback(),
+    ),
+  };
 
   return {
     service: new PublicListingSubmissionsService(
@@ -196,8 +223,8 @@ function buildService(submission: PublicListingSubmission) {
       activityService as never,
       emailService as never,
       configService as never,
-      {} as never,
-      {} as never,
+      usersService as never,
+      monitoringService as never,
     ),
     submissionRepo,
     analyticsEventRepo,
@@ -208,6 +235,8 @@ function buildService(submission: PublicListingSubmission) {
     listing: submission.publishedListing as Listing,
     transactionManager,
     transactionQueryBuilder,
+    usersService,
+    monitoringService,
   };
 }
 
@@ -226,6 +255,120 @@ function mockSubmissionQueryBuilder(
     getMany: jest.fn().mockResolvedValue(submissions),
   });
 }
+
+function buildCreateDto(
+  overrides: Partial<CreatePublicListingSubmissionDto> = {},
+): CreatePublicListingSubmissionDto {
+  return {
+    listing: {
+      title: 'Mieszkanie testowe',
+      description:
+        'Kompletny opis mieszkania testowego z wystarczajaca liczba szczegolow.',
+      propertyType: PropertyType.APARTMENT,
+      transactionType: TransactionType.SALE,
+      price: 500000,
+      currency: 'PLN',
+      areaM2: 50,
+      rooms: 2,
+    },
+    address: {
+      city: 'Warszawa',
+    },
+    images: [1, 2, 3].map((index) => ({
+      url: `https://podadresem.test/image-${index}.jpg`,
+      altText: null,
+      order: index - 1,
+      isPrimary: index === 1,
+    })),
+    ownerName: 'Jan Kowalski',
+    email: 'jan@example.com',
+    phone: '600100200',
+    agencyName: undefined,
+    contactConsent: true,
+    termsConsent: true,
+    marketingConsent: false,
+    website: '',
+    source: PublicListingSubmissionSource.PUBLIC_WIZARD,
+    ...overrides,
+  } as CreatePublicListingSubmissionDto;
+}
+
+function buildRequest(): Request {
+  return {
+    get: jest.fn((name: string) =>
+      name.toLowerCase() === 'user-agent' ? 'jest' : undefined,
+    ),
+    ip: '127.0.0.1',
+  } as unknown as Request;
+}
+
+describe('PublicListingSubmissionsService authenticated seller create', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('uses the current owner account contact instead of stale submitted contact', async () => {
+    const submission = buildSubmission();
+    const {
+      service,
+      submissionRepo,
+      emailService,
+      usersService,
+    } = buildService(submission);
+    usersService.findById.mockResolvedValueOnce({
+      id: 'owner-current',
+      email: 'current.owner@example.com',
+      role: UserRole.VIEWER,
+      agent: {
+        firstName: 'Anna',
+        lastName: 'Nowak',
+        phone: '700800900',
+        agency: null,
+      },
+    });
+
+    await service.create(
+      buildCreateDto({
+        ownerName: 'Poprzedni Uzytkownik',
+        email: 'previous@example.com',
+        phone: '600100200',
+        agencyName: 'Stara Agencja',
+      }),
+      buildRequest(),
+      'owner-current',
+    );
+
+    expect(usersService.findById).toHaveBeenCalledWith('owner-current');
+    expect(submissionRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ownerUserId: 'owner-current',
+        ownerName: 'Anna Nowak',
+        email: 'current.owner@example.com',
+        phone: '700800900',
+        agencyName: null,
+      }),
+    );
+    expect(submissionRepo.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          email: 'current.owner@example.com',
+        }),
+      }),
+    );
+    expect(submissionRepo.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          phone: '700800900',
+        }),
+      }),
+    );
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'current.owner@example.com',
+      }),
+    );
+  });
+});
 
 describe('PublicListingSubmissionsService admin moderation', () => {
   afterEach(() => {

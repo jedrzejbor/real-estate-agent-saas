@@ -29,7 +29,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useBulkSelection } from '@/hooks/use-bulk-selection';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { APP_NAME } from '@/lib/brand';
-import { isPrivateSellerUser, type AuthUser } from '@/lib/auth';
+import { isPrivateSellerUser } from '@/lib/auth';
 import {
   PROPERTY_TYPE_LABELS,
   TRANSACTION_TYPE_LABELS,
@@ -45,6 +45,7 @@ import {
 } from '@/lib/listing-image-rules';
 import { LEGAL_COPY, LEGAL_LINKS } from '@/lib/legal';
 import {
+  applyAuthenticatedPublicListingContactDefaults,
   buildPublicListingSubmissionPayload,
   clearStoredPublicListingWizardDraft,
   INITIAL_PUBLIC_LISTING_WIZARD_DRAFT,
@@ -96,7 +97,8 @@ export default function PublicListingSubmissionWizardPage() {
   const isAuthenticatedPrivateSeller = user ? isPrivateSellerUser(user) : false;
   const showAgencyNameField = !isAuthenticatedPrivateSeller;
   const formStartedAt = React.useRef(Date.now());
-  const appliedContactDefaultsForUserRef = React.useRef<string | null>(null);
+  const [contactDefaultsAppliedForUserId, setContactDefaultsAppliedForUserId] =
+    React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [draft, setDraft] =
     React.useState<PublicListingWizardDraft>(INITIAL_DRAFT);
@@ -124,13 +126,23 @@ export default function PublicListingSubmissionWizardPage() {
   }, [router, shouldRedirectAuthenticatedAgent]);
 
   React.useEffect(() => {
-    if (!isHydrated || !user) return;
-    if (appliedContactDefaultsForUserRef.current === user.id) return;
+    if (!user) {
+      if (contactDefaultsAppliedForUserId !== null) {
+        setContactDefaultsAppliedForUserId(null);
+      }
+      return;
+    }
 
-    appliedContactDefaultsForUserRef.current = user.id;
+    if (!isHydrated || !isPrivateSellerUser(user)) return;
+    if (contactDefaultsAppliedForUserId === user.id) return;
+
+    setContactDefaultsAppliedForUserId(user.id);
 
     setDraft((current) => {
-      const next = applyAuthenticatedContactDefaults(current, user);
+      const next = applyAuthenticatedPublicListingContactDefaults(
+        current,
+        user,
+      );
       if (next === current) {
         return current;
       }
@@ -141,14 +153,24 @@ export default function PublicListingSubmissionWizardPage() {
 
       return next;
     });
-  }, [isHydrated, user]);
+  }, [contactDefaultsAppliedForUserId, isHydrated, user]);
+
+  const shouldWaitForAuthenticatedContactDefaults =
+    isHydrated &&
+    isAuthenticatedPrivateSeller &&
+    contactDefaultsAppliedForUserId !== user?.id;
 
   React.useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated || shouldWaitForAuthenticatedContactDefaults) return;
     writeStoredPublicListingWizardDraft(localStorage, draft);
-  }, [draft, isHydrated]);
+  }, [draft, isHydrated, shouldWaitForAuthenticatedContactDefaults]);
 
-  if (isAuthLoading || shouldRedirectAuthenticatedAgent) {
+  if (
+    !isHydrated ||
+    isAuthLoading ||
+    shouldRedirectAuthenticatedAgent ||
+    shouldWaitForAuthenticatedContactDefaults
+  ) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -1261,55 +1283,6 @@ function LegalLink({
       {children}
     </Link>
   );
-}
-
-function applyAuthenticatedContactDefaults(
-  draft: PublicListingWizardDraft,
-  user: AuthUser,
-): PublicListingWizardDraft {
-  const defaults = getAuthenticatedContactDefaults(user);
-  let next = draft;
-
-  for (const [key, value] of Object.entries(defaults) as Array<
-    [keyof typeof defaults, string]
-  >) {
-    if (!value || draft[key].trim()) {
-      continue;
-    }
-
-    next = {
-      ...next,
-      [key]: value,
-    };
-  }
-
-  if (isPrivateSellerUser(user) && next.agencyName) {
-    next = {
-      ...next,
-      agencyName: '',
-    };
-  }
-
-  return next;
-}
-
-function getAuthenticatedContactDefaults(
-  user: AuthUser,
-): Pick<
-  PublicListingWizardDraft,
-  'ownerName' | 'email' | 'phone' | 'agencyName'
-> {
-  return {
-    ownerName: [user.agent?.firstName, user.agent?.lastName]
-      .filter(Boolean)
-      .join(' ')
-      .trim(),
-    email: user.email,
-    phone: user.agent?.phone?.trim() ?? '',
-    agencyName: isPrivateSellerUser(user)
-      ? ''
-      : (user.agency?.name?.trim() ?? ''),
-  };
 }
 
 function clearErrorsForFilledContactDefaults(
