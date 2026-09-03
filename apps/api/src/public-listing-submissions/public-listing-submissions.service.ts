@@ -1843,18 +1843,6 @@ function evaluateSubmissionModeration(
 }
 
 function getModerationSignals(submission: PublicListingSubmission): string[] {
-  const storedModeration = submission.metadata?.moderation;
-
-  if (
-    typeof storedModeration === 'object' &&
-    storedModeration !== null &&
-    Array.isArray((storedModeration as { reasons?: unknown }).reasons)
-  ) {
-    return (storedModeration as { reasons: unknown[] }).reasons
-      .filter((reason): reason is string => typeof reason === 'string')
-      .slice(0, 8);
-  }
-
   return evaluateSubmissionModeration(submission).reasons.slice(0, 8);
 }
 

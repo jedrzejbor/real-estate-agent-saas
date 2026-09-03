@@ -556,6 +556,47 @@ describe('PublicListingSubmissionsService admin moderation', () => {
     ]);
   });
 
+  it('recomputes admin moderation reasons from the current payload', async () => {
+    const submission = buildSubmission({
+      payload: {
+        listing: {
+          title: 'Domek taki i taki',
+          description:
+            'Dom usytuowany w pieknej okolicy z widokiem i kompletnym opisem do moderacji.',
+          propertyType: PropertyType.HOUSE,
+          transactionType: TransactionType.SALE,
+          price: 3213122,
+          currency: 'PLN',
+          areaM2: 300,
+          plotAreaM2: 9000,
+          rooms: 20,
+          bathrooms: 10,
+        },
+        address: {
+          city: 'Bydgoszcz',
+        },
+        images: [
+          { url: 'https://podadresem.test/image-1.jpg' },
+          { url: 'https://podadresem.test/image-2.jpg' },
+          { url: 'https://podadresem.test/image-3.jpg' },
+        ],
+      },
+      metadata: {
+        moderation: {
+          reasons: ['very_low_price_per_m2'],
+        },
+      },
+    });
+    const { service, submissionRepo } = buildService(submission);
+    mockSubmissionQueryBuilder(submissionRepo, [submission]);
+
+    const result = await service.findPendingAdminReview();
+
+    expect(result[0].moderationReasons).not.toContain(
+      'very_low_price_per_m2',
+    );
+  });
+
   it('returns full claimed submission details for admin review', async () => {
     const submission = buildSubmission();
     const { service } = buildService(submission);
