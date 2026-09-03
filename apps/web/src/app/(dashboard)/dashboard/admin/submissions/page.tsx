@@ -361,7 +361,7 @@ function SubmissionModerationCard({
 
           <Button
             variant="outline"
-            className="gap-2 rounded-xl"
+            className="cursor-pointer gap-2 rounded-xl"
             disabled={isUpdating}
             onClick={onPreview}
           >
@@ -370,7 +370,7 @@ function SubmissionModerationCard({
           </Button>
 
           <Button
-            className="gap-2 rounded-xl"
+            className="cursor-pointer gap-2 rounded-xl"
             disabled={isUpdating}
             onClick={onApprove}
           >
@@ -389,7 +389,7 @@ function SubmissionModerationCard({
 
           <Button
             variant="destructive"
-            className="gap-2 rounded-xl"
+            className="cursor-pointer gap-2 rounded-xl"
             disabled={isUpdating}
             onClick={onReject}
           >
