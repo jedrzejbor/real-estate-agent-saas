@@ -403,6 +403,31 @@ export class PublicListingSubmissionsService {
     return submissions.map(toAdminListItem);
   }
 
+  async findOneForAdminReview(
+    id: string,
+  ): Promise<SellerPublicListingSubmissionDetail> {
+    const submission = await this.submissionRepo.findOne({
+      where: { id },
+      relations: ['publishedListing'],
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Zgłoszenie nie znalezione');
+    }
+
+    if (submission.status !== PublicListingSubmissionStatus.CLAIMED) {
+      throw new BadRequestException(
+        'Tylko przejęte zgłoszenie może zostać sprawdzone w moderacji',
+      );
+    }
+
+    if (!submission.publishedListing) {
+      throw new BadRequestException('Zgłoszenie nie ma powiązanego ogłoszenia');
+    }
+
+    return toSellerDetail(submission);
+  }
+
   async findOneForOwner(
     ownerUserId: string,
     id: string,

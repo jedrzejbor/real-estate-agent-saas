@@ -556,6 +556,25 @@ describe('PublicListingSubmissionsService admin moderation', () => {
     ]);
   });
 
+  it('returns full claimed submission details for admin review', async () => {
+    const submission = buildSubmission();
+    const { service } = buildService(submission);
+
+    const result = await service.findOneForAdminReview(submission.id);
+
+    expect(result).toMatchObject({
+      id: submission.id,
+      ownerName: submission.ownerName,
+      email: submission.email,
+      listing: expect.objectContaining({
+        title: 'Mieszkanie testowe',
+      }),
+      address: expect.objectContaining({
+        city: 'Warszawa',
+      }),
+    });
+  });
+
   it('resubmits a rejected owner submission to admin moderation', async () => {
     const listing = buildListing({
       publicationStatus: ListingPublicationStatus.DRAFT,

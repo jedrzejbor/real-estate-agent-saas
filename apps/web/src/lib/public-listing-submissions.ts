@@ -297,6 +297,14 @@ export async function fetchAdminPublicListingSubmissions(): Promise<
   );
 }
 
+export async function fetchAdminPublicListingSubmission(
+  id: string,
+): Promise<SellerPublicListingSubmissionDetail> {
+  return apiFetch<SellerPublicListingSubmissionDetail>(
+    `/admin/listing-submissions/${id}`,
+  );
+}
+
 export async function approveAdminPublicListingSubmission(
   id: string,
 ): Promise<SellerPublicListingSubmissionDetail> {
