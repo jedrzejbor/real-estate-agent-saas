@@ -431,7 +431,7 @@ export default function SellerListingEditPage() {
 
         <div className="grid gap-5">
           {submission?.status === 'rejected' ? (
-            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950">
+            <section className="rounded-2xl border border-status-warning/25 bg-status-warning-bg p-5 text-sm leading-6 text-status-warning">
               Oferta została odrzucona w moderacji. Popraw dane zgodnie z
               wiadomością od zespołu i wyślij zgłoszenie do ponownej
               weryfikacji.
@@ -621,7 +621,7 @@ export default function SellerListingEditPage() {
                             />
                           </label>
                           {image.isPrimary || index === 0 ? (
-                            <span className="absolute left-3 top-3 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-900">
+                            <span className="absolute left-3 top-3 rounded-full border border-status-success/25 bg-status-success-bg px-2.5 py-1 text-xs font-semibold text-status-success">
                               Główne
                             </span>
                           ) : null}
