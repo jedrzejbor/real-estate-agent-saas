@@ -3,7 +3,9 @@ import {
   type PropertyType as PropertyTypeValue,
 } from './listing-field-rules';
 import { TransactionType } from './listings';
+import type { AuthUser } from './auth';
 import {
+  applyAuthenticatedPublicListingContactDefaults,
   buildPublicListingSubmissionPayload,
   clearStoredPublicListingWizardDraft,
   INITIAL_PUBLIC_LISTING_WIZARD_DRAFT,
@@ -262,6 +264,64 @@ describe('public listing wizard storage regression', () => {
 
     expect(storage.getItem(STORAGE_KEYS.publicListingWizard)).toBeNull();
     expect(storage.getItem(STORAGE_KEYS.legacyPublicListingWizard)).toBeNull();
+  });
+});
+
+describe('public listing wizard authenticated contact defaults', () => {
+  it('replaces stored contact fields with the current private seller account', () => {
+    const storedDraft = buildDraft(PropertyType.APARTMENT, {
+      ownerName: 'Poprzedni Uzytkownik',
+      email: 'previous@example.com',
+      phone: '600100200',
+      agencyName: 'Stara Agencja',
+    });
+
+    const next = applyAuthenticatedPublicListingContactDefaults(
+      storedDraft,
+      {
+        id: 'seller-2',
+        email: 'current@example.com',
+        role: 'viewer',
+        agent: {
+          firstName: 'Anna',
+          lastName: 'Nowak',
+        },
+        agency: null,
+      } as AuthUser,
+    );
+
+    expect(next).toMatchObject({
+      title: storedDraft.title,
+      city: storedDraft.city,
+      ownerName: 'Anna Nowak',
+      email: 'current@example.com',
+      phone: '',
+      agencyName: '',
+    });
+  });
+
+  it('keeps a draft phone for the same account when the profile has no phone', () => {
+    const storedDraft = buildDraft(PropertyType.APARTMENT, {
+      ownerName: 'Anna Nowak',
+      email: 'current@example.com',
+      phone: '700800900',
+    });
+
+    const next = applyAuthenticatedPublicListingContactDefaults(
+      storedDraft,
+      {
+        id: 'seller-2',
+        email: 'current@example.com',
+        role: 'viewer',
+        agent: {
+          firstName: 'Anna',
+          lastName: 'Nowak',
+        },
+        agency: null,
+      } as AuthUser,
+    );
+
+    expect(next.phone).toBe('700800900');
   });
 });
 

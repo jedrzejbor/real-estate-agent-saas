@@ -58,7 +58,7 @@ function ResetPasswordForm() {
         ) : null}
 
         {isCompleted ? (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-950">
+          <div className="rounded-lg border border-status-success/25 bg-status-success-bg px-4 py-3 text-sm leading-6 text-status-success">
             Hasło zostało zmienione. Możesz zalogować się nowym hasłem.
           </div>
         ) : null}

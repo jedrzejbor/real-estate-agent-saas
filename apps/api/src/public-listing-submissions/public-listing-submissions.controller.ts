@@ -215,6 +215,12 @@ export class AdminListingSubmissionsController {
     return this.submissionsService.findPendingAdminReview();
   }
 
+  /** GET /api/admin/listing-submissions/:id — preview a moderated submission before decision. */
+  @Get(':id')
+  async getForAdminReview(@Param('id', ParseUUIDPipe) id: string) {
+    return this.submissionsService.findOneForAdminReview(id);
+  }
+
   /** POST /api/admin/listing-submissions/:id/approve — publish a moderated submission without changing ownership. */
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)

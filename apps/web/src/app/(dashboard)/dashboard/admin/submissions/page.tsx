@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
+  Eye,
   Mail,
   MapPin,
   ShieldAlert,
   Phone,
   RefreshCw,
   ShieldCheck,
+  X,
   XCircle,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -25,9 +27,11 @@ import {
 } from '@/lib/listings';
 import {
   approveAdminPublicListingSubmission,
+  fetchAdminPublicListingSubmission,
   fetchAdminPublicListingSubmissions,
   rejectAdminPublicListingSubmission,
   type AdminPublicListingSubmissionListItem,
+  type SellerPublicListingSubmissionDetail,
 } from '@/lib/public-listing-submissions';
 import { cn } from '@/lib/utils';
 
@@ -42,6 +46,12 @@ export default function AdminListingSubmissionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [previewItem, setPreviewItem] =
+    useState<AdminPublicListingSubmissionListItem | null>(null);
+  const [previewDetail, setPreviewDetail] =
+    useState<SellerPublicListingSubmissionDetail | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [rejectReasons, setRejectReasons] = useState<Record<string, string>>(
     {},
   );
@@ -74,17 +84,6 @@ export default function AdminListingSubmissionsPage() {
   }, [isAdmin, refreshToken]);
 
   async function approveSubmission(item: AdminPublicListingSubmissionListItem) {
-    const checklist = getModerationChecklist(item);
-    const blockingItems = checklist.filter((entry) => entry.blocksApproval);
-
-    if (blockingItems.length > 0) {
-      showErrorToast({
-        title: 'Nie można zatwierdzić bez pełnej kontroli',
-        description: blockingItems.map((entry) => entry.label).join(', '),
-      });
-      return;
-    }
-
     const confirmed = await confirm({
       title: 'Zatwierdzić publiczną ofertę?',
       description: formatModerationDecisionSummary(
@@ -116,6 +115,29 @@ export default function AdminListingSubmissionsPage() {
     } finally {
       setUpdatingId(null);
     }
+  }
+
+  async function openPreview(item: AdminPublicListingSubmissionListItem) {
+    setPreviewItem(item);
+    setPreviewDetail(null);
+    setPreviewError(null);
+    setIsLoadingPreview(true);
+
+    try {
+      const detail = await fetchAdminPublicListingSubmission(item.id);
+      setPreviewDetail(detail);
+    } catch (previewFetchError) {
+      setPreviewError(getApiErrorMessage(previewFetchError));
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  }
+
+  function closePreview() {
+    setPreviewItem(null);
+    setPreviewDetail(null);
+    setPreviewError(null);
+    setIsLoadingPreview(false);
   }
 
   async function rejectSubmission(item: AdminPublicListingSubmissionListItem) {
@@ -246,12 +268,23 @@ export default function AdminListingSubmissionsPage() {
                   [item.id]: reason,
                 }))
               }
+              onPreview={() => openPreview(item)}
               onApprove={() => approveSubmission(item)}
               onReject={() => rejectSubmission(item)}
             />
           ))}
         </div>
       )}
+
+      {previewItem ? (
+        <SubmissionPreviewModal
+          item={previewItem}
+          detail={previewDetail}
+          isLoading={isLoadingPreview}
+          error={previewError}
+          onClose={closePreview}
+        />
+      ) : null}
     </div>
   );
 }
@@ -261,6 +294,7 @@ function SubmissionModerationCard({
   reason,
   isUpdating,
   onReasonChange,
+  onPreview,
   onApprove,
   onReject,
 }: {
@@ -268,11 +302,11 @@ function SubmissionModerationCard({
   reason: string;
   isUpdating: boolean;
   onReasonChange: (reason: string) => void;
+  onPreview: () => void;
   onApprove: () => void;
   onReject: () => void;
 }) {
   const checklist = getModerationChecklist(item);
-  const canApprove = checklist.every((entry) => !entry.blocksApproval);
 
   return (
     <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -285,9 +319,10 @@ function SubmissionModerationCard({
             <Badge variant="secondary">
               {TRANSACTION_TYPE_LABELS[item.transactionType]}
             </Badge>
-            <span className="text-xs text-muted-foreground">
-              Claim {item.claimedAt ? formatDate(item.claimedAt) : 'brak daty'}
-            </span>
+            <Badge variant="outline">
+              Przejęto{' '}
+              {item.claimedAt ? formatDate(item.claimedAt) : 'brak daty'}
+            </Badge>
           </div>
 
           <h2 className="mt-3 font-heading text-lg font-semibold">
@@ -309,27 +344,34 @@ function SubmissionModerationCard({
             <span>Dodano {formatDate(item.createdAt)}</span>
           </div>
 
-          <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-            <span className="inline-flex items-center gap-1.5">
-              <Mail className="h-4 w-4" />
-              {item.email}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Phone className="h-4 w-4" />
-              {item.phone}
-            </span>
+          <div className="mt-4 rounded-xl border border-border bg-muted/20 p-3">
+            <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+              Dane właściciela
+            </p>
+            <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+              <ContactDetail label="Osoba" value={item.ownerName} />
+              <ContactDetail icon={Mail} label="Email" value={item.email} />
+              <ContactDetail icon={Phone} label="Telefon" value={item.phone} />
+            </div>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Właściciel: {item.ownerName}
-          </p>
         </div>
 
         <div className="grid gap-3">
           <ModerationChecklist items={checklist} />
 
           <Button
-            className="gap-2 rounded-xl"
-            disabled={isUpdating || !canApprove}
+            variant="outline"
+            className="cursor-pointer gap-2 rounded-xl"
+            disabled={isUpdating}
+            onClick={onPreview}
+          >
+            <Eye className="h-4 w-4" />
+            Podgląd
+          </Button>
+
+          <Button
+            className="cursor-pointer gap-2 rounded-xl"
+            disabled={isUpdating}
             onClick={onApprove}
           >
             <CheckCircle2 className="h-4 w-4" />
@@ -347,7 +389,7 @@ function SubmissionModerationCard({
 
           <Button
             variant="destructive"
-            className="gap-2 rounded-xl"
+            className="cursor-pointer gap-2 rounded-xl"
             disabled={isUpdating}
             onClick={onReject}
           >
@@ -360,6 +402,231 @@ function SubmissionModerationCard({
   );
 }
 
+function ContactDetail({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon?: typeof Mail;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-lg border border-border bg-card px-3 py-2">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+        {label}
+      </div>
+      <p className="mt-1 break-words text-sm font-medium text-foreground">
+        {value || 'Brak danych'}
+      </p>
+    </div>
+  );
+}
+
+function SubmissionPreviewModal({
+  item,
+  detail,
+  isLoading,
+  error,
+  onClose,
+}: {
+  item: AdminPublicListingSubmissionListItem;
+  detail: SellerPublicListingSubmissionDetail | null;
+  isLoading: boolean;
+  error: string | null;
+  onClose: () => void;
+}) {
+  const listing = detail?.listing;
+  const address = detail?.address;
+  const publicSettings = detail?.publicSettings;
+  const images = detail?.images ?? [];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+        aria-label="Zamknij podgląd"
+        onClick={onClose}
+      />
+      <section className="relative z-10 flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+              Podgląd zgłoszenia
+            </p>
+            <h2 className="mt-1 truncate font-heading text-xl font-semibold text-foreground">
+              {item.title}
+            </h2>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="rounded-xl"
+            onClick={onClose}
+            aria-label="Zamknij podgląd"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="overflow-y-auto px-5 py-5">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            </div>
+          ) : error ? (
+            <div className="rounded-xl border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">
+              {error}
+            </div>
+          ) : detail ? (
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.75fr)]">
+              <div className="space-y-5">
+                {images.length > 0 ? (
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {images.map((image, index) => (
+                      <div
+                        key={`${image.url}-${index}`}
+                        aria-label={image.altText || detail.listing.title}
+                        className="aspect-[4/3] rounded-xl border border-border bg-muted bg-cover bg-center"
+                        role="img"
+                        style={{ backgroundImage: `url(${image.url})` }}
+                      >
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-border bg-muted/30 p-6 text-sm text-muted-foreground">
+                    Brak zdjęć w zgłoszeniu.
+                  </div>
+                )}
+
+                <PreviewSection title="Opis">
+                  <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
+                    {getTextValue(listing?.description) || 'Brak opisu'}
+                  </p>
+                </PreviewSection>
+
+                <PreviewSection title="Ustawienia publikacji">
+                  <PreviewGrid
+                    rows={[
+                      [
+                        'Tytuł publiczny',
+                        getTextValue(publicSettings?.publicTitle) ||
+                          getTextValue(listing?.title),
+                      ],
+                      [
+                        'Dokładny adres publicznie',
+                        publicSettings?.showExactAddressOnPublicPage
+                          ? 'Tak'
+                          : 'Nie',
+                      ],
+                    ]}
+                  />
+                </PreviewSection>
+              </div>
+
+              <div className="space-y-5">
+                <PreviewSection title="Oferta">
+                  <PreviewGrid
+                    rows={[
+                      [
+                        'Typ',
+                        PROPERTY_TYPE_LABELS[detail.propertyType] ??
+                          detail.propertyType,
+                      ],
+                      [
+                        'Transakcja',
+                        TRANSACTION_TYPE_LABELS[detail.transactionType] ??
+                          detail.transactionType,
+                      ],
+                      [
+                        'Cena',
+                        detail.price
+                          ? formatPrice(detail.price, detail.currency)
+                          : 'Brak',
+                      ],
+                      ['Powierzchnia', formatArea(listing?.areaM2)],
+                      ['Działka', formatArea(listing?.plotAreaM2)],
+                      ['Pokoje', getTextValue(listing?.rooms)],
+                      ['Łazienki', getTextValue(listing?.bathrooms)],
+                      ['Piętro', getTextValue(listing?.floor)],
+                      ['Pięter', getTextValue(listing?.totalFloors)],
+                      ['Rok budowy', getTextValue(listing?.yearBuilt)],
+                    ]}
+                  />
+                </PreviewSection>
+
+                <PreviewSection title="Lokalizacja">
+                  <PreviewGrid
+                    rows={[
+                      ['Miasto', getTextValue(address?.city)],
+                      ['Dzielnica', getTextValue(address?.district)],
+                      ['Ulica', getTextValue(address?.street)],
+                      ['Kod pocztowy', getTextValue(address?.postalCode)],
+                      ['Województwo', getTextValue(address?.voivodeship)],
+                    ]}
+                  />
+                </PreviewSection>
+
+                <PreviewSection title="Właściciel">
+                  <PreviewGrid
+                    rows={[
+                      ['Osoba', detail.ownerName],
+                      ['Email', detail.email],
+                      ['Telefon', detail.phone],
+                      ['Agencja', detail.agencyName ?? 'Brak'],
+                    ]}
+                  />
+                </PreviewSection>
+
+                <ModerationChecklist items={getModerationChecklist(item)} />
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function PreviewSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-xl border border-border bg-muted/20 p-4">
+      <h3 className="font-heading text-base font-semibold text-foreground">
+        {title}
+      </h3>
+      <div className="mt-3">{children}</div>
+    </section>
+  );
+}
+
+function PreviewGrid({ rows }: { rows: Array<[string, string]> }) {
+  return (
+    <dl className="grid gap-2 text-sm">
+      {rows.map(([label, value]) => (
+        <div
+          key={label}
+          className="grid gap-1 rounded-lg border border-border bg-card px-3 py-2 sm:grid-cols-[120px_minmax(0,1fr)]"
+        >
+          <dt className="text-muted-foreground">{label}</dt>
+          <dd className="break-words font-medium text-foreground">
+            {value || 'Brak'}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 interface ModerationChecklistItem {
   label: string;
   detail: string;
@@ -369,22 +636,25 @@ interface ModerationChecklistItem {
 
 function ModerationChecklist({ items }: { items: ModerationChecklistItem[] }) {
   return (
-    <section className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-950">
-        <ShieldAlert className="h-4 w-4 text-amber-700" />
+    <section className="rounded-xl border border-border bg-muted/20 p-3">
+      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+        <ShieldAlert className="h-4 w-4 text-status-warning" />
         Checklist moderacji
       </div>
       <ul className="space-y-2">
         {items.map((item) => (
           <li
             key={item.label}
-            className="flex items-start gap-2 rounded-lg border border-amber-200 bg-card px-3 py-2 text-sm"
+            className={cn(
+              'flex items-start gap-2 rounded-lg border px-3 py-2 text-sm',
+              getChecklistItemClasses(item.status),
+            )}
           >
             <span
               className={cn(
                 'mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full',
                 item.status === 'ok' && 'bg-status-success',
-                item.status === 'warning' && 'bg-amber-500',
+                item.status === 'warning' && 'bg-status-warning',
                 item.status === 'blocked' && 'bg-destructive',
               )}
             />
@@ -403,6 +673,20 @@ function ModerationChecklist({ items }: { items: ModerationChecklistItem[] }) {
   );
 }
 
+function getChecklistItemClasses(
+  status: ModerationChecklistItem['status'],
+): string {
+  if (status === 'ok') {
+    return 'border-status-success/25 bg-status-success-bg/60';
+  }
+
+  if (status === 'warning') {
+    return 'border-status-warning/25 bg-status-warning-bg/60';
+  }
+
+  return 'border-destructive/25 bg-destructive/10';
+}
+
 function getModerationChecklist(
   item: AdminPublicListingSubmissionListItem,
 ): ModerationChecklistItem[] {
@@ -418,7 +702,7 @@ function getModerationChecklist(
     {
       label: 'Dane kontaktowe',
       detail: hasContact
-        ? `${item.ownerName}, ${item.email}, ${item.phone}`
+        ? 'Imię, email i telefon są uzupełnione.'
         : 'Brakuje właściciela, emaila albo telefonu.',
       status: hasContact ? 'ok' : 'blocked',
       blocksApproval: !hasContact,
@@ -450,7 +734,7 @@ function getModerationChecklist(
     {
       label: 'Sygnały abuse',
       detail: hasAbuseSignals
-        ? item.moderationReasons.join(', ')
+        ? item.moderationReasons.map(formatModerationReason).join(', ')
         : 'Brak sygnałów abuse z automatycznej moderacji.',
       status: hasAbuseSignals ? 'blocked' : 'ok',
       blocksApproval: hasAbuseSignals,
@@ -467,6 +751,33 @@ function formatModerationDecisionSummary(
     .join(' ');
 
   return `${intro} Oferta: ${item.title}. Właściciel: ${item.ownerName}. ${checklist}`;
+}
+
+function formatModerationReason(reason: string): string {
+  const labels: Record<string, string> = {
+    contains_links: 'opis zawiera linki',
+    too_many_links: 'za dużo linków w opisie',
+    repeated_characters: 'podejrzane powtórzenia znaków',
+    suspicious_terms: 'podejrzane słowa w treści',
+    short_description: 'krótki opis',
+    missing_images: 'brak zdjęć',
+    very_low_price_per_m2: 'bardzo niska cena za m²',
+  };
+
+  return labels[reason] ?? reason;
+}
+
+function getTextValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') {
+    return '';
+  }
+
+  return String(value);
+}
+
+function formatArea(value: unknown): string {
+  const text = getTextValue(value);
+  return text ? `${text} m²` : '';
 }
 
 function formatDate(value: string): string {

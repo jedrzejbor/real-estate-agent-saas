@@ -247,9 +247,23 @@ function PublicListingCatalogContent({
     loadCatalog({ ...filters, bbox: bbox ?? undefined, page: 1 });
   }
 
+  function scrollToMap() {
+    const mapSection = document.getElementById('mapa');
+    if (!mapSection) return;
+
+    window.history.replaceState(null, '', '#mapa');
+    mapSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.setTimeout(() => {
+      window.dispatchEvent(new Event('podadresem:catalog-map-visible'));
+    }, 350);
+  }
+
   return (
     <section className="mx-auto grid max-w-7xl gap-6 px-5 py-8 pb-24 sm:px-8 lg:grid-cols-[320px_1fr] lg:px-10 lg:pb-8">
-      <PublicCatalogMobileControls resultCount={catalog?.meta.total ?? 0} />
+      <PublicCatalogMobileControls
+        resultCount={catalog?.meta.total ?? 0}
+        onMapClick={scrollToMap}
+      />
 
       <aside id="filtry" className="scroll-mt-24 lg:sticky lg:top-6 lg:self-start">
         <form
@@ -468,13 +482,14 @@ function PublicListingCatalogContent({
                     Wyczyść obszar
                   </button>
                 ) : null}
-                <a
-                  href="#mapa"
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-semibold transition-colors hover:bg-muted"
+                <button
+                  type="button"
+                  onClick={scrollToMap}
+                  className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-semibold transition-colors hover:bg-muted"
                 >
                   <MapIcon className="h-4 w-4" />
                   Mapa
-                </a>
+                </button>
               </div>
             </div>
 
@@ -528,8 +543,10 @@ function PublicListingCatalogContent({
 
 function PublicCatalogMobileControls({
   resultCount,
+  onMapClick,
 }: {
   resultCount: number;
+  onMapClick: () => void;
 }) {
   return (
     <nav
@@ -537,13 +554,34 @@ function PublicCatalogMobileControls({
       className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur lg:hidden"
     >
       <MobileControlLink href="#filtry" icon={SlidersHorizontal} label="Filtry" />
-      <MobileControlLink href="#mapa" icon={MapIcon} label="Mapa" />
+      <MobileControlButton icon={MapIcon} label="Mapa" onClick={onMapClick} />
       <MobileControlLink
         href="#wyniki"
         icon={Search}
         label={resultCount > 0 ? `${resultCount} wyniki` : 'Wyniki'}
       />
     </nav>
+  );
+}
+
+function MobileControlButton({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: typeof Search;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-11 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-muted/60 px-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+    >
+      <Icon className="h-4 w-4 shrink-0 text-primary" />
+      <span className="truncate">{label}</span>
+    </button>
   );
 }
 

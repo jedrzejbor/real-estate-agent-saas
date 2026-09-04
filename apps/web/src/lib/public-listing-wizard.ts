@@ -22,6 +22,7 @@ import type {
   CreatePublicListingSubmissionInput,
   PublicListingSubmissionImage,
 } from './public-listing-submissions';
+import { isPrivateSellerUser, type AuthUser } from './auth';
 import { readMigratedStorageValue, STORAGE_KEYS } from './storage-keys';
 
 export interface PublicListingWizardDraft {
@@ -157,6 +158,43 @@ export function clearStoredPublicListingWizardDraft(
 ): void {
   storage.removeItem(STORAGE_KEYS.publicListingWizard);
   storage.removeItem(STORAGE_KEYS.legacyPublicListingWizard);
+}
+
+export function applyAuthenticatedPublicListingContactDefaults(
+  draft: PublicListingWizardDraft,
+  user: AuthUser,
+): PublicListingWizardDraft {
+  const defaults = getAuthenticatedPublicListingContactDefaults(user);
+  const isCurrentUserDraft =
+    draft.email.trim().toLowerCase() === defaults.email.trim().toLowerCase();
+
+  return {
+    ...draft,
+    ownerName:
+      defaults.ownerName || (isCurrentUserDraft ? draft.ownerName : ''),
+    email: defaults.email,
+    phone: defaults.phone || (isCurrentUserDraft ? draft.phone : ''),
+    agencyName: defaults.agencyName,
+  };
+}
+
+export function getAuthenticatedPublicListingContactDefaults(
+  user: AuthUser,
+): Pick<
+  PublicListingWizardDraft,
+  'ownerName' | 'email' | 'phone' | 'agencyName'
+> {
+  return {
+    ownerName: [user.agent?.firstName, user.agent?.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim(),
+    email: user.email,
+    phone: user.agent?.phone?.trim() ?? '',
+    agencyName: isPrivateSellerUser(user)
+      ? ''
+      : (user.agency?.name?.trim() ?? ''),
+  };
 }
 
 export function buildPublicListingSubmissionPayload(
