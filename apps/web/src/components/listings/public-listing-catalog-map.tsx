@@ -96,6 +96,7 @@ export function PublicListingCatalogMap({
       markerLayerRef.current = leaflet.layerGroup().addTo(map);
       mapRef.current = map;
       setIsMapReady(true);
+      window.setTimeout(() => map.invalidateSize(), 0);
     });
 
     return () => {
@@ -161,6 +162,7 @@ export function PublicListingCatalogMap({
     const bounds = buildInitialBounds(leaflet, markers, mapMeta.bbox);
 
     if (bounds?.isValid()) {
+      map.invalidateSize();
       map.fitBounds(bounds, {
         padding: [28, 28],
         maxZoom: mapMeta.bbox ? 14 : 12,
@@ -181,6 +183,31 @@ export function PublicListingCatalogMap({
     markers,
     onFavoriteChanged,
   ]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (!map || !isMapReady) {
+      return;
+    }
+
+    const invalidateMapSize = () => {
+      window.requestAnimationFrame(() => {
+        map.invalidateSize();
+      });
+    };
+
+    window.addEventListener('podadresem:catalog-map-visible', invalidateMapSize);
+    window.addEventListener('hashchange', invalidateMapSize);
+
+    return () => {
+      window.removeEventListener(
+        'podadresem:catalog-map-visible',
+        invalidateMapSize,
+      );
+      window.removeEventListener('hashchange', invalidateMapSize);
+    };
+  }, [isMapReady]);
 
   useEffect(() => {
     const leaflet = leafletRef.current;
@@ -313,7 +340,6 @@ export function PublicListingCatalogMap({
 
   return (
     <section
-      id="mapa"
       className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
       aria-label="Mapa ofert"
     >
@@ -471,8 +497,8 @@ function createMarkerIcon(
   const countLabel = count > 1 ? `<strong>${count}</strong>` : '<span></span>';
 
   return leaflet.divIcon({
-    className: '',
-    html: `<span class="podadresem-map-marker ${isExact ? 'is-exact' : 'is-approximate'}">${countLabel}</span>`,
+    className: `podadresem-map-marker ${isExact ? 'is-exact' : 'is-approximate'}`,
+    html: countLabel,
     iconSize: [34, 34],
     iconAnchor: [17, 17],
     popupAnchor: [0, -18],
