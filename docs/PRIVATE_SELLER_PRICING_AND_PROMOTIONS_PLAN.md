@@ -1,7 +1,8 @@
 # Cennik klientów indywidualnych, wyróżnienia i promocje
 
-> Status: plan do akceptacji  
-> Data: 2026-09-04  
+> Status: plan do akceptacji
+> Data utworzenia: 2026-09-04
+> Ostatnia aktualizacja: 2026-09-05
 > Zakres: strona główna, pełny cennik, ścieżka prywatnego sprzedającego,
 > płatności oraz zarządzanie ofertą handlową w panelu administratora
 
@@ -441,99 +442,236 @@ Raport admina powinien pokazywać:
 
 ## 14. Etapy realizacji
 
+Etapy są ułożone według zależności technicznych. Każdy etap powinien zostać
+zamknięty jego kryterium odbioru przed rozpoczęciem elementów zależnych. Można
+równolegle realizować tylko zadania, które korzystają z już zatwierdzonego
+kontraktu API i modelu danych.
+
+Docelowa kolejność zależności:
+
+`decyzje → fundament domenowy → panel produktów → publiczny cennik → kalkulator i zamówienia → płatność i publikacja → wyróżnienia i odnowienia → promocje → ręczne granty → rollout`
+
 ### Etap 0 — decyzje produktowe i prawne
 
 - [ ] Zatwierdzić ceny, okres publikacji i długość wyróżnień.
 - [ ] Zdecydować o jednym czy dwóch poziomach wyróżnienia w V1.
 - [ ] Potwierdzić operatora płatności jednorazowych.
 - [ ] Potwierdzić VAT, dokument sprzedaży, regulamin i zwroty.
+- [ ] Zdecydować, jakie dane nabywcy są wymagane w checkout.
+- [ ] Ustalić termin ważności wyceny i nieopłaconego zamówienia.
 - [ ] Zdefiniować ranking wyróżnionych ofert i zasady uczciwej rotacji.
 - [ ] Zdecydować, czy rabat ręczny łączy się z kodem; rekomendacja: tak, ale
   tylko po jawnym zaznaczeniu przez admina.
+- [ ] Spisać słownik statusów moderacji, płatności, publikacji i entitlementów.
 
-### Etap 1 — publiczny katalog i nowy UX cennika
+**Kryterium zakończenia:** istnieje zatwierdzona karta decyzji, na podstawie
+której można zaprojektować migracje i kontrakty bez zgadywania reguł
+finansowych.
+
+**Blokuje:** wszystkie kolejne etapy.
+
+### Etap 1 — fundament domenowy, migracje i kontrakty
 
 - [ ] Dodać `listing_product_catalog`, encję, migrację i seed startowy.
+- [ ] Dodać `listing_orders` i `listing_order_items` ze snapshotem ceny, VAT,
+  nazwy i parametrów produktu.
+- [ ] Dodać `listing_entitlements` od razu dla publikacji, odnowienia i
+  wyróżnienia.
+- [ ] Zdefiniować relacje zamówienie → pozycje → entitlement → ogłoszenie.
+- [ ] Rozdzielić status moderacji, status płatności i status publikacji.
+- [ ] Zaplanować przejście od `Listing.isPremium` do aktywnego entitlementu;
+  pole może tymczasowo pozostać cache'em kompatybilności.
+- [ ] Przygotować typy DTO i kontrakty odpowiedzi współdzielone przez API oraz
+  frontend.
+- [ ] W odpowiedzi wyceny od początku przewidzieć listę rabatów, nawet jeśli w
+  pierwszej wersji będzie pusta.
+- [ ] Zdefiniować idempotency key dla zamówień i aktywacji entitlementów.
+- [ ] Dodać feature flagi osobno dla publicznego cennika, checkoutu,
+  wyróżnień i promocji.
+- [ ] Dodać testy encji, migracji, ograniczeń, relacji i unikalności.
+
+**Kryterium zakończenia:** baza potrafi bez utraty historii zapisać produkt,
+zamówienie, jego pozycje i przyznaną korzyść, a kontrakty nie wymagają zmiany po
+dodaniu wyróżnień i rabatów.
+
+**Odblokowuje:** panel produktów, publiczny cennik i kalkulator zamówienia.
+
+### Etap 2 — katalog produktów i panel administratora
+
 - [ ] Dodać publiczny endpoint produktów.
-- [ ] Zbudować wspólny adapter/prezentację cennika prywatnego dla homepage i
-  `/cennik`.
-- [ ] Dodać przełącznik odbiorcy i obsługę parametru `dla`.
-- [ ] Zachować obecny miesięczny/roczny cennik agentów bez regresji.
-- [ ] Dodać testy responsywności, dostępności, loading/error/empty state.
-
-**Kryterium zakończenia:** admin może zmienić cenę produktu, a ta sama wartość
-pojawia się na stronie głównej i pełnej stronie cennika bez deployu.
-
-### Etap 2 — produkty i ceny w panelu admina
-
 - [ ] Dodać endpointy admina, DTO, autoryzację i log aktywności.
 - [ ] Dodać listę, edycję, widoczność, kolejność i archiwizację produktów.
 - [ ] Dodać publiczny podgląd karty produktu.
 - [ ] Zabezpieczyć archiwizację produktów użytych w zamówieniach.
-- [ ] Dodać testy serwisu i kontroli roli.
+- [ ] Zapisywać historię zmian ceny, widoczności i parametrów produktu.
+- [ ] Dodać testy serwisu, walidacji DTO, kontroli roli i logu audytowego.
 
 **Kryterium zakończenia:** produkt można bezpiecznie edytować i ukryć, a historia
-zmian pozostaje dostępna.
+zmian pozostaje dostępna. Publiczne API zwraca tylko produkty aktywne i publiczne.
 
-### Etap 3 — zamówienie i płatność za publikację
+**Odblokowuje:** właściwe podłączenie cennika strony głównej i `/cennik` bez
+hardcodowania danych.
 
-- [ ] Dodać zamówienia, pozycje, snapshot ceny oraz status płatności.
+### Etap 3 — publiczny cennik i przełącznik odbiorcy
+
+- [ ] Zbudować wspólny adapter i komponenty prezentacji cennika prywatnego dla
+  homepage oraz `/cennik`.
+- [ ] Dodać przełącznik `Sprzedaję prywatnie | Jestem agentem lub prowadzę biuro`.
+- [ ] Dodać obsługę parametru `dla` oraz linków kierujących do właściwego
+  wariantu.
+- [ ] Dla wariantu prywatnego ukrywać przełącznik miesięcznie/rocznie.
+- [ ] Zachować obecny cennik agentów pobierany z `GET /api/plans` bez regresji.
+- [ ] Dodać CTA do `/dodaj-oferte` i informację, że płatność następuje po
+  akceptacji ogłoszenia.
+- [ ] Dodać FAQ i zasady publikacji na pełnej stronie cennika.
+- [ ] Dodać niezależne stany loading/error/empty dla obu katalogów.
+- [ ] Dodać testy responsywności, dostępności i obsługi parametru URL.
+- [ ] Dodać zdarzenia `pricing_audience_selected`, `private_pricing_viewed` i
+  `listing_product_selected`.
+
+**Kryterium zakończenia:** administrator zmienia cenę bez deployu, a ta sama
+wartość pojawia się na homepage i `/cennik`. Awaria katalogu prywatnego nie
+ukrywa cennika agentów i odwrotnie.
+
+**Może być realizowany równolegle z:** Etapem 4 po zamrożeniu kontraktu produktu
+z Etapu 1 i udostępnieniu publicznego endpointu z Etapu 2.
+
+### Etap 4 — serwerowy kalkulator ceny i zamówienia
+
+- [ ] Dodać `POST /api/listing-checkout/quote` jako jedyne źródło kalkulacji.
+- [ ] Walidować właściciela, stan ogłoszenia i możliwość zakupu produktu.
+- [ ] Zwracać cenę bazową, listę rabatów, VAT, cenę końcową i termin ważności.
+- [ ] Dodać `POST /api/listing-checkout/sessions` lub najpierw wewnętrzny
+  endpoint tworzący zamówienie bez uruchamiania operatora płatności.
+- [ ] Zapisywać snapshot całej kalkulacji w zamówieniu i pozycjach.
+- [ ] Zapobiegać wielokrotnemu aktywnemu zamówieniu tego samego rodzaju dla tej
+  samej oferty, jeśli reguły produktu tego zabraniają.
+- [ ] Obsłużyć finalizację zamówienia za 0 zł bez tworzenia pozorowanej
+  płatności u operatora.
+- [ ] Ustawić czas wygaśnięcia wyceny i wymuszać ponowne przeliczenie po jego
+  przekroczeniu.
+- [ ] Dodać testy własności ogłoszenia, zmian ceny, zaokrągleń, VAT, kwoty 0 zł
+  oraz idempotencji tworzenia zamówienia.
+
+**Kryterium zakończenia:** dla tego samego zestawu danych wycena i zamówienie
+mają identyczną kwotę, a późniejsza zmiana katalogu nie zmienia snapshotu
+utworzonego zamówienia.
+
+**Odblokowuje:** integrację operatora płatności oraz późniejsze promocje.
+
+### Etap 5 — płatność i publikacja
+
 - [ ] Dodać stan `awaiting_payment` po akceptacji moderacji.
-- [ ] Zbudować podsumowanie zamówienia i sesję płatności.
+- [ ] Zbudować podsumowanie zamówienia wykorzystujące serwerowy quote.
+- [ ] Zintegrować tworzenie sesji płatności z operatorem.
 - [ ] Obsłużyć podpisane, idempotentne webhooki.
-- [ ] Aktywować publikację wyłącznie po potwierdzonej płatności.
+- [ ] Po webhooku finalizować zamówienie, a publikację aktywować wyłącznie przez
+  serwis `listing_entitlements`.
+- [ ] Zapewnić, że przekierowanie użytkownika z checkoutu nigdy samo nie
+  aktywuje publikacji.
 - [ ] Dodać ponowienie płatności, potwierdzenie i historię w panelu sprzedającego.
 - [ ] Dodać zadanie wykrywające porzucone/wygasłe sesje.
+- [ ] Dodać trwały log zdarzeń webhooków i alert dla opłaconego zamówienia bez
+  przyznanego entitlementu.
+- [ ] Dodać testy webhooków zduplikowanych, dostarczonych w złej kolejności i
+  ponowionych po błędzie.
 
 **Kryterium zakończenia:** zaakceptowana oferta jest publikowana dokładnie raz
-po płatności, również gdy webhook zostanie dostarczony wielokrotnie.
+po potwierdzonej płatności, również gdy webhook zostanie dostarczony
+wielokrotnie. Nie istnieje ścieżka publikacji oparta wyłącznie o dane frontendu.
 
-### Etap 4 — wyróżnienia i odnowienia
+**Odblokowuje:** sprzedaż wyróżnień i odnowień przez ten sam checkout.
 
-- [ ] Dodać `listing_entitlements` i serwis aktywacji uprawnień.
+### Etap 6 — wyróżnienia i odnowienia
+
+- [ ] Rozszerzyć serwis entitlementów o wyróżnienie i przedłużenie publikacji.
+- [ ] Dodać właściwe produkty wyróżnienia i odnowienia do katalogu.
 - [ ] Podłączyć wyróżnienie do katalogu, mapy i strony oferty.
 - [ ] Ustalić sortowanie i rotację w tym samym tierze.
 - [ ] Dodać zakup wyróżnienia i odnowienia z panelu sprzedającego.
+- [ ] Uniemożliwić zakup wyróżnienia dla cudzej, odrzuconej lub wygasłej oferty
+  bez jednoczesnego odnowienia.
+- [ ] Określić zachowanie ponownego zakupu przed zakończeniem aktywnego okresu.
 - [ ] Dodać automatyczne wygasanie oraz przypomnienia.
 - [ ] Zmigrować użycie `isPremium` albo jasno ograniczyć je do cache/kompatybilności.
+- [ ] Dodać testy nakładających się okresów, ponowionych webhooków oraz
+  wygasania entitlementów.
 
 **Kryterium zakończenia:** wyróżnienie działa tylko w opłaconym/przyznanym
-okresie, a jego start i koniec są audytowalne.
+okresie, a jego start i koniec są audytowalne. Odnowienie i wyróżnienie używają
+tego samego kalkulatora, zamówienia i finalizacji płatności co publikacja.
 
-### Etap 5 — kampanie i kody promocyjne
+### Etap 7 — kampanie i kody promocyjne
 
 - [ ] Dodać kampanie, kody, rezerwacje i wykorzystania.
-- [ ] Zaimplementować serwerowy kalkulator ceny i reguły łączenia.
+- [ ] Rozszerzyć istniejący kalkulator ceny o promocje i reguły łączenia bez
+  zmiany jego publicznego kontraktu.
 - [ ] Dodać pole kodu w checkout oraz czytelne rozbicie ceny.
 - [ ] Dodać panel kampanii i kodów z filtrami oraz statystykami.
 - [ ] Obsłużyć limity atomowo i zwalnianie rezerwacji.
+- [ ] Domyślnie wybierać korzystniejszy rabat, gdy kodu nie można łączyć z
+  promocją automatyczną.
+- [ ] Nie wysyłać treści kodu do analityki ani logów aplikacyjnych.
 - [ ] Dodać testy dat, stref czasowych, limitów, równoległych użyć i ceny 0 zł.
 
 **Kryterium zakończenia:** kodu ponad limit nie da się użyć nawet przy dwóch
 równoległych checkoutach, a wyliczona kwota jest taka sama w podglądzie i
 zamówieniu.
 
-### Etap 6 — promocja konkretnego ogłoszenia i operacje admina
+### Etap 8 — promocja konkretnego ogłoszenia i operacje admina
 
 - [ ] Dodać ręczne korekty z obowiązkowym powodem i okresem ważności.
 - [ ] Dodać panel `Cena i promocja` w szczegółach zgłoszenia/oferty.
 - [ ] Dodać grant darmowej publikacji, wyróżnienia i przedłużenia.
+- [ ] Realizować granty przez ten sam serwis entitlementów co opłacone
+  zamówienia, bez bezpośredniego ustawiania `isPremium` lub dat publikacji.
+- [ ] Pokazywać ręczny rabat jako osobną pozycję w quote i zamówieniu.
 - [ ] Dodać anulowanie/revocation z pełnym audytem.
 - [ ] Dodać uprawnienia bardziej szczegółowe niż ogólna rola admina, jeśli
   operacje finansowe będą obsługiwać różne osoby.
+- [ ] Dodać testy uprawnień, audytu i wpływu cofnięcia grantu na aktywną usługę.
 
 **Kryterium zakończenia:** administrator może pomóc konkretnemu użytkownikowi
 bez ręcznej zmiany danych w bazie i bez utraty śladu audytowego.
 
-### Etap 7 — analityka, QA i rollout
+### Etap 9 — analityka zbiorcza, QA i rollout
 
+- [ ] Instrumentować podstawowe zdarzenia w każdym wcześniejszym etapie zamiast
+  odkładać całą analitykę na koniec.
 - [ ] Dodać lejek i raporty sprzedażowe.
 - [ ] Wykonać testy E2E wszystkich ścieżek płatności i promocji.
 - [ ] Przetestować wygasanie produktów i harmonogramy w UTC/Europe/Warsaw.
 - [ ] Włączyć monitoring błędów webhooków, różnic kwot i nieudanych aktywacji.
+- [ ] Przygotować procedurę ręcznego pogodzenia opłaconego zamówienia z brakiem
+  entitlementu.
 - [ ] Uruchomić za feature flagą najpierw dla kont testowych.
-- [ ] Następnie uruchomić cennik publiczny, płatności i wyróżnienia etapami.
+- [ ] Uruchomić kolejno: publiczny cennik → płatną publikację → odnowienia →
+  wyróżnienia → promocje i kody.
 - [ ] Po 30 dniach ocenić ceny i sens drugiego poziomu wyróżnienia.
+
+**Kryterium zakończenia:** wszystkie scenariusze krytyczne przechodzą w E2E,
+monitoring wykrywa rozbieżności, procedura operacyjna jest udokumentowana, a
+każdą funkcję można niezależnie wyłączyć feature flagą.
+
+### 14.1 Zasady implementacji między etapami
+
+- Backend pozostaje źródłem prawdy dla ceny, rabatu, statusu płatności i czasu
+  działania korzyści.
+- Frontend nie powiela reguł biznesowych; jedynie prezentuje wynik endpointu
+  quote.
+- Webhook finalizuje zamówienie, a osobny serwis entitlementów przyznaje
+  korzyść. Dzięki temu grant administratora i zakup korzystają z tej samej
+  ścieżki aktywacji.
+- Publiczny katalog, panel administratora i checkout używają tego samego modelu
+  produktu, ale zwracają różne DTO odpowiednie do poziomu uprawnień.
+- Schemat zamówienia i snapshotu nie może zależeć od późniejszej dostępności
+  produktu w katalogu.
+- Analitykę, log audytowy i testy jednostkowe dodajemy razem z funkcją, a w
+  Etapie 9 jedynie składamy raporty oraz wykonujemy pełną walidację E2E.
+- Każda migracja ma bezpieczną ścieżkę wdrożenia przed kodem, który zacznie
+  korzystać z nowych kolumn lub tabel.
+- Nie rozpoczynamy integracji płatności przed zamknięciem kontraktu quote i
+  snapshotu zamówienia.
 
 ## 15. Testy krytyczne
 
@@ -578,4 +716,3 @@ Funkcja jest gotowa, gdy:
 7. Ręczny grant admina wyłącznie przez kontrolowaną akcję z powodem i audytem.
 8. Aktywacja publikacji i dodatków wyłącznie po webhooku albo jawnym grancie
    administratora.
-
