@@ -698,23 +698,68 @@ fundamentem domenowym.
 
 ### Etap 1 — fundament domenowy, migracje i kontrakty
 
-- [ ] Dodać `listing_product_catalog`, encję, migrację i seed startowy.
-- [ ] Dodać `listing_orders` i `listing_order_items` ze snapshotem ceny, VAT,
+- [x] Dodać `listing_product_catalog`, encję, migrację i seed startowy.
+- [x] Dodać `listing_orders` i `listing_order_items` ze snapshotem ceny, VAT,
   nazwy i parametrów produktu.
-- [ ] Dodać `listing_entitlements` od razu dla publikacji, odnowienia i
+- [x] Dodać `listing_entitlements` od razu dla publikacji, odnowienia i
   wyróżnienia.
-- [ ] Zdefiniować relacje zamówienie → pozycje → entitlement → ogłoszenie.
-- [ ] Rozdzielić status moderacji, status płatności i status publikacji.
-- [ ] Zaplanować przejście od `Listing.isPremium` do aktywnego entitlementu;
+- [x] Zdefiniować relacje zamówienie → pozycje → entitlement → ogłoszenie.
+- [x] Rozdzielić domenowe statusy moderacji, płatności, publikacji i
+  entitlementów; zmiana zachowania publikacji nastąpi dopiero w Etapie 5.
+- [x] Zaplanować przejście od `Listing.isPremium` do aktywnego entitlementu;
   pole może tymczasowo pozostać cache'em kompatybilności.
 - [ ] Przygotować typy DTO i kontrakty odpowiedzi współdzielone przez API oraz
   frontend.
 - [ ] W odpowiedzi wyceny od początku przewidzieć listę rabatów, nawet jeśli w
   pierwszej wersji będzie pusta.
-- [ ] Zdefiniować idempotency key dla zamówień i aktywacji entitlementów.
-- [ ] Dodać feature flagi osobno dla publicznego cennika, checkoutu,
+- [x] Zdefiniować idempotency key dla zamówień i aktywacji entitlementów.
+- [x] Dodać feature flagi osobno dla publicznego cennika, checkoutu,
   wyróżnień i promocji.
-- [ ] Dodać testy encji, migracji, ograniczeń, relacji i unikalności.
+- [x] Dodać testy regresyjne migracji, ograniczeń, relacji, seedów i flag.
+
+#### Iteracja 1.1 — wykonany fundament persystencji
+
+Data zakończenia: 2026-09-06.
+
+Wykonano:
+
+- utworzono osobny moduł domenowy `apps/api/src/listing-commerce`;
+- dodano provider-agnostic typy produktów, zamówień, entitlementów i ich
+  statusów;
+- dodano encje `ListingProductCatalog`, `ListingOrder`, `ListingOrderItem` i
+  `ListingEntitlement`;
+- wszystkie kwoty są przechowywane jako całkowite jednostki najmniejszej
+  waluty, czyli grosze dla PLN;
+- VAT jest nullable do czasu decyzji księgowo-prawnej, a zamówienie i pozycja
+  mają miejsce na jego niezmienny snapshot;
+- zamówienie ma unikalny `idempotency_key`, numer zamówienia oraz opcjonalne,
+  unikalne w obrębie providera identyfikatory sesji i płatności;
+- produkt pozostaje wymaganym rekordem dla pozycji zamówienia i nie może być
+  usunięty, jeśli został użyty; panel będzie stosował archiwizację;
+- entitlement zakupiony z pozycji zamówienia jest unikalny dla tej pozycji,
+  co stanowi bazową ochronę przed podwójną realizacją webhooka;
+- migracja dodaje statusy moderacji `in_review` i `approved`, ale nie zmienia
+  jeszcze istniejącego zachowania zatwierdzania i publikacji;
+- dodano seedy `publication_60_days`, `renewal_60_days` i
+  `featured_7_days`; `ON CONFLICT DO NOTHING` gwarantuje, że migracja nie
+  nadpisze ceny zmienionej przez administratora;
+- dodano osobne, domyślnie wyłączone flagi dla cennika, checkoutu, wyróżnień i
+  promocji.
+
+Świadomie pozostawiono do Iteracji 1.2:
+
+- publiczne i administracyjne DTO katalogu produktów;
+- kontrakt endpointu quote z pustą listą rabatów;
+- serwis polityk domenowych walidujący przejścia statusów;
+- test integracyjny migracji na rzeczywistej bazie PostgreSQL.
+
+Weryfikacja Iteracji 1.1:
+
+- [x] `pnpm --filter api type-check`;
+- [x] `pnpm --filter api lint`;
+- [x] testy celowane modułu i release flags — 9/9;
+- [x] pełny zestaw testów API — 401/401, 68/68 suites;
+- [x] `git diff --check`.
 
 **Kryterium zakończenia:** baza potrafi bez utraty historii zapisać produkt,
 zamówienie, jego pozycje i przyznaną korzyść, a kontrakty nie wymagają zmiany po

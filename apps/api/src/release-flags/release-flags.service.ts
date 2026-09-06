@@ -8,6 +8,10 @@ export interface ReleaseFlags {
   freemiumUpsellEnabled: boolean;
   premiumReportsEnabled: boolean;
   agentListingMarketplaceEnabled: boolean;
+  privateListingPricingEnabled: boolean;
+  privateListingCheckoutEnabled: boolean;
+  privateListingFeaturedEnabled: boolean;
+  privateListingPromotionsEnabled: boolean;
 }
 
 @Injectable()
@@ -38,6 +42,22 @@ export class ReleaseFlagsService {
       ),
       agentListingMarketplaceEnabled: this.getBooleanFlag(
         'RELEASE_FLAG_AGENT_LISTING_MARKETPLACE_ENABLED',
+        false,
+      ),
+      privateListingPricingEnabled: this.getBooleanFlag(
+        'RELEASE_FLAG_PRIVATE_LISTING_PRICING_ENABLED',
+        false,
+      ),
+      privateListingCheckoutEnabled: this.getBooleanFlag(
+        'RELEASE_FLAG_PRIVATE_LISTING_CHECKOUT_ENABLED',
+        false,
+      ),
+      privateListingFeaturedEnabled: this.getBooleanFlag(
+        'RELEASE_FLAG_PRIVATE_LISTING_FEATURED_ENABLED',
+        false,
+      ),
+      privateListingPromotionsEnabled: this.getBooleanFlag(
+        'RELEASE_FLAG_PRIVATE_LISTING_PROMOTIONS_ENABLED',
         false,
       ),
     };

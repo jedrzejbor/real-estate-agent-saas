@@ -247,6 +247,8 @@ export enum PublicListingSubmissionStatus {
   DRAFT = 'draft',
   PENDING_EMAIL_VERIFICATION = 'pending_email_verification',
   VERIFIED = 'verified',
+  IN_REVIEW = 'in_review',
+  APPROVED = 'approved',
   PUBLISHED = 'published',
   CLAIMED = 'claimed',
   REJECTED = 'rejected',
