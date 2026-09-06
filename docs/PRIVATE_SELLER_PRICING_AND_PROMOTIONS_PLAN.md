@@ -1,8 +1,9 @@
 # Cennik klientów indywidualnych, wyróżnienia i promocje
 
-> Status: plan do akceptacji
+> Status: decyzje produktowe Etapu 0 zaakceptowane; kwestie księgowo-prawne
+> pozostają warunkiem publicznego uruchomienia
 > Data utworzenia: 2026-09-04
-> Ostatnia aktualizacja: 2026-09-05
+> Ostatnia aktualizacja: 2026-09-06
 > Zakres: strona główna, pełny cennik, ścieżka prywatnego sprzedającego,
 > płatności oraz zarządzanie ofertą handlową w panelu administratora
 
@@ -56,6 +57,21 @@ potwierdzą takiej potrzeby.
 Ceny są hipotezą produktową, nie wartościami zaszytymi w kodzie. Administrator
 może je zmienić, ukryć produkt albo zaplanować cenę promocyjną. Wszystkie ceny
 dla konsumenta pokazujemy jako brutto z dopiskiem „z VAT”.
+
+### Zasada zarządzania cenami
+
+Ceny publikacji, odnowień i wyróżnień muszą być zarządzane przez administratora
+z panelu, analogicznie do istniejącego zarządzania cenami pakietów agentów.
+
+- frontend nie zawiera cen awaryjnych ani hardcodowanych wartości handlowych;
+- strona główna, `/cennik`, panel sprzedającego i checkout czytają ten sam
+  katalog produktów z backendu;
+- administrator może zmienić cenę, okres działania, widoczność i kolejność
+  produktu bez deployu;
+- zmiana ceny dotyczy wyłącznie nowych wycen i zamówień;
+- rozpoczęte zamówienie zachowuje snapshot ceny przez czas ważności wyceny;
+- historyczne zamówienia i dokumenty nigdy nie są przeliczane po zmianie ceny;
+- brak lub błąd katalogu blokuje zakup zamiast podstawiać wartość z frontendu.
 
 ### Poza pierwszym wydaniem
 
@@ -488,19 +504,19 @@ finansowej.
 
 | Obszar | Rekomendowana decyzja | Uzasadnienie | Status |
 |---|---|---|---|
-| Publikacja | 49 zł brutto za 60 dni | Prosta oferta i zgodność z wcześniejszą hipotezą produktu | Do akceptacji |
-| Odnowienie | 39 zł brutto za kolejne 60 dni | Czytelny bodziec do odnowienia bez tworzenia abonamentu | Do akceptacji |
-| Wyróżnienie V1 | Jeden wariant: 19 zł brutto za 7 dni | Mniejszy zakres implementacji i łatwiejsza ocena popytu | Do akceptacji |
-| Drugi tier wyróżnienia | Poza V1 | Najpierw zbieramy dane o konwersji pierwszego produktu | Rekomendowane |
-| Płatność | Po pozytywnej moderacji, przed publikacją | Brak pobierania pieniędzy za ofertę, której nie zaakceptujemy | Do akceptacji |
-| Operator | Stripe jako pierwszy adapter | Jest zgodny z kierunkiem obecnego modelu planów; nie oznacza sprzężenia domeny ze Stripe | Decyzja blokująca |
-| Czas wyceny | 30 minut | Ogranicza długie rezerwacje kodów i nieaktualne ceny | Do akceptacji |
-| Waluta V1 | Wyłącznie PLN | Upraszcza ceny, dokumenty i raportowanie | Do akceptacji |
-| Łączenie rabatów | Jedna najkorzystniejsza kampania albo kod | Proste i przewidywalne naliczanie | Do akceptacji |
-| Ręczna korekta admina | Może łączyć się tylko po jawnym zezwoleniu | Pozwala obsłużyć wyjątek bez ukrytych reguł | Do akceptacji |
-| Zakup bez logowania | Nie; checkout wymaga konta właściciela | Bezpieczne powiązanie zamówienia z użytkownikiem i ogłoszeniem | Do akceptacji |
-| Cena 0 zł | Wewnętrzna finalizacja bez operatora | Brak sztucznej transakcji płatniczej | Rekomendowane |
-| Dane analityczne | Brak treści kodu promocyjnego w eventach | Ogranicza wyciek aktywnych kodów | Zatwierdzone technicznie |
+| Publikacja | 49 zł brutto za 60 dni | Prosta oferta i zgodność z wcześniejszą hipotezą produktu | Zatwierdzone 2026-09-06 |
+| Odnowienie | 39 zł brutto za kolejne 60 dni | Czytelny bodziec do odnowienia bez tworzenia abonamentu | Zatwierdzone 2026-09-06 |
+| Wyróżnienie V1 | Jeden wariant: 19 zł brutto za 7 dni | Mniejszy zakres implementacji i łatwiejsza ocena popytu | Zatwierdzone 2026-09-06 |
+| Drugi tier wyróżnienia | Poza V1 | Najpierw zbieramy dane o konwersji pierwszego produktu | Zatwierdzone 2026-09-06 |
+| Płatność | Po pozytywnej moderacji, przed publikacją | Brak pobierania pieniędzy za ofertę, której nie zaakceptujemy | Zatwierdzone 2026-09-06 |
+| Operator | Stripe jako pierwszy adapter | Jest zgodny z kierunkiem obecnego modelu planów; nie oznacza sprzężenia domeny ze Stripe | Zatwierdzone 2026-09-06 |
+| Czas wyceny | 30 minut | Ogranicza długie rezerwacje kodów i nieaktualne ceny | Zatwierdzone 2026-09-06 |
+| Waluta V1 | Wyłącznie PLN | Upraszcza ceny, dokumenty i raportowanie | Zatwierdzone 2026-09-06 |
+| Łączenie rabatów | Jedna najkorzystniejsza kampania albo kod | Proste i przewidywalne naliczanie | Zatwierdzone 2026-09-06 |
+| Ręczna korekta admina | Może łączyć się tylko po jawnym zezwoleniu | Pozwala obsłużyć wyjątek bez ukrytych reguł | Zatwierdzone 2026-09-06 |
+| Zakup bez logowania | Nie; checkout wymaga konta właściciela | Bezpieczne powiązanie zamówienia z użytkownikiem i ogłoszeniem | Zatwierdzone 2026-09-06 |
+| Cena 0 zł | Wewnętrzna finalizacja bez operatora | Brak sztucznej transakcji płatniczej | Zatwierdzone 2026-09-06 |
+| Dane analityczne | Brak treści kodu promocyjnego w eventach | Ogranicza wyciek aktywnych kodów | Zatwierdzone 2026-09-06 |
 
 #### 14.0.3 Rekomendowany przebieg publikacji V1
 
@@ -621,33 +637,64 @@ VAT oraz zwrot częściowy, ale publiczne płatności pozostają za feature flag
 - [x] Zaproponować rozdzielony słownik statusów.
 - [x] Określić minimalny model danych nabywcy do potwierdzenia.
 - [x] Zaproponować zasady wyróżnienia i rabatów.
-- [ ] Zatwierdzić decyzje biznesowe wskazane w tabeli 14.0.2.
-- [ ] Potwierdzić operatora płatności.
+- [x] Zatwierdzić decyzje biznesowe wskazane w tabeli 14.0.2.
+- [x] Potwierdzić Stripe jako pierwszy adapter płatności.
+- [x] Potwierdzić zarządzanie wszystkimi cenami produktów ogłoszeniowych z
+  panelu administratora, bez hardcodowania cen w kodzie.
 - [ ] Przekazać punkty z 14.0.7 do weryfikacji księgowo-prawnej.
-- [ ] Na podstawie odpowiedzi uzupełnić finalny ADR Etapu 0 i oznaczyć go jako
-  zaakceptowany.
+- [x] Uzupełnić finalny ADR decyzji produktowych Etapu 0.
 
-Po wykonaniu powyższych punktów można rozpocząć Etap 1 od kontraktów domenowych
-i migracji. Nie rozpoczynamy jeszcze checkoutu ani zmian publikacji.
+Decyzje produktowe pozwalają rozpocząć Etap 1 od kontraktów domenowych i
+migracji. Publiczny checkout pozostaje wyłączony do czasu zamknięcia punktów
+księgowo-prawnych z 14.0.7.
+
+#### 14.0.9 ADR-001 — zaakceptowany kierunek architektury
+
+**Status:** zaakceptowany 2026-09-06.
+
+**Decyzja:** produkty dla klientów indywidualnych powstają w osobnym kontekście
+domenowym od abonamentów agencji. Ich ceny i parametry są przechowywane w
+`listing_product_catalog` oraz zarządzane z panelu administratora. Stripe jest
+pierwszym adapterem płatności, ale domena zamówień, kalkulacji i entitlementów
+nie zależy od typów ani statusów Stripe.
+
+**Konsekwencje:**
+
+- `plan_catalog` nadal obsługuje wyłącznie plany agentów i biur;
+- wszystkie kanały prezentacji korzystają z jednego API katalogu produktów;
+- checkout przyjmuje identyfikatory produktów, nigdy kwoty obliczone przez
+  frontend;
+- zamówienie przechowuje niezmienny snapshot ceny i parametrów;
+- finalizacja płatności przyznaje entitlement przez warstwę domenową;
+- ręczne granty administratora korzystają z tej samej warstwy entitlementów;
+- adapter Stripe można wymienić lub uzupełnić bez przebudowy katalogu,
+  zamówień i reguł publikacji;
+- kwestie prawno-księgowe blokują publiczne włączenie płatności, ale model od
+  początku przechowuje snapshot VAT, nabywcy i informacje potrzebne do zwrotu.
 
 ### Etap 0 — decyzje produktowe i prawne
 
-- [ ] Zatwierdzić ceny, okres publikacji i długość wyróżnień.
-- [ ] Zdecydować o jednym czy dwóch poziomach wyróżnienia w V1.
-- [ ] Potwierdzić operatora płatności jednorazowych.
+- [x] Zatwierdzić ceny, okres publikacji i długość wyróżnień.
+- [x] Zdecydować o jednym poziomie wyróżnienia w V1.
+- [x] Potwierdzić Stripe jako pierwszy adapter płatności jednorazowych.
 - [ ] Potwierdzić VAT, dokument sprzedaży, regulamin i zwroty.
-- [ ] Zdecydować, jakie dane nabywcy są wymagane w checkout.
-- [ ] Ustalić termin ważności wyceny i nieopłaconego zamówienia.
-- [ ] Zdefiniować ranking wyróżnionych ofert i zasady uczciwej rotacji.
-- [ ] Zdecydować, czy rabat ręczny łączy się z kodem; rekomendacja: tak, ale
-  tylko po jawnym zaznaczeniu przez admina.
-- [ ] Spisać słownik statusów moderacji, płatności, publikacji i entitlementów.
+- [x] Przyjąć minimalny model danych nabywcy z późniejszym doprecyzowaniem po
+  konsultacji księgowo-prawnej.
+- [x] Ustalić 30 minut ważności wyceny i nieopłaconego zamówienia.
+- [x] Zdefiniować zasady rankingu i uczciwej rotacji dla V1.
+- [x] Zdecydować, że rabat ręczny łączy się z kodem tylko po jawnym zezwoleniu
+  administratora.
+- [x] Spisać słownik statusów moderacji, płatności, publikacji i entitlementów.
+- [x] Zdecydować, że ceny produktów ogłoszeniowych są w pełni zarządzane z
+  panelu administratora.
 
 **Kryterium zakończenia:** istnieje zatwierdzona karta decyzji, na podstawie
 której można zaprojektować migracje i kontrakty bez zgadywania reguł
 finansowych.
 
-**Blokuje:** wszystkie kolejne etapy.
+**Stan:** decyzje produktowe zamknięte. Można rozpocząć Etap 1. Otwarta
+weryfikacja księgowo-prawna blokuje publiczny rollout płatności, nie prace nad
+fundamentem domenowym.
 
 ### Etap 1 — fundament domenowy, migracje i kontrakty
 
