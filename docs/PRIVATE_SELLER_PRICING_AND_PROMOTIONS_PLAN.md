@@ -451,6 +451,185 @@ Docelowa kolejność zależności:
 
 `decyzje → fundament domenowy → panel produktów → publiczny cennik → kalkulator i zamówienia → płatność i publikacja → wyróżnienia i odnowienia → promocje → ręczne granty → rollout`
 
+### 14.0 Pierwsza iteracja — karta decyzji Etapu 0
+
+Ta iteracja nie wprowadza jeszcze zmian w kodzie produkcyjnym. Jej wynikiem ma
+być zamrożony zestaw reguł, na podstawie którego w Etapie 1 powstaną migracje,
+encje, kontrakty API oraz testy. Rozpoczęcie modelowania bazy przed zamknięciem
+decyzji oznaczonych jako blokujące grozi kosztowną zmianą zamówień i historii
+finansowej.
+
+#### 14.0.1 Wynik audytu istniejącego systemu
+
+- `plan_catalog` i publiczny cennik agentów już działają i pozostają osobnym
+  kontekstem od jednorazowych produktów ogłoszeniowych.
+- Repozytorium jest przygotowywane pod Stripe (`stripe_price_id_*` i plan
+  Stripe Checkout), ale Stripe SDK oraz rzeczywisty checkout nie są jeszcze
+  wdrożone.
+- Istniejący webhook subskrypcji jest provider-agnostic, podpisany HMAC i
+  idempotentny po parze `provider + eventId`, ale obsługuje wyłącznie
+  subskrypcje agencji. Płatności jednorazowe potrzebują osobnego procesora
+  zdarzeń, współdzielącego tylko ogólne wzorce bezpieczeństwa.
+- Obecny `PublicListingSubmissionStatus` nie ma stanów moderacji
+  `in_review/approved/awaiting_payment`; zawiera m.in. `verified`, `published`,
+  `claimed`, `rejected` i `expired`.
+- Obecna akcja zatwierdzenia przez administratora od razu ustawia ofertę jako
+  opublikowaną i nadaje jej datę wygaśnięcia. Przed uruchomieniem płatności
+  trzeba rozdzielić akceptację moderacji od aktywacji publikacji.
+- `ListingPublicationStatus` opisuje tylko `draft/published/unpublished`, więc
+  nie powinien przejmować statusów zamówienia ani moderacji.
+- `Listing.isPremium` jest flagą bez okresu obowiązywania i źródła nadania;
+  nie nadaje się jako docelowe źródło prawdy dla płatnego wyróżnienia.
+- Aktualny regulamin jest dokumentem MVP i nie opisuje płatnej publikacji,
+  prawa odstąpienia, rozpoczęcia świadczenia przed upływem terminu odstąpienia,
+  zwrotów ani dokumentów sprzedaży.
+
+#### 14.0.2 Rekomendowany zakres pierwszego wydania handlowego
+
+| Obszar | Rekomendowana decyzja | Uzasadnienie | Status |
+|---|---|---|---|
+| Publikacja | 49 zł brutto za 60 dni | Prosta oferta i zgodność z wcześniejszą hipotezą produktu | Do akceptacji |
+| Odnowienie | 39 zł brutto za kolejne 60 dni | Czytelny bodziec do odnowienia bez tworzenia abonamentu | Do akceptacji |
+| Wyróżnienie V1 | Jeden wariant: 19 zł brutto za 7 dni | Mniejszy zakres implementacji i łatwiejsza ocena popytu | Do akceptacji |
+| Drugi tier wyróżnienia | Poza V1 | Najpierw zbieramy dane o konwersji pierwszego produktu | Rekomendowane |
+| Płatność | Po pozytywnej moderacji, przed publikacją | Brak pobierania pieniędzy za ofertę, której nie zaakceptujemy | Do akceptacji |
+| Operator | Stripe jako pierwszy adapter | Jest zgodny z kierunkiem obecnego modelu planów; nie oznacza sprzężenia domeny ze Stripe | Decyzja blokująca |
+| Czas wyceny | 30 minut | Ogranicza długie rezerwacje kodów i nieaktualne ceny | Do akceptacji |
+| Waluta V1 | Wyłącznie PLN | Upraszcza ceny, dokumenty i raportowanie | Do akceptacji |
+| Łączenie rabatów | Jedna najkorzystniejsza kampania albo kod | Proste i przewidywalne naliczanie | Do akceptacji |
+| Ręczna korekta admina | Może łączyć się tylko po jawnym zezwoleniu | Pozwala obsłużyć wyjątek bez ukrytych reguł | Do akceptacji |
+| Zakup bez logowania | Nie; checkout wymaga konta właściciela | Bezpieczne powiązanie zamówienia z użytkownikiem i ogłoszeniem | Do akceptacji |
+| Cena 0 zł | Wewnętrzna finalizacja bez operatora | Brak sztucznej transakcji płatniczej | Rekomendowane |
+| Dane analityczne | Brak treści kodu promocyjnego w eventach | Ogranicza wyciek aktywnych kodów | Zatwierdzone technicznie |
+
+#### 14.0.3 Rekomendowany przebieg publikacji V1
+
+1. Użytkownik tworzy zgłoszenie i potwierdza adres e-mail.
+2. Zalogowany właściciel przejmuje zgłoszenie; jeśli nie ma konta, zakłada je
+   przed checkoutem.
+3. Administrator rozpoczyna i kończy moderację.
+4. Po pozytywnej moderacji zgłoszenie otrzymuje decyzję `approved`, ale oferta
+   pozostaje niepubliczna.
+5. System tworzy możliwość zakupu publikacji według aktualnego katalogu.
+6. Użytkownik akceptuje podsumowanie, wymagane zgody i przechodzi do płatności.
+7. Powrót z checkoutu pokazuje tylko stan oczekiwania; nie publikuje oferty.
+8. Potwierdzony webhook finalizuje zamówienie i zleca serwisowi entitlementów
+   nadanie publikacji na 60 dni.
+9. Serwis publikacji ustawia publiczny stan i datę wygaśnięcia dokładnie raz.
+10. Nieudana lub wygasła płatność pozostawia zgłoszenie zaakceptowane i pozwala
+    utworzyć nową wycenę według aktualnej ceny.
+
+#### 14.0.4 Słownik statusów rekomendowany do projektu Etapu 1
+
+Statusy pozostają rozdzielone według odpowiedzialności. Nie tworzymy jednego
+statusu obejmującego cały proces.
+
+**Moderacja zgłoszenia:**
+
+- `draft` — formularz niezakończony;
+- `pending_email_verification` — oczekiwanie na potwierdzenie e-mail;
+- `verified` — potwierdzony, oczekuje na obsługę;
+- `in_review` — moderator rozpoczął sprawdzanie;
+- `approved` — zaakceptowany, może przejść do płatności;
+- `rejected` — odrzucony z powodem;
+- `expired` — zgłoszenie wygasło przed zakończeniem procesu.
+
+`claimed` nie powinien docelowo być statusem moderacji. Przejęcie przez konto
+jest osobną cechą wynikającą z `owner_user_id/claimed_at`. W Etapie 1 trzeba
+przygotować migrację kompatybilną z istniejącymi rekordami, bez natychmiastowego
+usuwania wartości `claimed` przed sprawdzeniem wszystkich zależności.
+
+**Zamówienie:**
+
+- `draft` — utworzone, jeszcze bez sesji płatności;
+- `pending_payment` — oczekuje na wynik operatora;
+- `paid` — płatność potwierdzona lub zamówienie 0 zł poprawnie sfinalizowane;
+- `payment_failed` — operator zgłosił niepowodzenie;
+- `expired` — minął czas wyceny/sesji;
+- `cancelled` — anulowane przed realizacją;
+- `partially_refunded` — zwrot częściowy, jeśli zostanie dopuszczony;
+- `refunded` — pełny zwrot.
+
+**Publikacja oferty:**
+
+- zachowujemy `draft`, `published`, `unpublished`;
+- stan `awaiting_payment` nie trafia do `ListingPublicationStatus`, tylko wynika
+  z zaakceptowanej moderacji i braku opłaconego entitlementu publikacji;
+- wygaśnięcie jest określane przez brak aktywnego entitlementu i `expiresAt`,
+  a nie przez status płatności.
+
+**Entitlement:**
+
+- `scheduled` — korzyść rozpocznie się w przyszłości;
+- `active` — korzyść obowiązuje;
+- `expired` — okres minął;
+- `revoked` — cofnięta kontrolowaną operacją;
+- `cancelled` — anulowana przed rozpoczęciem.
+
+#### 14.0.5 Dane nabywcy — rekomendowany minimalny model
+
+Checkout wymaga zalogowanego właściciela ogłoszenia. W V1 rekomendujemy:
+
+- zawsze: e-mail konta i kraj nabywcy;
+- osoba fizyczna: imię i nazwisko oraz adres rozliczeniowy tylko w zakresie
+  potwierdzonym przez księgowość/operatora;
+- zakup na firmę: nazwa firmy, NIP, kraj i adres rozliczeniowy;
+- osobny checkbox „Kupuję jako firma” sterujący polami B2B;
+- snapshot danych nabywcy na zamówieniu — późniejsza zmiana profilu nie zmienia
+  historycznego dokumentu;
+- brak przechowywania danych karty i szczegółów rachunku bankowego w aplikacji.
+
+Ostateczny minimalny zestaw pól oraz walidacja NIP wymagają potwierdzenia ze
+specjalistą księgowym/prawnym i wybranym operatorem.
+
+#### 14.0.6 Zasady wyróżnienia i rankingu V1
+
+- wyróżnić można wyłącznie aktywną, publiczną ofertę;
+- okres zaczyna się po potwierdzeniu płatności;
+- ponowny zakup podczas aktywnego wyróżnienia dopisuje 7 dni od obecnego końca,
+  zamiast rozpoczynać okres od nowa;
+- wycofanie oferty przez właściciela nie zatrzymuje automatycznie zegara
+  wyróżnienia;
+- ręczne cofnięcie oferty przez administratora z winy serwisu wymaga procedury
+  zwrotu lub rekompensaty;
+- wyróżnione oferty są przed niewyróżnionymi, ale oferty o tym samym poziomie
+  rotują deterministycznie w przedziałach czasu, aby jedna oferta nie zajmowała
+  stale pierwszej pozycji;
+- dokładny algorytm rankingu zostanie opisany i przetestowany w Etapie 6;
+- nie obiecujemy konkretnej liczby wyświetleń ani pozycji w wynikach.
+
+#### 14.0.7 Decyzje wymagające potwierdzenia zewnętrznego
+
+Te punkty nie powinny zostać arbitralnie rozstrzygnięte w kodzie:
+
+- właściwa stawka VAT i sposób prezentacji ceny na dokumencie;
+- paragon, faktura imienna, faktura VAT oraz system ich wystawiania;
+- treść regulaminu płatnej publikacji i polityki zwrotów;
+- prawo odstąpienia konsumenta oraz zgoda na rozpoczęcie świadczenia przed
+  upływem ustawowego terminu;
+- moment uznania usługi publikacji i wyróżnienia za rozpoczętą/wykonaną;
+- zasady pełnego i częściowego zwrotu po rozpoczęciu publikacji;
+- wymagane dane nabywcy oraz retencja dokumentów finansowych.
+
+Do czasu potwierdzenia model danych powinien obsługiwać snapshot stawki i kwot
+VAT oraz zwrot częściowy, ale publiczne płatności pozostają za feature flagą.
+
+#### 14.0.8 Kolejność pracy w pierwszej iteracji
+
+- [x] Przeprowadzić audyt obecnego cennika, billingu, statusów i moderacji.
+- [x] Zaproponować ofertę V1 i rekomendowany przebieg publikacji.
+- [x] Zaproponować rozdzielony słownik statusów.
+- [x] Określić minimalny model danych nabywcy do potwierdzenia.
+- [x] Zaproponować zasady wyróżnienia i rabatów.
+- [ ] Zatwierdzić decyzje biznesowe wskazane w tabeli 14.0.2.
+- [ ] Potwierdzić operatora płatności.
+- [ ] Przekazać punkty z 14.0.7 do weryfikacji księgowo-prawnej.
+- [ ] Na podstawie odpowiedzi uzupełnić finalny ADR Etapu 0 i oznaczyć go jako
+  zaakceptowany.
+
+Po wykonaniu powyższych punktów można rozpocząć Etap 1 od kontraktów domenowych
+i migracji. Nie rozpoczynamy jeszcze checkoutu ani zmian publikacji.
+
 ### Etap 0 — decyzje produktowe i prawne
 
 - [ ] Zatwierdzić ceny, okres publikacji i długość wyróżnień.
