@@ -11,9 +11,9 @@ import {
 } from 'typeorm';
 import { Listing } from '../../listings/entities';
 import { User } from '../../users/entities';
+import type { ListingQuoteContract } from '../contracts';
 import {
   ListingOrderBuyerSnapshot,
-  ListingOrderPricingSnapshot,
   ListingOrderStatus,
 } from '../listing-commerce.types';
 import { ListingOrderItem } from './listing-order-item.entity';
@@ -89,7 +89,7 @@ export class ListingOrder {
   buyerSnapshot: ListingOrderBuyerSnapshot;
 
   @Column({ type: 'jsonb', name: 'pricing_snapshot' })
-  pricingSnapshot: ListingOrderPricingSnapshot;
+  pricingSnapshot: ListingQuoteContract;
 
   @Index()
   @Column({ type: 'timestamptz', name: 'quote_expires_at' })

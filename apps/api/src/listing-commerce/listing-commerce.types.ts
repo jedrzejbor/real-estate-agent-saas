@@ -56,10 +56,3 @@ export interface ListingOrderBuyerSnapshot {
   taxId?: string;
   billingAddress?: Record<string, string | null>;
 }
-
-export interface ListingOrderPricingSnapshot {
-  quotedAt: string;
-  quoteExpiresAt: string;
-  discounts: Array<Record<string, unknown>>;
-  [key: string]: unknown;
-}

@@ -3,7 +3,7 @@
 > Status: decyzje produktowe Etapu 0 zaakceptowane; kwestie księgowo-prawne
 > pozostają warunkiem publicznego uruchomienia
 > Data utworzenia: 2026-09-04
-> Ostatnia aktualizacja: 2026-09-06
+> Ostatnia aktualizacja: 2026-09-07
 > Zakres: strona główna, pełny cennik, ścieżka prywatnego sprzedającego,
 > płatności oraz zarządzanie ofertą handlową w panelu administratora
 
@@ -708,9 +708,10 @@ fundamentem domenowym.
   entitlementów; zmiana zachowania publikacji nastąpi dopiero w Etapie 5.
 - [x] Zaplanować przejście od `Listing.isPremium` do aktywnego entitlementu;
   pole może tymczasowo pozostać cache'em kompatybilności.
-- [ ] Przygotować typy DTO i kontrakty odpowiedzi współdzielone przez API oraz
-  frontend.
-- [ ] W odpowiedzi wyceny od początku przewidzieć listę rabatów, nawet jeśli w
+- [x] Przygotować kanoniczne, serializowalne kontrakty produktu i wyceny,
+  niezależne od encji TypeORM; klient frontendowy zostanie podłączony do tych
+  kontraktów razem z endpointami Etapu 2.
+- [x] W odpowiedzi wyceny od początku przewidzieć listę rabatów, nawet jeśli w
   pierwszej wersji będzie pusta.
 - [x] Zdefiniować idempotency key dla zamówień i aktywacji entitlementów.
 - [x] Dodać feature flagi osobno dla publicznego cennika, checkoutu,
@@ -746,9 +747,10 @@ Wykonano:
 - dodano osobne, domyślnie wyłączone flagi dla cennika, checkoutu, wyróżnień i
   promocji.
 
-Świadomie pozostawiono do Iteracji 1.2:
+Po Iteracji 1.1 świadomie pozostawiono do Iteracji 1.2:
 
-- publiczne i administracyjne DTO katalogu produktów;
+- kanoniczne kontrakty publicznego produktu i wyceny; administracyjne DTO
+  katalogu należy już do Etapu 2;
 - kontrakt endpointu quote z pustą listą rabatów;
 - serwis polityk domenowych walidujący przejścia statusów;
 - test integracyjny migracji na rzeczywistej bazie PostgreSQL.
@@ -760,6 +762,61 @@ Weryfikacja Iteracji 1.1:
 - [x] testy celowane modułu i release flags — 9/9;
 - [x] pełny zestaw testów API — 401/401, 68/68 suites;
 - [x] `git diff --check`.
+
+#### Iteracja 1.2 — kontrakty i polityki domenowe
+
+Data zakończenia: 2026-09-07.
+
+Wykonano:
+
+- dodano kanoniczny publiczny kontrakt produktu, który nie ujawnia
+  wewnętrznego UUID, stanu administracyjnego ani identyfikatorów operatora;
+- dodano kontrakt żądania i odpowiedzi quote z pozycjami, VAT, terminem
+  ważności oraz jawną listą rabatów;
+- snapshot wyceny w `ListingOrder` używa bezpośrednio kanonicznego kontraktu,
+  dzięki czemu nie powstaje drugi, rozbieżny model danych;
+- dodano provider-agnostic źródła rabatu: kampania, kod promocyjny i ręczna
+  korekta administratora;
+- dodano czystą politykę przejść statusów zamówień, w tym retry nieudanej
+  płatności, bez możliwości ponownego otwierania stanów końcowych;
+- dodano czystą politykę przejść entitlementów z kontrolowanym aktywowaniem,
+  wygasaniem, anulowaniem i cofnięciem;
+- zapisano mapowanie publikacja/odnowienie → entitlement publikacji oraz
+  wyróżnienie → entitlement wyróżnienia;
+- dodano wspólną stałą 30-minutowej ważności wyceny i funkcję, która nie
+  mutuje wejściowej daty;
+- dodano kalkulację kwot brutto wyłącznie na bezpiecznych liczbach całkowitych
+  z odrzucaniem ujemnych wartości, ułamkowych groszy, niepoprawnej ilości,
+  rabatu większego niż cena oraz przekroczenia zakresu bezpiecznego integera;
+- wykonano migrację dwukrotnie na izolowanej kopii schematu PostgreSQL 16;
+  drugi przebieg nie dodał duplikatów ani nie nadpisał seedów;
+- potwierdzono obecność czterech tabel, trzech produktów V1 i nowych statusów
+  moderacji; testowa baza została następnie usunięta, a główna baza pozostała
+  bez zmian.
+
+Decyzja architektoniczna dotycząca kontraktów:
+
+- nie dodajemy obecnie osobnego pakietu workspace tylko dla kilku interfejsów;
+- kanoniczne kontrakty pozostają czystymi typami bez zależności od NestJS i
+  TypeORM;
+- w Etapie 2 frontend otrzyma typed client zgodny z publicznym DTO endpointu;
+- jeśli liczba konsumentów kontraktów wzrośnie, można wydzielić istniejące typy
+  do `packages/contracts` bez zmiany ich kształtu.
+
+Weryfikacja Iteracji 1.2:
+
+- [x] `pnpm --filter api type-check`;
+- [x] `pnpm --filter api lint`;
+- [x] testy modułu `listing-commerce` — 22/22;
+- [x] pełny zestaw testów API — 417/417, 70/70 suites;
+- [x] `pnpm --filter api build`;
+- [x] migracja PostgreSQL — pierwszy i drugi przebieg;
+- [x] `git diff --check`.
+
+**Stan Etapu 1:** fundament backendowy jest zakończony. Publiczne i
+administracyjne endpointy, typed client frontendu oraz ekran zarządzania
+produktami należą do Etapu 2. Obecny proces zatwierdzania nadal publikuje
+ofertę bez płatności i pozostaje bez zmian do Etapu 5.
 
 **Kryterium zakończenia:** baza potrafi bez utraty historii zapisać produkt,
 zamówienie, jego pozycje i przyznaną korzyść, a kontrakty nie wymagają zmiany po
