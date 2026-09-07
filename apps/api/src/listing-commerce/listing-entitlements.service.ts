@@ -1,0 +1,235 @@
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { DataSource, EntityManager, In } from 'typeorm';
+import {
+  ListingPublicationStatus,
+  ListingStatus,
+  PublicListingSubmissionStatus,
+} from '../common/enums';
+import { Listing } from '../listings/entities';
+import { PublicListingSubmission } from '../public-listing-submissions/entities';
+import type { ListingOrderFulfillmentContract } from './contracts';
+import { ListingEntitlement, ListingOrder } from './entities';
+import { getEntitlementTypeForProduct } from './listing-commerce.policy';
+import {
+  ListingEntitlementSource,
+  ListingEntitlementStatus,
+  ListingEntitlementType,
+  ListingOrderStatus,
+  ListingProductType,
+} from './listing-commerce.types';
+
+const ACTIVE_ENTITLEMENT_STATUSES = [
+  ListingEntitlementStatus.ACTIVE,
+  ListingEntitlementStatus.SCHEDULED,
+] as const;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+@Injectable()
+export class ListingEntitlementsService {
+  constructor(private readonly dataSource: DataSource) {}
+
+  fulfillPaidOrder(
+    orderId: string,
+    fulfilledAt = new Date(),
+  ): Promise<ListingOrderFulfillmentContract> {
+    return this.dataSource.transaction(async (manager) => {
+      const order = await manager.findOne(ListingOrder, {
+        where: { id: orderId },
+        relations: ['items'],
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!order) throw new NotFoundException('Zamówienie nie istnieje');
+      return this.fulfillPaidOrderInTransaction(manager, order, fulfilledAt);
+    });
+  }
+
+  async fulfillPaidOrderInTransaction(
+    manager: EntityManager,
+    order: ListingOrder,
+    fulfilledAt: Date,
+  ): Promise<ListingOrderFulfillmentContract> {
+    if (order.status !== ListingOrderStatus.PAID || !order.paidAt) {
+      throw new ConflictException(
+        'Korzyści można przyznać wyłącznie dla opłaconego zamówienia',
+      );
+    }
+    if (!order.listingId || !order.items?.length) {
+      throw new ConflictException(
+        'Zamówienie nie ma kompletnego zakresu realizacji',
+      );
+    }
+
+    const listing = await manager.findOne(Listing, {
+      where: { id: order.listingId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!listing) throw new NotFoundException('Ogłoszenie nie istnieje');
+
+    const itemIds = order.items.map((item) => item.id);
+    const existing = await manager.find(ListingEntitlement, {
+      where: { orderItemId: In(itemIds) },
+      order: { createdAt: 'ASC' },
+    });
+    if (existing.length === itemIds.length) {
+      return {
+        orderId: order.id,
+        entitlementIds: existing.map((entitlement) => entitlement.id),
+        alreadyFulfilled: true,
+      };
+    }
+
+    const existingItemIds = new Set(
+      existing.map((entitlement) => entitlement.orderItemId),
+    );
+    const created: ListingEntitlement[] = [];
+    for (const item of order.items) {
+      if (existingItemIds.has(item.id)) continue;
+
+      const entitlementType = getEntitlementTypeForProduct(
+        item.productTypeSnapshot,
+      );
+      const previous = await this.findLatestActiveEntitlement(
+        manager,
+        listing.id,
+        entitlementType,
+        item.productTypeSnapshot === ListingProductType.FEATURED
+          ? (item.fulfillmentParameters.featuredTier as string | undefined)
+          : undefined,
+      );
+      const startsAt = getEntitlementStart(
+        item.productTypeSnapshot,
+        fulfilledAt,
+        listing.expiresAt ?? null,
+        previous?.endsAt ?? null,
+      );
+      const endsAt = new Date(startsAt.getTime() + item.durationDays * DAY_MS);
+      const entitlement = manager.create(ListingEntitlement, {
+        listingId: listing.id,
+        type: entitlementType,
+        status:
+          startsAt.getTime() > fulfilledAt.getTime()
+            ? ListingEntitlementStatus.SCHEDULED
+            : ListingEntitlementStatus.ACTIVE,
+        tier:
+          entitlementType === ListingEntitlementType.FEATURED
+            ? getRequiredFeaturedTier(item.fulfillmentParameters.featuredTier)
+            : null,
+        sourceType: ListingEntitlementSource.ORDER_ITEM,
+        orderItemId: item.id,
+        startsAt,
+        endsAt,
+        parameters: item.fulfillmentParameters,
+      });
+      created.push(await manager.save(ListingEntitlement, entitlement));
+
+      if (entitlementType === ListingEntitlementType.PUBLICATION) {
+        await this.applyPublicationEntitlement(
+          manager,
+          listing,
+          endsAt,
+          fulfilledAt,
+        );
+      }
+    }
+
+    order.metadata = {
+      ...order.metadata,
+      fulfilledAt: fulfilledAt.toISOString(),
+    };
+    await manager.save(ListingOrder, order);
+
+    return {
+      orderId: order.id,
+      entitlementIds: [
+        ...existing.map((entitlement) => entitlement.id),
+        ...created.map((entitlement) => entitlement.id),
+      ],
+      alreadyFulfilled: false,
+    };
+  }
+
+  private findLatestActiveEntitlement(
+    manager: EntityManager,
+    listingId: string,
+    type: ListingEntitlementType,
+    tier?: string,
+  ): Promise<ListingEntitlement | null> {
+    return manager.findOne(ListingEntitlement, {
+      where: {
+        listingId,
+        type,
+        status: In([...ACTIVE_ENTITLEMENT_STATUSES]),
+        ...(tier ? { tier } : {}),
+      },
+      order: { endsAt: 'DESC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+  }
+
+  private async applyPublicationEntitlement(
+    manager: EntityManager,
+    listing: Listing,
+    endsAt: Date,
+    fulfilledAt: Date,
+  ): Promise<void> {
+    if (!listing.publicSlug) {
+      throw new ConflictException(
+        'Ogłoszenie nie ma sluga wymaganego do publikacji',
+      );
+    }
+    listing.status = ListingStatus.ACTIVE;
+    listing.publicationStatus = ListingPublicationStatus.PUBLISHED;
+    listing.publishedAt = listing.publishedAt ?? fulfilledAt;
+    listing.unpublishedAt = null;
+    listing.expiresAt = maxDate(listing.expiresAt ?? null, endsAt);
+    await manager.save(Listing, listing);
+
+    const submission = await manager.findOne(PublicListingSubmission, {
+      where: { publishedListingId: listing.id },
+      order: { createdAt: 'DESC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!submission) {
+      throw new ConflictException(
+        'Ogłoszenie nie ma zgłoszenia wymaganego do publikacji',
+      );
+    }
+    submission.status = PublicListingSubmissionStatus.PUBLISHED;
+    submission.publishedAt = submission.publishedAt ?? fulfilledAt;
+    submission.expiresAt = listing.expiresAt;
+    await manager.save(PublicListingSubmission, submission);
+  }
+}
+
+function getEntitlementStart(
+  productType: ListingProductType,
+  fulfilledAt: Date,
+  listingExpiresAt: Date | null,
+  previousEndsAt: Date | null,
+): Date {
+  if (productType === ListingProductType.PUBLICATION) {
+    return fulfilledAt;
+  }
+  if (productType === ListingProductType.RENEWAL) {
+    return maxDate(fulfilledAt, listingExpiresAt, previousEndsAt);
+  }
+  return maxDate(fulfilledAt, previousEndsAt);
+}
+
+function maxDate(first: Date | null, ...rest: Array<Date | null>): Date {
+  const values = [first, ...rest].filter((date): date is Date => Boolean(date));
+  return new Date(Math.max(...values.map((date) => date.getTime())));
+}
+
+function getRequiredFeaturedTier(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new ConflictException(
+      'Pozycja wyróżnienia nie ma kompletnej konfiguracji realizacji',
+    );
+  }
+  return value.trim();
+}

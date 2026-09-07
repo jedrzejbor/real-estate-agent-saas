@@ -14,6 +14,7 @@ import {
   normalizeIdempotencyKey,
 } from './listing-orders.service';
 import { ListingQuotesService } from './listing-quotes.service';
+import { ListingEntitlementsService } from './listing-entitlements.service';
 import { ListingOrderStatus, ListingProductType } from './listing-commerce.types';
 
 const orderDto: CreateListingOrderDto = {
@@ -120,6 +121,13 @@ function buildHarness(options?: {
       products: [product],
     }),
   };
+  const listingEntitlementsService = {
+    fulfillPaidOrderInTransaction: jest.fn().mockResolvedValue({
+      orderId: 'order-created',
+      entitlementIds: ['entitlement-1'],
+      alreadyFulfilled: false,
+    }),
+  };
   const manager = {
     findOne: jest.fn(async (entity: unknown) => {
       if (entity === ListingOrder) return options?.existingIdempotentOrder ?? null;
@@ -157,9 +165,16 @@ function buildHarness(options?: {
   const service = new ListingOrdersService(
     dataSource as unknown as DataSource,
     listingQuotesService as unknown as ListingQuotesService,
+    listingEntitlementsService as unknown as ListingEntitlementsService,
   );
 
-  return { service, manager, dataSource, listingQuotesService };
+  return {
+    service,
+    manager,
+    dataSource,
+    listingQuotesService,
+    listingEntitlementsService,
+  };
 }
 
 describe('ListingOrdersService', () => {
@@ -204,7 +219,9 @@ describe('ListingOrdersService', () => {
   });
 
   it('finalizes a zero-value order as paid without a payment provider', async () => {
-    const { service, manager } = buildHarness({ quote: buildQuote(0) });
+    const { service, manager, listingEntitlementsService } = buildHarness({
+      quote: buildQuote(0),
+    });
 
     const result = await service.createOrder('owner-1', 'free-order-1', orderDto);
 
@@ -217,6 +234,9 @@ describe('ListingOrdersService', () => {
     expect(savedOrder.provider).toBeNull();
     expect(savedOrder.providerPaymentId).toBeNull();
     expect(savedOrder.metadata).toHaveProperty('zeroValueFinalizedAt');
+    expect(
+      listingEntitlementsService.fulfillPaidOrderInTransaction,
+    ).toHaveBeenCalledWith(manager, savedOrder, expect.any(Date));
   });
 
   it('returns the original order for an identical idempotent retry', async () => {
@@ -370,6 +390,7 @@ describe('order idempotency helpers', () => {
     const service = new ListingOrdersService(
       dataSource as unknown as DataSource,
       {} as ListingQuotesService,
+      {} as ListingEntitlementsService,
     );
 
     await expect(

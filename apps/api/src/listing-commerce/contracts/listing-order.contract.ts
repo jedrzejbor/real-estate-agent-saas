@@ -26,3 +26,9 @@ export interface ListingOrderContract {
   items: ListingOrderItemContract[];
   createdAt: string;
 }
+
+export interface ListingOrderFulfillmentContract {
+  orderId: string;
+  entitlementIds: string[];
+  alreadyFulfilled: boolean;
+}

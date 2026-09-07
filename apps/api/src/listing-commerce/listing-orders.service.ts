@@ -10,6 +10,7 @@ import type { ListingOrderContract } from './contracts';
 import { CreateListingOrderDto, ListingOrderBuyerDto } from './dto';
 import { ListingOrder, ListingOrderItem } from './entities';
 import { toListingOrderContract } from './listing-order.presenter';
+import { ListingEntitlementsService } from './listing-entitlements.service';
 import { ListingQuotesService } from './listing-quotes.service';
 import {
   ListingOrderBuyerSnapshot,
@@ -29,6 +30,7 @@ export class ListingOrdersService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly listingQuotesService: ListingQuotesService,
+    private readonly listingEntitlementsService: ListingEntitlementsService,
   ) {}
 
   async findOwnedOrder(
@@ -155,6 +157,14 @@ export class ListingOrdersService {
           });
         });
         savedOrder.items = await manager.save(ListingOrderItem, items);
+
+        if (isZeroValue) {
+          await this.listingEntitlementsService.fulfillPaidOrderInTransaction(
+            manager,
+            savedOrder,
+            now,
+          );
+        }
 
         return toListingOrderContract(savedOrder);
       });

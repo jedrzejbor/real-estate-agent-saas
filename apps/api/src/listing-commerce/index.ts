@@ -9,3 +9,4 @@ export { ListingCommerceModule } from './listing-commerce.module';
 export { ListingProductsService } from './listing-products.service';
 export { ListingQuotesService } from './listing-quotes.service';
 export { ListingOrdersService } from './listing-orders.service';
+export { ListingEntitlementsService } from './listing-entitlements.service';

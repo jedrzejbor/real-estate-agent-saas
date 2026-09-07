@@ -20,6 +20,7 @@ import { Listing } from '../listings/entities/listing.entity';
 import { ListingImage } from '../listings/entities/listing-image.entity';
 import { ListingAgentProposal } from '../listing-agent-proposals';
 import { MonitoringService } from '../monitoring';
+import { ReleaseFlagsService } from '../release-flags';
 import { PublicLead } from '../public-leads/entities';
 import { UsersService } from '../users';
 import {
@@ -225,6 +226,7 @@ export class PublicListingSubmissionsService {
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
     private readonly monitoringService: MonitoringService,
+    private readonly releaseFlagsService: ReleaseFlagsService,
   ) {}
 
   async create(
@@ -1281,19 +1283,31 @@ export class PublicListingSubmissionsService {
     }
 
     const now = new Date();
-    const expiresAt = listing.expiresAt ?? buildSellerListingExpiresAt(now);
-
-    listing.status = ListingStatus.ACTIVE;
-    listing.publicationStatus = ListingPublicationStatus.PUBLISHED;
+    const paidCheckoutEnabled = this.releaseFlagsService.getFlags()
+      .privateListingCheckoutEnabled;
     listing.publicSlug =
       listing.publicSlug ??
       (await this.generateUniquePublicSlug(submission.payload));
-    listing.publishedAt = listing.publishedAt ?? now;
-    listing.unpublishedAt = null;
-    listing.expiresAt = expiresAt;
 
-    submission.publishedAt = submission.publishedAt ?? now;
-    submission.expiresAt = expiresAt;
+    if (paidCheckoutEnabled) {
+      submission.status = PublicListingSubmissionStatus.APPROVED;
+      listing.status = ListingStatus.DRAFT;
+      listing.publicationStatus = ListingPublicationStatus.DRAFT;
+      listing.publishedAt = null;
+      listing.expiresAt = null;
+      submission.publishedAt = null;
+      submission.expiresAt = null;
+    } else {
+      const expiresAt =
+        listing.expiresAt ?? buildSellerListingExpiresAt(now);
+      listing.status = ListingStatus.ACTIVE;
+      listing.publicationStatus = ListingPublicationStatus.PUBLISHED;
+      listing.publishedAt = listing.publishedAt ?? now;
+      listing.unpublishedAt = null;
+      listing.expiresAt = expiresAt;
+      submission.publishedAt = submission.publishedAt ?? now;
+      submission.expiresAt = expiresAt;
+    }
     submission.rejectedAt = null;
     submission.metadata = {
       ...submission.metadata,
@@ -1314,18 +1328,32 @@ export class PublicListingSubmissionsService {
       userId: adminUserId,
       entityType: ActivityEntityType.LISTING,
       entityId: listing.id,
-      action: ActivityAction.PUBLISHED,
-      description: 'Zatwierdzono publiczne zgłoszenie ogłoszenia',
+      action: paidCheckoutEnabled
+        ? ActivityAction.STATUS_CHANGED
+        : ActivityAction.PUBLISHED,
+      description: paidCheckoutEnabled
+        ? 'Zatwierdzono zgłoszenie do płatnej publikacji'
+        : 'Zatwierdzono publiczne zgłoszenie ogłoszenia',
       changes: [
         {
-          field: 'publicListingSubmissionId',
-          oldValue: null,
-          newValue: submission.id,
+          field: paidCheckoutEnabled
+            ? 'publicListingSubmissionStatus'
+            : 'publicListingSubmissionId',
+          oldValue: paidCheckoutEnabled
+            ? PublicListingSubmissionStatus.CLAIMED
+            : null,
+          newValue: paidCheckoutEnabled
+            ? PublicListingSubmissionStatus.APPROVED
+            : submission.id,
         },
       ],
     });
 
-    await this.sendApprovalEmail(savedSubmission, listing);
+    if (paidCheckoutEnabled) {
+      await this.sendPaymentRequiredApprovalEmail(savedSubmission);
+    } else {
+      await this.sendApprovalEmail(savedSubmission, listing);
+    }
 
     return toSellerDetail({
       ...savedSubmission,
@@ -1470,6 +1498,26 @@ export class PublicListingSubmissionsService {
         `Możesz je zobaczyć tutaj: ${publicListingUrl}`,
         '',
         'W panelu właściciela możesz śledzić wyświetlenia, zapytania oraz zarządzać publikacją.',
+      ].join('\n'),
+    });
+  }
+
+  private async sendPaymentRequiredApprovalEmail(
+    submission: PublicListingSubmission,
+  ): Promise<void> {
+    const checkoutUrl = this.buildFrontendUrl(
+      `/seller/listings/${encodeURIComponent(submission.id)}`,
+    );
+    await this.emailService.send({
+      to: submission.email,
+      subject: 'Twoje ogłoszenie zostało zaakceptowane',
+      text: [
+        `Cześć ${submission.ownerName},`,
+        '',
+        'Twoje ogłoszenie przeszło moderację i jest gotowe do opłacenia publikacji.',
+        'Nie jest jeszcze widoczne w publicznym katalogu.',
+        '',
+        `Przejdź do podsumowania: ${checkoutUrl}`,
       ].join('\n'),
     });
   }
@@ -1743,9 +1791,14 @@ export class PublicListingSubmissionsService {
       submission.publishedListing?.publicationStatus ===
         ListingPublicationStatus.DRAFT;
 
-    if (isWaitingForModeration) {
+    const isApprovedForPayment =
+      submission.status === PublicListingSubmissionStatus.APPROVED;
+
+    if (isWaitingForModeration || isApprovedForPayment) {
       throw new ForbiddenException(
-        'Oferta oczekuje na weryfikację i nie może być teraz edytowana',
+        isApprovedForPayment
+          ? 'Zaakceptowana oferta oczekuje na publikację i nie może być teraz edytowana'
+          : 'Oferta oczekuje na weryfikację i nie może być teraz edytowana',
       );
     }
   }

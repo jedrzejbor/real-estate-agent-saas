@@ -212,6 +212,11 @@ function buildService(submission: PublicListingSubmission) {
         callback(),
     ),
   };
+  const releaseFlagsService = {
+    getFlags: jest.fn().mockReturnValue({
+      privateListingCheckoutEnabled: false,
+    }),
+  };
 
   return {
     service: new PublicListingSubmissionsService(
@@ -225,6 +230,7 @@ function buildService(submission: PublicListingSubmission) {
       configService as never,
       usersService as never,
       monitoringService as never,
+      releaseFlagsService as never,
     ),
     submissionRepo,
     analyticsEventRepo,
@@ -237,6 +243,7 @@ function buildService(submission: PublicListingSubmission) {
     transactionQueryBuilder,
     usersService,
     monitoringService,
+    releaseFlagsService,
   };
 }
 
@@ -409,6 +416,44 @@ describe('PublicListingSubmissionsService admin moderation', () => {
       }),
     );
     expect(result.publishedListingId).toBe(listing.id);
+  });
+
+  it('keeps an approved listing private until payment when checkout is enabled', async () => {
+    const submission = buildSubmission();
+    const {
+      service,
+      activityService,
+      emailService,
+      listing,
+      releaseFlagsService,
+    } = buildService(submission);
+    releaseFlagsService.getFlags.mockReturnValue({
+      privateListingCheckoutEnabled: true,
+    });
+
+    const result = await service.approveByAdmin('admin-1', submission.id);
+
+    expect(submission.status).toBe(PublicListingSubmissionStatus.APPROVED);
+    expect(listing.status).toBe(ListingStatus.DRAFT);
+    expect(listing.publicationStatus).toBe(ListingPublicationStatus.DRAFT);
+    expect(listing.publicSlug).toBe('mieszkanie-testowe-warszawa');
+    expect(listing.publishedAt).toBeNull();
+    expect(listing.expiresAt).toBeNull();
+    expect(submission.publishedAt).toBeNull();
+    expect(submission.expiresAt).toBeNull();
+    expect(result.status).toBe(PublicListingSubmissionStatus.APPROVED);
+    expect(activityService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: ActivityAction.STATUS_CHANGED,
+        description: 'Zatwierdzono zgłoszenie do płatnej publikacji',
+      }),
+    );
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: 'Twoje ogłoszenie zostało zaakceptowane',
+        text: expect.stringContaining('Nie jest jeszcze widoczne'),
+      }),
+    );
   });
 
   it('rejects approval when the claimed listing has no owner', async () => {
@@ -892,6 +937,29 @@ describe('PublicListingSubmissionsService admin moderation', () => {
         },
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(submissionRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('blocks owner edits after approval while the listing awaits payment', async () => {
+    const submission = buildSubmission({
+      status: PublicListingSubmissionStatus.APPROVED,
+    });
+    const { service, submissionRepo } = buildService(submission);
+
+    await expect(
+      service.updateForOwner('owner-1', submission.id, {
+        listing: {
+          title: 'Zmiana po zatwierdzeniu',
+          description: 'Treść nie może ominąć ponownej moderacji.',
+          propertyType: PropertyType.APARTMENT,
+          transactionType: TransactionType.SALE,
+          price: 525000,
+          currency: 'PLN',
+          areaM2: 50,
+        },
+      }),
+    ).rejects.toThrow('oczekuje na publikację');
 
     expect(submissionRepo.save).not.toHaveBeenCalled();
   });

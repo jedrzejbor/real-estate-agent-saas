@@ -1141,7 +1141,7 @@ z Etapu 1 i udostępnieniu publicznego endpointu z Etapu 2.
   krótkim okresie przed utworzeniem entitlementu;
 - zamówienie o sumie 0 zł przechodzi bezpośrednio do `paid`, zapisuje moment
   finalizacji i pozostawia wszystkie pola operatora puste; przyznanie korzyści
-  pozostaje odpowiedzialnością serwisu entitlementów wdrażanego w Etapie 5;
+  realizuje w tej samej transakcji serwis entitlementów wdrożony w Iteracji 5.1;
 - dodano testy DTO konsumenta i firmy, źródła e-maila, pełnego snapshotu,
   wygaśnięcia, kolizji, zera, odczytu właścicielskiego oraz sekwencyjnych i
   współbieżnych ponowień idempotentnych.
@@ -1159,7 +1159,9 @@ utworzonego zamówienia.
 
 ### Etap 5 — płatność i publikacja
 
-- [ ] Dodać stan `awaiting_payment` po akceptacji moderacji.
+- [x] Dodać stan `awaiting_payment` po akceptacji moderacji jako stan pochodny:
+  `submission.status = approved`, niepubliczne ogłoszenie i brak aktywnego
+  entitlementu publikacji.
 - [ ] Zbudować podsumowanie zamówienia wykorzystujące serwerowy quote.
 - [ ] Zintegrować tworzenie sesji płatności z operatorem.
 - [ ] Obsłużyć podpisane, idempotentne webhooki.
@@ -1173,6 +1175,41 @@ utworzonego zamówienia.
   przyznanego entitlementu.
 - [ ] Dodać testy webhooków zduplikowanych, dostarczonych w złej kolejności i
   ponowionych po błędzie.
+
+#### Iteracja 5.1 — moderacja oddzielona od publikacji i realizacja entitlementów (zrealizowana 2026-09-07)
+
+- zachowanie moderacji jest kontrolowane flagą
+  `RELEASE_FLAG_PRIVATE_LISTING_CHECKOUT_ENABLED`: przy wyłączonej fladze działa
+  dotychczasowa publikacja, a po jej włączeniu zatwierdzenie nadaje status
+  `approved`, pozostawia `Listing` w stanie niepublicznym i nie ustawia dat
+  publikacji ani wygaśnięcia;
+- zaakceptowana oferta otrzymuje docelowy, unikalny slug, ale sam slug nie czyni
+  jej publiczną; właściciel dostaje wiadomość o akceptacji i konieczności
+  przejścia do podsumowania zamiast nieprawdziwej informacji o publikacji;
+- zaakceptowanej oferty oczekującej na płatność nie można edytować bez ponownej
+  moderacji; chroni to zgodność opłacanej treści z treścią zaakceptowaną;
+- dodano `ListingEntitlementsService` jako jedyne miejsce realizujące korzyści z
+  opłaconego zamówienia; wejście standalone blokuje rekord zamówienia, a wariant
+  transakcyjny może być użyty bezpośrednio przez przyszły webhook;
+- realizacja wymaga statusu `paid` oraz `paidAt`, tworzy najwyżej jeden
+  entitlement na pozycję dzięki `order_item_id` i w ponowieniu zwraca istniejące
+  entitlementy bez zmiany ich dat;
+- entitlement pierwszej publikacji aktywuje `Listing` i powiązane zgłoszenie,
+  ustawia wspólne daty publikacji i wygaśnięcia; odnowienie rozpoczyna się po
+  końcu bieżącego okresu, a kolejne wyróżnienie po końcu poprzedniego
+  wyróżnienia tego samego poziomu;
+- zamówienie 0 zł wywołuje realizację entitlementów w tej samej transakcji co
+  zapis zamówienia, więc nie istnieje stan `paid` bez przyznanej darmowej
+  publikacji po poprawnym commicie;
+- testy obejmują kompatybilny rollout moderacji, brak publikacji przed opłatą,
+  treść wiadomości, aktywację publikacji, daty odnowienia, blokadę nieopłaconego
+  zamówienia, ponowienie realizacji oraz blokady transakcyjne.
+
+Następna iteracja Etapu 5: kontrakt adaptera płatności, utworzenie sesji dla
+ważnego zamówienia, trwały rejestr zdarzeń jednorazowych oraz podpisany webhook,
+który atomowo zmieni `pending_payment` na `paid` i wywoła ten sam serwis
+entitlementów. Nie należy implementować szczegółów operatora przed jego wyborem
+i potwierdzeniem wymagań podpisu oraz idempotencji webhooków.
 
 **Kryterium zakończenia:** zaakceptowana oferta jest publikowana dokładnie raz
 po potwierdzonej płatności, również gdy webhook zostanie dostarczony

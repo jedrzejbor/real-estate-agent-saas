@@ -8,6 +8,7 @@ import { Listing } from '../listings/entities/listing.entity';
 import { ListingImage } from '../listings/entities/listing-image.entity';
 import { MonitoringModule } from '../monitoring';
 import { PublicLead } from '../public-leads/entities';
+import { ReleaseFlagsModule } from '../release-flags';
 import { Agent, Agency } from '../users/entities';
 import { UsersModule } from '../users';
 import { PublicListingSubmission } from './entities';
@@ -33,6 +34,7 @@ import { PublicListingSubmissionsService } from './public-listing-submissions.se
     EmailModule,
     UsersModule,
     MonitoringModule,
+    ReleaseFlagsModule,
   ],
   controllers: [
     PublicListingSubmissionsController,
