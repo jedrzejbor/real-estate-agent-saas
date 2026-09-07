@@ -9,6 +9,7 @@ import {
   ListingEntitlement,
   ListingOrder,
   ListingOrderItem,
+  ListingPaymentEvent,
   ListingProductCatalog,
   ListingProductChange,
 } from './entities';
@@ -16,6 +17,7 @@ import { ListingCheckoutController } from './listing-checkout.controller';
 import { ListingEntitlementsService } from './listing-entitlements.service';
 import { ListingOrdersController } from './listing-orders.controller';
 import { ListingOrdersService } from './listing-orders.service';
+import { ListingPaymentEventsService } from './listing-payment-events.service';
 import { ListingProductsController } from './listing-products.controller';
 import { ListingProductsService } from './listing-products.service';
 import { ListingQuotesService } from './listing-quotes.service';
@@ -24,6 +26,7 @@ const LISTING_COMMERCE_ENTITIES = [
   ListingProductCatalog,
   ListingOrder,
   ListingOrderItem,
+  ListingPaymentEvent,
   ListingEntitlement,
   ListingProductChange,
   Listing,
@@ -47,11 +50,13 @@ const LISTING_COMMERCE_ENTITIES = [
     ListingQuotesService,
     ListingOrdersService,
     ListingEntitlementsService,
+    ListingPaymentEventsService,
   ],
   exports: [
     TypeOrmModule,
     ListingProductsService,
     ListingEntitlementsService,
+    ListingPaymentEventsService,
   ],
 })
 export class ListingCommerceModule {}

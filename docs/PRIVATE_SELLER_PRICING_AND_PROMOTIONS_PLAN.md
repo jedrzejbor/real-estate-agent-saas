@@ -1205,11 +1205,37 @@ utworzonego zamówienia.
   treść wiadomości, aktywację publikacji, daty odnowienia, blokadę nieopłaconego
   zamówienia, ponowienie realizacji oraz blokady transakcyjne.
 
-Następna iteracja Etapu 5: kontrakt adaptera płatności, utworzenie sesji dla
-ważnego zamówienia, trwały rejestr zdarzeń jednorazowych oraz podpisany webhook,
-który atomowo zmieni `pending_payment` na `paid` i wywoła ten sam serwis
-entitlementów. Nie należy implementować szczegółów operatora przed jego wyborem
-i potwierdzeniem wymagań podpisu oraz idempotencji webhooków.
+#### Iteracja 5.2 — niezależny od operatora rdzeń webhooków (zrealizowana 2026-09-07)
+
+- dodano kanoniczny kontrakt zweryfikowanego zdarzenia płatniczego; może go
+  utworzyć wyłącznie adapter, który wcześniej sprawdził podpis operatora;
+- dodano `listing_payment_events` z unikalnością `(provider, event_id)`,
+  powiązaniem z zamówieniem, statusem przetwarzania, bezpiecznym payloadem,
+  błędem oraz czasami wystąpienia i obsługi zdarzenia;
+- `ListingPaymentEventsService` nie jest publicznym kontrolerem i nie przyjmuje
+  surowych webhooków; atomowo blokuje zamówienie, sprawdza powiązanie operatora
+  oraz sesji, porównuje kwotę i walutę, aktualizuje zamówienie, wywołuje
+  entitlementy i zapisuje audyt;
+- sukces płatności jest honorowany również po wcześniejszym `payment_failed`,
+  `expired` lub `cancelled`, jeśli pochodzi z dokładnie tej samej zapisanej
+  sesji i ma poprawną kwotę; zapobiega to sytuacji, w której pobrano pieniądze,
+  ale system nie wykonał usługi;
+- spóźnione zdarzenie błędu lub wygaśnięcia nie cofa zamówienia `paid`;
+- przetworzone duplikaty nie dotykają zamówienia ani entitlementów; uwzględniono
+  również wyścig podczas oczekiwania na blokadę oraz konflikt unikalnego
+  inserta;
+- zdarzenie zakończone błędem pozostaje audytowalne i może zostać bezpiecznie
+  ponowione; poprawne ponowienie aktualizuje ten sam rekord na `processed`;
+- migracja tworzy osobny indeks błędów, aby późniejszy monitoring i alerty nie
+  wymagały skanowania całej tabeli;
+- testy obejmują sukces, dokładność kwoty, powiązanie sesji, błąd, wygaśnięcie,
+  spóźniony sukces, spóźniony błąd, ponowienie po błędzie oraz trzy warianty
+  idempotencji współbieżnej.
+
+Następna iteracja Etapu 5 wymaga adaptera konkretnego operatora: tworzenia sesji
+dla ważnego zamówienia, weryfikacji podpisu na surowym body i mapowania zdarzeń
+do przygotowanego kontraktu. Repozytorium zakłada obecnie Stripe dla abonamentów,
+ale wybór Stripe dla płatności jednorazowych nadal wymaga jawnego potwierdzenia.
 
 **Kryterium zakończenia:** zaakceptowana oferta jest publikowana dokładnie raz
 po potwierdzonej płatności, również gdy webhook zostanie dostarczony

@@ -41,6 +41,27 @@ describe('listing commerce policies', () => {
       ).toBe(true);
     });
 
+    it('allows an authoritative late success to recover a failed, expired or cancelled order', () => {
+      expect(
+        canTransitionListingOrderStatus(
+          ListingOrderStatus.PAYMENT_FAILED,
+          ListingOrderStatus.PAID,
+        ),
+      ).toBe(true);
+      expect(
+        canTransitionListingOrderStatus(
+          ListingOrderStatus.EXPIRED,
+          ListingOrderStatus.PAID,
+        ),
+      ).toBe(true);
+      expect(
+        canTransitionListingOrderStatus(
+          ListingOrderStatus.CANCELLED,
+          ListingOrderStatus.PAID,
+        ),
+      ).toBe(true);
+    });
+
     it('rejects invalid transitions with a domain error', () => {
       expect(() =>
         assertListingOrderStatusTransition(

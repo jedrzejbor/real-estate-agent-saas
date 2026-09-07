@@ -25,6 +25,7 @@ const ORDER_STATUS_TRANSITIONS: Readonly<
   ]),
   [ListingOrderStatus.PAYMENT_FAILED]: new Set([
     ListingOrderStatus.PENDING_PAYMENT,
+    ListingOrderStatus.PAID,
     ListingOrderStatus.EXPIRED,
     ListingOrderStatus.CANCELLED,
   ]),
@@ -35,8 +36,9 @@ const ORDER_STATUS_TRANSITIONS: Readonly<
   [ListingOrderStatus.PARTIALLY_REFUNDED]: new Set([
     ListingOrderStatus.REFUNDED,
   ]),
-  [ListingOrderStatus.EXPIRED]: new Set(),
-  [ListingOrderStatus.CANCELLED]: new Set(),
+  // A verified late success is authoritative: never keep money without service.
+  [ListingOrderStatus.EXPIRED]: new Set([ListingOrderStatus.PAID]),
+  [ListingOrderStatus.CANCELLED]: new Set([ListingOrderStatus.PAID]),
   [ListingOrderStatus.REFUNDED]: new Set(),
 };
 

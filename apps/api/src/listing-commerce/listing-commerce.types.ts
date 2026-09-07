@@ -47,6 +47,14 @@ export enum ListingProductChangeAction {
   RESTORED = 'restored',
 }
 
+export enum ListingPaymentEventType {
+  PAYMENT_SUCCEEDED = 'payment_succeeded',
+  PAYMENT_FAILED = 'payment_failed',
+  CHECKOUT_EXPIRED = 'checkout_expired',
+}
+
+export type ListingPaymentEventStatus = 'processed' | 'failed';
+
 export interface ListingProductChangeValue {
   field: string;
   oldValue: unknown;
