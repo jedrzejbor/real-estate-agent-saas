@@ -93,8 +93,8 @@ Nad kartami cenowymi dodajemy główny przełącznik:
 Domyślnie pokazujemy `Sprzedaję prywatnie`, ponieważ wejście ze strony głównej
 ma odpowiadać na najprostszy zamiar konsumencki. Wybór można zapamiętać w URL:
 
-- `/#pricing?dla=prywatnych`;
-- `/#pricing?dla=agentow`;
+- `/?dla=prywatnych#pricing`;
+- `/?dla=agentow#pricing`;
 - `/cennik?dla=prywatnych`;
 - `/cennik?dla=agentow`.
 
@@ -951,20 +951,75 @@ hardcodowania danych.
 
 ### Etap 3 — publiczny cennik i przełącznik odbiorcy
 
-- [ ] Zbudować wspólny adapter i komponenty prezentacji cennika prywatnego dla
+- [x] Zbudować wspólny adapter i komponenty prezentacji cennika prywatnego dla
   homepage oraz `/cennik`.
-- [ ] Dodać przełącznik `Sprzedaję prywatnie | Jestem agentem lub prowadzę biuro`.
-- [ ] Dodać obsługę parametru `dla` oraz linków kierujących do właściwego
+- [x] Dodać przełącznik `Sprzedaję prywatnie | Jestem agentem lub prowadzę biuro`.
+- [x] Dodać obsługę parametru `dla` oraz linków kierujących do właściwego
   wariantu.
-- [ ] Dla wariantu prywatnego ukrywać przełącznik miesięcznie/rocznie.
-- [ ] Zachować obecny cennik agentów pobierany z `GET /api/plans` bez regresji.
-- [ ] Dodać CTA do `/dodaj-oferte` i informację, że płatność następuje po
+- [x] Dla wariantu prywatnego ukrywać przełącznik miesięcznie/rocznie.
+- [x] Zachować obecny cennik agentów pobierany z `GET /api/plans` bez regresji.
+- [x] Dodać CTA do `/dodaj-oferte` i informację, że płatność następuje po
   akceptacji ogłoszenia.
-- [ ] Dodać FAQ i zasady publikacji na pełnej stronie cennika.
-- [ ] Dodać niezależne stany loading/error/empty dla obu katalogów.
+- [x] Dodać FAQ i zasady publikacji na pełnej stronie cennika.
+- [x] Dodać niezależne stany loading/error/empty dla obu katalogów.
 - [ ] Dodać testy responsywności, dostępności i obsługi parametru URL.
-- [ ] Dodać zdarzenia `pricing_audience_selected`, `private_pricing_viewed` i
+- [x] Dodać zdarzenia `pricing_audience_selected`, `private_pricing_viewed` i
   `listing_product_selected`.
+
+#### Iteracja 3.1 — wspólny cennik i routing odbiorcy
+
+Data zakończenia: 2026-09-07.
+
+Wykonano:
+
+- zastąpiono dwie niezależne implementacje kart jednym komponentem
+  `PublicPricingCatalog`, używanym na homepage i pełnej stronie `/cennik`;
+- oba katalogi zachowują osobne dane, loading, error, empty i retry, dlatego
+  awaria produktów prywatnych nie ukrywa planów agentów ani odwrotnie;
+- domyślnym wariantem jest `Sprzedaję prywatnie`, zgodnie z ADR produktu;
+- dodano dostępny klawiaturą przełącznik oparty na prawdziwych przyciskach z
+  `aria-pressed`;
+- parametr `dla=prywatnych|agentow` jest synchronizowany z historią przeglądarki
+  bez przewijania strony do początku;
+- poprawiono zapis linków homepage na `/?dla=...#pricing`; wcześniejsza postać
+  `/#pricing?dla=...` umieszczała parametr po `#`, więc nie był on query stringiem;
+- kontrolka `Miesięcznie | Rocznie` jest renderowana tylko dla odbiorcy
+  agencyjnego;
+- cennik agentów nadal używa `GET /api/plans`, dotychczasowych reguł limitów,
+  wyróżnienia planu Professional i ścieżek rejestracji;
+- wariant prywatny używa wyłącznie `GET /api/listing-products`; cena nie jest
+  hardcodowana ani przekazywana do formularza/checkoutu;
+- homepage pokazuje główną publikację, korzyści i osobny blok dodatków, a pełny
+  cennik wszystkie aktywne produkty;
+- CTA prowadzi do `/dodaj-oferte`, a treść jasno komunikuje kolejność:
+  bezpłatne dodanie → potwierdzenie → moderacja → wybór produktów → płatność;
+- dodano FAQ dotyczące moderacji, odnowienia, kodów, dokumentu sprzedaży i
+  zwrotów; kwestie oczekujące na opinię prawną są opisane bez deklarowania
+  niezatwierdzonych zasad;
+- rozszerzono współdzieloną kartę produktu o tryb publicznego CTA, zachowując
+  osobny bezpieczny tryb podglądu administratora;
+- dodano anonimowy, publiczny i throttlowany endpoint analytics z zamkniętą
+  allow-listą trzech eventów; eventy nie wymagają sesji i nie zapisują danych
+  użytkownika, agenta ani agencji;
+- zdarzenia trafiają do kategorii `public_growth` i nadal respektują zgodę na
+  cookies analityczne po stronie klienta;
+- dodano metadata strony cennika oraz linki nawigacji kierujące domyślnie do
+  wariantu prywatnego.
+
+Weryfikacja Iteracji 3.1:
+
+- [x] testy modelu URL i granicy wariantu UI — 10/10;
+- [x] testy publicznych eventów analytics — 5/5;
+- [x] pełny zestaw testów web — 105/105, 16/16 suites;
+- [x] pełny zestaw testów API — 438/438;
+- [x] `pnpm --filter web type-check` i `pnpm --filter api type-check`;
+- [x] lint web bez nowych ostrzeżeń i lint API bez błędów;
+- [x] produkcyjny build API i Next.js, w tym statyczne `/` oraz `/cennik`;
+- [x] `git diff --check`.
+
+Do Iteracji 3.2 pozostaje przeglądarkowa weryfikacja responsywności i pełnego
+przepływu klawiatury na docelowych viewportach. Publiczne dane produktów nadal
+pozostają kontrolowane flagą `RELEASE_FLAG_PRIVATE_LISTING_PRICING_ENABLED`.
 
 **Kryterium zakończenia:** administrator zmienia cenę bez deployu, a ta sama
 wartość pojawia się na homepage i `/cennik`. Awaria katalogu prywatnego nie

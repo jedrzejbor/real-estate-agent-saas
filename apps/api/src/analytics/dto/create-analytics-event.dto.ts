@@ -64,6 +64,9 @@ export const ANALYTICS_EVENT_NAMES = [
   'limit_warning_shown',
   'limit_reached',
   'upgrade_cta_clicked',
+  'pricing_audience_selected',
+  'private_pricing_viewed',
+  'listing_product_selected',
 ] as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENT_NAMES)[number];
@@ -90,6 +93,15 @@ export const PUBLIC_BLOG_ANALYTICS_EVENT_NAMES = [
 
 export type PublicBlogAnalyticsEventName =
   (typeof PUBLIC_BLOG_ANALYTICS_EVENT_NAMES)[number];
+
+export const PUBLIC_PRICING_ANALYTICS_EVENT_NAMES = [
+  'pricing_audience_selected',
+  'private_pricing_viewed',
+  'listing_product_selected',
+] as const;
+
+export type PublicPricingAnalyticsEventName =
+  (typeof PUBLIC_PRICING_ANALYTICS_EVENT_NAMES)[number];
 
 export class CreateAnalyticsEventDto {
   @IsIn(ANALYTICS_EVENT_NAMES)
@@ -122,6 +134,20 @@ export class CreatePublicListingAnalyticsEventDto {
 export class CreatePublicBlogAnalyticsEventDto {
   @IsIn(PUBLIC_BLOG_ANALYTICS_EVENT_NAMES)
   name: PublicBlogAnalyticsEventName;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  path?: string;
+
+  @IsOptional()
+  @IsObject()
+  properties?: Record<string, unknown>;
+}
+
+export class CreatePublicPricingAnalyticsEventDto {
+  @IsIn(PUBLIC_PRICING_ANALYTICS_EVENT_NAMES)
+  name: PublicPricingAnalyticsEventName;
 
   @IsOptional()
   @IsString()

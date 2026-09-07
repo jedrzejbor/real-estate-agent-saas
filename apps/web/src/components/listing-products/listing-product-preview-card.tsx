@@ -1,5 +1,7 @@
 import { CalendarDays, Check, EyeOff, Sparkles } from 'lucide-react';
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   formatListingProductPrice,
   LISTING_PRODUCT_TYPE_LABELS,
@@ -14,14 +16,24 @@ type ListingProductPreviewCardProps =
       product: PublicListingProduct;
       draft?: never;
       isVisible?: boolean;
+      preview?: boolean;
+      cta?: ListingProductCardCta;
       className?: string;
     }
   | {
       product?: never;
       draft: ListingProductFormValues;
       isVisible?: boolean;
+      preview?: boolean;
+      cta?: ListingProductCardCta;
       className?: string;
     };
+
+interface ListingProductCardCta {
+  label: string;
+  href: string;
+  onClick?: () => void;
+}
 
 /** Shared product presentation for the admin preview and the public pricing UI. */
 export function ListingProductPreviewCard(
@@ -89,16 +101,27 @@ export function ListingProductPreviewCard(
         )}
       </div>
 
-      <button
-        type="button"
-        disabled
-        className="mt-6 h-10 w-full rounded-xl bg-primary text-sm font-semibold text-primary-foreground opacity-70"
-      >
-        Wybierz produkt
-      </button>
-      <p className="mt-2 text-center text-[0.7rem] text-muted-foreground">
-        Podgląd — zakup zostanie podłączony w kolejnym etapie
-      </p>
+      {props.cta ? (
+        <Button
+          className="mt-6 h-10 w-full rounded-xl"
+          render={<Link href={props.cta.href} onClick={props.cta.onClick} />}
+        >
+          {props.cta.label}
+        </Button>
+      ) : props.preview ? (
+        <>
+          <button
+            type="button"
+            disabled
+            className="mt-6 h-10 w-full rounded-xl bg-primary text-sm font-semibold text-primary-foreground opacity-70"
+          >
+            Wybierz produkt
+          </button>
+          <p className="mt-2 text-center text-[0.7rem] text-muted-foreground">
+            Podgląd — zakup zostanie podłączony w kolejnym etapie
+          </p>
+        </>
+      ) : null}
     </article>
   );
 }

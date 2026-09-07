@@ -13,6 +13,7 @@ import {
   CreateAnalyticsEventDto,
   CreatePublicBlogAnalyticsEventDto,
   CreatePublicListingAnalyticsEventDto,
+  CreatePublicPricingAnalyticsEventDto,
 } from './dto/create-analytics-event.dto';
 
 const MARKETPLACE_ANALYTICS_EVENT_NAMES = [
@@ -158,6 +159,34 @@ export class AnalyticsService {
         context: { blogSlug: slug, eventName: dto.name },
       },
       () => this.trackPublicBlogCore(slug, dto),
+    );
+  }
+
+  async trackPublicPricing(dto: CreatePublicPricingAnalyticsEventDto) {
+    return this.monitoringService.monitor(
+      {
+        flow: 'public_pricing_analytics_event',
+        failureEvent: 'event_track_failed',
+        context: { eventName: dto.name },
+      },
+      async () => {
+        const event = this.analyticsEventRepo.create({
+          name: dto.name,
+          userId: null,
+          agentId: null,
+          agencyId: null,
+          planCode: null,
+          path: dto.path ?? '/cennik',
+          properties: dto.properties ?? {},
+        });
+        const savedEvent = await this.analyticsEventRepo.save(event);
+
+        return {
+          id: savedEvent.id,
+          name: savedEvent.name,
+          createdAt: savedEvent.createdAt,
+        };
+      },
     );
   }
 
@@ -505,7 +534,10 @@ function getAnalyticsEventCategory(name: string): AnalyticsEventCategory {
   if (
     name.startsWith('public_') ||
     name.startsWith('blog_') ||
-    name === 'product_feedback_submitted'
+    name === 'product_feedback_submitted' ||
+    name === 'pricing_audience_selected' ||
+    name === 'private_pricing_viewed' ||
+    name === 'listing_product_selected'
   ) {
     return 'public_growth';
   }

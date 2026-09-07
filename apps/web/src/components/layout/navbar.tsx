@@ -10,7 +10,7 @@ const navLinks = [
   { label: 'Start', href: '/' },
   { label: 'Oferty', href: '/oferty' },
   { label: 'Funkcje', href: '/#features' },
-  { label: 'Cennik', href: '/#pricing' },
+  { label: 'Cennik', href: '/?dla=prywatnych#pricing' },
   { label: 'Blog', href: '/blog' },
 ] as const;
 

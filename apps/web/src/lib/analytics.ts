@@ -63,6 +63,9 @@ export const AnalyticsEventName = {
   LIMIT_WARNING_SHOWN: 'limit_warning_shown',
   LIMIT_REACHED: 'limit_reached',
   UPGRADE_CTA_CLICKED: 'upgrade_cta_clicked',
+  PRICING_AUDIENCE_SELECTED: 'pricing_audience_selected',
+  PRIVATE_PRICING_VIEWED: 'private_pricing_viewed',
+  LISTING_PRODUCT_SELECTED: 'listing_product_selected',
 } as const;
 
 export type AnalyticsEventName =
@@ -160,6 +163,30 @@ export function trackPublicBlogEvent({
   }).catch((error) => {
     if (process.env.NODE_ENV !== 'production') {
       console.warn('Public blog analytics event failed', name, error);
+    }
+  });
+}
+
+export function trackPublicPricingEvent({
+  name,
+  properties,
+  path,
+}: TrackAnalyticsEventInput): void {
+  if (typeof window === 'undefined' || !canTrackAnalyticsEvent(name)) {
+    return;
+  }
+
+  void apiFetch('/analytics/public-pricing/events', {
+    method: 'POST',
+    skipAuth: true,
+    body: {
+      name,
+      path: path ?? `${window.location.pathname}${window.location.search}`,
+      properties: compactProperties(properties ?? {}),
+    },
+  }).catch((error) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Public pricing analytics event failed', name, error);
     }
   });
 }

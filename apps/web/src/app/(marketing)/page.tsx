@@ -527,8 +527,8 @@ export default function Home() {
         <Container>
           <SectionHeader
             badge="💰 Cennik"
-            title="Wybierz plan dla siebie lub biura"
-            description="Porównaj pakiety pod kątem liczby ofert, klientów, użytkowników i narzędzi potrzebnych na co dzień."
+            title="Prosty cennik, niezależnie jak sprzedajesz"
+            description="Opublikuj pojedyncze ogłoszenie lub wybierz narzędzia dla agenta i biura."
           />
           <HomePricingSection />
         </Container>

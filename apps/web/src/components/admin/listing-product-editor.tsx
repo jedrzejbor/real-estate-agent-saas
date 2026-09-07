@@ -280,6 +280,7 @@ export function ListingProductEditor({
           <ListingProductPreviewCard
             draft={value}
             isVisible={value.isPublic && value.isActive && !isArchived}
+            preview
           />
         </aside>
       </div>
