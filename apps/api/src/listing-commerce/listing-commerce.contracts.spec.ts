@@ -16,13 +16,13 @@ describe('listing commerce contracts', () => {
       vatRateBasisPoints: null,
       durationDays: 60,
       featuredTier: null,
-      priorityWeight: 0,
-      fulfillmentParameters: { durationDays: 60 },
       sortOrder: 10,
     };
 
     expect(product).not.toHaveProperty('id');
     expect(product).not.toHaveProperty('providerPriceReference');
+    expect(product).not.toHaveProperty('priorityWeight');
+    expect(product).not.toHaveProperty('fulfillmentParameters');
     expect(product.priceGrossAmount).toBe(4900);
   });
 

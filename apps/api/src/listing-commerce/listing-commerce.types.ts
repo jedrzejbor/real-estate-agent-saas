@@ -40,6 +40,19 @@ export enum ListingEntitlementSource {
   MIGRATION = 'migration',
 }
 
+export enum ListingProductChangeAction {
+  CREATED = 'created',
+  UPDATED = 'updated',
+  ARCHIVED = 'archived',
+  RESTORED = 'restored',
+}
+
+export interface ListingProductChangeValue {
+  field: string;
+  oldValue: unknown;
+  newValue: unknown;
+}
+
 export interface ListingProductFulfillmentParameters {
   durationDays?: number;
   featuredTier?: string;

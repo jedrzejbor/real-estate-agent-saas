@@ -826,13 +826,81 @@ dodaniu wyróżnień i rabatów.
 
 ### Etap 2 — katalog produktów i panel administratora
 
-- [ ] Dodać publiczny endpoint produktów.
-- [ ] Dodać endpointy admina, DTO, autoryzację i log aktywności.
-- [ ] Dodać listę, edycję, widoczność, kolejność i archiwizację produktów.
+- [x] Dodać publiczny endpoint produktów.
+- [x] Dodać endpointy admina, DTO, autoryzację i log aktywności.
+- [ ] Dodać ekran listy, edycji, widoczności, kolejności i archiwizacji
+  produktów; backend tych operacji jest gotowy.
 - [ ] Dodać publiczny podgląd karty produktu.
-- [ ] Zabezpieczyć archiwizację produktów użytych w zamówieniach.
-- [ ] Zapisywać historię zmian ceny, widoczności i parametrów produktu.
-- [ ] Dodać testy serwisu, walidacji DTO, kontroli roli i logu audytowego.
+- [x] Zabezpieczyć archiwizację produktów użytych w zamówieniach.
+- [x] Zapisywać historię zmian ceny, widoczności i parametrów produktu.
+- [x] Dodać testy serwisu, walidacji DTO, kontroli roli i logu audytowego.
+
+#### Iteracja 2.1 — publiczny katalog i administracyjne API
+
+Data zakończenia: 2026-09-07.
+
+Wykonano:
+
+- dodano publiczny `GET /api/listing-products`, kontrolowany osobną flagą
+  `RELEASE_FLAG_PRIVATE_LISTING_PRICING_ENABLED`;
+- przy wyłączonej fladze endpoint zwraca pusty katalog bez wykonywania zapytania
+  do bazy;
+- publiczny DTO nie ujawnia UUID produktu, flag administracyjnych, archiwizacji,
+  referencji operatora, wagi rankingu ani wewnętrznych parametrów realizacji;
+- dodano chronione rolą `ADMIN` endpointy listy, szczegółu, tworzenia, edycji,
+  archiwizacji, przywracania i historii zmian;
+- kod i typ produktu są niezmienne po utworzeniu, ponieważ ich zmiana mogłaby
+  zmienić znaczenie historycznych zamówień;
+- cena, VAT, długość działania, opis, tier wyróżnienia, kolejność, aktywność i
+  widoczność mogą być zarządzane bez deployu;
+- znane parametry fulfillmentu są wyliczane na backendzie z pól produktu, a nie
+  przyjmowane jako zduplikowany JSON od administratora;
+- produkt publiczny musi być aktywny i niezarchiwizowany;
+- wyłączenie produktu automatycznie usuwa jego publiczną widoczność, jeśli
+  żądanie nie próbuje jawnie zachować niespójnego stanu;
+- przywrócony produkt wraca jako aktywny, ale niepubliczny, aby publikacja była
+  świadomą, oddzielną decyzją administratora;
+- nie dodano endpointu trwałego usuwania; rekord wykorzystany w zamówieniu jest
+  chroniony relacją `ON DELETE RESTRICT` i może zostać tylko zarchiwizowany;
+- dodano osobną tabelę `listing_product_changes`, ponieważ istniejący
+  `ActivityLog` jest kontekstem aktywności agenta, a nie globalnym audytem
+  finansowym administratora;
+- zmiana produktu i wpis audytowy są zapisywane w jednej transakcji z blokadą
+  `pessimistic_write` na edytowanym rekordzie;
+- historia przechowuje administratora, akcję, powód oraz wartości przed i po
+  zmianie;
+- dodano ochronę przed kolizją kodu produktu oraz kontrolowane odpowiedzi dla
+  brakujących rekordów i niespójnej konfiguracji.
+
+Endpointy Iteracji 2.1:
+
+- `GET /api/listing-products`;
+- `GET /api/admin/listing-products`;
+- `POST /api/admin/listing-products`;
+- `GET /api/admin/listing-products/:code`;
+- `PATCH /api/admin/listing-products/:code`;
+- `GET /api/admin/listing-products/:code/history`;
+- `POST /api/admin/listing-products/:code/archive`;
+- `POST /api/admin/listing-products/:code/restore`.
+
+Weryfikacja Iteracji 2.1:
+
+- [x] testy `listing-commerce` — 38/38 przed końcowym przebiegiem;
+- [x] pełny zestaw testów API — 433/433, 75/75 suites;
+- [x] `pnpm --filter api type-check`;
+- [x] `pnpm --filter api lint`;
+- [x] `pnpm --filter api build`;
+- [x] obie migracje wykonane na izolowanym PostgreSQL 16;
+- [x] migracja audytu wykonana ponownie bez duplikatów;
+- [x] testowa baza usunięta, główna baza bez zmian;
+- [x] `git diff --check`.
+
+Do Iteracji 2.2 pozostają:
+
+- typed client w aplikacji webowej;
+- ekran administratora do zarządzania produktami i cenami;
+- historia zmian i akcje archiwizuj/przywróć w UI;
+- podgląd karty produktu w formie widocznej na publicznym cenniku.
 
 **Kryterium zakończenia:** produkt można bezpiecznie edytować i ukryć, a historia
 zmian pozostaje dostępna. Publiczne API zwraca tylko produkty aktywne i publiczne.

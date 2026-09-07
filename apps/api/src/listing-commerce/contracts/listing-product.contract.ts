@@ -1,4 +1,6 @@
 import type {
+  ListingProductChangeAction,
+  ListingProductChangeValue,
   ListingProductFulfillmentParameters,
   ListingProductType,
 } from '../listing-commerce.types';
@@ -14,7 +16,28 @@ export interface PublicListingProductContract {
   vatRateBasisPoints: number | null;
   durationDays: number;
   featuredTier: string | null;
+  sortOrder: number;
+}
+
+export interface AdminListingProductContract
+  extends PublicListingProductContract {
+  id: string;
+  isPublic: boolean;
+  isActive: boolean;
   priorityWeight: number;
   fulfillmentParameters: ListingProductFulfillmentParameters;
-  sortOrder: number;
+  providerPriceReference: string | null;
+  archivedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AdminListingProductChangeContract {
+  id: string;
+  productId: string;
+  actorUserId: string | null;
+  action: ListingProductChangeAction;
+  changes: ListingProductChangeValue[];
+  reason: string | null;
+  createdAt: Date;
 }

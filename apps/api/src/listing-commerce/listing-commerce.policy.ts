@@ -129,6 +129,76 @@ export interface GrossAmountTotals {
   totalGrossAmount: number;
 }
 
+export interface ListingProductConfiguration {
+  type: ListingProductType;
+  priceGrossAmount: number;
+  currency: string;
+  vatRateBasisPoints?: number | null;
+  durationDays: number;
+  featuredTier?: string | null;
+  priorityWeight: number;
+  isPublic: boolean;
+  isActive: boolean;
+  archivedAt?: Date | null;
+}
+
+export function assertListingProductConfiguration(
+  product: ListingProductConfiguration,
+): void {
+  assertNonNegativeInteger(product.priceGrossAmount, 'priceGrossAmount');
+  assertPositiveInteger(product.durationDays, 'durationDays');
+  assertNonNegativeInteger(product.priorityWeight, 'priorityWeight');
+
+  if (product.currency !== LISTING_COMMERCE_CURRENCY) {
+    throw new RangeError(`currency must be ${LISTING_COMMERCE_CURRENCY}`);
+  }
+
+  if (
+    product.vatRateBasisPoints !== null &&
+    product.vatRateBasisPoints !== undefined
+  ) {
+    assertNonNegativeInteger(
+      product.vatRateBasisPoints,
+      'vatRateBasisPoints',
+    );
+    if (product.vatRateBasisPoints > 10_000) {
+      throw new RangeError('vatRateBasisPoints cannot exceed 10000');
+    }
+  }
+
+  const featuredTier = product.featuredTier?.trim() || null;
+  if (product.type === ListingProductType.FEATURED && !featuredTier) {
+    throw new RangeError('featuredTier is required for featured products');
+  }
+  if (product.type !== ListingProductType.FEATURED && featuredTier) {
+    throw new RangeError(
+      'featuredTier is allowed only for featured products',
+    );
+  }
+  if (product.isPublic && (!product.isActive || product.archivedAt)) {
+    throw new RangeError('a public product must be active and not archived');
+  }
+}
+
+export function buildListingProductFulfillmentParameters(
+  product: Pick<
+    ListingProductConfiguration,
+    'durationDays' | 'featuredTier' | 'priorityWeight'
+  >,
+): Record<string, number | string> {
+  const parameters: Record<string, number | string> = {
+    durationDays: product.durationDays,
+  };
+
+  const featuredTier = product.featuredTier?.trim();
+  if (featuredTier) {
+    parameters.featuredTier = featuredTier;
+    parameters.priorityWeight = product.priorityWeight;
+  }
+
+  return parameters;
+}
+
 /** Pure integer arithmetic used by quote and order creation. */
 export function calculateGrossAmountTotals(
   lines: readonly GrossAmountLine[],

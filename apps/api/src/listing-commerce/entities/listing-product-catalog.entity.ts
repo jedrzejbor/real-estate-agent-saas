@@ -12,6 +12,7 @@ import {
   ListingProductType,
 } from '../listing-commerce.types';
 import { ListingOrderItem } from './listing-order-item.entity';
+import { ListingProductChange } from './listing-product-change.entity';
 
 @Entity('listing_product_catalog')
 @Index(['isActive', 'isPublic', 'sortOrder'])
@@ -89,4 +90,7 @@ export class ListingProductCatalog {
 
   @OneToMany(() => ListingOrderItem, (item) => item.product)
   orderItems?: ListingOrderItem[];
+
+  @OneToMany(() => ListingProductChange, (change) => change.product)
+  changes?: ListingProductChange[];
 }
