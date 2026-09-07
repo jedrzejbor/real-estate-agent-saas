@@ -828,9 +828,9 @@ dodaniu wyróżnień i rabatów.
 
 - [x] Dodać publiczny endpoint produktów.
 - [x] Dodać endpointy admina, DTO, autoryzację i log aktywności.
-- [ ] Dodać ekran listy, edycji, widoczności, kolejności i archiwizacji
+- [x] Dodać ekran listy, edycji, widoczności, kolejności i archiwizacji
   produktów; backend tych operacji jest gotowy.
-- [ ] Dodać publiczny podgląd karty produktu.
+- [x] Dodać publiczny podgląd karty produktu.
 - [x] Zabezpieczyć archiwizację produktów użytych w zamówieniach.
 - [x] Zapisywać historię zmian ceny, widoczności i parametrów produktu.
 - [x] Dodać testy serwisu, walidacji DTO, kontroli roli i logu audytowego.
@@ -895,12 +895,53 @@ Weryfikacja Iteracji 2.1:
 - [x] testowa baza usunięta, główna baza bez zmian;
 - [x] `git diff --check`.
 
-Do Iteracji 2.2 pozostają:
+#### Iteracja 2.2 — panel katalogu i podgląd publicznej karty
 
-- typed client w aplikacji webowej;
-- ekran administratora do zarządzania produktami i cenami;
-- historia zmian i akcje archiwizuj/przywróć w UI;
-- podgląd karty produktu w formie widocznej na publicznym cenniku.
+Data zakończenia: 2026-09-07.
+
+Wykonano:
+
+- dodano typed client dla publicznego i administracyjnego API produktów;
+- typy transportowe rozdzielają kontrakt publiczny od kontraktu administratora,
+  dzięki czemu UUID, referencja operatora, parametry realizacji i dane audytowe
+  nie są potrzebne komponentom publicznym;
+- dodano formularz tworzenia i edycji produktu z walidacją zgodną z backendem;
+- kod i typ można ustawić tylko podczas tworzenia, a podczas edycji pozostają
+  niezmienne;
+- administrator wpisuje cenę brutto w PLN, natomiast granica domenowa zamienia
+  ją na całkowitą liczbę groszy bez używania arytmetyki zmiennoprzecinkowej;
+- stawka VAT pozostaje opcjonalna (`null`) do czasu zamknięcia decyzji
+  księgowo-prawnych;
+- nowy produkt jest domyślnie aktywny, ale jawnie niepubliczny i nie otrzymuje
+  domyślnej ceny biznesowej;
+- wyłączenie aktywności w formularzu automatycznie wyłącza widoczność publiczną;
+- przed zapisem administrator widzi podsumowanie skutków zmiany ceny,
+  aktywności i widoczności;
+- dodano responsywną listę ze statusami `publiczny`, `ukryty`, `nieaktywny` i
+  `archiwum` oraz nawigację w sekcji administracyjnej;
+- dodano archiwizację i przywracanie z obowiązkowym powodem oraz potwierdzeniem;
+- archiwalny produkt jest tylko do odczytu, a przywrócony pozostaje niepubliczny
+  do czasu świadomej decyzji administratora;
+- dodano historię zmian z akcją, datą, administratorem, powodem i wartościami
+  przed/po;
+- dodano współdzielony `ListingProductPreviewCard`, używany w panelu jako
+  podgląd i gotowy do ponownego użycia na homepage oraz `/cennik` w Etapie 3;
+- publiczna karta nie zawiera przycisku wykonującego pozorny zakup — CTA jest
+  wyłączone i opisane jako podgląd do czasu wdrożenia checkoutu.
+
+Weryfikacja Iteracji 2.2:
+
+- [x] testy granic formularza, kwot i klienta HTTP — 11/11;
+- [x] pełny zestaw testów web — 95/95, 14/14 suites;
+- [x] `pnpm --filter web type-check`;
+- [x] `pnpm --filter web lint` — bez nowych ostrzeżeń w plikach Iteracji 2.2;
+- [x] `pnpm --filter web build` — 50/50 stron, w tym
+  `/dashboard/admin/listing-products`;
+- [x] `git diff --check`.
+
+Etap 2 jest zakończony. Włączenie karty do publicznego cennika pozostaje celowo
+w Etapie 3; dane i komponent prezentacyjny są już gotowe, ale flaga
+`RELEASE_FLAG_PRIVATE_LISTING_PRICING_ENABLED` pozostaje domyślnie wyłączona.
 
 **Kryterium zakończenia:** produkt można bezpiecznie edytować i ukryć, a historia
 zmian pozostaje dostępna. Publiczne API zwraca tylko produkty aktywne i publiczne.

@@ -17,6 +17,7 @@ import {
   ThumbsUp,
   Newspaper,
   CreditCard,
+  ShoppingBag,
   BookOpenCheck,
   Heart,
   Search,
@@ -215,6 +216,11 @@ const adminGroup: DashboardNavGroup = {
       label: 'Plany',
       href: '/dashboard/admin/plans',
       icon: CreditCard,
+    },
+    {
+      label: 'Produkty ogłoszeń',
+      href: '/dashboard/admin/listing-products',
+      icon: ShoppingBag,
     },
   ],
 };
