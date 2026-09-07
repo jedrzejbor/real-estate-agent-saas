@@ -1368,15 +1368,16 @@ wielokrotnie. Nie istnieje ścieżka publikacji oparta wyłącznie o dane fronte
 
 ### Etap 6 — wyróżnienia i odnowienia
 
-- [ ] Rozszerzyć serwis entitlementów o wyróżnienie i przedłużenie publikacji.
-- [ ] Dodać właściwe produkty wyróżnienia i odnowienia do katalogu.
+- [x] Rozszerzyć serwis entitlementów o wyróżnienie i przedłużenie publikacji.
+- [x] Dodać właściwe produkty wyróżnienia i odnowienia do katalogu.
 - [ ] Podłączyć wyróżnienie do katalogu, mapy i strony oferty.
 - [ ] Ustalić sortowanie i rotację w tym samym tierze.
 - [ ] Dodać zakup wyróżnienia i odnowienia z panelu sprzedającego.
 - [ ] Uniemożliwić zakup wyróżnienia dla cudzej, odrzuconej lub wygasłej oferty
   bez jednoczesnego odnowienia.
 - [ ] Określić zachowanie ponownego zakupu przed zakończeniem aktywnego okresu.
-- [ ] Dodać automatyczne wygasanie oraz przypomnienia.
+- [ ] Dodać automatyczne wygasanie oraz przypomnienia (wygasanie zrealizowane,
+  przypomnienia pozostają do wykonania).
 - [ ] Zmigrować użycie `isPremium` albo jasno ograniczyć je do cache/kompatybilności.
 - [ ] Dodać testy nakładających się okresów, ponowionych webhooków oraz
   wygasania entitlementów.
@@ -1384,6 +1385,22 @@ wielokrotnie. Nie istnieje ścieżka publikacji oparta wyłącznie o dane fronte
 **Kryterium zakończenia:** wyróżnienie działa tylko w opłaconym/przyznanym
 okresie, a jego start i koniec są audytowalne. Odnowienie i wyróżnienie używają
 tego samego kalkulatora, zamówienia i finalizacji płatności co publikacja.
+
+#### Iteracja 6.1 — cykl życia entitlementów (w toku, 2026-09-07)
+
+- istniejący serwis realizacji zamówień obsługuje publikację, odnowienie oraz
+  wyróżnienie z tym samym snapshotem produktu i idempotencją pozycji;
+- dodano `processDueEntitlements`, który w jednej transakcji aktywuje
+  zaplanowane entitlementy i wygasza zakończone okresy;
+- po wygaśnięciu ostatniego entitlementu publikacji oferta jest automatycznie
+  oznaczana jako nieopublikowana; aktywne odnowienie chroni ją przed cofnięciem;
+- dodano `ListingEntitlementsScheduler` z konfigurowalnym interwałem, limitem
+  partii, monitoringiem i postgres advisory lockiem dla wielu instancji API;
+- dodano testy aktywacji, wygasania i automatycznego odpublikowania.
+
+Następny krok Etapu 6: udostępnić właścicielowi odczyt aktywnych entitlementów
+i akcje „Odnowić” / „Wyróżnić” w panelu ogłoszenia, wykorzystując istniejące
+endpointy quote → order → checkout-session.
 
 ### Etap 7 — kampanie i kody promocyjne
 

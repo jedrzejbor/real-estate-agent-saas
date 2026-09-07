@@ -3,7 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, EntityManager, In } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  In,
+  LessThanOrEqual,
+  MoreThan,
+} from 'typeorm';
 import {
   ListingPublicationStatus,
   ListingStatus,
@@ -31,6 +37,68 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 @Injectable()
 export class ListingEntitlementsService {
   constructor(private readonly dataSource: DataSource) {}
+
+  /**
+   * Advances scheduled benefits and expires benefits whose period has ended.
+   * The operation is deliberately idempotent so it can be safely retried by a
+   * scheduler or an operational command.
+   */
+  async processDueEntitlements(
+    now = new Date(),
+    batchSize = 500,
+  ): Promise<{ activated: number; expired: number }> {
+    return this.dataSource.transaction(async (manager) => {
+      const scheduled = await manager.find(ListingEntitlement, {
+        where: {
+          status: ListingEntitlementStatus.SCHEDULED,
+          startsAt: LessThanOrEqual(now),
+        },
+        order: { startsAt: 'ASC' },
+        take: batchSize,
+        lock: { mode: 'pessimistic_write' },
+      });
+      const ending = await manager.find(ListingEntitlement, {
+        where: {
+          status: In([...ACTIVE_ENTITLEMENT_STATUSES]),
+          endsAt: LessThanOrEqual(now),
+        },
+        order: { endsAt: 'ASC' },
+        take: batchSize,
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      const due = new Map<string, ListingEntitlement>();
+      [...scheduled, ...ending].forEach((entitlement) =>
+        due.set(entitlement.id, entitlement),
+      );
+
+      let activated = 0;
+      let expired = 0;
+      const changed: ListingEntitlement[] = [];
+      for (const entitlement of due.values()) {
+        if (entitlement.endsAt.getTime() <= now.getTime()) {
+          if (entitlement.status !== ListingEntitlementStatus.EXPIRED) {
+            entitlement.status = ListingEntitlementStatus.EXPIRED;
+            expired += 1;
+            changed.push(entitlement);
+          }
+          continue;
+        }
+        if (
+          entitlement.status === ListingEntitlementStatus.SCHEDULED &&
+          entitlement.startsAt.getTime() <= now.getTime()
+        ) {
+          entitlement.status = ListingEntitlementStatus.ACTIVE;
+          activated += 1;
+          changed.push(entitlement);
+        }
+      }
+
+      if (changed.length) await manager.save(ListingEntitlement, changed);
+      await this.unpublishListingsWithoutActivePublication(manager, now);
+      return { activated, expired };
+    });
+  }
 
   fulfillPaidOrder(
     orderId: string,
@@ -202,6 +270,41 @@ export class ListingEntitlementsService {
     submission.publishedAt = submission.publishedAt ?? fulfilledAt;
     submission.expiresAt = listing.expiresAt;
     await manager.save(PublicListingSubmission, submission);
+  }
+
+  private async unpublishListingsWithoutActivePublication(
+    manager: EntityManager,
+    now: Date,
+  ): Promise<void> {
+    const expiredPublicationListings = await manager.find(ListingEntitlement, {
+      where: {
+        type: ListingEntitlementType.PUBLICATION,
+        status: ListingEntitlementStatus.EXPIRED,
+        endsAt: LessThanOrEqual(now),
+      },
+      order: { endsAt: 'DESC' },
+      take: 500,
+    });
+    const listingIds = [...new Set(expiredPublicationListings.map((e) => e.listingId))];
+    for (const listingId of listingIds) {
+      const active = await manager.findOne(ListingEntitlement, {
+        where: {
+          listingId,
+          type: ListingEntitlementType.PUBLICATION,
+          status: In([...ACTIVE_ENTITLEMENT_STATUSES]),
+          endsAt: MoreThan(now),
+        },
+      });
+      if (active) continue;
+      const listing = await manager.findOne(Listing, {
+        where: { id: listingId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!listing || listing.publicationStatus !== ListingPublicationStatus.PUBLISHED) continue;
+      listing.publicationStatus = ListingPublicationStatus.UNPUBLISHED;
+      listing.unpublishedAt = now;
+      await manager.save(Listing, listing);
+    }
   }
 }
 

@@ -19,6 +19,7 @@ import {
 import { ListingCheckoutController } from './listing-checkout.controller';
 import { ListingCheckoutSessionsService } from './listing-checkout-sessions.service';
 import { ListingEntitlementsService } from './listing-entitlements.service';
+import { ListingEntitlementsScheduler } from './listing-entitlements.scheduler';
 import { LISTING_PAYMENT_GATEWAY } from './listing-payment-gateway.port';
 import { ListingOrdersController } from './listing-orders.controller';
 import { ListingOrdersService } from './listing-orders.service';
@@ -64,6 +65,7 @@ const LISTING_COMMERCE_ENTITIES = [
     ListingOrdersService,
     ListingCheckoutSessionsService,
     ListingEntitlementsService,
+    ListingEntitlementsScheduler,
     ListingPaymentEventsService,
     ListingPaymentReconciliationService,
     ListingPaymentReconciliationScheduler,
