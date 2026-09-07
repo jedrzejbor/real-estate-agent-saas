@@ -962,7 +962,7 @@ hardcodowania danych.
   akceptacji ogłoszenia.
 - [x] Dodać FAQ i zasady publikacji na pełnej stronie cennika.
 - [x] Dodać niezależne stany loading/error/empty dla obu katalogów.
-- [ ] Dodać testy responsywności, dostępności i obsługi parametru URL.
+- [x] Dodać testy responsywności, dostępności i obsługi parametru URL.
 - [x] Dodać zdarzenia `pricing_audience_selected`, `private_pricing_viewed` i
   `listing_product_selected`.
 
@@ -1017,9 +1017,44 @@ Weryfikacja Iteracji 3.1:
 - [x] produkcyjny build API i Next.js, w tym statyczne `/` oraz `/cennik`;
 - [x] `git diff --check`.
 
-Do Iteracji 3.2 pozostaje przeglądarkowa weryfikacja responsywności i pełnego
-przepływu klawiatury na docelowych viewportach. Publiczne dane produktów nadal
-pozostają kontrolowane flagą `RELEASE_FLAG_PRIVATE_LISTING_PRICING_ENABLED`.
+#### Iteracja 3.2 — automatyczne testy przeglądarkowe
+
+Data zakończenia: 2026-09-07.
+
+Wykonano:
+
+- dodano Playwright jako zależność deweloperską aplikacji webowej i skrypty
+  `test:e2e` oraz `test:e2e:ui`;
+- konfiguracja uruchamia testy na produkcyjnym buildzie Next.js, osobno w
+  projektach `desktop-chromium` i `mobile-chromium`;
+- testy interceptują wyłącznie publiczne endpointy cennika, nie wymagają
+  backendu i nie zapisują danych w bazie;
+- sprawdzono domyślny wariant prywatny, ceny z API, brak kontrolki abonamentu i
+  przełączenie do planów agentów;
+- sprawdzono sterowanie przełącznikiem z klawiatury oraz semantyczny stan
+  `aria-pressed`;
+- sprawdzono aktualizację URL, obsługę historii przeglądarki i powrót do
+  poprzedniego wariantu;
+- sprawdzono poprawną kolejność query stringa i kotwicy na homepage;
+- sprawdzono układ przełącznika na desktopie i mobile oraz brak poziomego
+  overflow dokumentu;
+- sprawdzono widoczność głównego CTA na mobile;
+- sprawdzono niezależność katalogów w obu kierunkach: błąd produktów prywatnych
+  nie blokuje agentów, a błąd planów agentów nie blokuje produktów prywatnych;
+- artefakty Playwright (`test-results`, raport HTML, raport blob) są ignorowane
+  przez Git, natomiast konfiguracja i scenariusze pozostają częścią repo.
+
+Weryfikacja Iteracji 3.2:
+
+- [x] Playwright E2E — 10/10 na desktop Chromium i emulowanym Pixel 7;
+- [x] produkcyjny build Next.js uruchomiony przez `webServer` Playwright;
+- [x] brak pominiętych scenariuszy;
+- [x] testy korzystają z kontrolowanych cen fixture, nie z wartości zapisanych
+  w kodzie produkcyjnym.
+
+Etap 3 jest zakończony. Publiczne dane produktów nadal pozostają kontrolowane
+flagą `RELEASE_FLAG_PRIVATE_LISTING_PRICING_ENABLED`; jej włączenie jest osobną
+decyzją rolloutową, a nie częścią testów ani implementacji widoku.
 
 **Kryterium zakończenia:** administrator zmienia cenę bez deployu, a ta sama
 wartość pojawia się na homepage i `/cennik`. Awaria katalogu prywatnego nie
