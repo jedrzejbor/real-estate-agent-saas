@@ -1742,6 +1742,16 @@ const SELLER_STATUS_COPY: Record<
       'Twoje ogłoszenie oczekuje na publikację. Zazwyczaj trwa to do 24h.',
     className: 'bg-blue-100 text-blue-900',
   },
+  in_review: {
+    label: 'W weryfikacji',
+    description: 'Zespół sprawdza ogłoszenie przed dopuszczeniem go do publikacji.',
+    className: 'bg-blue-100 text-blue-900',
+  },
+  approved: {
+    label: 'Zaakceptowane — do opłacenia',
+    description: 'Ogłoszenie przeszło weryfikację. Opłać publikację w szczegółach oferty.',
+    className: 'bg-amber-100 text-amber-900',
+  },
   published: {
     label: 'Opublikowane',
     description: 'Ogłoszenie jest widoczne publicznie w katalogu.',

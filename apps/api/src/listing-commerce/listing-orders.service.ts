@@ -48,6 +48,19 @@ export class ListingOrdersService {
     return toListingOrderContract(order);
   }
 
+  async findOwnedOrdersForListing(
+    buyerUserId: string,
+    listingId: string,
+  ): Promise<ListingOrderContract[]> {
+    const orders = await this.dataSource.getRepository(ListingOrder).find({
+      where: { listingId, buyerUserId },
+      relations: ['items', 'paymentAttempts'],
+      order: { createdAt: 'DESC' },
+      take: 20,
+    });
+    return orders.map(toListingOrderContract);
+  }
+
   async createOrder(
     buyerUserId: string,
     rawIdempotencyKey: string | undefined,

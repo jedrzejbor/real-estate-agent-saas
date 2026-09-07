@@ -42,6 +42,8 @@ import {
   type ListingAgentRecruitment,
 } from '@/lib/listing-agent-proposals';
 import { Logo } from '@/components/common/logo';
+import { SellerListingCheckoutPanel } from '@/components/listing-commerce/seller-listing-checkout-panel';
+import { getResolvedReleaseFlags } from '@/lib/release-flags';
 
 export default function SellerListingDetailPage() {
   const params = useParams<{ id: string }>();
@@ -226,7 +228,9 @@ export default function SellerListingDetailPage() {
       : null;
   const canRenew = Boolean(submission.publishedListingId);
   const canUnpublish = Boolean(submission.publishedListingId && isPublished);
+  const canEdit = submission.status !== 'approved';
   const primaryImage = submission.images[0]?.url ?? submission.primaryImageUrl;
+  const releaseFlags = getResolvedReleaseFlags(user.releaseFlags);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -311,6 +315,15 @@ export default function SellerListingDetailPage() {
         </section>
 
         <aside className="space-y-4">
+          {submission.status === 'approved' &&
+          submission.publishedListingId &&
+          releaseFlags.privateListingCheckoutEnabled ? (
+            <SellerListingCheckoutPanel
+              listingId={submission.publishedListingId}
+              ownerName={submission.ownerName}
+            />
+          ) : null}
+
           <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <h2 className="font-heading text-lg font-semibold">Status</h2>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -385,13 +398,19 @@ export default function SellerListingDetailPage() {
           <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <h2 className="font-heading text-lg font-semibold">Akcje</h2>
             <div className="mt-4 grid gap-2">
-              <Link
-                href={`/seller/listings/${submission.id}/edit`}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                <Edit3 className="h-4 w-4" />
-                Edytuj
-              </Link>
+              {canEdit ? (
+                <Link
+                  href={`/seller/listings/${submission.id}/edit`}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  Edytuj
+                </Link>
+              ) : (
+                <p className="rounded-xl bg-muted/50 p-3 text-xs leading-5 text-muted-foreground">
+                  Po akceptacji treść ogłoszenia jest zablokowana na czas płatności.
+                </p>
+              )}
               {publicHref ? (
                 <Link
                   href={publicHref}
@@ -472,6 +491,14 @@ function getStatusDescription(
 
   if (submission.status === 'claimed') {
     return 'Ogłoszenie oczekuje na zatwierdzenie przez zespół.';
+  }
+
+  if (submission.status === 'in_review') {
+    return 'Zespół weryfikuje ogłoszenie przed publikacją.';
+  }
+
+  if (submission.status === 'approved') {
+    return 'Ogłoszenie zostało zaakceptowane i oczekuje na opłacenie publikacji.';
   }
 
   return 'Ogłoszenie jest w przygotowaniu.';

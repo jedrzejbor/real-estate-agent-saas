@@ -117,6 +117,8 @@ export type SellerPublicListingSubmissionStatus =
   | 'draft'
   | 'pending_email_verification'
   | 'verified'
+  | 'in_review'
+  | 'approved'
   | 'published'
   | 'claimed'
   | 'rejected'

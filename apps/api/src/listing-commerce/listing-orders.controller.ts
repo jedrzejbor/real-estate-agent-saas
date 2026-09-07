@@ -18,6 +18,18 @@ export class ListingOrdersController {
     private readonly listingCheckoutSessionsService: ListingCheckoutSessionsService,
   ) {}
 
+  /** GET /api/listing-orders/by-listing/:listingId — owner-scoped order history. */
+  @Get('by-listing/:listingId')
+  findOwnedOrdersForListing(
+    @CurrentUser('id') userId: string,
+    @Param('listingId', ParseUUIDPipe) listingId: string,
+  ) {
+    return this.listingOrdersService.findOwnedOrdersForListing(
+      userId,
+      listingId,
+    );
+  }
+
   /** GET /api/listing-orders/:id — current state for the owning buyer. */
   @Get(':id')
   findOwnedOrder(

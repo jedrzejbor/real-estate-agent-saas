@@ -41,5 +41,11 @@ describe('listing product controller access', () => {
         ListingOrdersController.prototype.findOwnedOrder,
       ),
     ).toBeUndefined();
+    expect(
+      Reflect.getMetadata(
+        IS_PUBLIC_KEY,
+        ListingOrdersController.prototype.findOwnedOrdersForListing,
+      ),
+    ).toBeUndefined();
   });
 });

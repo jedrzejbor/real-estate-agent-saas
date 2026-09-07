@@ -1162,14 +1162,14 @@ utworzonego zamówienia.
 - [x] Dodać stan `awaiting_payment` po akceptacji moderacji jako stan pochodny:
   `submission.status = approved`, niepubliczne ogłoszenie i brak aktywnego
   entitlementu publikacji.
-- [ ] Zbudować podsumowanie zamówienia wykorzystujące serwerowy quote.
+- [x] Zbudować podsumowanie zamówienia wykorzystujące serwerowy quote.
 - [x] Zintegrować tworzenie sesji płatności z operatorem.
 - [x] Obsłużyć podpisane, idempotentne webhooki.
 - [x] Po webhooku finalizować zamówienie, a publikację aktywować wyłącznie przez
   serwis `listing_entitlements`.
 - [x] Zapewnić, że przekierowanie użytkownika z checkoutu nigdy samo nie
   aktywuje publikacji.
-- [ ] Dodać ponowienie płatności, potwierdzenie i historię w panelu sprzedającego.
+- [x] Dodać ponowienie płatności, potwierdzenie i historię w panelu sprzedającego.
 - [ ] Dodać zadanie wykrywające porzucone/wygasłe sesje.
 - [ ] Dodać trwały log zdarzeń webhooków i alert dla opłaconego zamówienia bez
   przyznanego entitlementu.
@@ -1300,9 +1300,39 @@ utworzonego zamówienia.
   współbieżnego modelu blokad, starego błędu po nowszej próbie, spóźnionego
   sukcesu, podwójnej płatności, prywatności kontraktu i migracji legacy.
 
-Następna iteracja Etapu 5 obejmuje ekran podsumowania, powrotu, potwierdzenia i
-historii płatności w panelu sprzedającego. Po niej pozostanie scheduler
-wygaszania oraz alert dla opłaconego zamówienia bez entitlementu.
+#### Iteracja 5.5 — checkout i historia w panelu sprzedającego (zrealizowana 2026-09-07)
+
+- panel zaakceptowanego ogłoszenia pobiera publiczne warianty publikacji i
+  wyświetla podsumowanie z serwerowego quote; frontend przesyła wyłącznie kod
+  produktu i nigdy nie jest źródłem ceny, rabatu, VAT ani czasu trwania;
+- utworzenie zamówienia używa jawnego klucza idempotencji zachowanego przez
+  cały cykl próby w widoku; po błędzie odczytywany jest trwały stan zamówienia,
+  dzięki czemu nie powstaje duplikat po niejednoznacznej odpowiedzi sieciowej;
+- istniejące zamówienie `draft` lub `pending_payment` wznawia checkout, a
+  `payment_failed` pozwala na nową próbę tylko wtedy, gdy serwer zwraca
+  `canRetryPayment`; podsumowanie takiego zamówienia pochodzi z niezmiennego
+  `pricingSnapshot`, a nie z aktualnego katalogu;
+- dodano właścicielski `GET /api/listing-orders/by-listing/:listingId`, który
+  filtruje równocześnie po użytkowniku i ogłoszeniu oraz zwraca najwyżej 20
+  najnowszych zamówień z próbami bez identyfikatorów Stripe;
+- historia w panelu pokazuje statusy zamówień i wszystkich prób płatności;
+  interfejs obsługuje też zamówienie 0 zł bez przekierowania do operatora;
+- adres checkoutu jest walidowany jako HTTPS w domenie Stripe przed
+  przekierowaniem, a błędny adres kończy się kontrolowanym komunikatem;
+- strony `success` i `cancel` odczytują wyłącznie właścicielskie zamówienie z
+  API; parametr `session_id` z przeglądarki nie jest źródłem prawdy i nie jest
+  wysyłany do API;
+- ekran sukcesu odpytuje API przez ograniczony czas i pokazuje potwierdzenie
+  dopiero dla stanu opłaconego; przy opóźnieniu webhooka zaleca nie ponawiać
+  wpłaty i pozwala ręcznie odświeżyć status;
+- powrót z anulowania również sprawdza zamówienie, więc spóźniony webhook
+  sukcesu ma pierwszeństwo przed informacją wynikającą z samego redirectu;
+- typy statusów sprzedającego oraz flagi wydania zostały zsynchronizowane z
+  backendem; edycja zaakceptowanej oferty jest ukryta w czasie oczekiwania na
+  płatność zgodnie z niezmiennikiem moderacji.
+
+Następna iteracja Etapu 5 obejmuje scheduler wygaszania porzuconych sesji oraz
+monitoring opłaconego zamówienia bez entitlementu.
 
 **Kryterium zakończenia:** zaakceptowana oferta jest publikowana dokładnie raz
 po potwierdzonej płatności, również gdy webhook zostanie dostarczony

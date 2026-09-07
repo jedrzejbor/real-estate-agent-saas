@@ -384,6 +384,23 @@ describe('ListingOrdersService', () => {
     ).rejects.toThrow('Zamówienie nie istnieje');
   });
 
+  it('lists only buyer-scoped orders for a listing with bounded history', async () => {
+    const existing = buildPersistedOrder();
+    const { service, dataSource } = buildHarness();
+    const find = jest.fn().mockResolvedValue([existing]);
+    dataSource.getRepository.mockReturnValue({ find });
+
+    await expect(
+      service.findOwnedOrdersForListing('owner-1', existing.listingId!),
+    ).resolves.toEqual([expect.objectContaining({ id: existing.id })]);
+    expect(find).toHaveBeenCalledWith({
+      where: { listingId: existing.listingId, buyerUserId: 'owner-1' },
+      relations: ['items', 'paymentAttempts'],
+      order: { createdAt: 'DESC' },
+      take: 20,
+    });
+  });
+
   it('does not describe an expired order as payable', async () => {
     const expired = buildPersistedOrder({ status: ListingOrderStatus.EXPIRED });
     const { service, dataSource } = buildHarness();
