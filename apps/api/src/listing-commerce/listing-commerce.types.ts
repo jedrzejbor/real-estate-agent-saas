@@ -55,6 +55,15 @@ export enum ListingPaymentEventType {
 
 export type ListingPaymentEventStatus = 'processed' | 'failed';
 
+export enum ListingPaymentAttemptStatus {
+  CREATING = 'creating',
+  PENDING = 'pending',
+  SUCCEEDED = 'succeeded',
+  FAILED = 'failed',
+  EXPIRED = 'expired',
+  CANCELLED = 'cancelled',
+}
+
 export interface ListingProductChangeValue {
   field: string;
   oldValue: unknown;

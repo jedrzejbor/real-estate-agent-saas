@@ -9,7 +9,11 @@ import type {
   ListingPaymentEventResultContract,
   VerifiedListingPaymentEventContract,
 } from './contracts';
-import { ListingOrder, ListingPaymentEvent } from './entities';
+import {
+  ListingOrder,
+  ListingPaymentAttempt,
+  ListingPaymentEvent,
+} from './entities';
 import { ListingEntitlementsService } from './listing-entitlements.service';
 import {
   assertListingOrderStatusTransition,
@@ -17,6 +21,7 @@ import {
 } from './listing-commerce.policy';
 import {
   ListingOrderStatus,
+  ListingPaymentAttemptStatus,
   ListingPaymentEventType,
 } from './listing-commerce.types';
 
@@ -53,8 +58,17 @@ export class ListingPaymentEventsService {
           return duplicateResult(concurrentEvent, order.id);
         }
 
-        await assertOrBindProviderSession(manager, order, event);
-        const outcome = await this.applyEvent(manager, order, event);
+        const attempt = await resolveAndLockPaymentAttempt(
+          manager,
+          order,
+          event,
+        );
+        const outcome = await this.applyEvent(
+          manager,
+          order,
+          attempt,
+          event,
+        );
         const paymentEvent =
           concurrentEvent ??
           knownEvent ??
@@ -103,13 +117,32 @@ export class ListingPaymentEventsService {
   private async applyEvent(
     manager: EntityManager,
     order: ListingOrder,
+    attempt: ListingPaymentAttempt | null,
     event: NormalizedListingPaymentEvent,
   ): Promise<'processed' | 'ignored_stale'> {
     switch (event.eventType) {
       case ListingPaymentEventType.PAYMENT_SUCCEEDED:
-        assertSuccessfulPaymentMatchesOrder(order, event);
+        assertSuccessfulPaymentMatchesOrder(order, event, attempt);
+        if (attempt) {
+          if (
+            attempt.providerPaymentId &&
+            attempt.providerPaymentId !== event.paymentId
+          ) {
+            throw new ConflictException(
+              'Próba jest powiązana z inną płatnością operatora',
+            );
+          }
+          attempt.status = ListingPaymentAttemptStatus.SUCCEEDED;
+          attempt.providerPaymentId = event.paymentId;
+          attempt.failureCode = null;
+          attempt.failureMessage = null;
+          attempt.completedAt = event.occurredAt;
+          await manager.save(ListingPaymentAttempt, attempt);
+        }
         if (order.status !== ListingOrderStatus.PAID) {
           transitionOrder(order, ListingOrderStatus.PAID);
+          order.provider = event.provider;
+          order.providerCheckoutSessionId = event.checkoutSessionId;
           order.providerPaymentId = event.paymentId;
           order.paidAt = event.occurredAt;
           await manager.save(ListingOrder, order);
@@ -118,11 +151,15 @@ export class ListingPaymentEventsService {
             order.providerPaymentId &&
             order.providerPaymentId !== event.paymentId
           ) {
-            throw new ConflictException(
-              'Zamówienie jest powiązane z inną płatnością operatora',
+            order.metadata = appendAdditionalPayment(
+              order.metadata,
+              event.paymentId!,
             );
+            await manager.save(ListingOrder, order);
           }
           if (!order.providerPaymentId) {
+            order.provider = event.provider;
+            order.providerCheckoutSessionId = event.checkoutSessionId;
             order.providerPaymentId = event.paymentId;
             await manager.save(ListingOrder, order);
           }
@@ -135,23 +172,44 @@ export class ListingPaymentEventsService {
         return 'processed';
 
       case ListingPaymentEventType.PAYMENT_FAILED:
-        if (order.status === ListingOrderStatus.PENDING_PAYMENT) {
+        if (attempt?.status === ListingPaymentAttemptStatus.SUCCEEDED) {
+          return 'ignored_stale';
+        }
+        if (attempt) {
+          attempt.status = ListingPaymentAttemptStatus.FAILED;
+          attempt.failureCode = 'payment_failed';
+          attempt.completedAt = event.occurredAt;
+          await manager.save(ListingPaymentAttempt, attempt);
+        }
+        if (
+          order.status === ListingOrderStatus.PENDING_PAYMENT &&
+          isCurrentAttempt(order, attempt, event)
+        ) {
           transitionOrder(order, ListingOrderStatus.PAYMENT_FAILED);
           await manager.save(ListingOrder, order);
           return 'processed';
         }
-        return 'ignored_stale';
+        return attempt ? 'processed' : 'ignored_stale';
 
       case ListingPaymentEventType.CHECKOUT_EXPIRED:
+        if (attempt?.status === ListingPaymentAttemptStatus.SUCCEEDED) {
+          return 'ignored_stale';
+        }
+        if (attempt) {
+          attempt.status = ListingPaymentAttemptStatus.EXPIRED;
+          attempt.completedAt = event.occurredAt;
+          await manager.save(ListingPaymentAttempt, attempt);
+        }
         if (
-          order.status === ListingOrderStatus.PENDING_PAYMENT ||
-          order.status === ListingOrderStatus.PAYMENT_FAILED
+          (order.status === ListingOrderStatus.PENDING_PAYMENT ||
+            order.status === ListingOrderStatus.PAYMENT_FAILED) &&
+          isCurrentAttempt(order, attempt, event)
         ) {
           transitionOrder(order, ListingOrderStatus.EXPIRED);
           await manager.save(ListingOrder, order);
           return 'processed';
         }
-        return 'ignored_stale';
+        return attempt ? 'processed' : 'ignored_stale';
     }
   }
 
@@ -199,6 +257,7 @@ export class ListingPaymentEventsService {
 interface NormalizedListingPaymentEvent
   extends VerifiedListingPaymentEventContract {
   provider: string;
+  paymentAttemptId: string | null;
   paymentId: string | null;
   amountGross: number | null;
   currency: string | null;
@@ -211,6 +270,7 @@ function normalizeAndValidateEvent(
   const event: NormalizedListingPaymentEvent = {
     ...input,
     provider: input.provider.trim().toLowerCase(),
+    paymentAttemptId: input.paymentAttemptId?.trim() || null,
     eventId: input.eventId.trim(),
     orderId: input.orderId.trim(),
     checkoutSessionId: input.checkoutSessionId.trim(),
@@ -229,7 +289,8 @@ function normalizeAndValidateEvent(
     !Object.values(ListingPaymentEventType).includes(event.eventType) ||
     !event.orderId ||
     !event.checkoutSessionId ||
-    event.checkoutSessionId.length > 255
+    event.checkoutSessionId.length > 255 ||
+    (event.paymentAttemptId !== null && event.paymentAttemptId.length > 100)
   ) {
     throw new BadRequestException(
       'Zdarzenie nie zawiera poprawnych identyfikatorów lub typu',
@@ -244,7 +305,64 @@ function normalizeAndValidateEvent(
   return event;
 }
 
-async function assertOrBindProviderSession(
+async function resolveAndLockPaymentAttempt(
+  manager: EntityManager,
+  order: ListingOrder,
+  event: NormalizedListingPaymentEvent,
+): Promise<ListingPaymentAttempt | null> {
+  const attempt = event.paymentAttemptId
+    ? await manager.findOne(ListingPaymentAttempt, {
+        where: { id: event.paymentAttemptId, orderId: order.id },
+        lock: { mode: 'pessimistic_write' },
+      })
+    : await manager.findOne(ListingPaymentAttempt, {
+        where: {
+          orderId: order.id,
+          provider: event.provider,
+          providerCheckoutSessionId: event.checkoutSessionId,
+        },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+  if (event.paymentAttemptId && !attempt) {
+    throw new ConflictException('Zdarzenie wskazuje nieznaną próbę płatności');
+  }
+  if (attempt) {
+    if (
+      attempt.provider !== event.provider ||
+      (attempt.providerCheckoutSessionId &&
+        attempt.providerCheckoutSessionId !== event.checkoutSessionId)
+    ) {
+      throw new ConflictException(
+        'Zdarzenie nie odpowiada zapisanej próbie płatności',
+      );
+    }
+    if (!attempt.providerCheckoutSessionId) {
+      const canRecoverSession =
+        event.eventType === ListingPaymentEventType.PAYMENT_SUCCEEDED &&
+        OPEN_PAYMENT_ATTEMPT_STATUSES.has(attempt.status);
+      if (!canRecoverSession) {
+        throw new ConflictException(
+          'Tylko potwierdzony sukces może powiązać brakującą sesję próby',
+        );
+      }
+      assertSuccessfulPaymentMatchesOrder(order, event, attempt);
+      attempt.providerCheckoutSessionId = event.checkoutSessionId;
+      await manager.save(ListingPaymentAttempt, attempt);
+    }
+    return attempt;
+  }
+
+  await assertOrBindLegacyProviderSession(manager, order, event);
+  return null;
+}
+
+const OPEN_PAYMENT_ATTEMPT_STATUSES = new Set([
+  ListingPaymentAttemptStatus.CREATING,
+  ListingPaymentAttemptStatus.PENDING,
+]);
+
+async function assertOrBindLegacyProviderSession(
   manager: EntityManager,
   order: ListingOrder,
   event: NormalizedListingPaymentEvent,
@@ -267,7 +385,7 @@ async function assertOrBindProviderSession(
     // Stripe may create a session just before the database becomes
     // unavailable. A signed success can safely close that gap only after the
     // immutable amount and currency have been checked.
-    assertSuccessfulPaymentMatchesOrder(order, event);
+    assertSuccessfulPaymentMatchesOrder(order, event, null);
     order.provider = event.provider;
     order.providerCheckoutSessionId = event.checkoutSessionId;
     await manager.save(ListingOrder, order);
@@ -277,6 +395,7 @@ async function assertOrBindProviderSession(
 function assertSuccessfulPaymentMatchesOrder(
   order: ListingOrder,
   event: NormalizedListingPaymentEvent,
+  attempt: ListingPaymentAttempt | null,
 ): void {
   if (!event.paymentId) {
     throw new BadRequestException('Brak identyfikatora potwierdzonej płatności');
@@ -284,12 +403,46 @@ function assertSuccessfulPaymentMatchesOrder(
   if (
     !Number.isSafeInteger(event.amountGross) ||
     event.amountGross !== order.totalGrossAmount ||
-    event.currency !== order.currency
+    event.currency !== order.currency ||
+    (attempt !== null &&
+      (event.amountGross !== attempt.amountGross ||
+        event.currency !== attempt.currency))
   ) {
     throw new ConflictException(
       'Kwota lub waluta płatności nie odpowiada zamówieniu',
     );
   }
+}
+
+function isCurrentAttempt(
+  order: ListingOrder,
+  attempt: ListingPaymentAttempt | null,
+  event: NormalizedListingPaymentEvent,
+): boolean {
+  const currentAttemptId = order.metadata?.currentPaymentAttemptId;
+  if (attempt && typeof currentAttemptId === 'string') {
+    return currentAttemptId === attempt.id;
+  }
+  return (
+    order.provider === event.provider &&
+    order.providerCheckoutSessionId === event.checkoutSessionId
+  );
+}
+
+function appendAdditionalPayment(
+  metadata: Record<string, unknown>,
+  paymentId: string,
+): Record<string, unknown> {
+  const existing = Array.isArray(metadata.additionalSuccessfulPaymentIds)
+    ? metadata.additionalSuccessfulPaymentIds.filter(
+        (value): value is string => typeof value === 'string',
+      )
+    : [];
+  return {
+    ...metadata,
+    additionalSuccessfulPaymentIds: [...new Set([...existing, paymentId])],
+    paymentReviewRequired: true,
+  };
 }
 
 function transitionOrder(order: ListingOrder, next: ListingOrderStatus): void {

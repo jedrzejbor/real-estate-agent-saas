@@ -3,12 +3,14 @@ import { DataSource, EntityManager, QueryFailedError } from 'typeorm';
 import {
   ListingOrder,
   ListingOrderItem,
+  ListingPaymentAttempt,
   ListingPaymentEvent,
 } from './entities';
 import { ListingEntitlementsService } from './listing-entitlements.service';
 import { ListingPaymentEventsService } from './listing-payment-events.service';
 import {
   ListingOrderStatus,
+  ListingPaymentAttemptStatus,
   ListingPaymentEventType,
   ListingProductType,
 } from './listing-commerce.types';
@@ -23,6 +25,7 @@ function buildOrder(overrides: Partial<ListingOrder> = {}): ListingOrder {
     provider: 'stripe',
     providerCheckoutSessionId: 'cs_test_1',
     providerPaymentId: null,
+    metadata: {},
     paidAt: null,
     items: [
       Object.assign(new ListingOrderItem(), {
@@ -30,6 +33,26 @@ function buildOrder(overrides: Partial<ListingOrder> = {}): ListingOrder {
         productTypeSnapshot: ListingProductType.PUBLICATION,
       }),
     ],
+    ...overrides,
+  });
+}
+
+function buildAttempt(
+  overrides: Partial<ListingPaymentAttempt> = {},
+): ListingPaymentAttempt {
+  return Object.assign(new ListingPaymentAttempt(), {
+    id: 'attempt-1',
+    orderId: succeededEvent.orderId,
+    attemptNumber: 1,
+    status: ListingPaymentAttemptStatus.PENDING,
+    provider: 'stripe',
+    amountGross: 4_900,
+    currency: 'PLN',
+    providerCheckoutSessionId: 'cs_test_1',
+    providerPaymentId: null,
+    expiresAt: new Date('2026-09-07T10:30:00.000Z'),
+    startedAt: new Date('2026-09-07T10:00:00.000Z'),
+    completedAt: null,
     ...overrides,
   });
 }
@@ -49,6 +72,7 @@ const succeededEvent = {
 
 function buildHarness(options?: {
   order?: ListingOrder | null;
+  attempt?: ListingPaymentAttempt | null;
   eventReads?: Array<ListingPaymentEvent | null>;
 }) {
   const order = options && 'order' in options ? options.order : buildOrder();
@@ -57,6 +81,7 @@ function buildHarness(options?: {
     findOne: jest.fn(async (entity: unknown) => {
       if (entity === ListingPaymentEvent) return eventReads.shift() ?? null;
       if (entity === ListingOrder) return order;
+      if (entity === ListingPaymentAttempt) return options?.attempt ?? null;
       return null;
     }),
     create: jest.fn((_entity: unknown, value: object) =>
@@ -132,6 +157,123 @@ describe('ListingPaymentEventsService', () => {
         orderStatus: ListingOrderStatus.PAID,
       },
     });
+  });
+
+  it('updates the durable attempt when its payment succeeds', async () => {
+    const attempt = buildAttempt();
+    const order = buildOrder({
+      metadata: { currentPaymentAttemptId: attempt.id },
+    });
+    const { service, manager } = buildHarness({ order, attempt });
+
+    await service.processVerifiedEvent({
+      ...succeededEvent,
+      paymentAttemptId: attempt.id,
+    });
+
+    expect(attempt).toMatchObject({
+      status: ListingPaymentAttemptStatus.SUCCEEDED,
+      providerPaymentId: 'pi_test_1',
+      completedAt: succeededEvent.occurredAt,
+    });
+    expect(manager.save).toHaveBeenCalledWith(ListingPaymentAttempt, attempt);
+  });
+
+  it('does not let an old failed attempt downgrade a newer pending attempt', async () => {
+    const oldAttempt = buildAttempt({
+      id: 'attempt-old',
+      providerCheckoutSessionId: 'cs_old',
+    });
+    const order = buildOrder({
+      providerCheckoutSessionId: 'cs_new',
+      metadata: { currentPaymentAttemptId: 'attempt-new' },
+    });
+    const { service } = buildHarness({ order, attempt: oldAttempt });
+
+    await expect(
+      service.processVerifiedEvent({
+        ...succeededEvent,
+        eventId: 'evt_old_failed',
+        eventType: ListingPaymentEventType.PAYMENT_FAILED,
+        paymentAttemptId: oldAttempt.id,
+        checkoutSessionId: 'cs_old',
+        paymentId: null,
+        amountGross: null,
+        currency: null,
+      }),
+    ).resolves.toMatchObject({
+      status: 'processed',
+      orderStatus: ListingOrderStatus.PENDING_PAYMENT,
+    });
+    expect(oldAttempt.status).toBe(ListingPaymentAttemptStatus.FAILED);
+    expect(order.status).toBe(ListingOrderStatus.PENDING_PAYMENT);
+  });
+
+  it('honors a late success from an older valid attempt', async () => {
+    const oldAttempt = buildAttempt({
+      id: 'attempt-old',
+      status: ListingPaymentAttemptStatus.FAILED,
+      providerCheckoutSessionId: 'cs_old',
+    });
+    const order = buildOrder({
+      providerCheckoutSessionId: 'cs_new',
+      metadata: { currentPaymentAttemptId: 'attempt-new' },
+    });
+    const { service, listingEntitlementsService } = buildHarness({
+      order,
+      attempt: oldAttempt,
+    });
+
+    await service.processVerifiedEvent({
+      ...succeededEvent,
+      paymentAttemptId: oldAttempt.id,
+      checkoutSessionId: 'cs_old',
+    });
+
+    expect(oldAttempt.status).toBe(ListingPaymentAttemptStatus.SUCCEEDED);
+    expect(order).toMatchObject({
+      status: ListingOrderStatus.PAID,
+      providerCheckoutSessionId: 'cs_old',
+      providerPaymentId: 'pi_test_1',
+    });
+    expect(
+      listingEntitlementsService.fulfillPaidOrderInTransaction,
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  it('records a second successful payment for review without duplicating fulfillment', async () => {
+    const secondAttempt = buildAttempt({
+      id: 'attempt-2',
+      attemptNumber: 2,
+      providerCheckoutSessionId: 'cs_second',
+    });
+    const order = buildOrder({
+      status: ListingOrderStatus.PAID,
+      providerCheckoutSessionId: 'cs_first',
+      providerPaymentId: 'pi_first',
+      paidAt: new Date('2026-09-07T10:04:00.000Z'),
+      metadata: { currentPaymentAttemptId: 'attempt-1' },
+    });
+    const { service, listingEntitlementsService } = buildHarness({
+      order,
+      attempt: secondAttempt,
+    });
+
+    await service.processVerifiedEvent({
+      ...succeededEvent,
+      paymentAttemptId: secondAttempt.id,
+      checkoutSessionId: 'cs_second',
+      paymentId: 'pi_second',
+    });
+
+    expect(order.providerPaymentId).toBe('pi_first');
+    expect(order.metadata).toMatchObject({
+      additionalSuccessfulPaymentIds: ['pi_second'],
+      paymentReviewRequired: true,
+    });
+    expect(
+      listingEntitlementsService.fulfillPaidOrderInTransaction,
+    ).toHaveBeenCalledTimes(1);
   });
 
   it('recovers a paid provider session created just before database binding', async () => {

@@ -3,6 +3,8 @@ export const LISTING_PAYMENT_GATEWAY = Symbol('LISTING_PAYMENT_GATEWAY');
 export interface CreateListingPaymentSessionInput {
   orderId: string;
   orderNumber: string;
+  paymentAttemptId: string;
+  attemptNumber: number;
   buyerEmail: string;
   currency: string;
   totalGrossAmount: number;

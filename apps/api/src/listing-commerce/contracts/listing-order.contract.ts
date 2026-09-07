@@ -1,4 +1,7 @@
-import type { ListingOrderStatus } from '../listing-commerce.types';
+import type {
+  ListingOrderStatus,
+  ListingPaymentAttemptStatus,
+} from '../listing-commerce.types';
 import type {
   ListingQuoteContract,
   ListingQuoteItemContract,
@@ -22,9 +25,23 @@ export interface ListingOrderContract {
   quoteExpiresAt: string;
   paidAt: string | null;
   requiresPayment: boolean;
+  canRetryPayment: boolean;
   pricingSnapshot: ListingQuoteContract;
   items: ListingOrderItemContract[];
+  paymentAttempts: ListingPaymentAttemptContract[];
   createdAt: string;
+}
+
+export interface ListingPaymentAttemptContract {
+  id: string;
+  attemptNumber: number;
+  status: ListingPaymentAttemptStatus;
+  amountGross: number;
+  currency: string;
+  failureCode: string | null;
+  expiresAt: string;
+  startedAt: string;
+  completedAt: string | null;
 }
 
 export interface ListingOrderFulfillmentContract {

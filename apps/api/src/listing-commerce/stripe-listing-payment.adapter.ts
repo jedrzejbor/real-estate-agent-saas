@@ -50,15 +50,21 @@ export class StripeListingPaymentAdapter implements ListingPaymentGateway {
         metadata: {
           listingOrderId: input.orderId,
           listingOrderNumber: input.orderNumber,
+          listingPaymentAttemptId: input.paymentAttemptId,
+          listingPaymentAttemptNumber: String(input.attemptNumber),
         },
         payment_intent_data: {
           metadata: {
             listingOrderId: input.orderId,
             listingOrderNumber: input.orderNumber,
+            listingPaymentAttemptId: input.paymentAttemptId,
+            listingPaymentAttemptNumber: String(input.attemptNumber),
           },
         },
       },
-      { idempotencyKey: `listing-order:${input.orderId}:checkout:v1` },
+      {
+        idempotencyKey: `listing-payment-attempt:${input.paymentAttemptId}:checkout:v1`,
+      },
     );
 
     if (!session.url) {
@@ -190,6 +196,7 @@ export function mapStripeListingPaymentEvent(
     eventId: event.id,
     eventType,
     orderId,
+    paymentAttemptId: session.metadata?.listingPaymentAttemptId ?? null,
     checkoutSessionId: session.id,
     paymentId: getExpandableId(session.payment_intent),
     amountGross: session.amount_total,

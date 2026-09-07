@@ -1240,8 +1240,8 @@ utworzonego zamówienia.
   feature flagę, własność, ważność wyceny, dodatnią kwotę i dozwolony status,
   po czym tworzy sesję z kwotą pochodzącą wyłącznie ze snapshotu zamówienia;
 - wywołanie Stripe odbywa się poza transakcją bazy, natomiast przygotowanie i
-  powiązanie sesji blokują rekord zamówienia; stały klucz idempotencji oparty na
-  ID zamówienia pozwala bezpiecznie ponawiać przerwane wywołanie operatora;
+  powiązanie sesji blokują rekord zamówienia; klucz idempotencji jest oparty na
+  trwałym ID próby płatności, więc można wznowić przerwane wywołanie operatora;
 - Stripe otrzymuje wyłącznie jedną dokładną kwotę końcową zamówienia, walutę,
   email nabywcy i identyfikatory w metadata; ceny ani adresy powrotu nie są
   przyjmowane od frontendu;
@@ -1264,9 +1264,45 @@ utworzonego zamówienia.
   startu pozostałej części aplikacji, ale każda próba płatności kończy się
   kontrolowanym błędem zamiast trybem niezabezpieczonym.
 
-Następna iteracja Etapu 5 obejmuje ekran podsumowania i powrotu, ponowienie oraz
-historię płatności w panelu sprzedającego, a następnie scheduler wygaszania i
-alert dla opłaconego zamówienia bez entitlementu.
+#### Iteracja 5.4 — trwałe próby płatności i bezpieczne retry (zrealizowana 2026-09-07)
+
+- dodano `listing_payment_attempts` jako historię wszystkich prób jednego
+  zamówienia; każda próba ma kolejny numer, własny status, snapshot kwoty i
+  waluty, operatora, czas ważności oraz bezpieczne dane błędu;
+- unikalność sesji i płatności operatora obowiązuje globalnie, natomiast
+  blokada zamówienia serializuje przydzielanie numerów prób i zabezpiecza przed
+  utworzeniem dwóch prób o tym samym numerze;
+- migracja odtwarza próbę numer 1 dla istniejących zamówień powiązanych już z
+  sesją operatora i używa `ON CONFLICT DO NOTHING`, więc nie nadpisuje historii
+  utworzonej wcześniej przez runtime;
+- pierwsze wywołanie checkoutu zapisuje próbę `creating` przed kontaktem ze
+  Stripe; awaria sieci pozostawia ją do wznowienia z tym samym kluczem
+  idempotencji, bez utrzymywania transakcji bazy podczas wywołania sieciowego;
+- otwarta próba jest wznawiana, a po potwierdzonym `payment_failed` tworzona
+  jest nowa próba i nowa sesja Stripe; nie nadpisujemy identyfikatora starej
+  sesji, więc jej spóźniony sukces nadal może zostać poprawnie rozliczony;
+- nową próbę można przydzielić tylko przed upływem pierwotnej ważności snapshotu
+  wyceny; kolejne próby nie pozwalają bezterminowo zachować ceny zmienionej
+  później przez administratora;
+- metadata Stripe zawiera ID próby oraz ID zamówienia; webhook najpierw wiąże
+  zdarzenie z konkretną próbą, a dopiero potem aktualizuje status zamówienia;
+- błąd lub wygaśnięcie starej próby nie może cofnąć ani zmienić nowszej próby;
+  dokładny, podpisany sukces starej próby nadal finalizuje zamówienie i
+  realizuje entitlementy;
+- jeśli wyjątkowo dwie różne próby zakończą się sukcesem, publikacja pozostaje
+  idempotentna, druga płatność jest zapisana, a zamówienie otrzymuje
+  `paymentReviewRequired` oraz listę dodatkowych płatności do zwrotu lub ręcznej
+  weryfikacji;
+- `GET /api/listing-orders/:id` zwraca właścicielowi historię prób od najnowszej
+  i flagę `canRetryPayment`, ale nie ujawnia identyfikatorów sesji ani płatności
+  operatora;
+- dodano testy pierwszej próby, wznowienia po awarii, nowej próby po błędzie,
+  współbieżnego modelu blokad, starego błędu po nowszej próbie, spóźnionego
+  sukcesu, podwójnej płatności, prywatności kontraktu i migracji legacy.
+
+Następna iteracja Etapu 5 obejmuje ekran podsumowania, powrotu, potwierdzenia i
+historii płatności w panelu sprzedającego. Po niej pozostanie scheduler
+wygaszania oraz alert dla opłaconego zamówienia bez entitlementu.
 
 **Kryterium zakończenia:** zaakceptowana oferta jest publikowana dokładnie raz
 po potwierdzonej płatności, również gdy webhook zostanie dostarczony

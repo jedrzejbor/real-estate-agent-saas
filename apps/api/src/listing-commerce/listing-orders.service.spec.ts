@@ -6,6 +6,7 @@ import { CreateListingOrderDto } from './dto';
 import {
   ListingOrder,
   ListingOrderItem,
+  ListingPaymentAttempt,
   ListingProductCatalog,
 } from './entities';
 import {
@@ -15,7 +16,11 @@ import {
 } from './listing-orders.service';
 import { ListingQuotesService } from './listing-quotes.service';
 import { ListingEntitlementsService } from './listing-entitlements.service';
-import { ListingOrderStatus, ListingProductType } from './listing-commerce.types';
+import {
+  ListingOrderStatus,
+  ListingPaymentAttemptStatus,
+  ListingProductType,
+} from './listing-commerce.types';
 
 const orderDto: CreateListingOrderDto = {
   listingId: '11111111-1111-4111-8111-111111111111',
@@ -318,8 +323,54 @@ describe('ListingOrdersService', () => {
     ).resolves.toMatchObject({ id: existing.id });
     expect(findOne).toHaveBeenCalledWith({
       where: { id: existing.id, buyerUserId: 'owner-1' },
-      relations: ['items'],
+      relations: ['items', 'paymentAttempts'],
     });
+  });
+
+  it('returns newest-first payment history without provider identifiers', async () => {
+    const existing = buildPersistedOrder({
+      status: ListingOrderStatus.PAYMENT_FAILED,
+      paymentAttempts: [
+        Object.assign(new ListingPaymentAttempt(), {
+          id: 'attempt-1',
+          attemptNumber: 1,
+          status: ListingPaymentAttemptStatus.FAILED,
+          amountGross: 4_900,
+          currency: 'PLN',
+          providerCheckoutSessionId: 'cs_secret',
+          providerPaymentId: 'pi_secret',
+          failureCode: 'payment_failed',
+          expiresAt: new Date('2026-09-07T10:30:00.000Z'),
+          startedAt: new Date('2026-09-07T10:00:00.000Z'),
+          completedAt: new Date('2026-09-07T10:05:00.000Z'),
+        }),
+        Object.assign(new ListingPaymentAttempt(), {
+          id: 'attempt-2',
+          attemptNumber: 2,
+          status: ListingPaymentAttemptStatus.FAILED,
+          amountGross: 4_900,
+          currency: 'PLN',
+          expiresAt: new Date('2026-09-07T11:00:00.000Z'),
+          startedAt: new Date('2026-09-07T10:30:00.000Z'),
+          completedAt: null,
+        }),
+      ],
+    });
+    const { service, dataSource } = buildHarness();
+    dataSource.getRepository.mockReturnValue({
+      findOne: jest.fn().mockResolvedValue(existing),
+    });
+
+    const result = await service.findOwnedOrder('owner-1', existing.id);
+
+    expect(result.paymentAttempts.map((attempt) => attempt.attemptNumber)).toEqual([
+      2, 1,
+    ]);
+    expect(result.canRetryPayment).toBe(true);
+    expect(result.paymentAttempts[1]).not.toHaveProperty(
+      'providerCheckoutSessionId',
+    );
+    expect(result.paymentAttempts[1]).not.toHaveProperty('providerPaymentId');
   });
 
   it('does not reveal an order owned by another user', async () => {

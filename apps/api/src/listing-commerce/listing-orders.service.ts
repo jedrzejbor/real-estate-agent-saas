@@ -39,7 +39,7 @@ export class ListingOrdersService {
   ): Promise<ListingOrderContract> {
     const order = await this.dataSource.getRepository(ListingOrder).findOne({
       where: { id: orderId, buyerUserId },
-      relations: ['items'],
+      relations: ['items', 'paymentAttempts'],
     });
     if (!order) {
       // Keep foreign order identifiers indistinguishable from missing ones.

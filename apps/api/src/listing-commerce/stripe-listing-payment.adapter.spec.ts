@@ -54,6 +54,7 @@ describe('StripeListingPaymentAdapter mapping', () => {
       eventId: 'evt_1',
       eventType: domainType,
       orderId: 'order-1',
+      paymentAttemptId: null,
       checkoutSessionId: 'cs_test_1',
       paymentId: 'pi_1',
       amountGross: 4_900,
@@ -77,6 +78,19 @@ describe('StripeListingPaymentAdapter mapping', () => {
         }),
       ),
     ).toBeNull();
+  });
+
+  it('maps the trusted payment attempt metadata', () => {
+    expect(
+      mapStripeListingPaymentEvent(
+        checkoutEvent('checkout.session.completed', {
+          metadata: {
+            listingOrderId: 'order-1',
+            listingPaymentAttemptId: 'attempt-1',
+          },
+        }),
+      ),
+    ).toMatchObject({ paymentAttemptId: 'attempt-1' });
   });
 
   it('rejects checkout events without the trusted order metadata', () => {
@@ -164,6 +178,8 @@ describe('StripeListingPaymentAdapter checkout creation', () => {
       adapter.createCheckoutSession({
         orderId: 'order-1',
         orderNumber: 'LO-1',
+        paymentAttemptId: 'attempt-1',
+        attemptNumber: 1,
         buyerEmail: 'owner@example.com',
         currency: 'PLN',
         totalGrossAmount: 4_900,
@@ -199,9 +215,14 @@ describe('StripeListingPaymentAdapter checkout creation', () => {
         metadata: {
           listingOrderId: 'order-1',
           listingOrderNumber: 'LO-1',
+          listingPaymentAttemptId: 'attempt-1',
+          listingPaymentAttemptNumber: '1',
         },
       }),
-      { idempotencyKey: 'listing-order:order-1:checkout:v1' },
+      {
+        idempotencyKey:
+          'listing-payment-attempt:attempt-1:checkout:v1',
+      },
     );
   });
 });

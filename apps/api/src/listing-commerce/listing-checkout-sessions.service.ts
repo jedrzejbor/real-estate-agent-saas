@@ -8,8 +8,9 @@ import {
 import { DataSource, EntityManager } from 'typeorm';
 import { ReleaseFlagsService } from '../release-flags';
 import type { ListingCheckoutSessionContract } from './contracts';
-import { ListingOrder } from './entities';
+import { ListingOrder, ListingPaymentAttempt } from './entities';
 import {
+  CreateListingPaymentSessionInput,
   LISTING_PAYMENT_GATEWAY,
   ListingPaymentGateway,
 } from './listing-payment-gateway.port';
@@ -17,11 +18,19 @@ import {
   assertListingOrderStatusTransition,
   InvalidListingCommerceTransitionError,
 } from './listing-commerce.policy';
-import { ListingOrderStatus } from './listing-commerce.types';
+import {
+  ListingOrderStatus,
+  ListingPaymentAttemptStatus,
+} from './listing-commerce.types';
 
-const CHECKOUT_ELIGIBLE_STATUSES = new Set([
+const CHECKOUT_ELIGIBLE_ORDER_STATUSES = new Set([
   ListingOrderStatus.DRAFT,
   ListingOrderStatus.PENDING_PAYMENT,
+  ListingOrderStatus.PAYMENT_FAILED,
+]);
+const OPEN_ATTEMPT_STATUSES = new Set([
+  ListingPaymentAttemptStatus.CREATING,
+  ListingPaymentAttemptStatus.PENDING,
 ]);
 const CHECKOUT_VALIDITY_MS = 30 * 60 * 1_000;
 const PROVIDER_EXPIRY_CLOCK_SKEW_MS = 5_000;
@@ -46,11 +55,12 @@ export class ListingCheckoutSessionsService {
     }
 
     const paymentInput = await this.dataSource.transaction((manager) =>
-      this.prepareOrder(manager, buyerUserId, orderId),
+      this.prepareAttempt(manager, buyerUserId, orderId),
     );
 
     // Never keep a database transaction open during a provider network call.
-    // The provider idempotency key is derived from the immutable order ID.
+    // A retry reuses the durable attempt ID and therefore the same Stripe
+    // idempotency key. A new attempt gets a new key and a new session.
     const session =
       await this.paymentGateway.createCheckoutSession(paymentInput);
 
@@ -60,45 +70,67 @@ export class ListingCheckoutSessionsService {
         buyerUserId,
         orderId,
       );
-      if (order.status !== ListingOrderStatus.PENDING_PAYMENT) {
+      const attempt = await this.findAttemptForUpdate(
+        manager,
+        paymentInput.paymentAttemptId,
+        order.id,
+      );
+      if (!attempt) {
+        throw new ConflictException('Próba płatności nie istnieje');
+      }
+      if (
+        !OPEN_ATTEMPT_STATUSES.has(attempt.status) ||
+        order.status !== ListingOrderStatus.PENDING_PAYMENT
+      ) {
         throw new ConflictException(
-          'Stan zamówienia nie pozwala powiązać sesji płatniczej',
+          'Stan próby nie pozwala powiązać sesji płatniczej',
         );
       }
       if (
-        (order.provider && order.provider !== session.provider) ||
-        (order.providerCheckoutSessionId &&
-          order.providerCheckoutSessionId !== session.sessionId)
+        attempt.provider !== session.provider ||
+        (attempt.providerCheckoutSessionId &&
+          attempt.providerCheckoutSessionId !== session.sessionId)
       ) {
         throw new ConflictException(
-          'Zamówienie jest już powiązane z inną sesją płatniczą',
+          'Próba jest już powiązana z inną sesją płatniczą',
         );
       }
 
+      attempt.providerCheckoutSessionId = session.sessionId;
+      attempt.status = ListingPaymentAttemptStatus.PENDING;
+      attempt.expiresAt = session.expiresAt ?? attempt.expiresAt;
+      await manager.save(ListingPaymentAttempt, attempt);
+
+      // Compatibility/cache fields point to the current attempt. Webhooks use
+      // listing_payment_attempts as their authoritative session history.
       order.provider = session.provider;
       order.providerCheckoutSessionId = session.sessionId;
+      order.quoteExpiresAt = attempt.expiresAt;
       order.metadata = {
         ...order.metadata,
-        checkoutSessionExpiresAt: session.expiresAt?.toISOString() ?? null,
+        currentPaymentAttemptId: attempt.id,
+        checkoutSessionExpiresAt: attempt.expiresAt.toISOString(),
       };
       await manager.save(ListingOrder, order);
 
       return {
         orderId: order.id,
         orderStatus: order.status,
+        paymentAttemptId: attempt.id,
+        attemptNumber: attempt.attemptNumber,
         provider: session.provider,
         sessionId: session.sessionId,
         checkoutUrl: session.checkoutUrl,
-        expiresAt: session.expiresAt?.toISOString() ?? null,
+        expiresAt: attempt.expiresAt.toISOString(),
       };
     });
   }
 
-  private async prepareOrder(
+  private async prepareAttempt(
     manager: EntityManager,
     buyerUserId: string,
     orderId: string,
-  ) {
+  ): Promise<CreateListingPaymentSessionInput> {
     const order = await this.findOwnedOrderForUpdate(
       manager,
       buyerUserId,
@@ -109,61 +141,112 @@ export class ListingCheckoutSessionsService {
     if (order.totalGrossAmount <= 0) {
       throw new ConflictException('Zamówienie nie wymaga płatności');
     }
-    if (!CHECKOUT_ELIGIBLE_STATUSES.has(order.status)) {
+    if (!CHECKOUT_ELIGIBLE_ORDER_STATUSES.has(order.status)) {
       throw new ConflictException(
         'Stan zamówienia nie pozwala rozpocząć płatności',
       );
     }
-    const previousCheckoutExpiry = getCheckoutAttemptExpiry(order.metadata);
-    const eligibilityExpiry = previousCheckoutExpiry ?? order.quoteExpiresAt;
-    if (eligibilityExpiry.getTime() <= now.getTime()) {
-      throw new ConflictException('Wycena zamówienia wygasła');
-    }
-    if (order.provider && order.provider !== this.paymentGateway.provider) {
-      throw new ConflictException(
-        'Zamówienie jest przypisane do innego operatora płatności',
-      );
+
+    const latestAttempt = await this.findLatestAttemptForUpdate(
+      manager,
+      order.id,
+    );
+    let attempt: ListingPaymentAttempt;
+
+    if (latestAttempt && OPEN_ATTEMPT_STATUSES.has(latestAttempt.status)) {
+      if (latestAttempt.expiresAt.getTime() <= now.getTime()) {
+        throw new ConflictException('Próba płatności wygasła');
+      }
+      attempt = latestAttempt;
+    } else {
+      if (
+        latestAttempt &&
+        (latestAttempt.status !== ListingPaymentAttemptStatus.FAILED ||
+          order.status !== ListingOrderStatus.PAYMENT_FAILED)
+      ) {
+        throw new ConflictException(
+          'Stan zamówienia nie pozwala utworzyć kolejnej próby płatności',
+        );
+      }
+      const pricingExpiresAt = getOriginalPricingExpiry(order);
+      if (pricingExpiresAt.getTime() <= now.getTime()) {
+        throw new ConflictException('Wycena zamówienia wygasła');
+      }
+
+      attempt = manager.create(ListingPaymentAttempt, {
+        orderId: order.id,
+        attemptNumber: (latestAttempt?.attemptNumber ?? 0) + 1,
+        status: ListingPaymentAttemptStatus.CREATING,
+        provider: this.paymentGateway.provider,
+        amountGross: order.totalGrossAmount,
+        currency: order.currency,
+        providerCheckoutSessionId: null,
+        providerPaymentId: null,
+        failureCode: null,
+        failureMessage: null,
+        expiresAt: new Date(
+          now.getTime() +
+            CHECKOUT_VALIDITY_MS +
+            PROVIDER_EXPIRY_CLOCK_SKEW_MS,
+        ),
+        startedAt: now,
+        completedAt: null,
+      });
+      attempt = await manager.save(ListingPaymentAttempt, attempt);
     }
 
-    const checkoutExpiresAt =
-      previousCheckoutExpiry ??
-      new Date(
-        now.getTime() +
-          CHECKOUT_VALIDITY_MS +
-          PROVIDER_EXPIRY_CLOCK_SKEW_MS,
+    if (attempt.provider !== this.paymentGateway.provider) {
+      throw new ConflictException(
+        'Próba jest przypisana do innego operatora płatności',
       );
-    let orderChanged = false;
+    }
     if (order.status !== ListingOrderStatus.PENDING_PAYMENT) {
       transitionToPendingPayment(order);
-      orderChanged = true;
     }
-    if (!previousCheckoutExpiry) {
-      order.metadata = {
-        ...order.metadata,
-        checkoutInitiatedAt:
-          order.metadata.checkoutInitiatedAt ?? now.toISOString(),
-        checkoutAttemptExpiresAt: checkoutExpiresAt.toISOString(),
-      };
-      // Once checkout starts, this is the authoritative unpaid-order expiry
-      // used by collision cleanup and by the provider session.
-      order.quoteExpiresAt = checkoutExpiresAt;
-      orderChanged = true;
-    }
-    if (orderChanged) {
-      await manager.save(ListingOrder, order);
-    }
+    order.quoteExpiresAt = attempt.expiresAt;
+    order.metadata = {
+      ...order.metadata,
+      currentPaymentAttemptId: attempt.id,
+      checkoutInitiatedAt: attempt.startedAt.toISOString(),
+      checkoutAttemptExpiresAt: attempt.expiresAt.toISOString(),
+    };
+    await manager.save(ListingOrder, order);
 
     return {
       orderId: order.id,
       orderNumber: order.orderNumber,
+      paymentAttemptId: attempt.id,
+      attemptNumber: attempt.attemptNumber,
       buyerEmail: order.buyerSnapshot.email,
-      currency: order.currency,
-      totalGrossAmount: order.totalGrossAmount,
+      currency: attempt.currency,
+      totalGrossAmount: attempt.amountGross,
       itemNames: (order.items ?? []).map(
         (item) => item.productNameSnapshot,
       ),
-      expiresAt: checkoutExpiresAt,
+      expiresAt: attempt.expiresAt,
     };
+  }
+
+  private findLatestAttemptForUpdate(
+    manager: EntityManager,
+    orderId: string,
+  ): Promise<ListingPaymentAttempt | null> {
+    return manager.findOne(ListingPaymentAttempt, {
+      where: { orderId },
+      order: { attemptNumber: 'DESC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+  }
+
+  private findAttemptForUpdate(
+    manager: EntityManager,
+    attemptId: string,
+    orderId: string,
+  ): Promise<ListingPaymentAttempt | null> {
+    return manager.findOne(ListingPaymentAttempt, {
+      where: { id: attemptId, orderId },
+      lock: { mode: 'pessimistic_write' },
+    });
   }
 
   private async findOwnedOrderForUpdate(
@@ -183,13 +266,11 @@ export class ListingCheckoutSessionsService {
   }
 }
 
-function getCheckoutAttemptExpiry(
-  metadata: Record<string, unknown>,
-): Date | null {
-  const value = metadata.checkoutAttemptExpiresAt;
-  if (typeof value !== 'string') return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+function getOriginalPricingExpiry(order: ListingOrder): Date {
+  const snapshotExpiry = order.pricingSnapshot?.expiresAt;
+  if (typeof snapshotExpiry !== 'string') return order.quoteExpiresAt;
+  const parsed = new Date(snapshotExpiry);
+  return Number.isNaN(parsed.getTime()) ? order.quoteExpiresAt : parsed;
 }
 
 function transitionToPendingPayment(order: ListingOrder): void {

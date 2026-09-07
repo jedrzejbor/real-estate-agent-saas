@@ -17,6 +17,7 @@ import {
   ListingOrderStatus,
 } from '../listing-commerce.types';
 import { ListingOrderItem } from './listing-order-item.entity';
+import { ListingPaymentAttempt } from './listing-payment-attempt.entity';
 
 @Entity('listing_orders')
 @Index(['buyerUserId', 'createdAt'])
@@ -134,4 +135,7 @@ export class ListingOrder {
 
   @OneToMany(() => ListingOrderItem, (item) => item.order)
   items?: ListingOrderItem[];
+
+  @OneToMany(() => ListingPaymentAttempt, (attempt) => attempt.order)
+  paymentAttempts?: ListingPaymentAttempt[];
 }

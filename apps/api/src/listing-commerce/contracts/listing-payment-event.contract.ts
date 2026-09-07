@@ -9,6 +9,7 @@ export interface VerifiedListingPaymentEventContract {
   eventId: string;
   eventType: ListingPaymentEventType;
   orderId: string;
+  paymentAttemptId?: string | null;
   checkoutSessionId: string;
   paymentId?: string | null;
   amountGross?: number | null;
