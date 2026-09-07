@@ -5,7 +5,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository } from 'typeorm';
+import { EntityManager, In, IsNull, Repository } from 'typeorm';
 import { Listing } from '../listings/entities';
 import { PublicListingSubmission } from '../public-listing-submissions/entities';
 import { ReleaseFlagsService } from '../release-flags';
@@ -18,6 +18,23 @@ import {
   ListingProductUnavailableError,
 } from './listing-purchase.policy';
 import { ListingProductType } from './listing-commerce.types';
+
+export interface AuthorizedListingQuote {
+  quote: ListingQuoteContract;
+  products: ListingProductCatalog[];
+}
+
+interface ListingQuotePersistence {
+  findOwnedListing(
+    listingId: string,
+    buyerUserId: string,
+  ): Promise<Listing | null>;
+  findOwnedSubmission(
+    listingId: string,
+    buyerUserId: string,
+  ): Promise<PublicListingSubmission | null>;
+  findAvailableProducts(codes: string[]): Promise<ListingProductCatalog[]>;
+}
 
 @Injectable()
 export class ListingQuotesService {
@@ -35,6 +52,36 @@ export class ListingQuotesService {
     buyerUserId: string,
     dto: CreateListingQuoteDto,
   ): Promise<ListingQuoteContract> {
+    const result = await this.buildAuthorizedQuote(
+      this.repositoryPersistence(),
+      buyerUserId,
+      dto,
+      new Date(),
+    );
+    return result.quote;
+  }
+
+  /** Shared transaction-aware entry point used while persisting an order. */
+  createQuoteInTransaction(
+    manager: EntityManager,
+    buyerUserId: string,
+    dto: CreateListingQuoteDto,
+    quotedAt: Date,
+  ): Promise<AuthorizedListingQuote> {
+    return this.buildAuthorizedQuote(
+      this.transactionPersistence(manager),
+      buyerUserId,
+      dto,
+      quotedAt,
+    );
+  }
+
+  private async buildAuthorizedQuote(
+    persistence: ListingQuotePersistence,
+    buyerUserId: string,
+    dto: CreateListingQuoteDto,
+    now: Date,
+  ): Promise<AuthorizedListingQuote> {
     const flags = this.releaseFlagsService.getFlags();
     if (!flags.privateListingCheckoutEnabled) {
       throw new ServiceUnavailableException(
@@ -47,21 +94,19 @@ export class ListingQuotesService {
       );
     }
 
-    const listing = await this.listingRepo.findOne({
-      where: { id: dto.listingId, ownerUserId: buyerUserId },
-    });
+    const listing = await persistence.findOwnedListing(
+      dto.listingId,
+      buyerUserId,
+    );
     if (!listing) {
       // Do not disclose whether a listing owned by another user exists.
       throw new NotFoundException('Ogłoszenie nie istnieje');
     }
 
-    const submission = await this.submissionRepo.findOne({
-      where: {
-        publishedListingId: listing.id,
-        ownerUserId: buyerUserId,
-      },
-      order: { createdAt: 'DESC' },
-    });
+    const submission = await persistence.findOwnedSubmission(
+      listing.id,
+      buyerUserId,
+    );
     if (!submission) {
       throw new BadRequestException(
         'Checkout jest dostępny wyłącznie dla ogłoszeń klientów indywidualnych',
@@ -75,14 +120,7 @@ export class ListingQuotesService {
       );
     }
 
-    const products = await this.productRepo.find({
-      where: {
-        code: In(productCodes),
-        isActive: true,
-        isPublic: true,
-        archivedAt: IsNull(),
-      },
-    });
+    const products = await persistence.findAvailableProducts(productCodes);
     if (products.length !== productCodes.length) {
       throw new BadRequestException(
         'Co najmniej jeden wybrany produkt jest niedostępny',
@@ -102,7 +140,6 @@ export class ListingQuotesService {
       throw new BadRequestException('Wyróżnienia nie są jeszcze dostępne');
     }
 
-    const now = new Date();
     try {
       assertCanPurchaseListingProducts(
         {
@@ -124,20 +161,73 @@ export class ListingQuotesService {
     }
 
     try {
-      return buildListingQuote({
-        listingId: listing.id,
-        requestedItems: dto.items,
-        productsByCode: new Map(
-          products.map((product) => [product.code, product]),
-        ),
-        quotedAt: now,
-      });
+      return {
+        quote: buildListingQuote({
+          listingId: listing.id,
+          requestedItems: dto.items,
+          productsByCode: new Map(
+            products.map((product) => [product.code, product]),
+          ),
+          quotedAt: now,
+        }),
+        products,
+      };
     } catch (error) {
       if (error instanceof RangeError) {
         throw new BadRequestException('Nie można obliczyć wyceny produktów');
       }
       throw error;
     }
+  }
+
+  private repositoryPersistence(): ListingQuotePersistence {
+    return {
+      findOwnedListing: (listingId, buyerUserId) =>
+        this.listingRepo.findOne({
+          where: { id: listingId, ownerUserId: buyerUserId },
+        }),
+      findOwnedSubmission: (listingId, buyerUserId) =>
+        this.submissionRepo.findOne({
+          where: { publishedListingId: listingId, ownerUserId: buyerUserId },
+          order: { createdAt: 'DESC' },
+        }),
+      findAvailableProducts: (codes) =>
+        this.productRepo.find({
+          where: {
+            code: In(codes),
+            isActive: true,
+            isPublic: true,
+            archivedAt: IsNull(),
+          },
+        }),
+    };
+  }
+
+  private transactionPersistence(
+    manager: EntityManager,
+  ): ListingQuotePersistence {
+    return {
+      findOwnedListing: (listingId, buyerUserId) =>
+        manager.findOne(Listing, {
+          where: { id: listingId, ownerUserId: buyerUserId },
+          lock: { mode: 'pessimistic_write' },
+        }),
+      findOwnedSubmission: (listingId, buyerUserId) =>
+        manager.findOne(PublicListingSubmission, {
+          where: { publishedListingId: listingId, ownerUserId: buyerUserId },
+          order: { createdAt: 'DESC' },
+        }),
+      findAvailableProducts: (codes) =>
+        manager.find(ListingProductCatalog, {
+          where: {
+            code: In(codes),
+            isActive: true,
+            isPublic: true,
+            archivedAt: IsNull(),
+          },
+          lock: { mode: 'pessimistic_read' },
+        }),
+    };
   }
 }
 

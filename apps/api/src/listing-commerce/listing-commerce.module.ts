@@ -12,9 +12,11 @@ import {
   ListingProductCatalog,
   ListingProductChange,
 } from './entities';
+import { ListingCheckoutController } from './listing-checkout.controller';
+import { ListingOrdersController } from './listing-orders.controller';
+import { ListingOrdersService } from './listing-orders.service';
 import { ListingProductsController } from './listing-products.controller';
 import { ListingProductsService } from './listing-products.service';
-import { ListingCheckoutController } from './listing-checkout.controller';
 import { ListingQuotesService } from './listing-quotes.service';
 
 const LISTING_COMMERCE_ENTITIES = [
@@ -36,11 +38,13 @@ const LISTING_COMMERCE_ENTITIES = [
     ListingProductsController,
     AdminListingProductsController,
     ListingCheckoutController,
+    ListingOrdersController,
   ],
   providers: [
     ListingProductsService,
     AdminListingProductsService,
     ListingQuotesService,
+    ListingOrdersService,
   ],
   exports: [TypeOrmModule, ListingProductsService],
 })

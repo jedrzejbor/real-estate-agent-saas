@@ -3,7 +3,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import {
   ListingPublicationStatus,
   ListingStatus,
@@ -233,5 +233,36 @@ describe('ListingQuotesService', () => {
     await expect(
       enabled.service.createQuote('owner-1', featuredDto),
     ).resolves.toMatchObject({ totalGrossAmount: 1_900 });
+  });
+
+  it('locks the listing and catalog products when quoting inside an order transaction', async () => {
+    const { service, listingRepo } = buildService();
+    const listing = buildListing();
+    const submission = buildSubmission();
+    const product = buildProduct();
+    const manager = {
+      findOne: jest.fn(async (entity: unknown) =>
+        entity === Listing ? listing : submission,
+      ),
+      find: jest.fn().mockResolvedValue([product]),
+    } as unknown as EntityManager;
+
+    await expect(
+      service.createQuoteInTransaction(
+        manager,
+        'owner-1',
+        quoteDto,
+        new Date('2026-09-07T10:00:00.000Z'),
+      ),
+    ).resolves.toMatchObject({ quote: { totalGrossAmount: 4_900 } });
+    expect(manager.findOne).toHaveBeenCalledWith(
+      Listing,
+      expect.objectContaining({ lock: { mode: 'pessimistic_write' } }),
+    );
+    expect(manager.find).toHaveBeenCalledWith(
+      ListingProductCatalog,
+      expect.objectContaining({ lock: { mode: 'pessimistic_read' } }),
+    );
+    expect(listingRepo.findOne).not.toHaveBeenCalled();
   });
 });

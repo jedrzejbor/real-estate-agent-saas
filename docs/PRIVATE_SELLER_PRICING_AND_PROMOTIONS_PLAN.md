@@ -1068,16 +1068,16 @@ z Etapu 1 i udostępnieniu publicznego endpointu z Etapu 2.
 - [x] Dodać `POST /api/listing-checkout/quote` jako jedyne źródło kalkulacji.
 - [x] Walidować właściciela, stan ogłoszenia i możliwość zakupu produktu.
 - [x] Zwracać cenę bazową, listę rabatów, VAT, cenę końcową i termin ważności.
-- [ ] Dodać `POST /api/listing-checkout/sessions` lub najpierw wewnętrzny
-  endpoint tworzący zamówienie bez uruchamiania operatora płatności.
-- [ ] Zapisywać snapshot całej kalkulacji w zamówieniu i pozycjach.
-- [ ] Zapobiegać wielokrotnemu aktywnemu zamówieniu tego samego rodzaju dla tej
+- [x] Dodać `POST /api/listing-checkout/orders` jako wewnętrzny endpoint
+  tworzący zamówienie bez uruchamiania operatora płatności.
+- [x] Zapisywać snapshot całej kalkulacji w zamówieniu i pozycjach.
+- [x] Zapobiegać wielokrotnemu aktywnemu zamówieniu tego samego rodzaju dla tej
   samej oferty, jeśli reguły produktu tego zabraniają.
-- [ ] Obsłużyć finalizację zamówienia za 0 zł bez tworzenia pozorowanej
+- [x] Obsłużyć finalizację zamówienia za 0 zł bez tworzenia pozorowanej
   płatności u operatora.
-- [ ] Ustawić czas wygaśnięcia wyceny i wymuszać ponowne przeliczenie po jego
+- [x] Ustawić czas wygaśnięcia wyceny i wymuszać ponowne przeliczenie po jego
   przekroczeniu.
-- [ ] Dodać testy własności ogłoszenia, zmian ceny, zaokrągleń, VAT, kwoty 0 zł
+- [x] Dodać testy własności ogłoszenia, zmian ceny, zaokrągleń, VAT, kwoty 0 zł
   oraz idempotencji tworzenia zamówienia.
 
 #### Iteracja 4.1 — autorytatywny quote (zrealizowana 2026-09-07)
@@ -1112,10 +1112,44 @@ z Etapu 1 i udostępnieniu publicznego endpointu z Etapu 2.
   flagi, dostępność produktów, zmianę ceny, snapshot, VAT, zaokrąglenia,
   wygaśnięcie oraz granice kwot.
 
-Następna iteracja Etapu 4: tworzenie idempotentnego zamówienia na podstawie
-tej samej funkcji kalkulującej, zapis snapshotu w `listing_orders` i
-`listing_order_items`, blokada kolidujących aktywnych zamówień oraz poprawna
-finalizacja zamówienia o wartości 0 zł bez operatora płatności.
+#### Iteracja 4.2 — atomowe i idempotentne zamówienia (zrealizowana 2026-09-07)
+
+- dodano chroniony `POST /api/listing-checkout/orders`; żądanie wymaga nagłówka
+  `Idempotency-Key`, a endpoint tworzy zamówienie bez kontaktu z operatorem
+  płatności;
+- dodano `GET /api/listing-orders/:id`, który pobiera stan wyłącznie w zakresie
+  zalogowanego nabywcy i nie ujawnia istnienia cudzego zamówienia;
+- e-mail w `buyer_snapshot` pochodzi z aktywnego konta użytkownika, nie z body;
+  body zawiera jedynie minimalne dane nabywcy przygotowane do późniejszej
+  weryfikacji księgowo-prawnej;
+- kalkulacja ceny, blokada ogłoszenia, blokada produktów, kontrola kolizji oraz
+  zapis zamówienia i pozycji odbywają się w jednej transakcji;
+- zarówno publiczny quote, jak i zamówienie używają tej samej funkcji
+  kalkulującej i tej samej polityki dostępności; nie ma drugiej implementacji
+  liczenia ceny;
+- `pricing_snapshot` przechowuje pełny quote, a `listing_order_items` zapisują
+  kod, nazwę, typ, cenę, VAT, czas trwania i parametry realizacji z chwili
+  zakupu; późniejsza zmiana katalogu nie modyfikuje historii;
+- fingerprint kanonicznego żądania chroni przed ponownym użyciem klucza
+  idempotencji dla innych danych; kolejność pozycji nie wpływa na fingerprint;
+- obsłużono dwa wyścigi idempotencji: żądanie czekające na blokadę ogłoszenia
+  ponownie sprawdza klucz po jej uzyskaniu, a naruszenie unikalności po insercie
+  odzyskuje zamówienie zapisane przez równoległą transakcję;
+- nieaktualne otwarte zamówienia są oznaczane jako `expired` przed próbą
+  zastąpienia, natomiast aktywne zamówienie tego samego rodzaju blokuje duplikat;
+  opłacona publikacja blokuje ponowny zakup pierwszej publikacji również w
+  krótkim okresie przed utworzeniem entitlementu;
+- zamówienie o sumie 0 zł przechodzi bezpośrednio do `paid`, zapisuje moment
+  finalizacji i pozostawia wszystkie pola operatora puste; przyznanie korzyści
+  pozostaje odpowiedzialnością serwisu entitlementów wdrażanego w Etapie 5;
+- dodano testy DTO konsumenta i firmy, źródła e-maila, pełnego snapshotu,
+  wygaśnięcia, kolizji, zera, odczytu właścicielskiego oraz sekwencyjnych i
+  współbieżnych ponowień idempotentnych.
+
+Etap 4 jest zakończony. Endpoint `orders` celowo nie tworzy jeszcze sesji
+operatora. Etap 5 dołączy sesję płatniczą do istniejącego zamówienia i przed
+jej utworzeniem ponownie sprawdzi `quoteExpiresAt`; nie będzie ponownie liczył
+ani nadpisywał snapshotu ważnego zamówienia.
 
 **Kryterium zakończenia:** dla tego samego zestawu danych wycena i zamówienie
 mają identyczną kwotę, a późniejsza zmiana katalogu nie zmienia snapshotu
