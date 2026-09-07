@@ -16,7 +16,8 @@ export type MonitoredFlow =
   | 'public_pricing_analytics_event'
   | 'listing_agent_marketplace'
   | 'address_geocoding'
-  | 'plan_limit_enforcement';
+  | 'plan_limit_enforcement'
+  | 'listing_payment_reconciliation';
 
 type MonitoringStatus = 'success' | 'failure' | 'warning';
 

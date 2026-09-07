@@ -10,5 +10,6 @@ export { ListingProductsService } from './listing-products.service';
 export { ListingQuotesService } from './listing-quotes.service';
 export { ListingOrdersService } from './listing-orders.service';
 export { ListingEntitlementsService } from './listing-entitlements.service';
+export { ListingPaymentReconciliationService } from './listing-payment-reconciliation.service';
 export { ListingPaymentEventsService } from './listing-payment-events.service';
 export { ListingCheckoutSessionsService } from './listing-checkout-sessions.service';

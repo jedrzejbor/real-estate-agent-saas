@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReleaseFlagsModule } from '../release-flags';
+import { MonitoringModule } from '../monitoring';
+import { UsersModule } from '../users';
 import { Listing } from '../listings/entities';
 import { PublicListingSubmission } from '../public-listing-submissions/entities';
 import { AdminListingProductsController } from './admin-listing-products.controller';
@@ -21,6 +23,8 @@ import { LISTING_PAYMENT_GATEWAY } from './listing-payment-gateway.port';
 import { ListingOrdersController } from './listing-orders.controller';
 import { ListingOrdersService } from './listing-orders.service';
 import { ListingPaymentEventsService } from './listing-payment-events.service';
+import { ListingPaymentReconciliationScheduler } from './listing-payment-reconciliation.scheduler';
+import { ListingPaymentReconciliationService } from './listing-payment-reconciliation.service';
 import { ListingProductsController } from './listing-products.controller';
 import { ListingProductsService } from './listing-products.service';
 import { ListingQuotesService } from './listing-quotes.service';
@@ -43,6 +47,8 @@ const LISTING_COMMERCE_ENTITIES = [
   imports: [
     TypeOrmModule.forFeature(LISTING_COMMERCE_ENTITIES),
     ReleaseFlagsModule,
+    MonitoringModule,
+    UsersModule,
   ],
   controllers: [
     ListingProductsController,
@@ -59,6 +65,8 @@ const LISTING_COMMERCE_ENTITIES = [
     ListingCheckoutSessionsService,
     ListingEntitlementsService,
     ListingPaymentEventsService,
+    ListingPaymentReconciliationService,
+    ListingPaymentReconciliationScheduler,
     StripeListingPaymentAdapter,
     {
       provide: LISTING_PAYMENT_GATEWAY,

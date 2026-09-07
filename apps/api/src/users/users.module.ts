@@ -42,6 +42,7 @@ import { UsersService } from './users.service';
     AgencyPlanService,
     AgencyLimitEnforcementService,
     AgencyLimitDowngradeEnforcementService,
+    PostgresAdvisoryLockService,
   ],
 })
 export class UsersModule {}

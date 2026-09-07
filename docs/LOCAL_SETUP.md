@@ -168,6 +168,15 @@ Konfiguracja opcjonalna:
 | `STRIPE_LISTING_SUCCESS_URL`               | URL zbudowany z `FRONTEND_URL` | opcjonalny adres powrotu po checkout; backend dopisuje `orderId` i placeholder identyfikatora sesji            |
 | `STRIPE_LISTING_CANCEL_URL`                | URL zbudowany z `FRONTEND_URL` | opcjonalny adres powrotu po anulowaniu; backend dopisuje `orderId`                                               |
 
+Rekoncyliacja jednorazowych płatności za ogłoszenia:
+
+| Zmienna | Domyślna wartość | Rola |
+|---|---:|---|
+| `LISTING_PAYMENT_RECONCILIATION_ENABLED` | `true`, poza `NODE_ENV=test` | włącza wygaszanie porzuconych prób i naprawę opłaconych zamówień bez kompletu entitlementów |
+| `LISTING_PAYMENT_RECONCILIATION_INTERVAL_MS` | `300000` | odstęp między uruchomieniami; blokada PostgreSQL gwarantuje jeden proces roboczy dla całego klastra |
+| `LISTING_PAYMENT_RECONCILIATION_BATCH_SIZE` | `100` | maksymalna liczba prób oraz zamówień obsłużona w jednej partii |
+| `LISTING_PAYMENT_RECONCILIATION_FULFILLMENT_GRACE_MS` | `120000` | bufor po `paidAt`, po którym brak entitlementu jest zgłaszany i automatycznie naprawiany |
+
 Ręczne wymuszenie dla supportu/admina pozostaje dostępne przez:
 
 ```http

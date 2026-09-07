@@ -1170,8 +1170,8 @@ utworzonego zamówienia.
 - [x] Zapewnić, że przekierowanie użytkownika z checkoutu nigdy samo nie
   aktywuje publikacji.
 - [x] Dodać ponowienie płatności, potwierdzenie i historię w panelu sprzedającego.
-- [ ] Dodać zadanie wykrywające porzucone/wygasłe sesje.
-- [ ] Dodać trwały log zdarzeń webhooków i alert dla opłaconego zamówienia bez
+- [x] Dodać zadanie wykrywające porzucone/wygasłe sesje.
+- [x] Dodać trwały log zdarzeń webhooków i alert dla opłaconego zamówienia bez
   przyznanego entitlementu.
 - [x] Dodać testy webhooków zduplikowanych, dostarczonych w złej kolejności i
   ponowionych po błędzie.
@@ -1331,8 +1331,34 @@ utworzonego zamówienia.
   backendem; edycja zaakceptowanej oferty jest ukryta w czasie oczekiwania na
   płatność zgodnie z niezmiennikiem moderacji.
 
-Następna iteracja Etapu 5 obejmuje scheduler wygaszania porzuconych sesji oraz
-monitoring opłaconego zamówienia bez entitlementu.
+#### Iteracja 5.6 — rekoncyliacja płatności i samonaprawa realizacji (zrealizowana 2026-09-07)
+
+- dodano okresowy, konfigurowalny scheduler przetwarzający ograniczone partie;
+  blokada doradcza PostgreSQL zapewnia pojedyncze wykonanie w całym klastrze, a
+  lokalna blokada chroni przed nakładaniem uruchomień tej samej instancji;
+- próby `creating` i `pending`, których `expiresAt` minął, są ponownie
+  sprawdzane i blokowane w transakcji przed przejściem do `expired`; zamówienie
+  wygasa tylko wtedy, gdy jest to nadal jego najnowsza próba;
+- kolejność blokad zamówienie → próba jest identyczna jak w obsłudze webhooka,
+  dzięki czemu równoległy sukces płatności nie jest nadpisywany i nie powstaje
+  zakleszczenie; podpisany, spóźniony sukces nadal może przeprowadzić
+  `expired` → `paid` i wykonać usługę;
+- scheduler wykrywa zamówienia `paid`, dla których choć jedna pozycja nie ma
+  entitlementu, po krótkim konfigurowalnym okresie ochronnym; każde wykrycie
+  zapisuje strukturalne ostrzeżenie monitoringu i uruchamia idempotentną
+  realizację przez istniejący `ListingEntitlementsService`;
+- błędy pojedynczych prób i zamówień są izolowane, raportowane osobno oraz nie
+  zatrzymują reszty partii; podsumowanie zawiera liczbę wygaśnięć, wykrytych
+  niespójności, napraw i błędów;
+- dodano częściowy indeks dla starych zamówień `paid`, konfigurację środowiska
+  oraz testy wyścigu z webhookiem, starszej próby, samonaprawy, izolacji błędów,
+  blokady klastra i wyłączania schedulera w testach;
+- trwały log webhooków pozostaje w `listing_payment_events` wdrożonym w
+  Iteracji 5.2; Iteracja 5.6 wykorzystuje go razem z monitoringiem do
+  diagnozowania sytuacji, których automatyczna naprawa nie zakończyła.
+
+Etap 5 jest zakończony. Następna iteracja rozpoczyna Etap 6 od podłączenia
+wyróżnień i odnowień do istniejącej domeny produktów, entitlementów i checkoutu.
 
 **Kryterium zakończenia:** zaakceptowana oferta jest publikowana dokładnie raz
 po potwierdzonej płatności, również gdy webhook zostanie dostarczony
