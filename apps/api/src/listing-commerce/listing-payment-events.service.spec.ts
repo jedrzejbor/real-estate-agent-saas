@@ -134,6 +134,60 @@ describe('ListingPaymentEventsService', () => {
     });
   });
 
+  it('recovers a paid provider session created just before database binding', async () => {
+    const order = buildOrder({
+      provider: null,
+      providerCheckoutSessionId: null,
+    });
+    const { service, manager, listingEntitlementsService } = buildHarness({
+      order,
+    });
+
+    await expect(
+      service.processVerifiedEvent(succeededEvent),
+    ).resolves.toMatchObject({
+      status: 'processed',
+      orderStatus: ListingOrderStatus.PAID,
+    });
+    expect(order).toMatchObject({
+      provider: 'stripe',
+      providerCheckoutSessionId: 'cs_test_1',
+      providerPaymentId: 'pi_test_1',
+      status: ListingOrderStatus.PAID,
+    });
+    expect(manager.save).toHaveBeenCalledWith(ListingOrder, order);
+    expect(
+      listingEntitlementsService.fulfillPaidOrderInTransaction,
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let a failure event claim an unbound order', async () => {
+    const order = buildOrder({
+      provider: null,
+      providerCheckoutSessionId: null,
+    });
+    const { service, listingEntitlementsService } = buildHarness({ order });
+
+    await expect(
+      service.processVerifiedEvent({
+        ...succeededEvent,
+        eventId: 'evt_unbound_failure',
+        eventType: ListingPaymentEventType.PAYMENT_FAILED,
+        paymentId: null,
+        amountGross: null,
+        currency: null,
+      }),
+    ).rejects.toThrow('nie odpowiada sesji');
+    expect(order).toMatchObject({
+      provider: null,
+      providerCheckoutSessionId: null,
+      status: ListingOrderStatus.PENDING_PAYMENT,
+    });
+    expect(
+      listingEntitlementsService.fulfillPaidOrderInTransaction,
+    ).not.toHaveBeenCalled();
+  });
+
   it('returns a processed duplicate without touching the order', async () => {
     const known = Object.assign(new ListingPaymentEvent(), {
       provider: 'stripe',

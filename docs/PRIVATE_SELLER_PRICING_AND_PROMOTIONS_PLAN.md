@@ -1163,17 +1163,17 @@ utworzonego zamówienia.
   `submission.status = approved`, niepubliczne ogłoszenie i brak aktywnego
   entitlementu publikacji.
 - [ ] Zbudować podsumowanie zamówienia wykorzystujące serwerowy quote.
-- [ ] Zintegrować tworzenie sesji płatności z operatorem.
-- [ ] Obsłużyć podpisane, idempotentne webhooki.
-- [ ] Po webhooku finalizować zamówienie, a publikację aktywować wyłącznie przez
+- [x] Zintegrować tworzenie sesji płatności z operatorem.
+- [x] Obsłużyć podpisane, idempotentne webhooki.
+- [x] Po webhooku finalizować zamówienie, a publikację aktywować wyłącznie przez
   serwis `listing_entitlements`.
-- [ ] Zapewnić, że przekierowanie użytkownika z checkoutu nigdy samo nie
+- [x] Zapewnić, że przekierowanie użytkownika z checkoutu nigdy samo nie
   aktywuje publikacji.
 - [ ] Dodać ponowienie płatności, potwierdzenie i historię w panelu sprzedającego.
 - [ ] Dodać zadanie wykrywające porzucone/wygasłe sesje.
 - [ ] Dodać trwały log zdarzeń webhooków i alert dla opłaconego zamówienia bez
   przyznanego entitlementu.
-- [ ] Dodać testy webhooków zduplikowanych, dostarczonych w złej kolejności i
+- [x] Dodać testy webhooków zduplikowanych, dostarczonych w złej kolejności i
   ponowionych po błędzie.
 
 #### Iteracja 5.1 — moderacja oddzielona od publikacji i realizacja entitlementów (zrealizowana 2026-09-07)
@@ -1232,10 +1232,41 @@ utworzonego zamówienia.
   spóźniony sukces, spóźniony błąd, ponowienie po błędzie oraz trzy warianty
   idempotencji współbieżnej.
 
-Następna iteracja Etapu 5 wymaga adaptera konkretnego operatora: tworzenia sesji
-dla ważnego zamówienia, weryfikacji podpisu na surowym body i mapowania zdarzeń
-do przygotowanego kontraktu. Repozytorium zakłada obecnie Stripe dla abonamentów,
-ale wybór Stripe dla płatności jednorazowych nadal wymaga jawnego potwierdzenia.
+#### Iteracja 5.3 — Stripe Checkout i podpisany webhook (zrealizowana 2026-09-07)
+
+- dodano oficjalne Stripe SDK oraz port `ListingPaymentGateway`; domena zamówień
+  zależy od portu, a nie od typów i nazw zdarzeń Stripe;
+- endpoint właściciela `POST /api/listing-orders/:id/checkout-session` sprawdza
+  feature flagę, własność, ważność wyceny, dodatnią kwotę i dozwolony status,
+  po czym tworzy sesję z kwotą pochodzącą wyłącznie ze snapshotu zamówienia;
+- wywołanie Stripe odbywa się poza transakcją bazy, natomiast przygotowanie i
+  powiązanie sesji blokują rekord zamówienia; stały klucz idempotencji oparty na
+  ID zamówienia pozwala bezpiecznie ponawiać przerwane wywołanie operatora;
+- Stripe otrzymuje wyłącznie jedną dokładną kwotę końcową zamówienia, walutę,
+  email nabywcy i identyfikatory w metadata; ceny ani adresy powrotu nie są
+  przyjmowane od frontendu;
+- dodano publiczny `POST /api/listing-payments/webhooks/stripe`, który wymaga
+  surowego body i nagłówka `Stripe-Signature`; konfiguracja Nest zachowuje raw
+  body, a oficjalne SDK weryfikuje podpis osobnym sekretem tego endpointu;
+- adapter mapuje `checkout.session.completed`, sukces i błąd płatności
+  asynchronicznej oraz wygaśnięcie sesji do kanonicznego kontraktu domenowego;
+  ukończona, ale jeszcze nieopłacona sesja nie aktywuje zamówienia;
+- przekierowanie sukcesu zawiera wyłącznie dane do prezentacji wyniku i nie ma
+  żadnej ścieżki aktywującej publikację; jedyną ścieżką pozostaje zweryfikowany
+  webhook i transakcyjny `ListingEntitlementsService`;
+- webhook pozostaje aktywny po wyłączeniu feature flagi, aby platforma mogła
+  zrealizować płatności rozpoczęte przed awaryjnym zatrzymaniem nowych sesji;
+- podpisany sukces z dokładną kwotą i walutą może atomowo uzupełnić brakujące
+  powiązanie sesji, jeśli Stripe utworzył ją tuż przed awarią zapisu bazy;
+  zdarzenia błędu ani wygaśnięcia nie mają prawa wykonać takiego powiązania;
+- sekrety `STRIPE_SECRET_KEY` i `STRIPE_LISTING_WEBHOOK_SECRET` są wymagane
+  dopiero przy użyciu integracji, dzięki czemu brak konfiguracji nie blokuje
+  startu pozostałej części aplikacji, ale każda próba płatności kończy się
+  kontrolowanym błędem zamiast trybem niezabezpieczonym.
+
+Następna iteracja Etapu 5 obejmuje ekran podsumowania i powrotu, ponowienie oraz
+historię płatności w panelu sprzedającego, a następnie scheduler wygaszania i
+alert dla opłaconego zamówienia bez entitlementu.
 
 **Kryterium zakończenia:** zaakceptowana oferta jest publikowana dokładnie raz
 po potwierdzonej płatności, również gdy webhook zostanie dostarczony

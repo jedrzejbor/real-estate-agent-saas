@@ -11,3 +11,4 @@ export { ListingQuotesService } from './listing-quotes.service';
 export { ListingOrdersService } from './listing-orders.service';
 export { ListingEntitlementsService } from './listing-entitlements.service';
 export { ListingPaymentEventsService } from './listing-payment-events.service';
+export { ListingCheckoutSessionsService } from './listing-checkout-sessions.service';

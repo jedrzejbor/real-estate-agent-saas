@@ -14,13 +14,17 @@ import {
   ListingProductChange,
 } from './entities';
 import { ListingCheckoutController } from './listing-checkout.controller';
+import { ListingCheckoutSessionsService } from './listing-checkout-sessions.service';
 import { ListingEntitlementsService } from './listing-entitlements.service';
+import { LISTING_PAYMENT_GATEWAY } from './listing-payment-gateway.port';
 import { ListingOrdersController } from './listing-orders.controller';
 import { ListingOrdersService } from './listing-orders.service';
 import { ListingPaymentEventsService } from './listing-payment-events.service';
 import { ListingProductsController } from './listing-products.controller';
 import { ListingProductsService } from './listing-products.service';
 import { ListingQuotesService } from './listing-quotes.service';
+import { StripeListingPaymentAdapter } from './stripe-listing-payment.adapter';
+import { StripeListingWebhooksController } from './stripe-listing-webhooks.controller';
 
 const LISTING_COMMERCE_ENTITIES = [
   ListingProductCatalog,
@@ -43,14 +47,21 @@ const LISTING_COMMERCE_ENTITIES = [
     AdminListingProductsController,
     ListingCheckoutController,
     ListingOrdersController,
+    StripeListingWebhooksController,
   ],
   providers: [
     ListingProductsService,
     AdminListingProductsService,
     ListingQuotesService,
     ListingOrdersService,
+    ListingCheckoutSessionsService,
     ListingEntitlementsService,
     ListingPaymentEventsService,
+    StripeListingPaymentAdapter,
+    {
+      provide: LISTING_PAYMENT_GATEWAY,
+      useExisting: StripeListingPaymentAdapter,
+    },
   ],
   exports: [
     TypeOrmModule,

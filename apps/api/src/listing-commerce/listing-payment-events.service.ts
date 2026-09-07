@@ -53,7 +53,7 @@ export class ListingPaymentEventsService {
           return duplicateResult(concurrentEvent, order.id);
         }
 
-        assertProviderBinding(order, event);
+        await assertOrBindProviderSession(manager, order, event);
         const outcome = await this.applyEvent(manager, order, event);
         const paymentEvent =
           concurrentEvent ??
@@ -244,17 +244,33 @@ function normalizeAndValidateEvent(
   return event;
 }
 
-function assertProviderBinding(
+async function assertOrBindProviderSession(
+  manager: EntityManager,
   order: ListingOrder,
   event: NormalizedListingPaymentEvent,
-): void {
+): Promise<void> {
   if (
     order.provider !== event.provider ||
     order.providerCheckoutSessionId !== event.checkoutSessionId
   ) {
-    throw new ConflictException(
-      'Zdarzenie nie odpowiada sesji płatniczej zamówienia',
-    );
+    const canRecoverUnboundSuccessfulSession =
+      event.eventType === ListingPaymentEventType.PAYMENT_SUCCEEDED &&
+      order.status === ListingOrderStatus.PENDING_PAYMENT &&
+      !order.provider &&
+      !order.providerCheckoutSessionId;
+    if (!canRecoverUnboundSuccessfulSession) {
+      throw new ConflictException(
+        'Zdarzenie nie odpowiada sesji płatniczej zamówienia',
+      );
+    }
+
+    // Stripe may create a session just before the database becomes
+    // unavailable. A signed success can safely close that gap only after the
+    // immutable amount and currency have been checked.
+    assertSuccessfulPaymentMatchesOrder(order, event);
+    order.provider = event.provider;
+    order.providerCheckoutSessionId = event.checkoutSessionId;
+    await manager.save(ListingOrder, order);
   }
 }
 

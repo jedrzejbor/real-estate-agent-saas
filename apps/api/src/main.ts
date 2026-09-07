@@ -5,7 +5,9 @@ import { AppModule } from './app.module';
 import { registerLocalPublicUploadAssets } from './common/file-storage.config';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
 
   registerLocalPublicUploadAssets(app);
 
