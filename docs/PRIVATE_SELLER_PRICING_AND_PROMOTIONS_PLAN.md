@@ -1065,9 +1065,9 @@ z Etapu 1 i udostępnieniu publicznego endpointu z Etapu 2.
 
 ### Etap 4 — serwerowy kalkulator ceny i zamówienia
 
-- [ ] Dodać `POST /api/listing-checkout/quote` jako jedyne źródło kalkulacji.
-- [ ] Walidować właściciela, stan ogłoszenia i możliwość zakupu produktu.
-- [ ] Zwracać cenę bazową, listę rabatów, VAT, cenę końcową i termin ważności.
+- [x] Dodać `POST /api/listing-checkout/quote` jako jedyne źródło kalkulacji.
+- [x] Walidować właściciela, stan ogłoszenia i możliwość zakupu produktu.
+- [x] Zwracać cenę bazową, listę rabatów, VAT, cenę końcową i termin ważności.
 - [ ] Dodać `POST /api/listing-checkout/sessions` lub najpierw wewnętrzny
   endpoint tworzący zamówienie bez uruchamiania operatora płatności.
 - [ ] Zapisywać snapshot całej kalkulacji w zamówieniu i pozycjach.
@@ -1079,6 +1079,43 @@ z Etapu 1 i udostępnieniu publicznego endpointu z Etapu 2.
   przekroczeniu.
 - [ ] Dodać testy własności ogłoszenia, zmian ceny, zaokrągleń, VAT, kwoty 0 zł
   oraz idempotencji tworzenia zamówienia.
+
+#### Iteracja 4.1 — autorytatywny quote (zrealizowana 2026-09-07)
+
+- dodano chroniony `POST /api/listing-checkout/quote`; endpoint przyjmuje tylko
+  identyfikator ogłoszenia, kody produktów i ilość, nigdy ceny ani rabaty z
+  frontendu;
+- źródłem każdej kwoty jest aktywny, publiczny i niezarchiwizowany produkt z
+  `listing_product_catalog`; zmiana ceny wpływa na następną wycenę, ale nie
+  mutuje zwróconego wcześniej snapshotu;
+- wycena jest dostępna wyłącznie dla zalogowanego właściciela ogłoszenia
+  pochodzącego ze ścieżki klienta indywidualnego; brak własności jest zwracany
+  jak brak zasobu, aby nie ujawniać cudzych ogłoszeń;
+- wydzielono czystą politykę możliwości zakupu: pierwsza publikacja wymaga
+  pozytywnej moderacji i niepublicznego ogłoszenia, odnowienie wymaga historii
+  publikacji, a wyróżnienie aktywnej i niewygasłej publikacji;
+- polityka przejściowo rozpoznaje docelowy status `approved` oraz istniejący
+  zapis `claimed` z metadanymi `adminApproval`; sama moderacja zachowuje obecne
+  zachowanie aż do kontrolowanej zmiany w Etapie 5;
+- wykluczono duplikaty produktu i rodzaju, połączenie publikacji z odnowieniem,
+  niedostępne produkty oraz zestawy o różnych walutach;
+- wycena ma 30 minut ważności, puste `discounts` gotowe na Etap 7 oraz VAT
+  obliczany z ceny brutto wyłącznie arytmetyką całkowitą z zaokrągleniem
+  half-up; brak zatwierdzonej stawki VAT jest jawnie reprezentowany jako
+  `null`, a nie jako 0%;
+- suma jest ograniczona do zakresu kolumn `int`, aby przyszłe utworzenie
+  zamówienia nie mogło nieoczekiwanie odrzucić poprawnie zwróconego quote;
+- checkout i wyróżnienia pozostają niezależnie kontrolowane flagami rollout;
+  kod promocyjny jest jawnie odrzucany do czasu wdrożenia silnika promocji,
+  zamiast pozornie go akceptować bez wpływu na cenę;
+- testy obejmują DTO, ochronę endpointu, własność, źródło ogłoszenia, moderację,
+  flagi, dostępność produktów, zmianę ceny, snapshot, VAT, zaokrąglenia,
+  wygaśnięcie oraz granice kwot.
+
+Następna iteracja Etapu 4: tworzenie idempotentnego zamówienia na podstawie
+tej samej funkcji kalkulującej, zapis snapshotu w `listing_orders` i
+`listing_order_items`, blokada kolidujących aktywnych zamówień oraz poprawna
+finalizacja zamówienia o wartości 0 zł bez operatora płatności.
 
 **Kryterium zakończenia:** dla tego samego zestawu danych wycena i zamówienie
 mają identyczną kwotę, a późniejsza zmiana katalogu nie zmienia snapshotu

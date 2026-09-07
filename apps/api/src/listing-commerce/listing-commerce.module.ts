@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReleaseFlagsModule } from '../release-flags';
+import { Listing } from '../listings/entities';
+import { PublicListingSubmission } from '../public-listing-submissions/entities';
 import { AdminListingProductsController } from './admin-listing-products.controller';
 import { AdminListingProductsService } from './admin-listing-products.service';
 import {
@@ -12,6 +14,8 @@ import {
 } from './entities';
 import { ListingProductsController } from './listing-products.controller';
 import { ListingProductsService } from './listing-products.service';
+import { ListingCheckoutController } from './listing-checkout.controller';
+import { ListingQuotesService } from './listing-quotes.service';
 
 const LISTING_COMMERCE_ENTITIES = [
   ListingProductCatalog,
@@ -19,6 +23,8 @@ const LISTING_COMMERCE_ENTITIES = [
   ListingOrderItem,
   ListingEntitlement,
   ListingProductChange,
+  Listing,
+  PublicListingSubmission,
 ];
 
 @Module({
@@ -26,8 +32,16 @@ const LISTING_COMMERCE_ENTITIES = [
     TypeOrmModule.forFeature(LISTING_COMMERCE_ENTITIES),
     ReleaseFlagsModule,
   ],
-  controllers: [ListingProductsController, AdminListingProductsController],
-  providers: [ListingProductsService, AdminListingProductsService],
+  controllers: [
+    ListingProductsController,
+    AdminListingProductsController,
+    ListingCheckoutController,
+  ],
+  providers: [
+    ListingProductsService,
+    AdminListingProductsService,
+    ListingQuotesService,
+  ],
   exports: [TypeOrmModule, ListingProductsService],
 })
 export class ListingCommerceModule {}

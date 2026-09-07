@@ -2,6 +2,7 @@ import { IS_PUBLIC_KEY } from '../auth/decorators/public.decorator';
 import { ROLES_KEY } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums';
 import { AdminListingProductsController } from './admin-listing-products.controller';
+import { ListingCheckoutController } from './listing-checkout.controller';
 import { ListingProductsController } from './listing-products.controller';
 
 describe('listing product controller access', () => {
@@ -20,6 +21,12 @@ describe('listing product controller access', () => {
     ).toBe(true);
     expect(
       Reflect.getMetadata(IS_PUBLIC_KEY, AdminListingProductsController),
+    ).toBeUndefined();
+    expect(
+      Reflect.getMetadata(
+        IS_PUBLIC_KEY,
+        ListingCheckoutController.prototype.createQuote,
+      ),
     ).toBeUndefined();
   });
 });
