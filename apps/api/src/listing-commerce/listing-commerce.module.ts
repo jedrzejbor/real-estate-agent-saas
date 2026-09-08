@@ -17,6 +17,7 @@ import {
   ListingProductChange,
 } from './entities';
 import { ListingCheckoutController } from './listing-checkout.controller';
+import { ListingEntitlementsController } from './listing-entitlements.controller';
 import { ListingCheckoutSessionsService } from './listing-checkout-sessions.service';
 import { ListingEntitlementsService } from './listing-entitlements.service';
 import { ListingEntitlementsScheduler } from './listing-entitlements.scheduler';
@@ -55,6 +56,7 @@ const LISTING_COMMERCE_ENTITIES = [
     ListingProductsController,
     AdminListingProductsController,
     ListingCheckoutController,
+    ListingEntitlementsController,
     ListingOrdersController,
     StripeListingWebhooksController,
   ],

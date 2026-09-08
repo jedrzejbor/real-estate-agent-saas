@@ -5,6 +5,7 @@ import { ReleaseFlagsService } from '../release-flags';
 import type { PublicListingProductContract } from './contracts';
 import { ListingProductCatalog } from './entities';
 import { toPublicListingProduct } from './listing-product.presenter';
+import { ListingProductType } from './listing-commerce.types';
 
 @Injectable()
 export class ListingProductsService {
@@ -28,6 +29,13 @@ export class ListingProductsService {
       order: { sortOrder: 'ASC', code: 'ASC' },
     });
 
-    return products.map(toPublicListingProduct);
+    const flags = this.releaseFlagsService.getFlags();
+    return products
+      .filter(
+        (product) =>
+          flags.privateListingFeaturedEnabled ||
+          product.type !== ListingProductType.FEATURED,
+      )
+      .map(toPublicListingProduct);
   }
 }

@@ -8,11 +8,13 @@ import {
   createListingCheckoutSession,
   createListingOrder,
   createListingQuote,
+  fetchListingEntitlementsForListing,
   fetchListingOrdersForListing,
   findCurrentPayableOrder,
   isListingOrderPaid,
   isStripeCheckoutUrl,
   type ListingOrder,
+  type ListingEntitlement,
   type ListingQuote,
 } from '@/lib/listing-checkout';
 import {
@@ -25,16 +27,21 @@ import {
 interface SellerListingCheckoutPanelProps {
   listingId: string;
   ownerName: string;
+  isPublished: boolean;
+  isExpired: boolean;
 }
 
 export function SellerListingCheckoutPanel({
   listingId,
   ownerName,
+  isPublished,
+  isExpired,
 }: SellerListingCheckoutPanelProps) {
   const [products, setProducts] = useState<PublicListingProduct[]>([]);
   const [selectedCode, setSelectedCode] = useState('');
   const [quote, setQuote] = useState<ListingQuote | null>(null);
   const [orders, setOrders] = useState<ListingOrder[]>([]);
+  const [entitlements, setEntitlements] = useState<ListingEntitlement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isQuoting, setIsQuoting] = useState(false);
   const [isStartingPayment, setIsStartingPayment] = useState(false);
@@ -46,34 +53,65 @@ export function SellerListingCheckoutPanel({
     setError(null);
 
     try {
-      const [availableProducts, orderHistory] = await Promise.all([
+      const [availableProducts, orderHistory, lifecycle] = await Promise.all([
         fetchPublicListingProducts(),
         fetchListingOrdersForListing(listingId),
+        fetchListingEntitlementsForListing(listingId),
       ]);
-      const publicationProducts = availableProducts.filter(
-        (product) => product.type === ListingProductType.PUBLICATION,
-      );
 
-      setProducts(publicationProducts);
+      setProducts(availableProducts);
       setOrders(orderHistory);
-      setSelectedCode((current) => current || publicationProducts[0]?.code || '');
+      setEntitlements(lifecycle);
+      setSelectedCode((current) => current || getDefaultProductCode(availableProducts, isPublished, isExpired) || '');
     } catch (cause) {
       setError(getApiErrorMessage(cause));
     } finally {
       setIsLoading(false);
     }
-  }, [listingId]);
+  }, [isExpired, isPublished, listingId]);
 
   useEffect(() => {
     void loadCheckout();
   }, [loadCheckout]);
 
   const payableOrder = findCurrentPayableOrder(orders);
-  const hasCompletedOrder = orders.some(isListingOrderPaid);
+  const hasActivePublication = entitlements.some(
+    (entitlement) => entitlement.type === 'publication',
+  );
+  const hasActiveFeatured = entitlements.some(
+    (entitlement) => entitlement.type === 'featured',
+  );
+  const purchasableProducts = products.filter((product) => {
+    if (product.type === ListingProductType.PUBLICATION) {
+      return !hasActivePublication && !isPublished;
+    }
+    if (product.type === ListingProductType.RENEWAL) {
+      return isPublished || isExpired || hasActivePublication;
+    }
+    return isPublished && !isExpired && !hasActiveFeatured;
+  });
+  const hasCompletedPublication = orders.some(
+    (order) =>
+      isListingOrderPaid(order) &&
+      order.items.some(
+        (item) => item.productType === ListingProductType.PUBLICATION,
+      ),
+  );
   const summary = payableOrder?.pricingSnapshot ?? quote;
 
   useEffect(() => {
-    if (isLoading || payableOrder || hasCompletedOrder || !selectedCode) {
+    if (payableOrder || !purchasableProducts.length) return;
+    if (purchasableProducts.some((product) => product.code === selectedCode)) {
+      return;
+    }
+    setSelectedCode(
+      getDefaultProductCode(purchasableProducts, isPublished, isExpired) ??
+        purchasableProducts[0].code,
+    );
+  }, [isExpired, isPublished, payableOrder, purchasableProducts, selectedCode]);
+
+  useEffect(() => {
+    if (isLoading || payableOrder || !selectedCode) {
       setQuote(null);
       return;
     }
@@ -98,7 +136,7 @@ export function SellerListingCheckoutPanel({
     return () => {
       cancelled = true;
     };
-  }, [hasCompletedOrder, isLoading, listingId, payableOrder, selectedCode]);
+  }, [isLoading, listingId, payableOrder, selectedCode]);
 
   async function startPayment() {
     if (!selectedCode && !payableOrder) return;
@@ -162,19 +200,7 @@ export function SellerListingCheckoutPanel({
     );
   }
 
-  if (hasCompletedOrder) {
-    return (
-      <CheckoutShell>
-        <div className="flex items-start gap-3 rounded-xl bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
-          <p>Płatność została potwierdzona. Publikacja ogłoszenia jest realizowana automatycznie.</p>
-        </div>
-        <OrderHistory orders={orders} />
-      </CheckoutShell>
-    );
-  }
-
-  if (!products.length && !payableOrder) {
+  if (!purchasableProducts.length && !payableOrder) {
     return (
       <CheckoutShell>
         <p className="text-sm leading-6 text-muted-foreground">
@@ -188,13 +214,20 @@ export function SellerListingCheckoutPanel({
   return (
     <CheckoutShell>
       <p className="text-sm leading-6 text-muted-foreground">
-        Ogłoszenie przeszło weryfikację. Wybierz wariant i opłać publikację.
+        Wybierz usługę dla ogłoszenia. Aktualny status jest weryfikowany przez serwer.
       </p>
 
-      {!payableOrder && products.length > 1 ? (
+      {hasCompletedPublication ? (
+        <div className="mt-3 flex items-start gap-3 rounded-xl bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+          <p>Publikacja została opłacona. Możesz dokupić odnowienie lub wyróżnienie.</p>
+        </div>
+      ) : null}
+
+      {!payableOrder && purchasableProducts.length > 1 ? (
         <fieldset className="mt-4 grid gap-2">
           <legend className="sr-only">Wariant publikacji</legend>
-          {products.map((product) => (
+          {purchasableProducts.map((product) => (
             <label
               key={product.code}
               className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-3 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
@@ -294,7 +327,7 @@ function CheckoutShell({ children }: { children: ReactNode }) {
     <section className="rounded-2xl border border-primary/30 bg-card p-5 shadow-sm">
       <div className="flex items-center gap-2">
         <CreditCard className="h-5 w-5 text-primary" />
-        <h2 className="font-heading text-lg font-semibold">Publikacja ogłoszenia</h2>
+        <h2 className="font-heading text-lg font-semibold">Usługi ogłoszenia</h2>
       </div>
       <div className="mt-3">{children}</div>
     </section>
@@ -316,6 +349,20 @@ function CheckoutError({
       </button>
     </div>
   );
+}
+
+function getDefaultProductCode(
+  products: PublicListingProduct[],
+  isPublished: boolean,
+  isExpired: boolean,
+): string | null {
+  const preferredType =
+    isPublished && !isExpired
+      ? ListingProductType.FEATURED
+      : isPublished || isExpired
+        ? ListingProductType.RENEWAL
+        : ListingProductType.PUBLICATION;
+  return products.find((product) => product.type === preferredType)?.code ?? null;
 }
 
 function OrderHistory({ orders }: { orders: ListingOrder[] }) {

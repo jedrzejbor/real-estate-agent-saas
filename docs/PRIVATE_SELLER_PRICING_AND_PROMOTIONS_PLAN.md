@@ -1370,9 +1370,10 @@ wielokrotnie. Nie istnieje ścieżka publikacji oparta wyłącznie o dane fronte
 
 - [x] Rozszerzyć serwis entitlementów o wyróżnienie i przedłużenie publikacji.
 - [x] Dodać właściwe produkty wyróżnienia i odnowienia do katalogu.
-- [ ] Podłączyć wyróżnienie do katalogu, mapy i strony oferty.
+- [ ] Podłączyć wyróżnienie do katalogu, mapy i strony oferty (katalog i strona
+  oferty są gotowe; sortowanie mapy pozostaje).
 - [ ] Ustalić sortowanie i rotację w tym samym tierze.
-- [ ] Dodać zakup wyróżnienia i odnowienia z panelu sprzedającego.
+- [x] Dodać zakup wyróżnienia i odnowienia z panelu sprzedającego.
 - [ ] Uniemożliwić zakup wyróżnienia dla cudzej, odrzuconej lub wygasłej oferty
   bez jednoczesnego odnowienia.
 - [ ] Określić zachowanie ponownego zakupu przed zakończeniem aktywnego okresu.
@@ -1398,9 +1399,24 @@ tego samego kalkulatora, zamówienia i finalizacji płatności co publikacja.
   partii, monitoringiem i postgres advisory lockiem dla wielu instancji API;
 - dodano testy aktywacji, wygasania i automatycznego odpublikowania.
 
-Następny krok Etapu 6: udostępnić właścicielowi odczyt aktywnych entitlementów
-i akcje „Odnowić” / „Wyróżnić” w panelu ogłoszenia, wykorzystując istniejące
-endpointy quote → order → checkout-session.
+Zakres odczytu entitlementów i akcji zakupu w panelu został zrealizowany;
+następny krok Etapu 6 to rotacja ofert w tym samym tierze oraz przypomnienia.
+
+#### Iteracja 6.2 — panel usług i odczyt entitlementów (w toku, 2026-09-08)
+
+- dodano właścicielski `GET /api/listing-entitlements/by-listing/:listingId`,
+  który najpierw sprawdza własność ogłoszenia i zwraca wyłącznie aktywne lub
+  zaplanowane entitlementy;
+- panel sprzedającego pobiera katalog, historię zamówień i stan entitlementów
+  równolegle, a następnie udostępnia produkty publikacji, odnowienia i
+  wyróżnienia zgodnie ze stanem oferty;
+- ponowne zakupy nie są blokowane przez wcześniejsze opłacone zamówienie;
+  ograniczenia pozostają po stronie serwera w quote/purchase policy;
+- publiczny katalog ukrywa produkty wyróżnienia, gdy niezależna feature flaga
+  wyróżnień jest wyłączona.
+
+Pozostaje dopracować rotację ofert w tym samym tierze, komunikaty o końcu
+wyróżnienia oraz testy pełnego przepływu UI z przekierowaniem do checkoutu.
 
 ### Etap 7 — kampanie i kody promocyjne
 

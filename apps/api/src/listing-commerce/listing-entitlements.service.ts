@@ -18,7 +18,9 @@ import {
 import { Listing } from '../listings/entities';
 import { PublicListingSubmission } from '../public-listing-submissions/entities';
 import type { ListingOrderFulfillmentContract } from './contracts';
+import type { ListingEntitlementContract } from './contracts';
 import { ListingEntitlement, ListingOrder } from './entities';
+import { toListingEntitlementContract } from './listing-entitlement.presenter';
 import { getEntitlementTypeForProduct } from './listing-commerce.policy';
 import {
   ListingEntitlementSource,
@@ -37,6 +39,31 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 @Injectable()
 export class ListingEntitlementsService {
   constructor(private readonly dataSource: DataSource) {}
+
+  async findOwnedForListing(
+    buyerUserId: string,
+    listingId: string,
+  ): Promise<ListingEntitlementContract[]> {
+    const listing = await this.dataSource.getRepository(Listing).findOne({
+      where: { id: listingId, ownerUserId: buyerUserId },
+      select: { id: true },
+    });
+    if (!listing) throw new NotFoundException('Ogłoszenie nie istnieje');
+
+    const entitlements = await this.dataSource
+      .getRepository(ListingEntitlement)
+      .find({
+        where: {
+          listingId,
+          status: In([
+            ListingEntitlementStatus.SCHEDULED,
+            ListingEntitlementStatus.ACTIVE,
+          ]),
+        },
+        order: { startsAt: 'ASC' },
+      });
+    return entitlements.map(toListingEntitlementContract);
+  }
 
   /**
    * Advances scheduled benefits and expires benefits whose period has ended.

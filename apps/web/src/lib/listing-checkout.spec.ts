@@ -4,6 +4,7 @@ import {
   createListingCheckoutSession,
   createListingOrder,
   createListingQuote,
+  fetchListingEntitlementsForListing,
   fetchListingOrder,
   fetchListingOrdersForListing,
   findCurrentPayableOrder,
@@ -62,6 +63,7 @@ describe('listing checkout HTTP client', () => {
 
     await fetchListingOrder('order/1');
     await fetchListingOrdersForListing('listing/1');
+    await fetchListingEntitlementsForListing('listing/1');
     await createListingCheckoutSession('order/1');
 
     expect(apiFetchMock).toHaveBeenNthCalledWith(
@@ -74,6 +76,10 @@ describe('listing checkout HTTP client', () => {
     );
     expect(apiFetchMock).toHaveBeenNthCalledWith(
       3,
+      '/listing-entitlements/by-listing/listing%2F1',
+    );
+    expect(apiFetchMock).toHaveBeenNthCalledWith(
+      4,
       '/listing-orders/order%2F1/checkout-session',
       { method: 'POST' },
     );

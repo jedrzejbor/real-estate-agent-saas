@@ -86,4 +86,24 @@ describe('ListingProductsService', () => {
     expect(products[0]).not.toHaveProperty('priorityWeight');
     expect(products[0]).not.toHaveProperty('fulfillmentParameters');
   });
+
+  it('hides featured products until the independent rollout flag is enabled', async () => {
+    const featured = buildProduct({
+      id: '22222222-2222-4222-8222-222222222222',
+      code: 'featured_7_days',
+      name: 'Wyróżnienie ogłoszenia',
+      type: ListingProductType.FEATURED,
+      durationDays: 7,
+      featuredTier: 'standard',
+      priorityWeight: 100,
+    });
+    const productRepo = { find: jest.fn().mockResolvedValue([featured]) };
+    const flags = { privateListingPricingEnabled: true, privateListingFeaturedEnabled: false };
+    const releaseFlagsService = { getFlags: jest.fn().mockReturnValue(flags) };
+    const service = new ListingProductsService(productRepo as never, releaseFlagsService as never);
+
+    await expect(service.findPublicProducts()).resolves.toEqual([]);
+    flags.privateListingFeaturedEnabled = true;
+    await expect(service.findPublicProducts()).resolves.toHaveLength(1);
+  });
 });

@@ -1,6 +1,19 @@
 import { apiFetch } from './api-client';
 import type { ListingProductType } from './listing-products';
 
+export type ListingEntitlementType = 'publication' | 'featured';
+export type ListingEntitlementStatus = 'scheduled' | 'active';
+
+export interface ListingEntitlement {
+  id: string;
+  type: ListingEntitlementType;
+  status: ListingEntitlementStatus;
+  tier: string | null;
+  sourceType: 'order_item' | 'admin_grant' | 'migration';
+  startsAt: string;
+  endsAt: string;
+}
+
 export type ListingOrderStatus =
   | 'draft'
   | 'pending_payment'
@@ -140,6 +153,14 @@ export function fetchListingOrdersForListing(
 ): Promise<ListingOrder[]> {
   return apiFetch<ListingOrder[]>(
     `/listing-orders/by-listing/${encodeURIComponent(listingId)}`,
+  );
+}
+
+export function fetchListingEntitlementsForListing(
+  listingId: string,
+): Promise<ListingEntitlement[]> {
+  return apiFetch<ListingEntitlement[]>(
+    `/listing-entitlements/by-listing/${encodeURIComponent(listingId)}`,
   );
 }
 

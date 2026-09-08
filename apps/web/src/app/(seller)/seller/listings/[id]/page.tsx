@@ -321,6 +321,8 @@ export default function SellerListingDetailPage() {
             <SellerListingCheckoutPanel
               listingId={submission.publishedListingId}
               ownerName={submission.ownerName}
+              isPublished={isPublished}
+              isExpired={isExpired}
             />
           ) : null}
 
