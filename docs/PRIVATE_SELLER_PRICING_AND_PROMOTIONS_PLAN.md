@@ -1376,8 +1376,8 @@ wielokrotnie. Nie istnieje ścieżka publikacji oparta wyłącznie o dane fronte
 - [ ] Uniemożliwić zakup wyróżnienia dla cudzej, odrzuconej lub wygasłej oferty
   bez jednoczesnego odnowienia.
 - [ ] Określić zachowanie ponownego zakupu przed zakończeniem aktywnego okresu.
-- [ ] Dodać automatyczne wygasanie oraz przypomnienia (wygasanie zrealizowane,
-  przypomnienia pozostają do wykonania).
+- [ ] Dodać automatyczne wygasanie oraz przypomnienia (wygasanie i komunikaty w
+  panelu zrealizowane, automatyczne przypomnienia pozostają do wykonania).
 - [x] Zmigrować użycie `isPremium` albo jasno ograniczyć je do
   cache/kompatybilności.
 - [ ] Dodać testy nakładających się okresów, ponowionych webhooków oraz
@@ -1426,7 +1426,7 @@ Zakres odczytu entitlementów i akcji zakupu w panelu został zrealizowany.
 - jawne sorty użytkownika, np. cena i metraż, nadal działają po priorytecie
   wyróżnienia i dziennej rotacji.
 
-Pozostają komunikaty o końcu wyróżnienia oraz testy pełnego przepływu UI z
+Pozostają automatyczne przypomnienia oraz testy pełnego przepływu UI z
 przekierowaniem do checkoutu.
 
 #### Iteracja 6.4 — legacy `isPremium` jako cache (2026-09-09)
@@ -1439,6 +1439,18 @@ przekierowaniem do checkoutu.
   ostatniego aktywnego wyróżnienia czyści cache do `false`;
 - publiczny katalog nie używa `isPremium` do rankingu, tylko aktywnych
   entitlementów i ich `priorityWeight`.
+
+#### Iteracja 6.5 — komunikaty końca publikacji i wyróżnienia (2026-09-09)
+
+- dodano czysty helper frontendowy budujący stan lifecycle z aktywnych i
+  zaplanowanych entitlementów;
+- panel usług sprzedającego pokazuje datę końca aktywnej publikacji,
+  ostrzeżenie na 7 dni przed końcem publikacji oraz informację o zaplanowanym
+  odnowieniu;
+- panel pokazuje aktywne wyróżnienie, ostrzeżenie na 2 dni przed końcem oraz
+  zaplanowany kolejny okres wyróżnienia;
+- progi i wybór najbliższego zaplanowanego okresu są pokryte testami
+  jednostkowymi bez zależności od DOM.
 
 ### Etap 7 — kampanie i kody promocyjne
 

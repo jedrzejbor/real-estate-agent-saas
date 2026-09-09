@@ -1,8 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { CheckCircle2, Clock3, CreditCard, Loader2 } from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import {
+  AlertTriangle,
+  CalendarClock,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  Loader2,
+} from 'lucide-react';
 import { getApiErrorMessage } from '@/lib/api-client';
+import { getListingEntitlementLifecycle } from '@/lib/listing-entitlement-lifecycle';
 import {
   canStartListingCheckout,
   createListingCheckoutSession,
@@ -62,7 +76,12 @@ export function SellerListingCheckoutPanel({
       setProducts(availableProducts);
       setOrders(orderHistory);
       setEntitlements(lifecycle);
-      setSelectedCode((current) => current || getDefaultProductCode(availableProducts, isPublished, isExpired) || '');
+      setSelectedCode(
+        (current) =>
+          current ||
+          getDefaultProductCode(availableProducts, isPublished, isExpired) ||
+          '',
+      );
     } catch (cause) {
       setError(getApiErrorMessage(cause));
     } finally {
@@ -98,6 +117,7 @@ export function SellerListingCheckoutPanel({
       ),
   );
   const summary = payableOrder?.pricingSnapshot ?? quote;
+  const lifecycle = getListingEntitlementLifecycle(entitlements);
 
   useEffect(() => {
     if (payableOrder || !purchasableProducts.length) return;
@@ -120,9 +140,7 @@ export function SellerListingCheckoutPanel({
     setIsQuoting(true);
     setError(null);
 
-    createListingQuote(listingId, [
-      { productCode: selectedCode, quantity: 1 },
-    ])
+    createListingQuote(listingId, [{ productCode: selectedCode, quantity: 1 }])
       .then((result) => {
         if (!cancelled) setQuote(result);
       })
@@ -169,7 +187,9 @@ export function SellerListingCheckoutPanel({
 
       const session = await createListingCheckoutSession(order.id);
       if (!isStripeCheckoutUrl(session.checkoutUrl)) {
-        throw new Error('Operator płatności zwrócił nieprawidłowy adres przekierowania.');
+        throw new Error(
+          'Operator płatności zwrócił nieprawidłowy adres przekierowania.',
+        );
       }
 
       window.location.assign(session.checkoutUrl);
@@ -204,9 +224,12 @@ export function SellerListingCheckoutPanel({
     return (
       <CheckoutShell>
         <p className="text-sm leading-6 text-muted-foreground">
-          Obecnie nie ma aktywnego wariantu publikacji. Wróć później lub skontaktuj się z obsługą.
+          Obecnie nie ma aktywnego wariantu publikacji. Wróć później lub
+          skontaktuj się z obsługą.
         </p>
-        {error ? <CheckoutError message={error} onRetry={loadCheckout} /> : null}
+        {error ? (
+          <CheckoutError message={error} onRetry={loadCheckout} />
+        ) : null}
       </CheckoutShell>
     );
   }
@@ -214,15 +237,21 @@ export function SellerListingCheckoutPanel({
   return (
     <CheckoutShell>
       <p className="text-sm leading-6 text-muted-foreground">
-        Wybierz usługę dla ogłoszenia. Aktualny status jest weryfikowany przez serwer.
+        Wybierz usługę dla ogłoszenia. Aktualny status jest weryfikowany przez
+        serwer.
       </p>
 
       {hasCompletedPublication ? (
         <div className="mt-3 flex items-start gap-3 rounded-xl bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
-          <p>Publikacja została opłacona. Możesz dokupić odnowienie lub wyróżnienie.</p>
+          <p>
+            Publikacja została opłacona. Możesz dokupić odnowienie lub
+            wyróżnienie.
+          </p>
         </div>
       ) : null}
+
+      <EntitlementLifecycleSummary lifecycle={lifecycle} />
 
       {!payableOrder && purchasableProducts.length > 1 ? (
         <fieldset className="mt-4 grid gap-2">
@@ -241,10 +270,15 @@ export function SellerListingCheckoutPanel({
                 className="mt-1"
               />
               <span className="min-w-0">
-                <span className="block text-sm font-semibold">{product.name}</span>
+                <span className="block text-sm font-semibold">
+                  {product.name}
+                </span>
                 <span className="block text-xs text-muted-foreground">
                   {product.durationDays} dni ·{' '}
-                  {formatListingProductPrice(product.priceGrossAmount, product.currency)}
+                  {formatListingProductPrice(
+                    product.priceGrossAmount,
+                    product.currency,
+                  )}
                 </span>
               </span>
             </label>
@@ -261,26 +295,43 @@ export function SellerListingCheckoutPanel({
         ) : (
           <>
             {summary.items.map((item) => (
-              <div key={item.productCode} className="flex justify-between gap-3 text-sm">
+              <div
+                key={item.productCode}
+                className="flex justify-between gap-3 text-sm"
+              >
                 <span>
                   {item.productName}
-                  <span className="block text-xs text-muted-foreground">{item.durationDays} dni</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {item.durationDays} dni
+                  </span>
                 </span>
                 <span className="font-medium">
-                  {formatListingProductPrice(item.totalGrossAmount, summary.currency)}
+                  {formatListingProductPrice(
+                    item.totalGrossAmount,
+                    summary.currency,
+                  )}
                 </span>
               </div>
             ))}
             {summary.discountGrossAmount > 0 ? (
               <div className="mt-3 flex justify-between border-t border-border pt-3 text-sm text-emerald-700 dark:text-emerald-300">
                 <span>Rabat</span>
-                <span>−{formatListingProductPrice(summary.discountGrossAmount, summary.currency)}</span>
+                <span>
+                  −
+                  {formatListingProductPrice(
+                    summary.discountGrossAmount,
+                    summary.currency,
+                  )}
+                </span>
               </div>
             ) : null}
             <div className="mt-3 flex items-end justify-between gap-3 border-t border-border pt-3">
               <span className="text-sm font-semibold">Razem brutto</span>
               <span className="text-xl font-bold">
-                {formatListingProductPrice(summary.totalGrossAmount, summary.currency)}
+                {formatListingProductPrice(
+                  summary.totalGrossAmount,
+                  summary.currency,
+                )}
               </span>
             </div>
           </>
@@ -289,7 +340,8 @@ export function SellerListingCheckoutPanel({
 
       {payableOrder?.status === 'payment_failed' ? (
         <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
-          Poprzednia próba nie powiodła się. Możesz bezpiecznie ponowić płatność.
+          Poprzednia próba nie powiodła się. Możesz bezpiecznie ponowić
+          płatność.
         </p>
       ) : null}
 
@@ -322,12 +374,120 @@ export function SellerListingCheckoutPanel({
   );
 }
 
+function EntitlementLifecycleSummary({
+  lifecycle,
+}: {
+  lifecycle: ReturnType<typeof getListingEntitlementLifecycle>;
+}) {
+  const items: ReactNode[] = [];
+
+  if (lifecycle.activePublication) {
+    items.push(
+      <LifecycleNotice
+        key="active-publication"
+        tone={lifecycle.publicationEndsSoon ? 'warning' : 'success'}
+        icon={lifecycle.publicationEndsSoon ? AlertTriangle : CalendarClock}
+        title={
+          lifecycle.publicationEndsSoon
+            ? 'Publikacja kończy się niedługo'
+            : 'Publikacja jest aktywna'
+        }
+        description={
+          lifecycle.publicationEndsSoon
+            ? `Zostało ${formatDays(lifecycle.publicationDaysRemaining)}. Możesz już kupić odnowienie, żeby ogłoszenie nie zniknęło z portalu.`
+            : `Ogłoszenie jest widoczne do ${formatDate(lifecycle.activePublication.endsAt)}.`
+        }
+      />,
+    );
+  }
+
+  if (lifecycle.scheduledPublication) {
+    items.push(
+      <LifecycleNotice
+        key="scheduled-publication"
+        tone="info"
+        icon={CalendarClock}
+        title="Odnowienie jest zaplanowane"
+        description={`Kolejny okres publikacji startuje ${formatDate(lifecycle.scheduledPublication.startsAt)} i potrwa do ${formatDate(lifecycle.scheduledPublication.endsAt)}.`}
+      />,
+    );
+  }
+
+  if (lifecycle.activeFeatured) {
+    items.push(
+      <LifecycleNotice
+        key="active-featured"
+        tone={lifecycle.featuredEndsSoon ? 'warning' : 'success'}
+        icon={lifecycle.featuredEndsSoon ? AlertTriangle : CheckCircle2}
+        title={
+          lifecycle.featuredEndsSoon
+            ? 'Wyróżnienie kończy się niedługo'
+            : 'Wyróżnienie jest aktywne'
+        }
+        description={
+          lifecycle.featuredEndsSoon
+            ? `Zostało ${formatDays(lifecycle.featuredDaysRemaining)} wyróżnienia. Po tym czasie oferta wróci do zwykłej kolejności.`
+            : `Oferta jest wyróżniona do ${formatDate(lifecycle.activeFeatured.endsAt)}.`
+        }
+      />,
+    );
+  }
+
+  if (lifecycle.scheduledFeatured) {
+    items.push(
+      <LifecycleNotice
+        key="scheduled-featured"
+        tone="info"
+        icon={CalendarClock}
+        title="Kolejne wyróżnienie jest zaplanowane"
+        description={`Startuje ${formatDate(lifecycle.scheduledFeatured.startsAt)} i potrwa do ${formatDate(lifecycle.scheduledFeatured.endsAt)}.`}
+      />,
+    );
+  }
+
+  if (!items.length) return null;
+
+  return <div className="mt-4 grid gap-2">{items}</div>;
+}
+
+function LifecycleNotice({
+  tone,
+  icon: Icon,
+  title,
+  description,
+}: {
+  tone: 'info' | 'success' | 'warning';
+  icon: typeof CalendarClock;
+  title: string;
+  description: string;
+}) {
+  const toneClassName = {
+    info: 'bg-primary/10 text-primary',
+    success: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+    warning: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
+  }[tone];
+
+  return (
+    <div
+      className={`flex items-start gap-3 rounded-xl p-3 text-sm ${toneClassName}`}
+    >
+      <Icon className="mt-0.5 h-5 w-5 shrink-0" />
+      <div className="min-w-0">
+        <p className="font-semibold">{title}</p>
+        <p className="mt-1 leading-6">{description}</p>
+      </div>
+    </div>
+  );
+}
+
 function CheckoutShell({ children }: { children: ReactNode }) {
   return (
     <section className="rounded-2xl border border-primary/30 bg-card p-5 shadow-sm">
       <div className="flex items-center gap-2">
         <CreditCard className="h-5 w-5 text-primary" />
-        <h2 className="font-heading text-lg font-semibold">Usługi ogłoszenia</h2>
+        <h2 className="font-heading text-lg font-semibold">
+          Usługi ogłoszenia
+        </h2>
       </div>
       <div className="mt-3">{children}</div>
     </section>
@@ -344,7 +504,11 @@ function CheckoutError({
   return (
     <div className="mt-3 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
       <p>{message}</p>
-      <button type="button" onClick={() => void onRetry()} className="mt-2 font-semibold underline">
+      <button
+        type="button"
+        onClick={() => void onRetry()}
+        className="mt-2 font-semibold underline"
+      >
         Spróbuj ponownie
       </button>
     </div>
@@ -362,7 +526,23 @@ function getDefaultProductCode(
       : isPublished || isExpired
         ? ListingProductType.RENEWAL
         : ListingProductType.PUBLICATION;
-  return products.find((product) => product.type === preferredType)?.code ?? null;
+  return (
+    products.find((product) => product.type === preferredType)?.code ?? null
+  );
+}
+
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function formatDays(value: number | null): string {
+  const days = value ?? 0;
+  if (days === 1) return '1 dzień';
+  return `${days} dni`;
 }
 
 function OrderHistory({ orders }: { orders: ListingOrder[] }) {
@@ -370,23 +550,32 @@ function OrderHistory({ orders }: { orders: ListingOrder[] }) {
 
   return (
     <details className="mt-5 border-t border-border pt-4">
-      <summary className="cursor-pointer text-sm font-semibold">Historia płatności</summary>
+      <summary className="cursor-pointer text-sm font-semibold">
+        Historia płatności
+      </summary>
       <div className="mt-3 grid gap-2">
         {orders.map((order) => (
           <div key={order.id} className="rounded-xl bg-muted/40 p-3 text-xs">
             <div className="flex items-center justify-between gap-3">
               <span className="font-semibold">{order.orderNumber}</span>
-              <span>{formatListingProductPrice(order.totalGrossAmount, order.currency)}</span>
+              <span>
+                {formatListingProductPrice(
+                  order.totalGrossAmount,
+                  order.currency,
+                )}
+              </span>
             </div>
             <div className="mt-1 flex items-center gap-1.5 text-muted-foreground">
               <Clock3 className="h-3.5 w-3.5" />
-              {formatDateTime(order.createdAt)} · {ORDER_STATUS_LABELS[order.status]}
+              {formatDateTime(order.createdAt)} ·{' '}
+              {ORDER_STATUS_LABELS[order.status]}
             </div>
             {order.paymentAttempts.length ? (
               <ul className="mt-2 space-y-1 border-t border-border pt-2 text-muted-foreground">
                 {order.paymentAttempts.map((attempt) => (
                   <li key={attempt.id}>
-                    Próba {attempt.attemptNumber}: {ATTEMPT_STATUS_LABELS[attempt.status]}
+                    Próba {attempt.attemptNumber}:{' '}
+                    {ATTEMPT_STATUS_LABELS[attempt.status]}
                   </li>
                 ))}
               </ul>
