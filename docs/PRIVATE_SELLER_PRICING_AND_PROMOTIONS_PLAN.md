@@ -1370,9 +1370,8 @@ wielokrotnie. Nie istnieje ścieżka publikacji oparta wyłącznie o dane fronte
 
 - [x] Rozszerzyć serwis entitlementów o wyróżnienie i przedłużenie publikacji.
 - [x] Dodać właściwe produkty wyróżnienia i odnowienia do katalogu.
-- [ ] Podłączyć wyróżnienie do katalogu, mapy i strony oferty (katalog i strona
-  oferty są gotowe; sortowanie mapy pozostaje).
-- [ ] Ustalić sortowanie i rotację w tym samym tierze.
+- [x] Podłączyć wyróżnienie do katalogu, mapy i strony oferty.
+- [x] Ustalić sortowanie i rotację w tym samym tierze.
 - [x] Dodać zakup wyróżnienia i odnowienia z panelu sprzedającego.
 - [ ] Uniemożliwić zakup wyróżnienia dla cudzej, odrzuconej lub wygasłej oferty
   bez jednoczesnego odnowienia.
@@ -1399,8 +1398,7 @@ tego samego kalkulatora, zamówienia i finalizacji płatności co publikacja.
   partii, monitoringiem i postgres advisory lockiem dla wielu instancji API;
 - dodano testy aktywacji, wygasania i automatycznego odpublikowania.
 
-Zakres odczytu entitlementów i akcji zakupu w panelu został zrealizowany;
-następny krok Etapu 6 to rotacja ofert w tym samym tierze oraz przypomnienia.
+Zakres odczytu entitlementów i akcji zakupu w panelu został zrealizowany.
 
 #### Iteracja 6.2 — panel usług i odczyt entitlementów (w toku, 2026-09-08)
 
@@ -1415,8 +1413,20 @@ następny krok Etapu 6 to rotacja ofert w tym samym tierze oraz przypomnienia.
 - publiczny katalog ukrywa produkty wyróżnienia, gdy niezależna feature flaga
   wyróżnień jest wyłączona.
 
-Pozostaje dopracować rotację ofert w tym samym tierze, komunikaty o końcu
-wyróżnienia oraz testy pełnego przepływu UI z przekierowaniem do checkoutu.
+#### Iteracja 6.3 — sortowanie wyróżnień w katalogu publicznym (2026-09-09)
+
+- publiczny katalog i markery mapy używają aktywnych entitlementów
+  `featured` jako pierwszego kryterium sortowania;
+- priorytet pochodzi z `parameters.priorityWeight`, czyli z migawki produktu lub
+  grantu admina, a nie z legacy `Listing.isPremium`;
+- oferty z tym samym priorytetem wyróżnienia rotują deterministycznie raz
+  dziennie po `listing.id` i bieżącej dacie, dzięki czemu paginacja oraz mapa
+  pozostają stabilne w trakcie dnia;
+- jawne sorty użytkownika, np. cena i metraż, nadal działają po priorytecie
+  wyróżnienia i dziennej rotacji.
+
+Pozostają komunikaty o końcu wyróżnienia oraz testy pełnego przepływu UI z
+przekierowaniem do checkoutu.
 
 ### Etap 7 — kampanie i kody promocyjne
 

@@ -47,6 +47,10 @@ import {
   type MatchingReason,
 } from '../matching';
 import {
+  ListingEntitlementStatus,
+  ListingEntitlementType,
+} from '../listing-commerce/listing-commerce.types';
+import {
   calculateListingCommissionAmount,
   normalizeListingCommissionInput,
 } from './listing-commission';
@@ -285,6 +289,9 @@ const PUBLIC_CATALOG_MAX_BBOX_WIDTH_DEGREES = 9;
 const PUBLIC_CATALOG_MAX_BBOX_HEIGHT_DEGREES = 7;
 const PUBLIC_CATALOG_MAX_BBOX_AREA_DEGREES = 36;
 const PUBLIC_LOCATION_APPROXIMATE_POINT_EPSILON = 0.00005;
+const PUBLIC_CATALOG_FEATURED_ROTATION_ALIAS =
+  'public_featured_rotation_key';
+const PUBLIC_CATALOG_FEATURED_WEIGHT_ALIAS = 'public_featured_priority_weight';
 
 const PUBLIC_LOCATION_CENTROIDS: Record<string, PublicLocationPoint> = {
   ...LOCATION_CATALOG.reduce<Record<string, PublicLocationPoint>>(
@@ -2610,38 +2617,78 @@ export class ListingsService {
     qb: SelectQueryBuilder<Listing>,
     sort: PublicListingCatalogSort,
   ): void {
+    this.addPublicFeaturedSortSelects(qb);
+    qb.orderBy(PUBLIC_CATALOG_FEATURED_WEIGHT_ALIAS, 'DESC').addOrderBy(
+      PUBLIC_CATALOG_FEATURED_ROTATION_ALIAS,
+      'ASC',
+    );
+
     switch (sort) {
       case PublicListingCatalogSort.PRICE_ASC:
         this.addPublicPriceSortSelects(qb);
-        qb.orderBy('public_price_sort_missing', 'ASC')
+        qb.addOrderBy('public_price_sort_missing', 'ASC')
           .addOrderBy('public_price_sort_value', 'ASC')
           .addOrderBy('listing.publishedAt', 'DESC');
         break;
       case PublicListingCatalogSort.PRICE_DESC:
         this.addPublicPriceSortSelects(qb);
-        qb.orderBy('public_price_sort_missing', 'ASC')
+        qb.addOrderBy('public_price_sort_missing', 'ASC')
           .addOrderBy('public_price_sort_value', 'DESC')
           .addOrderBy('listing.publishedAt', 'DESC');
         break;
       case PublicListingCatalogSort.AREA_ASC:
         this.addDisplayedAreaSortSelects(qb);
-        qb.orderBy('displayed_area_sort_missing', 'ASC')
+        qb.addOrderBy('displayed_area_sort_missing', 'ASC')
           .addOrderBy('displayed_area_sort_value', 'ASC')
           .addOrderBy('listing.publishedAt', 'DESC');
         break;
       case PublicListingCatalogSort.AREA_DESC:
         this.addDisplayedAreaSortSelects(qb);
-        qb.orderBy('displayed_area_sort_missing', 'ASC')
+        qb.addOrderBy('displayed_area_sort_missing', 'ASC')
           .addOrderBy('displayed_area_sort_value', 'DESC')
           .addOrderBy('listing.publishedAt', 'DESC');
         break;
       case PublicListingCatalogSort.NEWEST:
       default:
-        qb.orderBy('listing.publishedAt', 'DESC');
+        qb.addOrderBy('listing.publishedAt', 'DESC');
         break;
     }
 
     qb.addOrderBy('listing.id', 'DESC');
+  }
+
+  private addPublicFeaturedSortSelects(qb: SelectQueryBuilder<Listing>): void {
+    qb.setParameter(
+      'publicFeaturedEntitlementType',
+      ListingEntitlementType.FEATURED,
+    )
+      .setParameter(
+        'publicFeaturedEntitlementStatus',
+        ListingEntitlementStatus.ACTIVE,
+      )
+      .addSelect(
+        `COALESCE((
+          SELECT MAX(
+            CASE
+              WHEN featured_entitlement.parameters ? 'priorityWeight'
+                AND featured_entitlement.parameters->>'priorityWeight' ~ '^[0-9]+$'
+              THEN (featured_entitlement.parameters->>'priorityWeight')::int
+              ELSE 0
+            END
+          )
+          FROM listing_entitlements featured_entitlement
+          WHERE featured_entitlement.listing_id = listing.id
+            AND featured_entitlement.type = :publicFeaturedEntitlementType
+            AND featured_entitlement.status = :publicFeaturedEntitlementStatus
+            AND featured_entitlement.starts_at <= CURRENT_TIMESTAMP
+            AND featured_entitlement.ends_at > CURRENT_TIMESTAMP
+        ), 0)`,
+        PUBLIC_CATALOG_FEATURED_WEIGHT_ALIAS,
+      )
+      .addSelect(
+        `md5(listing.id::text || CURRENT_DATE::text)`,
+        PUBLIC_CATALOG_FEATURED_ROTATION_ALIAS,
+      );
   }
 
   private addPublicPriceSortSelects(qb: SelectQueryBuilder<Listing>): void {
