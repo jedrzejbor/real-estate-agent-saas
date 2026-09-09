@@ -242,4 +242,51 @@ describe('ListingEntitlementsService', () => {
       lock: { mode: 'pessimistic_write' },
     });
   });
+
+  it('keeps legacy premium cache enabled for an active featured entitlement', async () => {
+    const listing = buildListing({
+      status: ListingStatus.ACTIVE,
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publishedAt: new Date('2026-09-01T10:00:00.000Z'),
+      expiresAt: new Date('2026-11-01T10:00:00.000Z'),
+      isPremium: false,
+    });
+    const order = buildOrder({
+      items: [
+        buildItem({
+          productTypeSnapshot: ListingProductType.FEATURED,
+          durationDays: 7,
+          fulfillmentParameters: {
+            durationDays: 7,
+            featuredTier: 'standard',
+            priorityWeight: 100,
+          },
+        }),
+      ],
+    });
+    const { service, manager } = buildHarness({ listing });
+    const activeFeatured = Object.assign(new ListingEntitlement(), {
+      id: 'entitlement-created',
+      listingId: listing.id,
+      type: ListingEntitlementType.FEATURED,
+      status: ListingEntitlementStatus.ACTIVE,
+      startsAt: fulfilledAt,
+      endsAt: new Date('2026-09-14T10:00:00.000Z'),
+    });
+    manager.findOne.mockImplementation(async (entity: unknown) => {
+      if (entity === Listing) return listing;
+      if (entity === PublicListingSubmission) return buildSubmission();
+      if (entity === ListingEntitlement) return activeFeatured;
+      return null;
+    });
+
+    await service.fulfillPaidOrderInTransaction(
+      manager as unknown as EntityManager,
+      order,
+      fulfilledAt,
+    );
+
+    expect(listing.isPremium).toBe(true);
+    expect(manager.save).toHaveBeenCalledWith(Listing, listing);
+  });
 });

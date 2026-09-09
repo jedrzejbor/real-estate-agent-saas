@@ -102,12 +102,16 @@ export class ListingEntitlementsService {
       let activated = 0;
       let expired = 0;
       const changed: ListingEntitlement[] = [];
+      const featuredListingIdsToSync = new Set<string>();
       for (const entitlement of due.values()) {
         if (entitlement.endsAt.getTime() <= now.getTime()) {
           if (entitlement.status !== ListingEntitlementStatus.EXPIRED) {
             entitlement.status = ListingEntitlementStatus.EXPIRED;
             expired += 1;
             changed.push(entitlement);
+            if (entitlement.type === ListingEntitlementType.FEATURED) {
+              featuredListingIdsToSync.add(entitlement.listingId);
+            }
           }
           continue;
         }
@@ -118,10 +122,18 @@ export class ListingEntitlementsService {
           entitlement.status = ListingEntitlementStatus.ACTIVE;
           activated += 1;
           changed.push(entitlement);
+          if (entitlement.type === ListingEntitlementType.FEATURED) {
+            featuredListingIdsToSync.add(entitlement.listingId);
+          }
         }
       }
 
       if (changed.length) await manager.save(ListingEntitlement, changed);
+      await this.syncPremiumCacheForListings(
+        manager,
+        featuredListingIdsToSync,
+        now,
+      );
       await this.unpublishListingsWithoutActivePublication(manager, now);
       return { activated, expired };
     });
@@ -181,6 +193,7 @@ export class ListingEntitlementsService {
       existing.map((entitlement) => entitlement.orderItemId),
     );
     const created: ListingEntitlement[] = [];
+    const featuredListingIdsToSync = new Set<string>();
     for (const item of order.items) {
       if (existingItemIds.has(item.id)) continue;
 
@@ -229,7 +242,16 @@ export class ListingEntitlementsService {
           fulfilledAt,
         );
       }
+      if (entitlementType === ListingEntitlementType.FEATURED) {
+        featuredListingIdsToSync.add(listing.id);
+      }
     }
+
+    await this.syncPremiumCacheForListings(
+      manager,
+      featuredListingIdsToSync,
+      fulfilledAt,
+    );
 
     order.metadata = {
       ...order.metadata,
@@ -312,7 +334,9 @@ export class ListingEntitlementsService {
       order: { endsAt: 'DESC' },
       take: 500,
     });
-    const listingIds = [...new Set(expiredPublicationListings.map((e) => e.listingId))];
+    const listingIds = [
+      ...new Set(expiredPublicationListings.map((e) => e.listingId)),
+    ];
     for (const listingId of listingIds) {
       const active = await manager.findOne(ListingEntitlement, {
         where: {
@@ -327,9 +351,43 @@ export class ListingEntitlementsService {
         where: { id: listingId },
         lock: { mode: 'pessimistic_write' },
       });
-      if (!listing || listing.publicationStatus !== ListingPublicationStatus.PUBLISHED) continue;
+      if (
+        !listing ||
+        listing.publicationStatus !== ListingPublicationStatus.PUBLISHED
+      ) {
+        continue;
+      }
       listing.publicationStatus = ListingPublicationStatus.UNPUBLISHED;
       listing.unpublishedAt = now;
+      await manager.save(Listing, listing);
+    }
+  }
+
+  private async syncPremiumCacheForListings(
+    manager: EntityManager,
+    listingIds: Iterable<string>,
+    now: Date,
+  ): Promise<void> {
+    for (const listingId of new Set(listingIds)) {
+      const activeFeatured = await manager.findOne(ListingEntitlement, {
+        where: {
+          listingId,
+          type: ListingEntitlementType.FEATURED,
+          status: ListingEntitlementStatus.ACTIVE,
+          startsAt: LessThanOrEqual(now),
+          endsAt: MoreThan(now),
+        },
+      });
+      const listing = await manager.findOne(Listing, {
+        where: { id: listingId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!listing) continue;
+
+      const shouldBePremium = Boolean(activeFeatured);
+      if (listing.isPremium === shouldBePremium) continue;
+
+      listing.isPremium = shouldBePremium;
       await manager.save(Listing, listing);
     }
   }

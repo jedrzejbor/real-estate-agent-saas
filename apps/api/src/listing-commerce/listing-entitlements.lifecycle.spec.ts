@@ -1,5 +1,6 @@
 import { DataSource, EntityManager } from 'typeorm';
 import { ListingPublicationStatus } from '../common/enums';
+import { Listing } from '../listings/entities';
 import { ListingEntitlement } from './entities';
 import { ListingEntitlementsService } from './listing-entitlements.service';
 import {
@@ -89,5 +90,45 @@ describe('ListingEntitlementsService lifecycle', () => {
     expect(listing.publicationStatus).toBe(ListingPublicationStatus.UNPUBLISHED);
     expect(listing.unpublishedAt).toBe(now);
     expect(manager.save).toHaveBeenCalledWith(expect.anything(), listing);
+  });
+
+  it('clears legacy premium cache after the last active featured entitlement expires', async () => {
+    const now = new Date('2026-09-07T12:00:00.000Z');
+    const ended = Object.assign(new ListingEntitlement(), {
+      id: 'featured-ended',
+      listingId: 'listing-1',
+      type: ListingEntitlementType.FEATURED,
+      status: ListingEntitlementStatus.ACTIVE,
+      startsAt: new Date('2026-08-31T12:00:00.000Z'),
+      endsAt: new Date('2026-09-07T11:00:00.000Z'),
+    });
+    const listing = {
+      id: 'listing-1',
+      isPremium: true,
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      unpublishedAt: null,
+    };
+    const manager = {
+      find: jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([ended])
+        .mockResolvedValueOnce([]),
+      findOne: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(listing),
+      save: jest.fn().mockResolvedValue(listing),
+    };
+    const service = new ListingEntitlementsService({
+      transaction: (callback: (tx: EntityManager) => unknown) =>
+        callback(manager as unknown as EntityManager),
+    } as unknown as DataSource);
+
+    await service.processDueEntitlements(now);
+
+    expect(ended.status).toBe(ListingEntitlementStatus.EXPIRED);
+    expect(listing.isPremium).toBe(false);
+    expect(manager.save).toHaveBeenCalledWith(Listing, listing);
   });
 });

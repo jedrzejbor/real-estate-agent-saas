@@ -1378,7 +1378,8 @@ wielokrotnie. Nie istnieje ścieżka publikacji oparta wyłącznie o dane fronte
 - [ ] Określić zachowanie ponownego zakupu przed zakończeniem aktywnego okresu.
 - [ ] Dodać automatyczne wygasanie oraz przypomnienia (wygasanie zrealizowane,
   przypomnienia pozostają do wykonania).
-- [ ] Zmigrować użycie `isPremium` albo jasno ograniczyć je do cache/kompatybilności.
+- [x] Zmigrować użycie `isPremium` albo jasno ograniczyć je do
+  cache/kompatybilności.
 - [ ] Dodać testy nakładających się okresów, ponowionych webhooków oraz
   wygasania entitlementów.
 
@@ -1427,6 +1428,17 @@ Zakres odczytu entitlementów i akcji zakupu w panelu został zrealizowany.
 
 Pozostają komunikaty o końcu wyróżnienia oraz testy pełnego przepływu UI z
 przekierowaniem do checkoutu.
+
+#### Iteracja 6.4 — legacy `isPremium` jako cache (2026-09-09)
+
+- `listing_entitlements` pozostaje źródłem prawdy dla płatnego wyróżnienia,
+  okresu obowiązywania i priorytetu;
+- `Listing.isPremium` jest utrzymywane wyłącznie jako cache kompatybilności dla
+  starszych widoków, list CRM i mechanizmów retencji limitów agencji;
+- aktywne entitlementy `featured` ustawiają cache na `true`, a wygaśnięcie
+  ostatniego aktywnego wyróżnienia czyści cache do `false`;
+- publiczny katalog nie używa `isPremium` do rankingu, tylko aktywnych
+  entitlementów i ich `priorityWeight`.
 
 ### Etap 7 — kampanie i kody promocyjne
 
