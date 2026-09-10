@@ -1376,8 +1376,9 @@ wielokrotnie. Nie istnieje ścieżka publikacji oparta wyłącznie o dane fronte
 - [ ] Uniemożliwić zakup wyróżnienia dla cudzej, odrzuconej lub wygasłej oferty
   bez jednoczesnego odnowienia.
 - [ ] Określić zachowanie ponownego zakupu przed zakończeniem aktywnego okresu.
-- [ ] Dodać automatyczne wygasanie oraz przypomnienia (wygasanie i komunikaty w
-  panelu zrealizowane, automatyczne przypomnienia pozostają do wykonania).
+- [ ] Dodać automatyczne wygasanie oraz przypomnienia (wygasanie, komunikaty w
+  panelu i automatyczny email dla wyróżnienia zrealizowane; automatyzacja
+  starego 7-dniowego przypomnienia publikacji pozostaje do decyzji).
 - [x] Zmigrować użycie `isPremium` albo jasno ograniczyć je do
   cache/kompatybilności.
 - [ ] Dodać testy nakładających się okresów, ponowionych webhooków oraz
@@ -1426,7 +1427,8 @@ Zakres odczytu entitlementów i akcji zakupu w panelu został zrealizowany.
 - jawne sorty użytkownika, np. cena i metraż, nadal działają po priorytecie
   wyróżnienia i dziennej rotacji.
 
-Pozostają automatyczne przypomnienia oraz testy pełnego przepływu UI z
+Pozostaje decyzja, czy stary 7-dniowy email publikacji ma zostać ręcznym
+admin endpointem, czy wejść do schedulera, oraz testy pełnego przepływu UI z
 przekierowaniem do checkoutu.
 
 #### Iteracja 6.4 — legacy `isPremium` jako cache (2026-09-09)
@@ -1451,6 +1453,19 @@ przekierowaniem do checkoutu.
   zaplanowany kolejny okres wyróżnienia;
 - progi i wybór najbliższego zaplanowanego okresu są pokryte testami
   jednostkowymi bez zależności od DOM.
+
+#### Iteracja 6.6 — automatyczny email końca wyróżnienia (2026-09-09)
+
+- `ListingEntitlementsService` wysyła email do właściciela oferty, gdy aktywne
+  wyróżnienie kończy się w oknie 2 dni;
+- wysyłka jest idempotentna per entitlement i data końca dzięki zapisowi
+  `parameters.featuredExpiryReminder2Days`;
+- lifecycle scheduler po aktywacji/wygaszaniu entitlementów wywołuje także
+  przypomnienia wyróżnień w tej samej blokadzie advisory lock;
+- monitoring przebiegu schedulera raportuje liczbę wysłanych i pominiętych
+  przypomnień;
+- istniejący email 7 dni przed końcem publikacji nadal działa przez obecny
+  admin endpoint `POST /api/admin/listing-submissions/expiring-reminders`.
 
 ### Etap 7 — kampanie i kody promocyjne
 

@@ -1,8 +1,11 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   DataSource,
   EntityManager,
@@ -15,6 +18,7 @@ import {
   ListingStatus,
   PublicListingSubmissionStatus,
 } from '../common/enums';
+import { EmailService } from '../email';
 import { Listing } from '../listings/entities';
 import { PublicListingSubmission } from '../public-listing-submissions/entities';
 import type { ListingOrderFulfillmentContract } from './contracts';
@@ -35,10 +39,19 @@ const ACTIVE_ENTITLEMENT_STATUSES = [
   ListingEntitlementStatus.SCHEDULED,
 ] as const;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const FEATURED_EXPIRY_REMINDER_DAYS = 2;
 
 @Injectable()
 export class ListingEntitlementsService {
-  constructor(private readonly dataSource: DataSource) {}
+  private readonly logger = new Logger(ListingEntitlementsService.name);
+
+  constructor(
+    private readonly dataSource: DataSource,
+    @Optional()
+    private readonly emailService?: EmailService,
+    @Optional()
+    private readonly configService?: ConfigService,
+  ) {}
 
   async findOwnedForListing(
     buyerUserId: string,
@@ -151,6 +164,75 @@ export class ListingEntitlementsService {
       });
       if (!order) throw new NotFoundException('Zamówienie nie istnieje');
       return this.fulfillPaidOrderInTransaction(manager, order, fulfilledAt);
+    });
+  }
+
+  async sendFeaturedExpiryReminders(
+    now = new Date(),
+    batchSize = 250,
+  ): Promise<{ processed: number; sent: number; skipped: number }> {
+    const windowEnd = new Date(
+      now.getTime() + FEATURED_EXPIRY_REMINDER_DAYS * DAY_MS,
+    );
+
+    return this.dataSource.transaction(async (manager) => {
+      const entitlements = await manager.find(ListingEntitlement, {
+        where: {
+          type: ListingEntitlementType.FEATURED,
+          status: ListingEntitlementStatus.ACTIVE,
+          endsAt: LessThanOrEqual(windowEnd),
+        },
+        relations: ['listing', 'listing.ownerUser'],
+        order: { endsAt: 'ASC' },
+        take: batchSize,
+        lock: { mode: 'pessimistic_write' },
+      });
+      const candidates = entitlements.filter(
+        (entitlement) => entitlement.endsAt.getTime() > now.getTime(),
+      );
+
+      let sent = 0;
+      let skipped = 0;
+
+      for (const entitlement of candidates) {
+        if (
+          hasSentFeaturedExpiryReminder(
+            entitlement.parameters,
+            entitlement.endsAt,
+          )
+        ) {
+          skipped += 1;
+          continue;
+        }
+
+        const listing = entitlement.listing;
+        const ownerEmail = listing?.ownerUser?.email;
+        if (!listing || !ownerEmail) {
+          skipped += 1;
+          continue;
+        }
+
+        await this.sendFeaturedExpiryReminderEmail({
+          to: ownerEmail,
+          listingTitle: listing.publicTitle || listing.title,
+          endsAt: entitlement.endsAt,
+        });
+        entitlement.parameters = {
+          ...entitlement.parameters,
+          featuredExpiryReminder2Days: {
+            sentAt: now.toISOString(),
+            endsAt: entitlement.endsAt.toISOString(),
+          },
+        };
+        await manager.save(ListingEntitlement, entitlement);
+        sent += 1;
+      }
+
+      return {
+        processed: candidates.length,
+        sent,
+        skipped,
+      };
     });
   }
 
@@ -391,6 +473,61 @@ export class ListingEntitlementsService {
       await manager.save(Listing, listing);
     }
   }
+
+  private async sendFeaturedExpiryReminderEmail(input: {
+    to: string;
+    listingTitle: string;
+    endsAt: Date;
+  }): Promise<void> {
+    if (!this.emailService) {
+      this.logger.warn(
+        `Skipping featured expiry reminder for "${input.listingTitle}": email service is unavailable`,
+      );
+      return;
+    }
+
+    const sellerUrl = this.buildFrontendUrl('/seller');
+    await this.emailService.send({
+      to: input.to,
+      subject: 'Wyróżnienie ogłoszenia kończy się za 2 dni',
+      text: [
+        `Wyróżnienie ogłoszenia "${input.listingTitle}" kończy się za 2 dni, ${formatDateForEmail(input.endsAt)}.`,
+        '',
+        'Po tym czasie oferta wróci do standardowej kolejności w katalogu.',
+        '',
+        `Możesz przedłużyć wyróżnienie w panelu właściciela: ${sellerUrl}`,
+      ].join('\n'),
+    });
+  }
+
+  private buildFrontendUrl(path: string): string {
+    const frontendUrl = this.configService?.get(
+      'FRONTEND_URL',
+      'http://localhost:3000',
+    );
+    const normalizedFrontendUrl = String(frontendUrl).replace(/\/+$/, '');
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+    return `${normalizedFrontendUrl}${normalizedPath}`;
+  }
+}
+
+function hasSentFeaturedExpiryReminder(
+  parameters: Record<string, unknown> | null | undefined,
+  endsAt: Date,
+): boolean {
+  const reminder = parameters?.featuredExpiryReminder2Days;
+  if (typeof reminder !== 'object' || reminder === null) return false;
+
+  return (reminder as { endsAt?: unknown }).endsAt === endsAt.toISOString();
+}
+
+function formatDateForEmail(value: Date): string {
+  return new Intl.DateTimeFormat('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(value);
 }
 
 function getEntitlementStart(

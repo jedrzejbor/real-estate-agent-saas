@@ -7,11 +7,7 @@ import {
 } from '../common/enums';
 import { Listing } from '../listings/entities';
 import { PublicListingSubmission } from '../public-listing-submissions/entities';
-import {
-  ListingEntitlement,
-  ListingOrder,
-  ListingOrderItem,
-} from './entities';
+import { ListingEntitlement, ListingOrder, ListingOrderItem } from './entities';
 import { ListingEntitlementsService } from './listing-entitlements.service';
 import {
   ListingEntitlementSource,
@@ -137,16 +133,10 @@ describe('ListingEntitlementsService', () => {
       orderItemId: 'item-1',
       startsAt: fulfilledAt,
     });
-    expect(entitlement.endsAt.toISOString()).toBe(
-      '2026-11-06T10:00:00.000Z',
-    );
+    expect(entitlement.endsAt.toISOString()).toBe('2026-11-06T10:00:00.000Z');
     expect(listing.status).toBe(ListingStatus.ACTIVE);
-    expect(listing.publicationStatus).toBe(
-      ListingPublicationStatus.PUBLISHED,
-    );
-    expect(listing.expiresAt?.toISOString()).toBe(
-      '2026-11-06T10:00:00.000Z',
-    );
+    expect(listing.publicationStatus).toBe(ListingPublicationStatus.PUBLISHED);
+    expect(listing.expiresAt?.toISOString()).toBe('2026-11-06T10:00:00.000Z');
     expect(submission.status).toBe(PublicListingSubmissionStatus.PUBLISHED);
     expect(order.metadata.fulfilledAt).toBe(fulfilledAt.toISOString());
   });
@@ -223,9 +213,7 @@ describe('ListingEntitlementsService', () => {
     )?.[1] as ListingEntitlement;
     expect(entitlement.status).toBe(ListingEntitlementStatus.SCHEDULED);
     expect(entitlement.startsAt).toEqual(currentEnd);
-    expect(entitlement.endsAt.toISOString()).toBe(
-      '2026-11-30T10:00:00.000Z',
-    );
+    expect(entitlement.endsAt.toISOString()).toBe('2026-11-30T10:00:00.000Z');
     expect(listing.expiresAt).toEqual(entitlement.endsAt);
   });
 
@@ -288,5 +276,100 @@ describe('ListingEntitlementsService', () => {
 
     expect(listing.isPremium).toBe(true);
     expect(manager.save).toHaveBeenCalledWith(Listing, listing);
+  });
+
+  it('sends 2-day featured expiry reminders once per entitlement end date', async () => {
+    const now = new Date('2026-09-12T10:00:00.000Z');
+    const endsAt = new Date('2026-09-14T09:00:00.000Z');
+    const entitlement = Object.assign(new ListingEntitlement(), {
+      id: 'featured-ending',
+      type: ListingEntitlementType.FEATURED,
+      status: ListingEntitlementStatus.ACTIVE,
+      startsAt: new Date('2026-09-07T10:00:00.000Z'),
+      endsAt,
+      parameters: { featuredTier: 'standard', priorityWeight: 100 },
+      listing: buildListing({
+        title: 'Mieszkanie testowe',
+        publicTitle: 'Publiczne mieszkanie testowe',
+        ownerUser: { email: 'owner@example.test' },
+      } as Partial<Listing>),
+    });
+    const manager = {
+      find: jest.fn().mockResolvedValue([entitlement]),
+      save: jest.fn().mockResolvedValue(entitlement),
+    };
+    const emailService = { send: jest.fn().mockResolvedValue(undefined) };
+    const configService = {
+      get: jest.fn().mockReturnValue('https://podadresem.test'),
+    };
+    const service = new ListingEntitlementsService(
+      {
+        transaction: (callback: (tx: EntityManager) => unknown) =>
+          callback(manager as unknown as EntityManager),
+      } as unknown as DataSource,
+      emailService as never,
+      configService as never,
+    );
+
+    await expect(service.sendFeaturedExpiryReminders(now)).resolves.toEqual({
+      processed: 1,
+      sent: 1,
+      skipped: 0,
+    });
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'owner@example.test',
+        subject: 'Wyróżnienie ogłoszenia kończy się za 2 dni',
+        text: expect.stringContaining(
+          'Możesz przedłużyć wyróżnienie w panelu właściciela: https://podadresem.test/seller',
+        ),
+      }),
+    );
+    expect(entitlement.parameters.featuredExpiryReminder2Days).toMatchObject({
+      endsAt: endsAt.toISOString(),
+      sentAt: now.toISOString(),
+    });
+    expect(manager.save).toHaveBeenCalledWith(ListingEntitlement, entitlement);
+  });
+
+  it('skips a featured expiry reminder already sent for the same end date', async () => {
+    const now = new Date('2026-09-12T10:00:00.000Z');
+    const endsAt = new Date('2026-09-14T09:00:00.000Z');
+    const entitlement = Object.assign(new ListingEntitlement(), {
+      id: 'featured-ending',
+      type: ListingEntitlementType.FEATURED,
+      status: ListingEntitlementStatus.ACTIVE,
+      startsAt: new Date('2026-09-07T10:00:00.000Z'),
+      endsAt,
+      parameters: {
+        featuredExpiryReminder2Days: {
+          sentAt: '2026-09-12T08:00:00.000Z',
+          endsAt: endsAt.toISOString(),
+        },
+      },
+      listing: buildListing({
+        ownerUser: { email: 'owner@example.test' },
+      } as Partial<Listing>),
+    });
+    const manager = {
+      find: jest.fn().mockResolvedValue([entitlement]),
+      save: jest.fn(),
+    };
+    const emailService = { send: jest.fn() };
+    const service = new ListingEntitlementsService(
+      {
+        transaction: (callback: (tx: EntityManager) => unknown) =>
+          callback(manager as unknown as EntityManager),
+      } as unknown as DataSource,
+      emailService as never,
+    );
+
+    await expect(service.sendFeaturedExpiryReminders(now)).resolves.toEqual({
+      processed: 1,
+      sent: 0,
+      skipped: 1,
+    });
+    expect(emailService.send).not.toHaveBeenCalled();
+    expect(manager.save).not.toHaveBeenCalled();
   });
 });

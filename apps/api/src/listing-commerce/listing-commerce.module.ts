@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReleaseFlagsModule } from '../release-flags';
 import { MonitoringModule } from '../monitoring';
 import { UsersModule } from '../users';
+import { EmailModule } from '../email';
 import { Listing } from '../listings/entities';
 import { PublicListingSubmission } from '../public-listing-submissions/entities';
 import { AdminListingProductsController } from './admin-listing-products.controller';
@@ -51,6 +52,7 @@ const LISTING_COMMERCE_ENTITIES = [
     ReleaseFlagsModule,
     MonitoringModule,
     UsersModule,
+    EmailModule,
   ],
   controllers: [
     ListingProductsController,
