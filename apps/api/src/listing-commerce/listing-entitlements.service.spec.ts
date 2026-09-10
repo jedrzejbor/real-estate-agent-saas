@@ -278,6 +278,54 @@ describe('ListingEntitlementsService', () => {
     expect(manager.save).toHaveBeenCalledWith(Listing, listing);
   });
 
+  it('queues another featured period after the current featured entitlement end', async () => {
+    const currentFeaturedEnd = new Date('2026-09-14T10:00:00.000Z');
+    const listing = buildListing({
+      status: ListingStatus.ACTIVE,
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publishedAt: new Date('2026-09-01T10:00:00.000Z'),
+      expiresAt: new Date('2026-11-01T10:00:00.000Z'),
+      isPremium: true,
+    });
+    const previous = Object.assign(new ListingEntitlement(), {
+      id: 'previous-featured',
+      listingId: listing.id,
+      type: ListingEntitlementType.FEATURED,
+      tier: 'standard',
+      status: ListingEntitlementStatus.ACTIVE,
+      startsAt: new Date('2026-09-07T10:00:00.000Z'),
+      endsAt: currentFeaturedEnd,
+    });
+    const order = buildOrder({
+      items: [
+        buildItem({
+          productTypeSnapshot: ListingProductType.FEATURED,
+          durationDays: 7,
+          fulfillmentParameters: {
+            durationDays: 7,
+            featuredTier: 'standard',
+            priorityWeight: 100,
+          },
+        }),
+      ],
+    });
+    const { service, manager } = buildHarness({ listing, previous });
+
+    await service.fulfillPaidOrderInTransaction(
+      manager as unknown as EntityManager,
+      order,
+      fulfilledAt,
+    );
+
+    const entitlement = manager.save.mock.calls.find(
+      ([entity]) => entity === ListingEntitlement,
+    )?.[1] as ListingEntitlement;
+    expect(entitlement.status).toBe(ListingEntitlementStatus.SCHEDULED);
+    expect(entitlement.startsAt).toEqual(currentFeaturedEnd);
+    expect(entitlement.endsAt.toISOString()).toBe('2026-09-21T10:00:00.000Z');
+    expect(listing.isPremium).toBe(true);
+  });
+
   it('sends 2-day featured expiry reminders once per entitlement end date', async () => {
     const now = new Date('2026-09-12T10:00:00.000Z');
     const endsAt = new Date('2026-09-14T09:00:00.000Z');

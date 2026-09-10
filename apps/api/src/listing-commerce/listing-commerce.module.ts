@@ -5,6 +5,7 @@ import { MonitoringModule } from '../monitoring';
 import { UsersModule } from '../users';
 import { EmailModule } from '../email';
 import { Listing } from '../listings/entities';
+import { PublicListingSubmissionsModule } from '../public-listing-submissions';
 import { PublicListingSubmission } from '../public-listing-submissions/entities';
 import { AdminListingProductsController } from './admin-listing-products.controller';
 import { AdminListingProductsService } from './admin-listing-products.service';
@@ -53,6 +54,7 @@ const LISTING_COMMERCE_ENTITIES = [
     MonitoringModule,
     UsersModule,
     EmailModule,
+    PublicListingSubmissionsModule,
   ],
   controllers: [
     ListingProductsController,

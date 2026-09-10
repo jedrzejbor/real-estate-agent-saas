@@ -92,6 +92,53 @@ describe('ListingEntitlementsService lifecycle', () => {
     expect(manager.save).toHaveBeenCalledWith(expect.anything(), listing);
   });
 
+  it('keeps a listing published when another publication entitlement is still scheduled', async () => {
+    const now = new Date('2026-09-07T12:00:00.000Z');
+    const expired = Object.assign(new ListingEntitlement(), {
+      id: 'publication-expired',
+      listingId: 'listing-1',
+      type: ListingEntitlementType.PUBLICATION,
+      status: ListingEntitlementStatus.EXPIRED,
+      startsAt: new Date('2026-08-01T12:00:00.000Z'),
+      endsAt: new Date('2026-09-07T11:00:00.000Z'),
+    });
+    const nextPublication = Object.assign(new ListingEntitlement(), {
+      id: 'publication-next',
+      listingId: 'listing-1',
+      type: ListingEntitlementType.PUBLICATION,
+      status: ListingEntitlementStatus.SCHEDULED,
+      startsAt: new Date('2026-09-07T11:00:00.000Z'),
+      endsAt: new Date('2026-10-07T11:00:00.000Z'),
+    });
+    const listing = {
+      id: 'listing-1',
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      unpublishedAt: null,
+    };
+    const manager = {
+      find: jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([expired]),
+      findOne: jest
+        .fn()
+        .mockResolvedValueOnce(nextPublication)
+        .mockResolvedValueOnce(listing),
+      save: jest.fn().mockResolvedValue(listing),
+    };
+    const service = new ListingEntitlementsService({
+      transaction: (callback: (tx: EntityManager) => unknown) =>
+        callback(manager as unknown as EntityManager),
+    } as unknown as DataSource);
+
+    await service.processDueEntitlements(now);
+
+    expect(listing.publicationStatus).toBe(ListingPublicationStatus.PUBLISHED);
+    expect(listing.unpublishedAt).toBeNull();
+    expect(manager.save).not.toHaveBeenCalledWith(expect.anything(), listing);
+  });
+
   it('clears legacy premium cache after the last active featured entitlement expires', async () => {
     const now = new Date('2026-09-07T12:00:00.000Z');
     const ended = Object.assign(new ListingEntitlement(), {

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MonitoringService } from '../monitoring';
+import { PublicListingSubmissionsService } from '../public-listing-submissions';
 import { PostgresAdvisoryLockService } from '../users';
 import { ListingEntitlementsService } from './listing-entitlements.service';
 
@@ -22,6 +23,7 @@ export class ListingEntitlementsScheduler
 
   constructor(
     private readonly service: ListingEntitlementsService,
+    private readonly submissionsService: PublicListingSubmissionsService,
     private readonly monitoring: MonitoringService,
     private readonly config: ConfigService,
     private readonly locks: PostgresAdvisoryLockService,
@@ -64,8 +66,10 @@ export class ListingEntitlementsScheduler
         {
           activated: result.result.activated,
           expired: result.result.expired,
-          remindersSent: result.result.reminders.sent,
-          remindersSkipped: result.result.reminders.skipped,
+          featuredRemindersSent: result.result.featuredReminders.sent,
+          featuredRemindersSkipped: result.result.featuredReminders.skipped,
+          publicationRemindersSent: result.result.publicationReminders.sent,
+          publicationRemindersSkipped: result.result.publicationReminders.skipped,
           durationMs: Date.now() - startedAt,
         },
       );
@@ -120,18 +124,22 @@ export class ListingEntitlementsScheduler
   private async runLifecycleBatch(now: Date): Promise<{
     activated: number;
     expired: number;
-    reminders: { processed: number; sent: number; skipped: number };
+    featuredReminders: { processed: number; sent: number; skipped: number };
+    publicationReminders: { processed: number; sent: number; skipped: number };
   }> {
     const batchSize = this.batchSize();
     const lifecycle = await this.service.processDueEntitlements(now, batchSize);
-    const reminders = await this.service.sendFeaturedExpiryReminders(
+    const featuredReminders = await this.service.sendFeaturedExpiryReminders(
       now,
       batchSize,
     );
+    const publicationReminders =
+      await this.submissionsService.sendExpiringSoonReminders(now);
 
     return {
       ...lifecycle,
-      reminders,
+      featuredReminders,
+      publicationReminders,
     };
   }
 }

@@ -235,6 +235,61 @@ describe('ListingQuotesService', () => {
     ).resolves.toMatchObject({ totalGrossAmount: 1_900 });
   });
 
+  it('allows featured for an expired listing only when renewal is bought together', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-07T10:00:00.000Z'));
+    const featured = buildProduct({
+      code: 'featured_7_days',
+      type: ListingProductType.FEATURED,
+      priceGrossAmount: 1_900,
+      durationDays: 7,
+      featuredTier: 'standard',
+      priorityWeight: 100,
+    });
+    const renewal = buildProduct({
+      id: 'product-renewal',
+      code: 'renewal_30_days',
+      type: ListingProductType.RENEWAL,
+      priceGrossAmount: 3_900,
+      durationDays: 30,
+      fulfillmentParameters: { durationDays: 30 },
+    });
+    const expiredListing = buildListing({
+      status: ListingStatus.ACTIVE,
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publishedAt: new Date('2026-08-01T10:00:00.000Z'),
+      expiresAt: new Date('2026-09-01T10:00:00.000Z'),
+    });
+    const featuredOnlyDto = {
+      ...quoteDto,
+      items: [{ productCode: featured.code, quantity: 1 }],
+    };
+    const featuredOnly = buildService({
+      products: [featured],
+      featuredEnabled: true,
+      listing: expiredListing,
+    });
+
+    await expect(
+      featuredOnly.service.createQuote('owner-1', featuredOnlyDto),
+    ).rejects.toThrow('odnowić je razem z wyróżnieniem');
+
+    const renewalWithFeatured = buildService({
+      products: [featured, renewal],
+      featuredEnabled: true,
+      listing: expiredListing,
+    });
+
+    await expect(
+      renewalWithFeatured.service.createQuote('owner-1', {
+        ...quoteDto,
+        items: [
+          { productCode: renewal.code, quantity: 1 },
+          { productCode: featured.code, quantity: 1 },
+        ],
+      }),
+    ).resolves.toMatchObject({ totalGrossAmount: 5_800 });
+  });
+
   it('locks the listing and catalog products when quoting inside an order transaction', async () => {
     const { service, listingRepo } = buildService();
     const listing = buildListing();

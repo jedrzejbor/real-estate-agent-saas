@@ -1373,15 +1373,15 @@ wielokrotnie. Nie istnieje ścieżka publikacji oparta wyłącznie o dane fronte
 - [x] Podłączyć wyróżnienie do katalogu, mapy i strony oferty.
 - [x] Ustalić sortowanie i rotację w tym samym tierze.
 - [x] Dodać zakup wyróżnienia i odnowienia z panelu sprzedającego.
-- [ ] Uniemożliwić zakup wyróżnienia dla cudzej, odrzuconej lub wygasłej oferty
+- [x] Uniemożliwić zakup wyróżnienia dla cudzej, odrzuconej lub wygasłej oferty
   bez jednoczesnego odnowienia.
-- [ ] Określić zachowanie ponownego zakupu przed zakończeniem aktywnego okresu.
-- [ ] Dodać automatyczne wygasanie oraz przypomnienia (wygasanie, komunikaty w
-  panelu i automatyczny email dla wyróżnienia zrealizowane; automatyzacja
-  starego 7-dniowego przypomnienia publikacji pozostaje do decyzji).
+- [x] Określić zachowanie ponownego zakupu przed zakończeniem aktywnego okresu.
+- [x] Dodać automatyczne wygasanie oraz przypomnienia (wygasanie, komunikaty w
+  panelu oraz automatyczne emaile dla wyróżnienia i publikacji zrealizowane
+  cyklicznym jobem).
 - [x] Zmigrować użycie `isPremium` albo jasno ograniczyć je do
   cache/kompatybilności.
-- [ ] Dodać testy nakładających się okresów, ponowionych webhooków oraz
+- [x] Dodać testy nakładających się okresów, ponowionych webhooków oraz
   wygasania entitlementów.
 
 **Kryterium zakończenia:** wyróżnienie działa tylko w opłaconym/przyznanym
@@ -1427,9 +1427,7 @@ Zakres odczytu entitlementów i akcji zakupu w panelu został zrealizowany.
 - jawne sorty użytkownika, np. cena i metraż, nadal działają po priorytecie
   wyróżnienia i dziennej rotacji.
 
-Pozostaje decyzja, czy stary 7-dniowy email publikacji ma zostać ręcznym
-admin endpointem, czy wejść do schedulera, oraz testy pełnego przepływu UI z
-przekierowaniem do checkoutu.
+Pozostają testy pełnego przepływu UI z przekierowaniem do checkoutu.
 
 #### Iteracja 6.4 — legacy `isPremium` jako cache (2026-09-09)
 
@@ -1466,6 +1464,51 @@ przekierowaniem do checkoutu.
   przypomnień;
 - istniejący email 7 dni przed końcem publikacji nadal działa przez obecny
   admin endpoint `POST /api/admin/listing-submissions/expiring-reminders`.
+
+#### Iteracja 6.7 — cykliczny job przypomnień publikacji (2026-09-10)
+
+- 7-dniowe przypomnienie końca publikacji zostało wpięte do
+  `ListingEntitlementsScheduler`, czyli działa cyklicznie razem z lifecycle
+  entitlementów i przypomnieniami wyróżnień;
+- ręczny admin endpoint `POST /api/admin/listing-submissions/expiring-reminders`
+  pozostaje jako operacyjny backfill/manual retry, ale nie jest głównym
+  mechanizmem produkcyjnym;
+- scheduler raportuje osobne liczniki dla przypomnień wyróżnień i publikacji:
+  `featuredRemindersSent`, `featuredRemindersSkipped`,
+  `publicationRemindersSent`, `publicationRemindersSkipped`;
+- wywołanie jest objęte tym samym advisory lockiem, więc przy wielu instancjach
+  API nie powstaną równoległe wysyłki;
+- dodano test jednostkowy schedulera potwierdzający cykliczne wywołanie
+  lifecycle, przypomnień wyróżnienia i przypomnień publikacji w jednym batchu.
+
+#### Iteracja 6.8 — reguły zakupu wyróżnienia i ponownych okresów (2026-09-10)
+
+- backend nie ujawnia i nie wycenia cudzej oferty, bo quote najpierw pobiera
+  ogłoszenie po `listingId` i `ownerUserId`;
+- backend blokuje checkout dla zgłoszeń prywatnych bez zatwierdzonej moderacji,
+  więc odrzucone lub oczekujące oferty nie mogą kupić publikacji, odnowienia ani
+  wyróżnienia;
+- samo wyróżnienie jest dostępne tylko dla aktywnej, publicznej i niewygasłej
+  oferty;
+- wygasła oferta może kupić wyróżnienie wyłącznie razem z odnowieniem w tej
+  samej wycenie;
+- ponowny zakup przed końcem aktywnego okresu nie skraca aktualnego okresu:
+  `fulfillPaidOrderInTransaction` szuka ostatniego aktywnego/zaplanowanego
+  entitlementu tego samego typu i planuje nowy okres od jego `endsAt`;
+- reguły są zabezpieczone testem quote dla wygasłej oferty:
+  `featured` bez `renewal` jest odrzucany, a `renewal + featured` jest
+  wyceniany poprawnie.
+
+#### Iteracja 6.9 — domknięcie testów regresyjnych etapu 6 (2026-09-10)
+
+- dodano test nakładającego się wyróżnienia: ponowny zakup tego samego tieru
+  tworzy zaplanowany entitlement startujący po aktualnym `endsAt`;
+- dodano test lifecycle chroniący aktywną ofertę przed odpublikowaniem, gdy po
+  wygasłym okresie istnieje kolejne aktywne lub zaplanowane odnowienie;
+- ponowione webhooki pozostają zabezpieczone istniejącymi testami idempotencji
+  realizacji order itemów oraz testami duplikatów eventów płatności;
+- regresyjnie uruchomiono zestaw backendowy etapu 6 obejmujący entitlementy,
+  lifecycle, scheduler, quote/purchase policy i eventy płatności.
 
 ### Etap 7 — kampanie i kody promocyjne
 

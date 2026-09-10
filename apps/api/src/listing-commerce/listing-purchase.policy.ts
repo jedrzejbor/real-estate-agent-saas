@@ -85,6 +85,8 @@ export function assertCanPurchaseListingProducts(
     context.listingStatus === ListingStatus.ACTIVE &&
     context.publicationStatus === ListingPublicationStatus.PUBLISHED &&
     (!context.expiresAt || context.expiresAt.getTime() > context.now.getTime());
+  const willRenewPublishedListing =
+    uniqueTypes.has(ListingProductType.RENEWAL) && Boolean(context.publishedAt);
 
   for (const productType of productTypes) {
     switch (productType) {
@@ -105,10 +107,10 @@ export function assertCanPurchaseListingProducts(
         }
         break;
       case ListingProductType.FEATURED:
-        if (!isActivePublicListing) {
+        if (!isActivePublicListing && !willRenewPublishedListing) {
           throw new ListingProductUnavailableError(
             productType,
-            'Wyróżnić można wyłącznie aktywne, publiczne ogłoszenie',
+            'Wyróżnić można wyłącznie aktywne, publiczne ogłoszenie albo odnowić je razem z wyróżnieniem',
           );
         }
         break;
