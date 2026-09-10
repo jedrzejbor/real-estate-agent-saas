@@ -1515,7 +1515,7 @@ Pozostają testy pełnego przepływu UI z przekierowaniem do checkoutu.
 - [x] Dodać kampanie, kody, rezerwacje i wykorzystania.
 - [x] Rozszerzyć istniejący kalkulator ceny o promocje i reguły łączenia bez
   zmiany jego publicznego kontraktu.
-- [ ] Dodać pole kodu w checkout oraz czytelne rozbicie ceny.
+- [x] Dodać pole kodu w checkout oraz czytelne rozbicie ceny.
 - [ ] Dodać panel kampanii i kodów z filtrami oraz statystykami.
 - [x] Obsłużyć limity atomowo i zwalnianie rezerwacji.
 - [x] Domyślnie wybierać korzystniejszy rabat, gdy kodu nie można łączyć z
@@ -1589,6 +1589,22 @@ zamówieniu.
   Docker DB;
 - regresyjnie przetestowano rezerwację, przekroczenie limitu, aplikację,
   zwolnienie rezerwacji, order creation, webhooki płatności oraz reconciliation.
+
+#### Iteracja 7.4 — kod promocyjny w checkout sprzedającego (2026-09-10)
+
+- panel checkoutu sprzedającego ma osobne pole `Kod promocyjny` z akcją
+  `Zastosuj`, bez przeliczania ceny po każdej wpisanej literze;
+- frontend wysyła przycięty `promotionCode` do quote i do tworzenia ordera,
+  dzięki czemu podgląd i zapisany snapshot zamówienia korzystają z tej samej
+  autorytatywnej kalkulacji backendu;
+- zmiana produktu, zastosowanie kodu lub usunięcie kodu resetuje lokalny
+  idempotency key, żeby nie reużyć requestu dla innej konfiguracji ceny;
+- przy błędzie przeliczenia quote jest czyszczony, więc użytkownik nie może
+  przejść do płatności ze starą ceną po nieudanej walidacji kodu;
+- podsumowanie ceny pokazuje konkretne rabaty ze snapshotu quote (`label` i
+  kwota), a generyczny wiersz `Rabat` pozostaje tylko jako defensywny fallback;
+- typy webowego klienta checkoutu rozróżniają `ListingQuoteDiscount` zamiast
+  traktować rabaty jako dowolny obiekt.
 
 ### Etap 8 — promocja konkretnego ogłoszenia i operacje admina
 

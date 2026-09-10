@@ -53,6 +53,8 @@ export function SellerListingCheckoutPanel({
 }: SellerListingCheckoutPanelProps) {
   const [products, setProducts] = useState<PublicListingProduct[]>([]);
   const [selectedCode, setSelectedCode] = useState('');
+  const [promotionCodeInput, setPromotionCodeInput] = useState('');
+  const [appliedPromotionCode, setAppliedPromotionCode] = useState('');
   const [quote, setQuote] = useState<ListingQuote | null>(null);
   const [orders, setOrders] = useState<ListingOrder[]>([]);
   const [entitlements, setEntitlements] = useState<ListingEntitlement[]>([]);
@@ -139,8 +141,13 @@ export function SellerListingCheckoutPanel({
     let cancelled = false;
     setIsQuoting(true);
     setError(null);
+    setQuote(null);
 
-    createListingQuote(listingId, [{ productCode: selectedCode, quantity: 1 }])
+    createListingQuote(
+      listingId,
+      [{ productCode: selectedCode, quantity: 1 }],
+      { promotionCode: appliedPromotionCode },
+    )
       .then((result) => {
         if (!cancelled) setQuote(result);
       })
@@ -154,7 +161,19 @@ export function SellerListingCheckoutPanel({
     return () => {
       cancelled = true;
     };
-  }, [isLoading, listingId, payableOrder, selectedCode]);
+  }, [appliedPromotionCode, isLoading, listingId, payableOrder, selectedCode]);
+
+  function applyPromotionCode() {
+    const normalized = promotionCodeInput.trim();
+    setAppliedPromotionCode(normalized);
+    idempotencyKeyRef.current = null;
+  }
+
+  function removePromotionCode() {
+    setPromotionCodeInput('');
+    setAppliedPromotionCode('');
+    idempotencyKeyRef.current = null;
+  }
 
   async function startPayment() {
     if (!selectedCode && !payableOrder) return;
@@ -176,6 +195,7 @@ export function SellerListingCheckoutPanel({
             ...(ownerName.trim() ? { fullName: ownerName.trim() } : {}),
           },
           idempotencyKeyRef.current,
+          { promotionCode: appliedPromotionCode },
         );
         setOrders((current) => [order!, ...current]);
       }
@@ -266,7 +286,10 @@ export function SellerListingCheckoutPanel({
                 name="publication-product"
                 value={product.code}
                 checked={selectedCode === product.code}
-                onChange={() => setSelectedCode(product.code)}
+                onChange={() => {
+                  setSelectedCode(product.code);
+                  idempotencyKeyRef.current = null;
+                }}
                 className="mt-1"
               />
               <span className="min-w-0">
@@ -284,6 +307,17 @@ export function SellerListingCheckoutPanel({
             </label>
           ))}
         </fieldset>
+      ) : null}
+
+      {!payableOrder ? (
+        <PromotionCodeForm
+          value={promotionCodeInput}
+          appliedCode={appliedPromotionCode}
+          isBusy={isQuoting || isStartingPayment}
+          onChange={setPromotionCodeInput}
+          onApply={applyPromotionCode}
+          onRemove={removePromotionCode}
+        />
       ) : null}
 
       <div className="mt-4 rounded-xl border border-border bg-muted/30 p-4">
@@ -314,15 +348,35 @@ export function SellerListingCheckoutPanel({
               </div>
             ))}
             {summary.discountGrossAmount > 0 ? (
-              <div className="mt-3 flex justify-between border-t border-border pt-3 text-sm text-emerald-700 dark:text-emerald-300">
-                <span>Rabat</span>
-                <span>
-                  −
-                  {formatListingProductPrice(
-                    summary.discountGrossAmount,
-                    summary.currency,
-                  )}
-                </span>
+              <div className="mt-3 space-y-2 border-t border-border pt-3">
+                {summary.discounts.length ? (
+                  summary.discounts.map((discount) => (
+                    <div
+                      key={`${discount.sourceType}:${discount.sourceReference}`}
+                      className="flex justify-between gap-3 text-sm text-emerald-700 dark:text-emerald-300"
+                    >
+                      <span>{discount.label}</span>
+                      <span>
+                        −
+                        {formatListingProductPrice(
+                          discount.grossAmount,
+                          summary.currency,
+                        )}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex justify-between gap-3 text-sm text-emerald-700 dark:text-emerald-300">
+                    <span>Rabat</span>
+                    <span>
+                      −
+                      {formatListingProductPrice(
+                        summary.discountGrossAmount,
+                        summary.currency,
+                      )}
+                    </span>
+                  </div>
+                )}
               </div>
             ) : null}
             <div className="mt-3 flex items-end justify-between gap-3 border-t border-border pt-3">
@@ -371,6 +425,76 @@ export function SellerListingCheckoutPanel({
 
       <OrderHistory orders={orders} />
     </CheckoutShell>
+  );
+}
+
+function PromotionCodeForm({
+  value,
+  appliedCode,
+  isBusy,
+  onChange,
+  onApply,
+  onRemove,
+}: {
+  value: string;
+  appliedCode: string;
+  isBusy: boolean;
+  onChange: (value: string) => void;
+  onApply: () => void;
+  onRemove: () => void;
+}) {
+  const trimmedValue = value.trim();
+  const canApply = Boolean(trimmedValue) && trimmedValue !== appliedCode;
+
+  return (
+    <div className="mt-4 rounded-xl border border-dashed border-border p-3">
+      <label
+        htmlFor="listing-promotion-code"
+        className="text-sm font-semibold"
+      >
+        Kod promocyjny
+      </label>
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+        <input
+          id="listing-promotion-code"
+          type="text"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="Wpisz kod"
+          autoComplete="off"
+          disabled={isBusy}
+          className="h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
+        />
+        <button
+          type="button"
+          onClick={onApply}
+          disabled={isBusy || !canApply}
+          className="inline-flex h-10 items-center justify-center rounded-lg border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Zastosuj
+        </button>
+      </div>
+      {appliedCode ? (
+        <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+          <span>
+            Zastosowany kod: <span className="font-semibold">{appliedCode}</span>
+          </span>
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={isBusy}
+            className="font-semibold text-primary underline disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Usuń kod
+          </button>
+        </div>
+      ) : (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Kod jest weryfikowany przez serwer i zostanie zapisany dopiero w
+          podsumowaniu zamówienia.
+        </p>
+      )}
+    </div>
   );
 }
 

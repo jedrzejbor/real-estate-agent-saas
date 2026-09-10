@@ -20,7 +20,7 @@ const apiFetchMock = apiFetch as jest.MockedFunction<typeof apiFetch>;
 describe('listing checkout HTTP client', () => {
   beforeEach(() => apiFetchMock.mockReset());
 
-  it('sends only product identifiers when requesting a quote', async () => {
+  it('sends only product identifiers when requesting a quote without a promotion code', async () => {
     apiFetchMock.mockResolvedValueOnce({});
     const items = [{ productCode: 'publication_60_days', quantity: 1 as const }];
 
@@ -29,6 +29,20 @@ describe('listing checkout HTTP client', () => {
     expect(apiFetchMock).toHaveBeenCalledWith('/listing-checkout/quote', {
       method: 'POST',
       body: { listingId: 'listing-1', items },
+    });
+  });
+
+  it('trims and sends a promotion code when requesting a quote', async () => {
+    apiFetchMock.mockResolvedValueOnce({});
+    const items = [{ productCode: 'publication_60_days', quantity: 1 as const }];
+
+    await createListingQuote('listing-1', items, {
+      promotionCode: '  START10  ',
+    });
+
+    expect(apiFetchMock).toHaveBeenCalledWith('/listing-checkout/quote', {
+      method: 'POST',
+      body: { listingId: 'listing-1', items, promotionCode: 'START10' },
     });
   });
 
@@ -41,6 +55,7 @@ describe('listing checkout HTTP client', () => {
       items,
       { countryCode: 'PL', buyerType: 'consumer', fullName: 'Jan Kowalski' },
       'listing-checkout:request-1',
+      { promotionCode: ' START10 ' },
     );
 
     expect(apiFetchMock).toHaveBeenCalledWith('/listing-checkout/orders', {
@@ -54,6 +69,7 @@ describe('listing checkout HTTP client', () => {
           buyerType: 'consumer',
           fullName: 'Jan Kowalski',
         },
+        promotionCode: 'START10',
       },
     });
   });

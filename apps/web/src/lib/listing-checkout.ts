@@ -37,6 +37,17 @@ export interface ListingCheckoutItemInput {
   quantity: 1;
 }
 
+export interface ListingCheckoutPricingInput {
+  promotionCode?: string;
+}
+
+export interface ListingQuoteDiscount {
+  sourceType: 'campaign' | 'promotion_code' | 'admin_adjustment';
+  sourceReference: string;
+  label: string;
+  grossAmount: number;
+}
+
 export interface ListingQuoteItem {
   productCode: string;
   productName: string;
@@ -58,7 +69,7 @@ export interface ListingQuote {
   quotedAt: string;
   expiresAt: string;
   items: ListingQuoteItem[];
-  discounts: Array<Record<string, unknown>>;
+  discounts: ListingQuoteDiscount[];
   subtotalGrossAmount: number;
   discountGrossAmount: number;
   totalGrossAmount: number;
@@ -122,10 +133,11 @@ export interface ListingOrderBuyerInput {
 export function createListingQuote(
   listingId: string,
   items: ListingCheckoutItemInput[],
+  pricing?: ListingCheckoutPricingInput,
 ): Promise<ListingQuote> {
   return apiFetch<ListingQuote>('/listing-checkout/quote', {
     method: 'POST',
-    body: { listingId, items },
+    body: buildListingCheckoutPayload(listingId, items, pricing),
   });
 }
 
@@ -134,12 +146,31 @@ export function createListingOrder(
   items: ListingCheckoutItemInput[],
   buyer: ListingOrderBuyerInput,
   idempotencyKey: string,
+  pricing?: ListingCheckoutPricingInput,
 ): Promise<ListingOrder> {
   return apiFetch<ListingOrder>('/listing-checkout/orders', {
     method: 'POST',
     headers: { 'Idempotency-Key': idempotencyKey },
-    body: { listingId, items, buyer },
+    body: { ...buildListingCheckoutPayload(listingId, items, pricing), buyer },
   });
+}
+
+function buildListingCheckoutPayload(
+  listingId: string,
+  items: ListingCheckoutItemInput[],
+  pricing?: ListingCheckoutPricingInput,
+): {
+  listingId: string;
+  items: ListingCheckoutItemInput[];
+  promotionCode?: string;
+} {
+  const promotionCode = pricing?.promotionCode?.trim();
+
+  return {
+    listingId,
+    items,
+    ...(promotionCode ? { promotionCode } : {}),
+  };
 }
 
 export function fetchListingOrder(orderId: string): Promise<ListingOrder> {
