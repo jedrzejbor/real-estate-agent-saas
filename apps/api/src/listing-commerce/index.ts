@@ -1,4 +1,5 @@
 export { AdminListingProductsService } from './admin-listing-products.service';
+export { AdminListingPromotionsService } from './admin-listing-promotions.service';
 export * from './contracts';
 export * from './entities';
 export * from './listing-commerce.policy';

@@ -8,4 +8,9 @@ export {
   CreateListingQuoteItemDto,
 } from './create-listing-quote.dto';
 export { ListingProductActionDto } from './listing-product-action.dto';
+export {
+  CreateListingPromotionCampaignDto,
+  CreateListingPromotionCodeDto,
+  UpdateListingPromotionCampaignDto,
+} from './listing-promotion.dto';
 export { UpdateListingProductDto } from './update-listing-product.dto';

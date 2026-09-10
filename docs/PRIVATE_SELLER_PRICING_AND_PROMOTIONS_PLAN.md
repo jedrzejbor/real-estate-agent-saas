@@ -1606,6 +1606,25 @@ zamówieniu.
 - typy webowego klienta checkoutu rozróżniają `ListingQuoteDiscount` zamiast
   traktować rabaty jako dowolny obiekt.
 
+#### Iteracja 7.5 — admin API kampanii i kodów promocyjnych (2026-09-10)
+
+- dodano adminowy kontrakt odpowiedzi dla kampanii i kodów promocyjnych bez
+  `code_hash` i bez jawnej wartości kodu;
+- dodano endpointy `admin/listing-promotions` do listowania, podglądu,
+  tworzenia, edycji, archiwizacji i przywracania kampanii;
+- dodano endpoint `admin/listing-promotions/:code/codes` do tworzenia kodu w
+  kampanii;
+- kod promocyjny jest normalizowany i hashowany w serwisie przed zapisem, a API
+  zwraca tylko `codeLast4`, etykietę, status, limity i liczniki;
+- walidacja serwisu obejmuje typ rabatu, limit 100% dla rabatu procentowego,
+  zakres dat, targetowanie po typach/kodach produktów oraz limity nie niższe niż
+  aktualne użycia;
+- przy edycji lub dodawaniu kodu kampania jest blokowana w transakcji, a listę
+  kodów odświeżamy osobnym zapytaniem, żeby nie zwracać nieaktualnych relacji;
+- nowy kontroler jest chroniony rolą `admin` tak jak panel produktów ogłoszeń;
+- dodano testy tworzenia kampanii, walidacji, hashowania kodu, konfliktu
+  duplikatu oraz archiwizacji/przywrócenia kampanii.
+
 ### Etap 8 — promocja konkretnego ogłoszenia i operacje admina
 
 - [ ] Dodać ręczne korekty z obowiązkowym powodem i okresem ważności.

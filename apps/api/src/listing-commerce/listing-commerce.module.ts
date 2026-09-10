@@ -9,6 +9,8 @@ import { PublicListingSubmissionsModule } from '../public-listing-submissions';
 import { PublicListingSubmission } from '../public-listing-submissions/entities';
 import { AdminListingProductsController } from './admin-listing-products.controller';
 import { AdminListingProductsService } from './admin-listing-products.service';
+import { AdminListingPromotionsController } from './admin-listing-promotions.controller';
+import { AdminListingPromotionsService } from './admin-listing-promotions.service';
 import {
   ListingEntitlement,
   ListingOrder,
@@ -68,6 +70,7 @@ const LISTING_COMMERCE_ENTITIES = [
   controllers: [
     ListingProductsController,
     AdminListingProductsController,
+    AdminListingPromotionsController,
     ListingCheckoutController,
     ListingEntitlementsController,
     ListingOrdersController,
@@ -77,6 +80,7 @@ const LISTING_COMMERCE_ENTITIES = [
     ListingProductsService,
     ListingPromotionsService,
     AdminListingProductsService,
+    AdminListingPromotionsService,
     ListingQuotesService,
     ListingOrdersService,
     ListingCheckoutSessionsService,
