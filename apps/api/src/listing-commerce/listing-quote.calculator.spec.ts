@@ -74,6 +74,69 @@ describe('listing quote calculator', () => {
     expect(quote.vatGrossAmount).toBeNull();
   });
 
+  it('applies server-side discounts to eligible quote items and totals', () => {
+    const publication = buildProduct();
+    const featured = buildProduct({
+      id: 'product-2',
+      code: 'featured_7_days',
+      name: 'Wyróżnienie ogłoszenia',
+      type: ListingProductType.FEATURED,
+      priceGrossAmount: 1_900,
+      vatRateBasisPoints: 2_300,
+      durationDays: 7,
+      featuredTier: 'standard',
+      priorityWeight: 100,
+    });
+
+    const quote = buildListingQuote({
+      listingId: 'listing-1',
+      requestedItems: [
+        { productCode: publication.code, quantity: 1 },
+        { productCode: featured.code, quantity: 1 },
+      ],
+      productsByCode: new Map([
+        [publication.code, publication],
+        [featured.code, featured],
+      ]),
+      quotedAt: new Date('2026-09-07T10:00:00.000Z'),
+      discounts: [
+        {
+          sourceType: 'promotion_code',
+          sourceReference: 'promotion-code-id',
+          label: 'Kod promocyjny',
+          grossAmount: 1_000,
+          productCodes: [featured.code],
+        },
+      ],
+    });
+
+    expect(quote).toMatchObject({
+      subtotalGrossAmount: 6_800,
+      discountGrossAmount: 1_000,
+      totalGrossAmount: 5_800,
+      discounts: [
+        {
+          sourceType: 'promotion_code',
+          sourceReference: 'promotion-code-id',
+          label: 'Kod promocyjny',
+          grossAmount: 1_000,
+        },
+      ],
+    });
+    expect(quote.items).toEqual([
+      expect.objectContaining({
+        productCode: publication.code,
+        discountGrossAmount: 0,
+        totalGrossAmount: 4_900,
+      }),
+      expect.objectContaining({
+        productCode: featured.code,
+        discountGrossAmount: 1_000,
+        totalGrossAmount: 900,
+      }),
+    ]);
+  });
+
   it.each([
     [4_900, 2_300, 916],
     [1, 10_000, 1],

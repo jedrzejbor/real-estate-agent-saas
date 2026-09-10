@@ -18,6 +18,7 @@ import {
   ListingProductUnavailableError,
 } from './listing-purchase.policy';
 import { ListingProductType } from './listing-commerce.types';
+import { ListingPromotionsService } from './listing-promotions.service';
 
 export interface AuthorizedListingQuote {
   quote: ListingQuoteContract;
@@ -46,6 +47,7 @@ export class ListingQuotesService {
     @InjectRepository(ListingProductCatalog)
     private readonly productRepo: Repository<ListingProductCatalog>,
     private readonly releaseFlagsService: ReleaseFlagsService,
+    private readonly promotionsService: ListingPromotionsService,
   ) {}
 
   async createQuote(
@@ -88,7 +90,7 @@ export class ListingQuotesService {
         'Wycena produktów ogłoszeniowych jest obecnie niedostępna',
       );
     }
-    if (dto.promotionCode?.trim()) {
+    if (dto.promotionCode?.trim() && !flags.privateListingPromotionsEnabled) {
       throw new BadRequestException(
         'Kody promocyjne nie są jeszcze obsługiwane w checkout',
       );
@@ -161,6 +163,14 @@ export class ListingQuotesService {
     }
 
     try {
+      const discounts = flags.privateListingPromotionsEnabled
+        ? await this.promotionsService.resolveDiscounts({
+            products,
+            promotionCode: dto.promotionCode,
+            now,
+          })
+        : [];
+
       return {
         quote: buildListingQuote({
           listingId: listing.id,
@@ -169,6 +179,7 @@ export class ListingQuotesService {
             products.map((product) => [product.code, product]),
           ),
           quotedAt: now,
+          discounts,
         }),
         products,
       };

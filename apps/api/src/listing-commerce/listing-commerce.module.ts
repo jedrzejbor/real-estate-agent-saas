@@ -35,6 +35,7 @@ import { ListingPaymentReconciliationScheduler } from './listing-payment-reconci
 import { ListingPaymentReconciliationService } from './listing-payment-reconciliation.service';
 import { ListingProductsController } from './listing-products.controller';
 import { ListingProductsService } from './listing-products.service';
+import { ListingPromotionsService } from './listing-promotions.service';
 import { ListingQuotesService } from './listing-quotes.service';
 import { StripeListingPaymentAdapter } from './stripe-listing-payment.adapter';
 import { StripeListingWebhooksController } from './stripe-listing-webhooks.controller';
@@ -74,6 +75,7 @@ const LISTING_COMMERCE_ENTITIES = [
   ],
   providers: [
     ListingProductsService,
+    ListingPromotionsService,
     AdminListingProductsService,
     ListingQuotesService,
     ListingOrdersService,
@@ -92,6 +94,7 @@ const LISTING_COMMERCE_ENTITIES = [
   exports: [
     TypeOrmModule,
     ListingProductsService,
+    ListingPromotionsService,
     ListingEntitlementsService,
     ListingPaymentEventsService,
   ],

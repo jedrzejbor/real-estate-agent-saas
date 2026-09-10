@@ -1513,12 +1513,12 @@ Pozostają testy pełnego przepływu UI z przekierowaniem do checkoutu.
 ### Etap 7 — kampanie i kody promocyjne
 
 - [x] Dodać kampanie, kody, rezerwacje i wykorzystania.
-- [ ] Rozszerzyć istniejący kalkulator ceny o promocje i reguły łączenia bez
+- [x] Rozszerzyć istniejący kalkulator ceny o promocje i reguły łączenia bez
   zmiany jego publicznego kontraktu.
 - [ ] Dodać pole kodu w checkout oraz czytelne rozbicie ceny.
 - [ ] Dodać panel kampanii i kodów z filtrami oraz statystykami.
 - [ ] Obsłużyć limity atomowo i zwalnianie rezerwacji.
-- [ ] Domyślnie wybierać korzystniejszy rabat, gdy kodu nie można łączyć z
+- [x] Domyślnie wybierać korzystniejszy rabat, gdy kodu nie można łączyć z
   promocją automatyczną.
 - [ ] Nie wysyłać treści kodu do analityki ani logów aplikacyjnych.
 - [ ] Dodać testy dat, stref czasowych, limitów, równoległych użyć i ceny 0 zł.
@@ -1546,6 +1546,27 @@ zamówieniu.
 - encje zostały zarejestrowane w `ListingCommerceModule`;
 - migracja została uruchomiona lokalnie w Docker DB:
   `20260910_listing_promotions_foundation.sql`.
+
+#### Iteracja 7.2 — kalkulator promocji w quote (2026-09-10)
+
+- dodano `ListingPromotionsService`, który rozwiązuje aktywne kampanie
+  automatyczne i opcjonalny kod promocyjny bez ujawniania wartości kodu w
+  snapshotach;
+- kod promocyjny jest normalizowany i wyszukiwany po SHA-256 (`code_hash`), a
+  `sourceReference` w quote wskazuje techniczne ID kodu albo kampanii;
+- kalkulator quote przyjmuje serwerowo wyliczone rabaty i alokuje je na pozycje,
+  dzięki czemu `listing_order_items.discount_gross_amount` pozostaje spójne z
+  sumą zamówienia;
+- przy niełączących się promocjach wybierany jest najwyższy rabat spośród kodu i
+  kampanii automatycznej;
+- obsłużono targetowanie promocji po wszystkich produktach, typach produktów i
+  kodach produktów;
+- quote akceptuje `promotionCode` tylko przy włączonej fladze
+  `RELEASE_FLAG_PRIVATE_LISTING_PROMOTIONS_ENABLED`;
+- lokalny `docker-compose.yml` ma flagę promocji włączoną domyślnie dla
+  środowiska developerskiego;
+- atomowe rezerwacje limitów pozostają kolejnym krokiem: tabele już istnieją,
+  ale aktualna iteracja nie inkrementuje jeszcze liczników użyć.
 
 ### Etap 8 — promocja konkretnego ogłoszenia i operacje admina
 

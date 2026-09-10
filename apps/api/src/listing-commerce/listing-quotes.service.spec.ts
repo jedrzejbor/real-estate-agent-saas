@@ -14,6 +14,8 @@ import { PublicListingSubmission } from '../public-listing-submissions/entities'
 import { ReleaseFlagsService } from '../release-flags';
 import { ListingProductCatalog } from './entities';
 import { ListingProductType } from './listing-commerce.types';
+import type { ListingQuoteDiscountInput } from './listing-quote.calculator';
+import { ListingPromotionsService } from './listing-promotions.service';
 import { ListingQuotesService } from './listing-quotes.service';
 
 function buildListing(overrides: Partial<Listing> = {}): Listing {
@@ -69,6 +71,8 @@ function buildService(options?: {
   products?: ListingProductCatalog[];
   checkoutEnabled?: boolean;
   featuredEnabled?: boolean;
+  promotionsEnabled?: boolean;
+  discounts?: ListingQuoteDiscountInput[];
 }) {
   const listing =
     options && 'listing' in options ? options.listing : buildListing();
@@ -91,16 +95,21 @@ function buildService(options?: {
     getFlags: jest.fn().mockReturnValue({
       privateListingCheckoutEnabled: options?.checkoutEnabled ?? true,
       privateListingFeaturedEnabled: options?.featuredEnabled ?? false,
+      privateListingPromotionsEnabled: options?.promotionsEnabled ?? false,
     }),
+  };
+  const promotionsService = {
+    resolveDiscounts: jest.fn().mockResolvedValue(options?.discounts ?? []),
   };
   const service = new ListingQuotesService(
     listingRepo as unknown as Repository<Listing>,
     submissionRepo as unknown as Repository<PublicListingSubmission>,
     productRepo as unknown as Repository<ListingProductCatalog>,
     releaseFlagsService as unknown as ReleaseFlagsService,
+    promotionsService as unknown as ListingPromotionsService,
   );
 
-  return { service, listingRepo, submissionRepo, productRepo };
+  return { service, listingRepo, submissionRepo, productRepo, promotionsService };
 }
 
 const quoteDto = {
@@ -191,6 +200,70 @@ describe('ListingQuotesService', () => {
       }),
     ).rejects.toThrow(BadRequestException);
     expect(listingRepo.findOne).not.toHaveBeenCalled();
+  });
+
+  it('applies resolved promotion discounts to the quote snapshot', async () => {
+    const { service, promotionsService } = buildService({
+      promotionsEnabled: true,
+      discounts: [
+        {
+          sourceType: 'promotion_code',
+          sourceReference: 'promotion-code-id',
+          label: 'Kod promocyjny',
+          grossAmount: 1_000,
+          productCodes: ['publication_60_days'],
+        },
+      ],
+    });
+
+    const quote = await service.createQuote('owner-1', {
+      ...quoteDto,
+      promotionCode: 'START10',
+    });
+
+    expect(promotionsService.resolveDiscounts).toHaveBeenCalledWith({
+      products: [expect.objectContaining({ code: 'publication_60_days' })],
+      promotionCode: 'START10',
+      now: expect.any(Date),
+    });
+    expect(quote).toMatchObject({
+      subtotalGrossAmount: 4_900,
+      discountGrossAmount: 1_000,
+      totalGrossAmount: 3_900,
+      discounts: [
+        {
+          sourceType: 'promotion_code',
+          sourceReference: 'promotion-code-id',
+          label: 'Kod promocyjny',
+          grossAmount: 1_000,
+        },
+      ],
+    });
+  });
+
+  it('applies automatic promotion discounts when no code is provided', async () => {
+    const { service, promotionsService } = buildService({
+      promotionsEnabled: true,
+      discounts: [
+        {
+          sourceType: 'campaign',
+          sourceReference: 'campaign-id',
+          label: 'Promocja startowa',
+          grossAmount: 900,
+          productCodes: ['publication_60_days'],
+        },
+      ],
+    });
+
+    const quote = await service.createQuote('owner-1', quoteDto);
+
+    expect(promotionsService.resolveDiscounts).toHaveBeenCalledWith({
+      products: [expect.objectContaining({ code: 'publication_60_days' })],
+      promotionCode: undefined,
+      now: expect.any(Date),
+    });
+    expect(quote.discountGrossAmount).toBe(900);
+    expect(quote.totalGrossAmount).toBe(4_000);
   });
 
   it('gates quote creation independently from public pricing', async () => {

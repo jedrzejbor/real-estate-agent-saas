@@ -1,4 +1,6 @@
 import type {
+  ListingAppliedDiscountContract,
+  ListingDiscountSourceType,
   ListingQuoteContract,
   ListingQuoteRequestItemContract,
 } from './contracts';
@@ -16,6 +18,15 @@ export interface BuildListingQuoteInput {
   requestedItems: readonly ListingQuoteRequestItemContract[];
   productsByCode: ReadonlyMap<string, ListingProductCatalog>;
   quotedAt: Date;
+  discounts?: readonly ListingQuoteDiscountInput[];
+}
+
+export interface ListingQuoteDiscountInput {
+  sourceType: ListingDiscountSourceType;
+  sourceReference: string;
+  label: string;
+  grossAmount: number;
+  productCodes: readonly string[];
 }
 
 const MAX_PERSISTED_GROSS_AMOUNT = 2_147_483_647;
@@ -27,6 +38,12 @@ const MAX_PERSISTED_GROSS_AMOUNT = 2_147_483_647;
 export function buildListingQuote(
   input: BuildListingQuoteInput,
 ): ListingQuoteContract {
+  const itemDiscounts = allocateDiscountsToItems(
+    input.requestedItems,
+    input.productsByCode,
+    input.discounts ?? [],
+  );
+
   const items = input.requestedItems.map((requestedItem) => {
     const product = input.productsByCode.get(requestedItem.productCode);
     if (!product) {
@@ -38,7 +55,7 @@ export function buildListingQuote(
       {
         unitGrossAmount: product.priceGrossAmount,
         quantity: requestedItem.quantity,
-        discountGrossAmount: 0,
+        discountGrossAmount: itemDiscounts.get(requestedItem.productCode) ?? 0,
       },
     ]);
 
@@ -83,10 +100,63 @@ export function buildListingQuote(
     quotedAt: input.quotedAt.toISOString(),
     expiresAt: getListingQuoteExpiry(input.quotedAt).toISOString(),
     items,
-    discounts: [],
+    discounts: normalizeDiscounts(input.discounts ?? []),
     ...totals,
     vatGrossAmount,
   };
+}
+
+function allocateDiscountsToItems(
+  requestedItems: readonly ListingQuoteRequestItemContract[],
+  productsByCode: ReadonlyMap<string, ListingProductCatalog>,
+  discounts: readonly ListingQuoteDiscountInput[],
+): Map<string, number> {
+  const itemDiscounts = new Map<string, number>();
+
+  for (const discount of discounts) {
+    assertDiscount(discount);
+    let remainingDiscount = discount.grossAmount;
+    const eligibleItems = requestedItems.filter((item) =>
+      discount.productCodes.includes(item.productCode),
+    );
+
+    for (const item of eligibleItems) {
+      if (remainingDiscount <= 0) break;
+      const product = productsByCode.get(item.productCode);
+      if (!product) continue;
+
+      const currentDiscount = itemDiscounts.get(item.productCode) ?? 0;
+      const subtotalGrossAmount = product.priceGrossAmount * item.quantity;
+      const availableAmount = subtotalGrossAmount - currentDiscount;
+      const discountForItem = Math.min(availableAmount, remainingDiscount);
+
+      if (discountForItem > 0) {
+        itemDiscounts.set(item.productCode, currentDiscount + discountForItem);
+        remainingDiscount -= discountForItem;
+      }
+    }
+  }
+
+  return itemDiscounts;
+}
+
+function normalizeDiscounts(
+  discounts: readonly ListingQuoteDiscountInput[],
+): ListingAppliedDiscountContract[] {
+  return discounts
+    .filter((discount) => discount.grossAmount > 0)
+    .map((discount) => ({
+      sourceType: discount.sourceType,
+      sourceReference: discount.sourceReference,
+      label: discount.label,
+      grossAmount: discount.grossAmount,
+    }));
+}
+
+function assertDiscount(discount: ListingQuoteDiscountInput): void {
+  if (!Number.isSafeInteger(discount.grossAmount) || discount.grossAmount < 0) {
+    throw new RangeError('discount gross amount must be a non-negative integer');
+  }
 }
 
 /** Returns the VAT portion already included in a gross amount, rounded half-up. */
