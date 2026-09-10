@@ -47,6 +47,31 @@ export enum ListingProductChangeAction {
   RESTORED = 'restored',
 }
 
+export enum ListingPromotionCampaignStatus {
+  DRAFT = 'draft',
+  ACTIVE = 'active',
+  PAUSED = 'paused',
+  ARCHIVED = 'archived',
+}
+
+export enum ListingPromotionDiscountType {
+  PERCENTAGE = 'percentage',
+  FIXED_GROSS = 'fixed_gross',
+}
+
+export enum ListingPromotionTargetScope {
+  ALL_PRODUCTS = 'all_products',
+  PRODUCT_TYPES = 'product_types',
+  PRODUCT_CODES = 'product_codes',
+}
+
+export enum ListingPromotionReservationStatus {
+  RESERVED = 'reserved',
+  APPLIED = 'applied',
+  RELEASED = 'released',
+  EXPIRED = 'expired',
+}
+
 export enum ListingPaymentEventType {
   PAYMENT_SUCCEEDED = 'payment_succeeded',
   PAYMENT_FAILED = 'payment_failed',
@@ -74,6 +99,13 @@ export interface ListingProductFulfillmentParameters {
   durationDays?: number;
   featuredTier?: string;
   priorityWeight?: number;
+  [key: string]: unknown;
+}
+
+export interface ListingPromotionTargetRules {
+  productTypes?: ListingProductType[];
+  productCodes?: string[];
+  minimumSubtotalGrossAmount?: number;
   [key: string]: unknown;
 }
 

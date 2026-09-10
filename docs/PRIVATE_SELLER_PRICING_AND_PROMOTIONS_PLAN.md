@@ -1512,7 +1512,7 @@ Pozostają testy pełnego przepływu UI z przekierowaniem do checkoutu.
 
 ### Etap 7 — kampanie i kody promocyjne
 
-- [ ] Dodać kampanie, kody, rezerwacje i wykorzystania.
+- [x] Dodać kampanie, kody, rezerwacje i wykorzystania.
 - [ ] Rozszerzyć istniejący kalkulator ceny o promocje i reguły łączenia bez
   zmiany jego publicznego kontraktu.
 - [ ] Dodać pole kodu w checkout oraz czytelne rozbicie ceny.
@@ -1526,6 +1526,26 @@ Pozostają testy pełnego przepływu UI z przekierowaniem do checkoutu.
 **Kryterium zakończenia:** kodu ponad limit nie da się użyć nawet przy dwóch
 równoległych checkoutach, a wyliczona kwota jest taka sama w podglądzie i
 zamówieniu.
+
+#### Iteracja 7.1 — fundament danych promocji (2026-09-10)
+
+- dodano słownik domenowy promocji:
+  `ListingPromotionCampaignStatus`, `ListingPromotionDiscountType`,
+  `ListingPromotionTargetScope`, `ListingPromotionReservationStatus`;
+- dodano tabele:
+  - `listing_promotion_campaigns` — kampanie automatyczne i kampanie kodowe,
+  - `listing_promotion_codes` — kody powiązane z kampaniami,
+  - `listing_promotion_reservations` — czasowe rezerwacje rabatu pod quote/order,
+  - `listing_promotion_redemptions` — trwałe wykorzystania po finalizacji;
+- kody promocyjne nie są przechowywane jawnie: tabela kodów ma `code_hash` i
+  pomocnicze `code_last4`, bez plaintext wartości kodu;
+- migracja ma constrainty dla wartości rabatu, zakresów dat, limitów użycia,
+  nieujemnych liczników, snapshotów JSON i idempotencji po `order_id`;
+- rezerwacje i wykorzystania są osobnymi tabelami, żeby w kolejnych iteracjach
+  bezpiecznie obsłużyć równoległy checkout i zwalnianie limitów;
+- encje zostały zarejestrowane w `ListingCommerceModule`;
+- migracja została uruchomiona lokalnie w Docker DB:
+  `20260910_listing_promotions_foundation.sql`.
 
 ### Etap 8 — promocja konkretnego ogłoszenia i operacje admina
 

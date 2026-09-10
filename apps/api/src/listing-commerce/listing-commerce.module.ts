@@ -17,6 +17,10 @@ import {
   ListingPaymentEvent,
   ListingProductCatalog,
   ListingProductChange,
+  ListingPromotionCampaign,
+  ListingPromotionCode,
+  ListingPromotionRedemption,
+  ListingPromotionReservation,
 } from './entities';
 import { ListingCheckoutController } from './listing-checkout.controller';
 import { ListingEntitlementsController } from './listing-entitlements.controller';
@@ -43,6 +47,10 @@ const LISTING_COMMERCE_ENTITIES = [
   ListingPaymentEvent,
   ListingEntitlement,
   ListingProductChange,
+  ListingPromotionCampaign,
+  ListingPromotionCode,
+  ListingPromotionReservation,
+  ListingPromotionRedemption,
   Listing,
   PublicListingSubmission,
 ];
