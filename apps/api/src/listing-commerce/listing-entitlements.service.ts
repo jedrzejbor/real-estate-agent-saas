@@ -182,13 +182,32 @@ export class ListingEntitlementsService {
           status: ListingEntitlementStatus.ACTIVE,
           endsAt: LessThanOrEqual(windowEnd),
         },
-        relations: ['listing', 'listing.ownerUser'],
         order: { endsAt: 'ASC' },
         take: batchSize,
         lock: { mode: 'pessimistic_write' },
       });
       const candidates = entitlements.filter(
         (entitlement) => entitlement.endsAt.getTime() > now.getTime(),
+      );
+      const remindersToSend = candidates.filter(
+        (entitlement) =>
+          !hasSentFeaturedExpiryReminder(
+            entitlement.parameters,
+            entitlement.endsAt,
+          ),
+      );
+      const listings = remindersToSend.length
+        ? await manager.find(Listing, {
+            where: {
+              id: In(
+                remindersToSend.map((entitlement) => entitlement.listingId),
+              ),
+            },
+            relations: ['ownerUser'],
+          })
+        : [];
+      const listingsById = new Map(
+        listings.map((listing) => [listing.id, listing]),
       );
 
       let sent = 0;
@@ -205,7 +224,7 @@ export class ListingEntitlementsService {
           continue;
         }
 
-        const listing = entitlement.listing;
+        const listing = listingsById.get(entitlement.listingId);
         const ownerEmail = listing?.ownerUser?.email;
         if (!listing || !ownerEmail) {
           skipped += 1;

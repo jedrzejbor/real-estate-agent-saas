@@ -283,19 +283,24 @@ describe('ListingEntitlementsService', () => {
     const endsAt = new Date('2026-09-14T09:00:00.000Z');
     const entitlement = Object.assign(new ListingEntitlement(), {
       id: 'featured-ending',
+      listingId: 'listing-1',
       type: ListingEntitlementType.FEATURED,
       status: ListingEntitlementStatus.ACTIVE,
       startsAt: new Date('2026-09-07T10:00:00.000Z'),
       endsAt,
       parameters: { featuredTier: 'standard', priorityWeight: 100 },
-      listing: buildListing({
-        title: 'Mieszkanie testowe',
-        publicTitle: 'Publiczne mieszkanie testowe',
-        ownerUser: { email: 'owner@example.test' },
-      } as Partial<Listing>),
     });
+    const listing = buildListing({
+      id: 'listing-1',
+      title: 'Mieszkanie testowe',
+      publicTitle: 'Publiczne mieszkanie testowe',
+      ownerUser: { email: 'owner@example.test' },
+    } as Partial<Listing>);
     const manager = {
-      find: jest.fn().mockResolvedValue([entitlement]),
+      find: jest
+        .fn()
+        .mockResolvedValueOnce([entitlement])
+        .mockResolvedValueOnce([listing]),
       save: jest.fn().mockResolvedValue(entitlement),
     };
     const emailService = { send: jest.fn().mockResolvedValue(undefined) };
@@ -337,6 +342,7 @@ describe('ListingEntitlementsService', () => {
     const endsAt = new Date('2026-09-14T09:00:00.000Z');
     const entitlement = Object.assign(new ListingEntitlement(), {
       id: 'featured-ending',
+      listingId: 'listing-1',
       type: ListingEntitlementType.FEATURED,
       status: ListingEntitlementStatus.ACTIVE,
       startsAt: new Date('2026-09-07T10:00:00.000Z'),
@@ -347,9 +353,6 @@ describe('ListingEntitlementsService', () => {
           endsAt: endsAt.toISOString(),
         },
       },
-      listing: buildListing({
-        ownerUser: { email: 'owner@example.test' },
-      } as Partial<Listing>),
     });
     const manager = {
       find: jest.fn().mockResolvedValue([entitlement]),
