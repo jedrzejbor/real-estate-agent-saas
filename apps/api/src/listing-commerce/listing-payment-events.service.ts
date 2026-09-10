@@ -15,6 +15,7 @@ import {
   ListingPaymentEvent,
 } from './entities';
 import { ListingEntitlementsService } from './listing-entitlements.service';
+import { ListingPromotionsService } from './listing-promotions.service';
 import {
   assertListingOrderStatusTransition,
   InvalidListingCommerceTransitionError,
@@ -30,6 +31,7 @@ export class ListingPaymentEventsService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly listingEntitlementsService: ListingEntitlementsService,
+    private readonly listingPromotionsService: ListingPromotionsService,
   ) {}
 
   async processVerifiedEvent(
@@ -169,6 +171,11 @@ export class ListingPaymentEventsService {
           order,
           order.paidAt ?? event.occurredAt,
         );
+        await this.listingPromotionsService.applyReservedDiscountsForPaidOrder(
+          manager,
+          order,
+          order.paidAt ?? event.occurredAt,
+        );
         return 'processed';
 
       case ListingPaymentEventType.PAYMENT_FAILED:
@@ -207,6 +214,11 @@ export class ListingPaymentEventsService {
         ) {
           transitionOrder(order, ListingOrderStatus.EXPIRED);
           await manager.save(ListingOrder, order);
+          await this.listingPromotionsService.releaseReservationsForOrders(
+            manager,
+            [order],
+            event.occurredAt,
+          );
           return 'processed';
         }
         return attempt ? 'processed' : 'ignored_stale';

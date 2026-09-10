@@ -1,4 +1,5 @@
 import { ListingOrder, ListingPaymentAttempt } from './entities';
+import { ListingPromotionsService } from './listing-promotions.service';
 import { ListingPaymentReconciliationService } from './listing-payment-reconciliation.service';
 import {
   ListingOrderStatus,
@@ -63,9 +64,13 @@ function buildService(input?: {
         input?.fulfill ?? (() => Promise.resolve({ alreadyFulfilled: false })),
       ),
   };
+  const listingPromotionsService = {
+    releaseReservationsForOrders: jest.fn().mockResolvedValue(0),
+  };
   const service = new ListingPaymentReconciliationService(
     dataSource as never,
     listingEntitlementsService as never,
+    listingPromotionsService as unknown as ListingPromotionsService,
   );
 
   return {
@@ -74,6 +79,7 @@ function buildService(input?: {
     manager,
     attemptsRepository,
     listingEntitlementsService,
+    listingPromotionsService,
     order,
     attempt,
   };
@@ -82,9 +88,10 @@ function buildService(input?: {
 describe('ListingPaymentReconciliationService', () => {
   it('expires an abandoned current attempt and its pending order atomically', async () => {
     const candidate = { id: 'attempt-1', orderId: 'order-1' };
-    const { service, manager, order, attempt } = buildService({
-      candidates: [candidate],
-    });
+    const { service, manager, order, attempt, listingPromotionsService } =
+      buildService({
+        candidates: [candidate],
+      });
 
     const result = await service.reconcile(NOW);
 
@@ -106,6 +113,9 @@ describe('ListingPaymentReconciliationService', () => {
       ListingPaymentAttempt,
       ListingPaymentAttempt,
     ]);
+    expect(
+      listingPromotionsService.releaseReservationsForOrders,
+    ).toHaveBeenCalledWith(manager, [order], NOW);
   });
 
   it('rechecks state under lock and preserves a concurrent successful payment', async () => {

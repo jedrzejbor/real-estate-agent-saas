@@ -16,6 +16,7 @@ import {
 } from './listing-orders.service';
 import { ListingQuotesService } from './listing-quotes.service';
 import { ListingEntitlementsService } from './listing-entitlements.service';
+import { ListingPromotionsService } from './listing-promotions.service';
 import {
   ListingOrderStatus,
   ListingPaymentAttemptStatus,
@@ -28,7 +29,11 @@ const orderDto: CreateListingOrderDto = {
   buyer: { countryCode: 'PL', buyerType: 'consumer', fullName: 'Jan Kowalski' },
 };
 
-function buildQuote(totalGrossAmount = 4_900): ListingQuoteContract {
+function buildQuote(
+  totalGrossAmount = 4_900,
+  discountGrossAmount = 0,
+): ListingQuoteContract {
+  const subtotalGrossAmount = totalGrossAmount + discountGrossAmount;
   return {
     listingId: orderDto.listingId,
     currency: 'PLN',
@@ -40,9 +45,9 @@ function buildQuote(totalGrossAmount = 4_900): ListingQuoteContract {
         productName: 'Publikacja ogłoszenia',
         productType: ListingProductType.PUBLICATION,
         quantity: 1,
-        unitGrossAmount: totalGrossAmount,
-        subtotalGrossAmount: totalGrossAmount,
-        discountGrossAmount: 0,
+        unitGrossAmount: subtotalGrossAmount,
+        subtotalGrossAmount,
+        discountGrossAmount,
         totalGrossAmount,
         vatRateBasisPoints: 2_300,
         vatGrossAmount: totalGrossAmount === 0 ? 0 : 916,
@@ -50,9 +55,19 @@ function buildQuote(totalGrossAmount = 4_900): ListingQuoteContract {
         fulfillmentParameters: { durationDays: 60 },
       },
     ],
-    discounts: [],
-    subtotalGrossAmount: totalGrossAmount,
-    discountGrossAmount: 0,
+    discounts:
+      discountGrossAmount > 0
+        ? [
+            {
+              sourceType: 'promotion_code',
+              sourceReference: 'promotion-code-id',
+              label: 'Kod promocyjny',
+              grossAmount: discountGrossAmount,
+            },
+          ]
+        : [],
+    subtotalGrossAmount,
+    discountGrossAmount,
     totalGrossAmount,
     vatGrossAmount: totalGrossAmount === 0 ? 0 : 916,
   };
@@ -133,6 +148,11 @@ function buildHarness(options?: {
       alreadyFulfilled: false,
     }),
   };
+  const listingPromotionsService = {
+    reserveDiscountsForOrder: jest.fn().mockResolvedValue([]),
+    applyReservedDiscountsForPaidOrder: jest.fn().mockResolvedValue([]),
+    releaseReservationsForOrders: jest.fn().mockResolvedValue(0),
+  };
   const manager = {
     findOne: jest.fn(async (entity: unknown) => {
       if (entity === ListingOrder) return options?.existingIdempotentOrder ?? null;
@@ -171,6 +191,7 @@ function buildHarness(options?: {
     dataSource as unknown as DataSource,
     listingQuotesService as unknown as ListingQuotesService,
     listingEntitlementsService as unknown as ListingEntitlementsService,
+    listingPromotionsService as unknown as ListingPromotionsService,
   );
 
   return {
@@ -179,6 +200,7 @@ function buildHarness(options?: {
     dataSource,
     listingQuotesService,
     listingEntitlementsService,
+    listingPromotionsService,
   };
 }
 
@@ -223,8 +245,37 @@ describe('ListingOrdersService', () => {
     expect(savedOrder.pricingSnapshot).toEqual(buildQuote());
   });
 
+  it('reserves promotion discounts after the order snapshot is persisted', async () => {
+    const quote = buildQuote(3_900, 1_000);
+    const { service, manager, listingPromotionsService } = buildHarness({
+      quote,
+    });
+
+    await service.createOrder('owner-1', 'discounted-order', orderDto);
+
+    const savedOrder = manager.save.mock.calls.find(
+      ([entity]) => entity === ListingOrder,
+    )?.[1] as ListingOrder;
+    expect(savedOrder).toMatchObject({
+      subtotalGrossAmount: 4_900,
+      discountGrossAmount: 1_000,
+      totalGrossAmount: 3_900,
+      pricingSnapshot: quote,
+    });
+    expect(listingPromotionsService.reserveDiscountsForOrder).toHaveBeenCalledWith(
+      manager,
+      expect.objectContaining({ id: 'order-created' }),
+      expect.any(Date),
+    );
+  });
+
   it('finalizes a zero-value order as paid without a payment provider', async () => {
-    const { service, manager, listingEntitlementsService } = buildHarness({
+    const {
+      service,
+      manager,
+      listingEntitlementsService,
+      listingPromotionsService,
+    } = buildHarness({
       quote: buildQuote(0),
     });
 
@@ -239,6 +290,9 @@ describe('ListingOrdersService', () => {
     expect(savedOrder.provider).toBeNull();
     expect(savedOrder.providerPaymentId).toBeNull();
     expect(savedOrder.metadata).toHaveProperty('zeroValueFinalizedAt');
+    expect(
+      listingPromotionsService.applyReservedDiscountsForPaidOrder,
+    ).toHaveBeenCalledWith(manager, savedOrder, expect.any(Date));
     expect(
       listingEntitlementsService.fulfillPaidOrderInTransaction,
     ).toHaveBeenCalledWith(manager, savedOrder, expect.any(Date));
@@ -294,12 +348,17 @@ describe('ListingOrdersService', () => {
       quoteExpiresAt: new Date('2026-09-07T09:00:00.000Z'),
     });
     jest.useFakeTimers().setSystemTime(new Date('2026-09-07T10:00:00.000Z'));
-    const { service, manager } = buildHarness({ candidates: [stale] });
+    const { service, manager, listingPromotionsService } = buildHarness({
+      candidates: [stale],
+    });
 
     await service.createOrder('owner-1', 'replacement-key', orderDto);
 
     expect(stale.status).toBe(ListingOrderStatus.EXPIRED);
     expect(manager.save).toHaveBeenCalledWith(ListingOrder, [stale]);
+    expect(
+      listingPromotionsService.releaseReservationsForOrders,
+    ).toHaveBeenCalledWith(manager, [stale], expect.any(Date));
   });
 
   it('blocks another active order of the same product type', async () => {
@@ -459,6 +518,7 @@ describe('order idempotency helpers', () => {
       dataSource as unknown as DataSource,
       {} as ListingQuotesService,
       {} as ListingEntitlementsService,
+      {} as ListingPromotionsService,
     );
 
     await expect(

@@ -78,9 +78,40 @@ describe('listing promotions foundation migration', () => {
     expect(migration).toContain('chk_listing_promotion_redemptions_discount');
   });
 
-  it('keeps reservations and redemptions idempotent for orders', () => {
-    expect(migration).toContain('uq_listing_promotion_reservations_order');
-    expect(migration).toContain('uq_listing_promotion_redemptions_order');
+  it('indexes orders while keeping redemption idempotency on reservations', () => {
+    expect(migration).toContain('idx_listing_promotion_reservations_order');
+    expect(migration).toContain('idx_listing_promotion_redemptions_order');
     expect(migration).toContain('uq_listing_promotion_redemptions_reservation');
+  });
+});
+
+describe('listing promotion order indexes migration', () => {
+  const migration = readFileSync(
+    join(
+      __dirname,
+      '../../migrations/20260910_listing_promotion_order_indexes.sql',
+    ),
+    'utf8',
+  );
+
+  it('keeps order lookup indexes non-unique so one order can have multiple discounts', () => {
+    expect(migration).toContain(
+      'DROP INDEX IF EXISTS uq_listing_promotion_reservations_order',
+    );
+    expect(migration).toContain(
+      'DROP CONSTRAINT IF EXISTS uq_listing_promotion_redemptions_order',
+    );
+    expect(migration).toContain(
+      'CREATE INDEX IF NOT EXISTS idx_listing_promotion_reservations_order',
+    );
+    expect(migration).toContain(
+      'CREATE INDEX IF NOT EXISTS idx_listing_promotion_redemptions_order',
+    );
+    expect(migration).not.toContain(
+      'CREATE UNIQUE INDEX IF NOT EXISTS uq_listing_promotion_reservations_order',
+    );
+    expect(migration).not.toContain(
+      'CONSTRAINT uq_listing_promotion_redemptions_order UNIQUE',
+    );
   });
 });

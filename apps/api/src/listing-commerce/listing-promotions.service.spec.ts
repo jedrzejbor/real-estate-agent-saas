@@ -1,13 +1,18 @@
 import { Repository } from 'typeorm';
 import {
+  ListingOrder,
   ListingProductCatalog,
   ListingPromotionCampaign,
   ListingPromotionCode,
+  ListingPromotionRedemption,
+  ListingPromotionReservation,
 } from './entities';
 import {
+  ListingOrderStatus,
   ListingProductType,
   ListingPromotionCampaignStatus,
   ListingPromotionDiscountType,
+  ListingPromotionReservationStatus,
   ListingPromotionTargetScope,
 } from './listing-commerce.types';
 import {
@@ -102,6 +107,65 @@ function buildService(options?: {
   );
 
   return { service, campaignRepo, codeRepo };
+}
+
+function buildOrder(overrides: Partial<ListingOrder> = {}): ListingOrder {
+  return Object.assign(new ListingOrder(), {
+    id: 'order-1',
+    listingId: 'listing-1',
+    buyerUserId: 'buyer-1',
+    status: ListingOrderStatus.DRAFT,
+    currency: 'PLN',
+    discountGrossAmount: 1_000,
+    quoteExpiresAt: new Date('2026-09-10T12:30:00.000Z'),
+    pricingSnapshot: {
+      listingId: 'listing-1',
+      currency: 'PLN',
+      quotedAt: '2026-09-10T12:00:00.000Z',
+      expiresAt: '2026-09-10T12:30:00.000Z',
+      items: [],
+      subtotalGrossAmount: 4_900,
+      discountGrossAmount: 1_000,
+      totalGrossAmount: 3_900,
+      vatGrossAmount: null,
+      discounts: [
+        {
+          sourceType: 'promotion_code',
+          sourceReference: 'code-1',
+          label: 'Kod promocyjny',
+          grossAmount: 1_000,
+        },
+      ],
+    },
+    ...overrides,
+  });
+}
+
+function buildManager(options?: {
+  campaign?: ListingPromotionCampaign | null;
+  code?: ListingPromotionCode | null;
+  reservations?: ListingPromotionReservation[];
+  counts?: number[];
+}) {
+  const counts = [...(options?.counts ?? [0, 0])];
+  return {
+    findOne: jest.fn(async (entity: unknown) => {
+      if (entity === ListingPromotionCode) return options?.code ?? null;
+      if (entity === ListingPromotionCampaign) return options?.campaign ?? null;
+      return null;
+    }),
+    count: jest.fn().mockImplementation(() => Promise.resolve(counts.shift() ?? 0)),
+    find: jest.fn().mockResolvedValue(options?.reservations ?? []),
+    create: jest.fn((entity: unknown, values: object) =>
+      Object.assign(
+        entity === ListingPromotionRedemption
+          ? new ListingPromotionRedemption()
+          : new ListingPromotionReservation(),
+        values,
+      ),
+    ),
+    save: jest.fn(async (_entity: unknown, value: object) => value),
+  };
 }
 
 describe('ListingPromotionsService', () => {
@@ -207,5 +271,141 @@ describe('ListingPromotionsService', () => {
         now: new Date('2026-09-10T12:00:00.000Z'),
       }),
     ).resolves.toEqual([]);
+  });
+
+  it('reserves a promotion discount under locked campaign and code counters', async () => {
+    const campaign = buildCampaign({
+      id: 'campaign-code',
+      isAutomatic: false,
+      usageLimitTotal: 10,
+      usageLimitPerUser: 2,
+      usageCount: 0,
+    });
+    const code = buildCode({
+      id: 'code-1',
+      campaign,
+      campaignId: campaign.id,
+      usageLimitTotal: 5,
+      usageLimitPerUser: 1,
+      usageCount: 0,
+    });
+    const manager = buildManager({ campaign, code, counts: [0, 0] });
+    const { service } = buildService();
+    const now = new Date('2026-09-10T12:00:00.000Z');
+
+    await expect(
+      service.reserveDiscountsForOrder(
+        manager as never,
+        buildOrder(),
+        now,
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        campaignId: campaign.id,
+        codeId: code.id,
+        orderId: 'order-1',
+        buyerUserId: 'buyer-1',
+        status: ListingPromotionReservationStatus.RESERVED,
+        discountGrossAmount: 1_000,
+        reservedAt: now,
+      }),
+    ]);
+    expect(manager.findOne).toHaveBeenCalledWith(
+      ListingPromotionCode,
+      expect.objectContaining({ lock: { mode: 'pessimistic_write' } }),
+    );
+    expect(manager.findOne).toHaveBeenCalledWith(
+      ListingPromotionCampaign,
+      expect.objectContaining({ lock: { mode: 'pessimistic_write' } }),
+    );
+    expect(campaign.usageCount).toBe(1);
+    expect(code.usageCount).toBe(1);
+  });
+
+  it('blocks reservation when a locked usage limit is already exhausted', async () => {
+    const campaign = buildCampaign({
+      id: 'campaign-code',
+      isAutomatic: false,
+      usageLimitTotal: 1,
+      usageCount: 1,
+    });
+    const code = buildCode({ id: 'code-1', campaign, campaignId: campaign.id });
+    const manager = buildManager({ campaign, code });
+    const { service } = buildService();
+
+    await expect(
+      service.reserveDiscountsForOrder(manager as never, buildOrder()),
+    ).rejects.toThrow('Limit użyć promocji został wyczerpany');
+  });
+
+  it('applies reserved discounts as durable redemptions idempotently by reservation', async () => {
+    const reservation = Object.assign(new ListingPromotionReservation(), {
+      id: 'reservation-1',
+      campaignId: 'campaign-1',
+      codeId: 'code-1',
+      orderId: 'order-1',
+      buyerUserId: 'buyer-1',
+      status: ListingPromotionReservationStatus.RESERVED,
+      currency: 'PLN',
+      discountGrossAmount: 1_000,
+      pricingSnapshot: { label: 'Kod promocyjny' },
+      appliedAt: null,
+    });
+    const manager = buildManager({ reservations: [reservation] });
+    const { service } = buildService();
+    const appliedAt = new Date('2026-09-10T12:05:00.000Z');
+
+    await service.applyReservedDiscountsForPaidOrder(
+      manager as never,
+      buildOrder({ status: ListingOrderStatus.PAID }),
+      appliedAt,
+    );
+
+    expect(reservation.status).toBe(ListingPromotionReservationStatus.APPLIED);
+    expect(reservation.appliedAt).toBe(appliedAt);
+    expect(manager.save).toHaveBeenCalledWith(
+      ListingPromotionRedemption,
+      [
+        expect.objectContaining({
+          reservationId: reservation.id,
+          orderId: 'order-1',
+          discountGrossAmount: 1_000,
+        }),
+      ],
+    );
+  });
+
+  it('releases reserved discounts and decrements counters for expired orders', async () => {
+    const campaign = buildCampaign({ id: 'campaign-1', usageCount: 1 });
+    const code = buildCode({
+      id: 'code-1',
+      campaign,
+      campaignId: campaign.id,
+      usageCount: 1,
+    });
+    const reservation = Object.assign(new ListingPromotionReservation(), {
+      id: 'reservation-1',
+      campaignId: campaign.id,
+      codeId: code.id,
+      orderId: 'order-1',
+      status: ListingPromotionReservationStatus.RESERVED,
+      releasedAt: null,
+    });
+    const manager = buildManager({ campaign, code, reservations: [reservation] });
+    const { service } = buildService();
+    const releasedAt = new Date('2026-09-10T12:31:00.000Z');
+
+    await expect(
+      service.releaseReservationsForOrders(
+        manager as never,
+        [buildOrder()],
+        releasedAt,
+      ),
+    ).resolves.toBe(1);
+
+    expect(campaign.usageCount).toBe(0);
+    expect(code.usageCount).toBe(0);
+    expect(reservation.status).toBe(ListingPromotionReservationStatus.RELEASED);
+    expect(reservation.releasedAt).toBe(releasedAt);
   });
 });

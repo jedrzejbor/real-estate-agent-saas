@@ -185,7 +185,7 @@ CREATE TABLE IF NOT EXISTS listing_promotion_reservations (
     CHECK ((status = 'applied') = (applied_at IS NOT NULL))
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_listing_promotion_reservations_order
+CREATE INDEX IF NOT EXISTS idx_listing_promotion_reservations_order
   ON listing_promotion_reservations (order_id)
   WHERE order_id IS NOT NULL;
 
@@ -212,7 +212,6 @@ CREATE TABLE IF NOT EXISTS listing_promotion_redemptions (
   discount_gross_amount int NOT NULL,
   pricing_snapshot jsonb NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT uq_listing_promotion_redemptions_order UNIQUE (order_id),
   CONSTRAINT chk_listing_promotion_redemptions_currency_uppercase
     CHECK (currency = upper(currency)),
   CONSTRAINT chk_listing_promotion_redemptions_discount
@@ -224,6 +223,9 @@ CREATE TABLE IF NOT EXISTS listing_promotion_redemptions (
 CREATE UNIQUE INDEX IF NOT EXISTS uq_listing_promotion_redemptions_reservation
   ON listing_promotion_redemptions (reservation_id)
   WHERE reservation_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_listing_promotion_redemptions_order
+  ON listing_promotion_redemptions (order_id);
 
 CREATE INDEX IF NOT EXISTS idx_listing_promotion_redemptions_campaign_created
   ON listing_promotion_redemptions (campaign_id, created_at DESC);

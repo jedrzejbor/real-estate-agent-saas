@@ -1517,11 +1517,12 @@ Pozostają testy pełnego przepływu UI z przekierowaniem do checkoutu.
   zmiany jego publicznego kontraktu.
 - [ ] Dodać pole kodu w checkout oraz czytelne rozbicie ceny.
 - [ ] Dodać panel kampanii i kodów z filtrami oraz statystykami.
-- [ ] Obsłużyć limity atomowo i zwalnianie rezerwacji.
+- [x] Obsłużyć limity atomowo i zwalnianie rezerwacji.
 - [x] Domyślnie wybierać korzystniejszy rabat, gdy kodu nie można łączyć z
   promocją automatyczną.
 - [ ] Nie wysyłać treści kodu do analityki ani logów aplikacyjnych.
-- [ ] Dodać testy dat, stref czasowych, limitów, równoległych użyć i ceny 0 zł.
+- [ ] Dodać pełny zestaw testów dat, stref czasowych, równoległych użyć i ceny
+  0 zł.
 
 **Kryterium zakończenia:** kodu ponad limit nie da się użyć nawet przy dwóch
 równoległych checkoutach, a wyliczona kwota jest taka sama w podglądzie i
@@ -1540,7 +1541,8 @@ zamówieniu.
 - kody promocyjne nie są przechowywane jawnie: tabela kodów ma `code_hash` i
   pomocnicze `code_last4`, bez plaintext wartości kodu;
 - migracja ma constrainty dla wartości rabatu, zakresów dat, limitów użycia,
-  nieujemnych liczników, snapshotów JSON i idempotencji po `order_id`;
+  nieujemnych liczników, snapshotów JSON oraz idempotencji rezerwacji i
+  wykorzystań;
 - rezerwacje i wykorzystania są osobnymi tabelami, żeby w kolejnych iteracjach
   bezpiecznie obsłużyć równoległy checkout i zwalnianie limitów;
 - encje zostały zarejestrowane w `ListingCommerceModule`;
@@ -1564,9 +1566,29 @@ zamówieniu.
 - quote akceptuje `promotionCode` tylko przy włączonej fladze
   `RELEASE_FLAG_PRIVATE_LISTING_PROMOTIONS_ENABLED`;
 - lokalny `docker-compose.yml` ma flagę promocji włączoną domyślnie dla
-  środowiska developerskiego;
-- atomowe rezerwacje limitów pozostają kolejnym krokiem: tabele już istnieją,
-  ale aktualna iteracja nie inkrementuje jeszcze liczników użyć.
+  środowiska developerskiego.
+
+#### Iteracja 7.3 — atomowe rezerwacje limitów promocji (2026-09-10)
+
+- tworzenie zamówienia rezerwuje rabaty ze snapshotu quote w tej samej
+  transakcji, w której zapisywany jest order;
+- kampania i kod promocyjny są blokowane `pessimistic_write` przed inkrementacją
+  liczników, więc limit globalny i limit per użytkownik są sprawdzane pod
+  blokadą bazy;
+- przy sukcesie płatności rezerwacje przechodzą do statusu `applied`, a system
+  zapisuje trwałe rekordy `listing_promotion_redemptions`;
+- zamówienia za 0 zł finalizują rezerwacje od razu podczas tworzenia ordera;
+- wygasłe checkouty zwalniają rezerwacje i dekrementują liczniki przez trzy
+  ścieżki: webhook `checkout.session.expired`, tworzenie nowego ordera po
+  starym porzuconym orderze oraz cykliczny reconciliation job;
+- poprawiono model indeksów `order_id` w rezerwacjach i wykorzystaniach z
+  unikalnego na nieunikalny, ponieważ jedno zamówienie może mieć więcej niż
+  jeden rabat łączony;
+- dodano migrację korekcyjną
+  `20260910_listing_promotion_order_indexes.sql` i uruchomiono ją lokalnie w
+  Docker DB;
+- regresyjnie przetestowano rezerwację, przekroczenie limitu, aplikację,
+  zwolnienie rezerwacji, order creation, webhooki płatności oraz reconciliation.
 
 ### Etap 8 — promocja konkretnego ogłoszenia i operacje admina
 

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DataSource, In, LessThanOrEqual } from 'typeorm';
 import { ListingOrder, ListingPaymentAttempt } from './entities';
 import { ListingEntitlementsService } from './listing-entitlements.service';
+import { ListingPromotionsService } from './listing-promotions.service';
 import { assertListingOrderStatusTransition } from './listing-commerce.policy';
 import {
   ListingOrderStatus,
@@ -44,6 +45,7 @@ export class ListingPaymentReconciliationService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly listingEntitlementsService: ListingEntitlementsService,
+    private readonly listingPromotionsService: ListingPromotionsService,
   ) {}
 
   async reconcile(
@@ -149,6 +151,11 @@ export class ListingPaymentReconciliationService {
         checkoutExpiredAttemptId: attempt.id,
       };
       await manager.save(ListingOrder, order);
+      await this.listingPromotionsService.releaseReservationsForOrders(
+        manager,
+        [order],
+        now,
+      );
       return { attemptExpired: true, orderExpired: true };
     });
   }

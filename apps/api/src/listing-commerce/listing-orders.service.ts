@@ -11,6 +11,7 @@ import { CreateListingOrderDto, ListingOrderBuyerDto } from './dto';
 import { ListingOrder, ListingOrderItem } from './entities';
 import { toListingOrderContract } from './listing-order.presenter';
 import { ListingEntitlementsService } from './listing-entitlements.service';
+import { ListingPromotionsService } from './listing-promotions.service';
 import { ListingQuotesService } from './listing-quotes.service';
 import {
   ListingOrderBuyerSnapshot,
@@ -31,6 +32,7 @@ export class ListingOrdersService {
     private readonly dataSource: DataSource,
     private readonly listingQuotesService: ListingQuotesService,
     private readonly listingEntitlementsService: ListingEntitlementsService,
+    private readonly listingPromotionsService: ListingPromotionsService,
   ) {}
 
   async findOwnedOrder(
@@ -147,6 +149,11 @@ export class ListingOrdersService {
           paidAt: isZeroValue ? now : null,
         });
         const savedOrder = await manager.save(ListingOrder, order);
+        await this.listingPromotionsService.reserveDiscountsForOrder(
+          manager,
+          savedOrder,
+          now,
+        );
         const productsByCode = new Map(
           products.map((product) => [product.code, product]),
         );
@@ -172,6 +179,11 @@ export class ListingOrdersService {
         savedOrder.items = await manager.save(ListingOrderItem, items);
 
         if (isZeroValue) {
+          await this.listingPromotionsService.applyReservedDiscountsForPaidOrder(
+            manager,
+            savedOrder,
+            now,
+          );
           await this.listingEntitlementsService.fulfillPaidOrderInTransaction(
             manager,
             savedOrder,
@@ -251,6 +263,11 @@ export class ListingOrdersService {
         order.status = ListingOrderStatus.EXPIRED;
       });
       await manager.save(ListingOrder, stale);
+      await this.listingPromotionsService.releaseReservationsForOrders(
+        manager,
+        stale,
+        now,
+      );
     }
 
     const requested = new Set(requestedTypes);

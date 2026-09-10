@@ -18,7 +18,7 @@ import { ListingPromotionReservation } from './listing-promotion-reservation.ent
 @Index(['campaignId', 'createdAt'])
 @Index(['codeId', 'createdAt'])
 @Index(['buyerUserId', 'createdAt'])
-@Index(['orderId'], { unique: true })
+@Index(['orderId'])
 @Index(['reservationId'], { unique: true, where: 'reservation_id IS NOT NULL' })
 export class ListingPromotionRedemption {
   @PrimaryGeneratedColumn('uuid')
@@ -43,7 +43,10 @@ export class ListingPromotionRedemption {
   @Column({ type: 'uuid', name: 'code_id', nullable: true })
   codeId?: string | null;
 
-  @OneToOne(() => ListingPromotionReservation, { nullable: true, onDelete: 'SET NULL' })
+  @OneToOne(() => ListingPromotionReservation, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'reservation_id' })
   reservation?: ListingPromotionReservation | null;
 

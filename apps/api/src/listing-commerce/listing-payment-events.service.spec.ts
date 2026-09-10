@@ -8,6 +8,7 @@ import {
 } from './entities';
 import { ListingEntitlementsService } from './listing-entitlements.service';
 import { ListingPaymentEventsService } from './listing-payment-events.service';
+import { ListingPromotionsService } from './listing-promotions.service';
 import {
   ListingOrderStatus,
   ListingPaymentAttemptStatus,
@@ -109,23 +110,34 @@ function buildHarness(options?: {
       alreadyFulfilled: false,
     }),
   };
+  const listingPromotionsService = {
+    applyReservedDiscountsForPaidOrder: jest.fn().mockResolvedValue([]),
+    releaseReservationsForOrders: jest.fn().mockResolvedValue(0),
+  };
   const service = new ListingPaymentEventsService(
     dataSource as unknown as DataSource,
     listingEntitlementsService as unknown as ListingEntitlementsService,
+    listingPromotionsService as unknown as ListingPromotionsService,
   );
   return {
     service,
     manager,
     failedRepo,
     listingEntitlementsService,
+    listingPromotionsService,
     order,
   };
 }
 
 describe('ListingPaymentEventsService', () => {
   it('atomically marks an exact payment as paid and fulfills entitlements', async () => {
-    const { service, manager, listingEntitlementsService, order } =
-      buildHarness();
+    const {
+      service,
+      manager,
+      listingEntitlementsService,
+      listingPromotionsService,
+      order,
+    } = buildHarness();
 
     const result = await service.processVerifiedEvent(succeededEvent);
 
@@ -144,6 +156,9 @@ describe('ListingPaymentEventsService', () => {
       order,
       succeededEvent.occurredAt,
     );
+    expect(
+      listingPromotionsService.applyReservedDiscountsForPaidOrder,
+    ).toHaveBeenCalledWith(manager, order, succeededEvent.occurredAt);
     const savedEvent = manager.save.mock.calls.find(
       ([entity]) => entity === ListingPaymentEvent,
     )?.[1] as ListingPaymentEvent;
@@ -436,7 +451,9 @@ describe('ListingPaymentEventsService', () => {
 
   it('expires a failed payment session when the provider confirms expiration', async () => {
     const order = buildOrder({ status: ListingOrderStatus.PAYMENT_FAILED });
-    const { service } = buildHarness({ order });
+    const { service, manager, listingPromotionsService } = buildHarness({
+      order,
+    });
 
     await expect(
       service.processVerifiedEvent({
@@ -451,6 +468,9 @@ describe('ListingPaymentEventsService', () => {
       status: 'processed',
       orderStatus: ListingOrderStatus.EXPIRED,
     });
+    expect(
+      listingPromotionsService.releaseReservationsForOrders,
+    ).toHaveBeenCalledWith(manager, [order], succeededEvent.occurredAt);
   });
 
   it('retries an event whose previous processing attempt was audited as failed', async () => {
@@ -533,6 +553,7 @@ describe('ListingPaymentEventsService', () => {
     const service = new ListingPaymentEventsService(
       dataSource as unknown as DataSource,
       {} as ListingEntitlementsService,
+      {} as ListingPromotionsService,
     );
 
     await expect(service.processVerifiedEvent(succeededEvent)).resolves.toEqual({

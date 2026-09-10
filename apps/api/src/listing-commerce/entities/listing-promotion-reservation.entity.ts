@@ -18,7 +18,7 @@ import { ListingPromotionCode } from './listing-promotion-code.entity';
 @Index(['campaignId', 'status'])
 @Index(['codeId', 'status'])
 @Index(['buyerUserId', 'status'])
-@Index(['orderId'], { unique: true, where: 'order_id IS NOT NULL' })
+@Index(['orderId'])
 @Index(['expiresAt', 'status'])
 export class ListingPromotionReservation {
   @PrimaryGeneratedColumn('uuid')
