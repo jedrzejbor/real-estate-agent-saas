@@ -18,6 +18,7 @@ import {
   Newspaper,
   CreditCard,
   ShoppingBag,
+  BadgePercent,
   BookOpenCheck,
   Heart,
   Search,
@@ -221,6 +222,11 @@ const adminGroup: DashboardNavGroup = {
       label: 'Produkty ogłoszeń',
       href: '/dashboard/admin/listing-products',
       icon: ShoppingBag,
+    },
+    {
+      label: 'Promocje ogłoszeń',
+      href: '/dashboard/admin/listing-promotions',
+      icon: BadgePercent,
     },
   ],
 };

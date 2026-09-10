@@ -1516,7 +1516,7 @@ Pozostają testy pełnego przepływu UI z przekierowaniem do checkoutu.
 - [x] Rozszerzyć istniejący kalkulator ceny o promocje i reguły łączenia bez
   zmiany jego publicznego kontraktu.
 - [x] Dodać pole kodu w checkout oraz czytelne rozbicie ceny.
-- [ ] Dodać panel kampanii i kodów z filtrami oraz statystykami.
+- [x] Dodać panel kampanii i kodów z filtrami oraz statystykami.
 - [x] Obsłużyć limity atomowo i zwalnianie rezerwacji.
 - [x] Domyślnie wybierać korzystniejszy rabat, gdy kodu nie można łączyć z
   promocją automatyczną.
@@ -1624,6 +1624,24 @@ zamówieniu.
 - nowy kontroler jest chroniony rolą `admin` tak jak panel produktów ogłoszeń;
 - dodano testy tworzenia kampanii, walidacji, hashowania kodu, konfliktu
   duplikatu oraz archiwizacji/przywrócenia kampanii.
+
+#### Iteracja 7.6 — panel admina kampanii i kodów (2026-09-10)
+
+- dodano stronę `/dashboard/admin/listing-promotions` dostępną z bocznego menu
+  administracji;
+- panel pokazuje kampanie z filtrem statusu i wyszukiwaniem po nazwie/kodzie;
+- administrator może utworzyć i edytować kampanię, zmienić status, zakres
+  targetowania, typ rabatu, limity, daty obowiązywania oraz regułę łączenia;
+- administrator może archiwizować i przywracać kampanię; przywrócona kampania
+  pozostaje wstrzymana do osobnej aktywacji;
+- w szczegółach kampanii panel pokazuje statystyki użyć kampanii, użyć kodów
+  oraz liczbę kodów;
+- administrator może tworzyć kody promocyjne przypisane do kampanii, z
+  opcjonalnym nadpisaniem rabatu, limitów i reguły łączenia;
+- po utworzeniu kodu panel pokazuje tylko `codeLast4`, etykietę, status i
+  statystyki; pełny kod nie jest odczytywany z backendu;
+- dodano webowy klient `listing-promotions` z walidacją formularzy, mapowaniem
+  payloadów i testami endpointów oraz bezpiecznego payloadu kodu.
 
 ### Etap 8 — promocja konkretnego ogłoszenia i operacje admina
 
