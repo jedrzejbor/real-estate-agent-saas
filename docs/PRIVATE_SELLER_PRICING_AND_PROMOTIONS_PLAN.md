@@ -1520,7 +1520,7 @@ Pozostają testy pełnego przepływu UI z przekierowaniem do checkoutu.
 - [x] Obsłużyć limity atomowo i zwalnianie rezerwacji.
 - [x] Domyślnie wybierać korzystniejszy rabat, gdy kodu nie można łączyć z
   promocją automatyczną.
-- [ ] Nie wysyłać treści kodu do analityki ani logów aplikacyjnych.
+- [x] Nie wysyłać treści kodu do analityki ani logów aplikacyjnych.
 - [ ] Dodać pełny zestaw testów dat, stref czasowych, równoległych użyć i ceny
   0 zł.
 
@@ -1642,6 +1642,20 @@ zamówieniu.
   statystyki; pełny kod nie jest odczytywany z backendu;
 - dodano webowy klient `listing-promotions` z walidacją formularzy, mapowaniem
   payloadów i testami endpointów oraz bezpiecznego payloadu kodu.
+
+#### Iteracja 7.7 — redakcja kodów w logach i analityce (2026-09-10)
+
+- rozszerzono centralną sanitizację `MonitoringService` o pola
+  `promotionCode`, `promoCode`, `couponCode`, `discountCode` i warianty
+  zawierające `coupon`;
+- redakcja działa rekurencyjnie, więc usuwa kod również wtedy, gdy ktoś przekaże
+  do monitoringu zagnieżdżony request body;
+- rozszerzono webowy helper `trackAnalyticsEvent`, żeby usuwał pola kodów
+  promocyjnych z properties przed wysłaniem zdarzenia do API;
+- testy potwierdzają, że `START10`, `SECRET20` i `COUPON30` nie trafiają do
+  logowanej linii monitoringu ani do payloadu analytics;
+- fingerprint idempotency ordera nadal uwzględnia kod w lokalnym SHA-256, ale
+  jawna wartość nie jest utrwalana ani logowana.
 
 ### Etap 8 — promocja konkretnego ogłoszenia i operacje admina
 

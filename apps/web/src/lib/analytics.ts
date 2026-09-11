@@ -195,8 +195,22 @@ function compactProperties(
   properties: AnalyticsProperties,
 ): Record<string, string | number | boolean | null> {
   return Object.fromEntries(
-    Object.entries(properties).filter(([, value]) => value !== undefined),
+    Object.entries(properties).filter(
+      ([key, value]) => value !== undefined && !isSensitiveAnalyticsKey(key),
+    ),
   ) as Record<string, string | number | boolean | null>;
+}
+
+function isSensitiveAnalyticsKey(key: string): boolean {
+  const normalized = key.toLowerCase();
+
+  return [
+    'promotioncode',
+    'promocode',
+    'coupon',
+    'couponcode',
+    'discountcode',
+  ].some((sensitive) => normalized.includes(sensitive));
 }
 
 function canTrackAnalyticsEvent(name: AnalyticsEventName): boolean {
