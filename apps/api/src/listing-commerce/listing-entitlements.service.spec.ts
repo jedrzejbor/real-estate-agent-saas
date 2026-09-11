@@ -326,6 +326,194 @@ describe('ListingEntitlementsService', () => {
     expect(listing.isPremium).toBe(true);
   });
 
+  it('grants a free admin publication through the entitlement lifecycle', async () => {
+    const { service, manager, listing, submission } = buildHarness();
+
+    await service.grantAdminEntitlementInTransaction(
+      manager as unknown as EntityManager,
+      {
+        actorUserId: 'admin-1',
+        listingId: listing.id,
+        productType: ListingProductType.PUBLICATION,
+        durationDays: 60,
+        reason: 'Rekompensata po zgłoszeniu klienta',
+        now: fulfilledAt,
+      },
+    );
+
+    const entitlement = manager.save.mock.calls.find(
+      ([entity]) => entity === ListingEntitlement,
+    )?.[1] as ListingEntitlement;
+    expect(entitlement).toMatchObject({
+      listingId: listing.id,
+      type: ListingEntitlementType.PUBLICATION,
+      status: ListingEntitlementStatus.ACTIVE,
+      sourceType: ListingEntitlementSource.ADMIN_GRANT,
+      orderItemId: null,
+      grantedByUserId: 'admin-1',
+      startsAt: fulfilledAt,
+    });
+    expect(entitlement.endsAt.toISOString()).toBe('2026-11-06T10:00:00.000Z');
+    expect(entitlement.parameters).toMatchObject({
+      durationDays: 60,
+      adminGrant: {
+        reason: 'Rekompensata po zgłoszeniu klienta',
+        grantedByUserId: 'admin-1',
+        grantedAt: fulfilledAt.toISOString(),
+        productType: ListingProductType.PUBLICATION,
+      },
+    });
+    expect(listing.publicationStatus).toBe(ListingPublicationStatus.PUBLISHED);
+    expect(listing.expiresAt).toEqual(entitlement.endsAt);
+    expect(submission.status).toBe(PublicListingSubmissionStatus.PUBLISHED);
+  });
+
+  it('schedules an admin renewal after the current publication end', async () => {
+    const currentEnd = new Date('2026-10-01T10:00:00.000Z');
+    const listing = buildListing({
+      status: ListingStatus.ACTIVE,
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publishedAt: new Date('2026-08-01T10:00:00.000Z'),
+      expiresAt: currentEnd,
+    });
+    const previous = Object.assign(new ListingEntitlement(), {
+      id: 'previous-publication',
+      listingId: listing.id,
+      type: ListingEntitlementType.PUBLICATION,
+      status: ListingEntitlementStatus.ACTIVE,
+      startsAt: new Date('2026-08-01T10:00:00.000Z'),
+      endsAt: currentEnd,
+    });
+    const { service, manager } = buildHarness({ listing, previous });
+
+    await service.grantAdminEntitlementInTransaction(
+      manager as unknown as EntityManager,
+      {
+        actorUserId: 'admin-1',
+        listingId: listing.id,
+        productType: ListingProductType.RENEWAL,
+        durationDays: 60,
+        reason: 'Przedłużenie obsługi posprzedażowej',
+        now: fulfilledAt,
+      },
+    );
+
+    const entitlement = manager.save.mock.calls.find(
+      ([entity]) => entity === ListingEntitlement,
+    )?.[1] as ListingEntitlement;
+    expect(entitlement).toMatchObject({
+      type: ListingEntitlementType.PUBLICATION,
+      status: ListingEntitlementStatus.SCHEDULED,
+      sourceType: ListingEntitlementSource.ADMIN_GRANT,
+      grantedByUserId: 'admin-1',
+    });
+    expect(entitlement.startsAt).toEqual(currentEnd);
+    expect(entitlement.endsAt.toISOString()).toBe('2026-11-30T10:00:00.000Z');
+    expect(entitlement.parameters.adminGrant).toMatchObject({
+      productType: ListingProductType.RENEWAL,
+    });
+    expect(listing.expiresAt).toEqual(entitlement.endsAt);
+  });
+
+  it('grants an admin featured entitlement and refreshes premium cache', async () => {
+    const listing = buildListing({
+      status: ListingStatus.ACTIVE,
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publishedAt: new Date('2026-09-01T10:00:00.000Z'),
+      expiresAt: new Date('2026-11-01T10:00:00.000Z'),
+      isPremium: false,
+    });
+    const { service, manager } = buildHarness({ listing });
+    const savedFeatured = Object.assign(new ListingEntitlement(), {
+      id: 'entitlement-created',
+      listingId: listing.id,
+      type: ListingEntitlementType.FEATURED,
+      status: ListingEntitlementStatus.ACTIVE,
+      startsAt: fulfilledAt,
+      endsAt: new Date('2026-09-14T10:00:00.000Z'),
+    });
+    manager.findOne.mockImplementation(async (entity: unknown) => {
+      if (entity === Listing) return listing;
+      if (entity === PublicListingSubmission) return buildSubmission();
+      if (entity === ListingEntitlement) return savedFeatured;
+      return null;
+    });
+
+    await service.grantAdminEntitlementInTransaction(
+      manager as unknown as EntityManager,
+      {
+        actorUserId: 'admin-1',
+        listingId: listing.id,
+        productType: ListingProductType.FEATURED,
+        durationDays: 7,
+        featuredTier: 'standard',
+        priorityWeight: 100,
+        reason: 'Promocyjne wyróżnienie po kontakcie z supportem',
+        now: fulfilledAt,
+      },
+    );
+
+    const entitlement = manager.save.mock.calls.find(
+      ([entity]) => entity === ListingEntitlement,
+    )?.[1] as ListingEntitlement;
+    expect(entitlement).toMatchObject({
+      type: ListingEntitlementType.FEATURED,
+      tier: 'standard',
+      sourceType: ListingEntitlementSource.ADMIN_GRANT,
+      grantedByUserId: 'admin-1',
+    });
+    expect(entitlement.parameters).toMatchObject({
+      durationDays: 7,
+      featuredTier: 'standard',
+      priorityWeight: 100,
+      adminGrant: {
+        productType: ListingProductType.FEATURED,
+      },
+    });
+    expect(listing.isPremium).toBe(true);
+  });
+
+  it('rejects an admin grant without an audit reason', async () => {
+    const { service, manager, listing } = buildHarness();
+
+    await expect(
+      service.grantAdminEntitlementInTransaction(
+        manager as unknown as EntityManager,
+        {
+          actorUserId: 'admin-1',
+          listingId: listing.id,
+          productType: ListingProductType.PUBLICATION,
+          durationDays: 60,
+          reason: ' ',
+          now: fulfilledAt,
+        },
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(manager.findOne).not.toHaveBeenCalled();
+  });
+
+  it('rejects an admin featured grant without a featured tier', async () => {
+    const { service, manager, listing } = buildHarness();
+
+    await expect(
+      service.grantAdminEntitlementInTransaction(
+        manager as unknown as EntityManager,
+        {
+          actorUserId: 'admin-1',
+          listingId: listing.id,
+          productType: ListingProductType.FEATURED,
+          durationDays: 7,
+          reason: 'Promocyjne wyróżnienie',
+          now: fulfilledAt,
+        },
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(manager.save).not.toHaveBeenCalledWith(
+      ListingEntitlement,
+      expect.any(ListingEntitlement),
+    );
+  });
+
   it('sends 2-day featured expiry reminders once per entitlement end date', async () => {
     const now = new Date('2026-09-12T10:00:00.000Z');
     const endsAt = new Date('2026-09-14T09:00:00.000Z');

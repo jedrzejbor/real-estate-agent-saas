@@ -32,6 +32,7 @@ import {
   ListingEntitlementType,
   ListingOrderStatus,
   ListingProductType,
+  type ListingProductFulfillmentParameters,
 } from './listing-commerce.types';
 
 const ACTIVE_ENTITLEMENT_STATUSES = [
@@ -40,6 +41,19 @@ const ACTIVE_ENTITLEMENT_STATUSES = [
 ] as const;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FEATURED_EXPIRY_REMINDER_DAYS = 2;
+const MIN_ADMIN_GRANT_REASON_LENGTH = 3;
+const MAX_ADMIN_GRANT_DURATION_DAYS = 3650;
+
+export interface GrantListingEntitlementInput {
+  listingId: string;
+  productType: ListingProductType;
+  durationDays: number;
+  reason: string;
+  actorUserId: string;
+  now?: Date;
+  featuredTier?: string;
+  priorityWeight?: number;
+}
 
 @Injectable()
 export class ListingEntitlementsService {
@@ -52,6 +66,86 @@ export class ListingEntitlementsService {
     @Optional()
     private readonly configService?: ConfigService,
   ) {}
+
+  async grantAdminEntitlement(
+    input: GrantListingEntitlementInput,
+  ): Promise<ListingEntitlementContract> {
+    return this.dataSource.transaction((manager) =>
+      this.grantAdminEntitlementInTransaction(manager, input),
+    );
+  }
+
+  async grantAdminEntitlementInTransaction(
+    manager: EntityManager,
+    input: GrantListingEntitlementInput,
+  ): Promise<ListingEntitlementContract> {
+    const now = input.now ?? new Date();
+    const reason = normalizeAdminGrantReason(input.reason);
+    const durationDays = normalizeAdminGrantDuration(input.durationDays);
+    const listing = await manager.findOne(Listing, {
+      where: { id: input.listingId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!listing) throw new NotFoundException('Ogłoszenie nie istnieje');
+
+    const entitlementType = getEntitlementTypeForProduct(input.productType);
+    const tier =
+      entitlementType === ListingEntitlementType.FEATURED
+        ? getRequiredFeaturedTier(input.featuredTier)
+        : undefined;
+    const previous = await this.findLatestActiveEntitlement(
+      manager,
+      listing.id,
+      entitlementType,
+      tier,
+    );
+    const startsAt = getEntitlementStart(
+      input.productType,
+      now,
+      listing.expiresAt ?? null,
+      previous?.endsAt ?? null,
+    );
+    const endsAt = new Date(startsAt.getTime() + durationDays * DAY_MS);
+    const parameters: ListingProductFulfillmentParameters = {
+      durationDays,
+      ...(tier ? { featuredTier: tier } : {}),
+      ...(input.priorityWeight !== undefined
+        ? { priorityWeight: input.priorityWeight }
+        : {}),
+      adminGrant: {
+        reason,
+        grantedByUserId: input.actorUserId,
+        grantedAt: now.toISOString(),
+        productType: input.productType,
+      },
+    };
+
+    const entitlement = manager.create(ListingEntitlement, {
+      listingId: listing.id,
+      type: entitlementType,
+      status:
+        startsAt.getTime() > now.getTime()
+          ? ListingEntitlementStatus.SCHEDULED
+          : ListingEntitlementStatus.ACTIVE,
+      tier: tier ?? null,
+      sourceType: ListingEntitlementSource.ADMIN_GRANT,
+      orderItemId: null,
+      startsAt,
+      endsAt,
+      parameters,
+      grantedByUserId: input.actorUserId,
+    });
+    const saved = await manager.save(ListingEntitlement, entitlement);
+
+    if (entitlementType === ListingEntitlementType.PUBLICATION) {
+      await this.applyPublicationEntitlement(manager, listing, endsAt, now);
+    }
+    if (entitlementType === ListingEntitlementType.FEATURED) {
+      await this.syncPremiumCacheForListings(manager, [listing.id], now);
+    }
+
+    return toListingEntitlementContract(saved);
+  }
 
   async findOwnedForListing(
     buyerUserId: string,
@@ -576,4 +670,29 @@ function getRequiredFeaturedTier(value: unknown): string {
     );
   }
   return value.trim();
+}
+
+function normalizeAdminGrantReason(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw new ConflictException('Grant administratora wymaga powodu');
+  }
+  const reason = value.trim();
+  if (reason.length < MIN_ADMIN_GRANT_REASON_LENGTH) {
+    throw new ConflictException('Grant administratora wymaga powodu');
+  }
+  return reason;
+}
+
+function normalizeAdminGrantDuration(value: unknown): number {
+  const durationDays = Number(value);
+  if (
+    !Number.isInteger(durationDays) ||
+    durationDays < 1 ||
+    durationDays > MAX_ADMIN_GRANT_DURATION_DAYS
+  ) {
+    throw new ConflictException(
+      `Grant administratora wymaga okresu od 1 do ${MAX_ADMIN_GRANT_DURATION_DAYS} dni`,
+    );
+  }
+  return durationDays;
 }

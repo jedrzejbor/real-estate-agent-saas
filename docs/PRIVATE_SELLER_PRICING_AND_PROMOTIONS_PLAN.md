@@ -1686,6 +1686,27 @@ zamówieniu.
 **Kryterium zakończenia:** administrator może pomóc konkretnemu użytkownikowi
 bez ręcznej zmiany danych w bazie i bez utraty śladu audytowego.
 
+#### Iteracja 8.1 — fundament domenowy grantów admina
+
+- [x] Dodano transakcyjną metodę domenową `grantAdminEntitlement`, która
+  przyznaje darmową publikację, przedłużenie albo wyróżnienie dla konkretnego
+  ogłoszenia.
+- [x] Granty admina korzystają z tego samego modelu `ListingEntitlement`, tego
+  samego wyliczania dat i tej samej aktywacji publikacji/wyróżnienia co
+  opłacone zamówienia.
+- [x] Grant wymaga autora, powodu audytowego i okresu ważności, a źródło jest
+  zapisywane jako `ADMIN_GRANT` zamiast `ORDER_ITEM`.
+- [x] Publikacja i przedłużenie są realizowane przez
+  `applyPublicationEntitlement`, bez bezpośredniego ustawiania dat poza warstwą
+  entitlementów.
+- [x] Wyróżnienie odświeża cache `Listing.isPremium` przez istniejący mechanizm
+  synchronizacji premium, aby zachować kompatybilność z legacy katalogiem.
+- [x] Dodano testy jednostkowe dla darmowej publikacji, przedłużenia,
+  wyróżnienia oraz walidacji powodu i konfiguracji wyróżnienia.
+
+Następny krok etapu 8: wystawić bezpieczny endpoint admina i podpiąć go w
+panelu szczegółów zgłoszenia/oferty jako sekcję `Cena i promocja`.
+
 ### Etap 9 — analityka zbiorcza, QA i rollout
 
 - [ ] Instrumentować podstawowe zdarzenia w każdym wcześniejszym etapie zamiast
