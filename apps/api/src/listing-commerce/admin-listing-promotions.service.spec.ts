@@ -169,6 +169,27 @@ describe('AdminListingPromotionsService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('stores campaign date windows as exact instants with timezone offsets', async () => {
+    const { service } = buildService();
+
+    const campaign = await service.createCampaign('admin-1', {
+      code: 'weekend_promo',
+      name: 'Weekend promo',
+      discountType: ListingPromotionDiscountType.FIXED_GROSS,
+      discountValue: 1_000,
+      targetScope: ListingPromotionTargetScope.ALL_PRODUCTS,
+      startsAt: '2026-09-11T10:00:00+02:00',
+      endsAt: '2026-09-12T10:00:00+02:00',
+    });
+
+    expect(campaign.startsAt?.toISOString()).toBe(
+      '2026-09-11T08:00:00.000Z',
+    );
+    expect(campaign.endsAt?.toISOString()).toBe(
+      '2026-09-12T08:00:00.000Z',
+    );
+  });
+
   it('creates a hashed promotion code and never returns the hash or plaintext', async () => {
     const existingCampaign = buildCampaign({
       status: ListingPromotionCampaignStatus.ACTIVE,

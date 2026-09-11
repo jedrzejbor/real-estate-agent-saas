@@ -137,6 +137,46 @@ describe('listing quote calculator', () => {
     ]);
   });
 
+  it('allows a full eligible discount and produces a zero-value quote', () => {
+    const product = buildProduct();
+
+    const quote = buildListingQuote({
+      listingId: 'listing-1',
+      requestedItems: [{ productCode: product.code, quantity: 1 }],
+      productsByCode: new Map([[product.code, product]]),
+      quotedAt: new Date('2026-09-07T10:00:00.000Z'),
+      discounts: [
+        {
+          sourceType: 'promotion_code',
+          sourceReference: 'promotion-code-id',
+          label: 'Kod 100%',
+          grossAmount: 4_900,
+          productCodes: [product.code],
+        },
+      ],
+    });
+
+    expect(quote).toMatchObject({
+      subtotalGrossAmount: 4_900,
+      discountGrossAmount: 4_900,
+      totalGrossAmount: 0,
+      vatGrossAmount: 0,
+      discounts: [
+        {
+          sourceType: 'promotion_code',
+          sourceReference: 'promotion-code-id',
+          label: 'Kod 100%',
+          grossAmount: 4_900,
+        },
+      ],
+    });
+    expect(quote.items[0]).toMatchObject({
+      discountGrossAmount: 4_900,
+      totalGrossAmount: 0,
+      vatGrossAmount: 0,
+    });
+  });
+
   it.each([
     [4_900, 2_300, 916],
     [1, 10_000, 1],

@@ -273,6 +273,52 @@ describe('ListingPromotionsService', () => {
     ).resolves.toEqual([]);
   });
 
+  it('treats promotion end time as exclusive for code campaigns', async () => {
+    const now = new Date('2026-09-10T12:00:00.000Z');
+    const codeCampaign = buildCampaign({
+      id: 'campaign-code',
+      isAutomatic: false,
+      startsAt: new Date('2026-09-10T10:00:00.000Z'),
+      endsAt: now,
+    });
+    const code = buildCode({
+      campaign: codeCampaign,
+      campaignId: codeCampaign.id,
+    });
+    const { service } = buildService({ code });
+
+    await expect(
+      service.resolveDiscounts({
+        products: [buildProduct()],
+        promotionCode: 'START10',
+        now,
+      }),
+    ).resolves.toEqual([]);
+  });
+
+  it('ignores code campaigns that start in the future', async () => {
+    const now = new Date('2026-09-10T12:00:00.000Z');
+    const codeCampaign = buildCampaign({
+      id: 'campaign-code',
+      isAutomatic: false,
+      startsAt: new Date('2026-09-10T12:00:01.000Z'),
+      endsAt: new Date('2026-09-10T13:00:00.000Z'),
+    });
+    const code = buildCode({
+      campaign: codeCampaign,
+      campaignId: codeCampaign.id,
+    });
+    const { service } = buildService({ code });
+
+    await expect(
+      service.resolveDiscounts({
+        products: [buildProduct()],
+        promotionCode: 'START10',
+        now,
+      }),
+    ).resolves.toEqual([]);
+  });
+
   it('reserves a promotion discount under locked campaign and code counters', async () => {
     const campaign = buildCampaign({
       id: 'campaign-code',
@@ -336,6 +382,39 @@ describe('ListingPromotionsService', () => {
     await expect(
       service.reserveDiscountsForOrder(manager as never, buildOrder()),
     ).rejects.toThrow('Limit użyć promocji został wyczerpany');
+  });
+
+  it('does not allow a second reservation to consume the final total limit', async () => {
+    const campaign = buildCampaign({
+      id: 'campaign-code',
+      isAutomatic: false,
+      usageLimitTotal: 1,
+      usageCount: 0,
+    });
+    const code = buildCode({
+      id: 'code-1',
+      campaign,
+      campaignId: campaign.id,
+      usageLimitTotal: 1,
+      usageCount: 0,
+    });
+    const manager = buildManager({ campaign, code });
+    const { service } = buildService();
+
+    await expect(
+      service.reserveDiscountsForOrder(
+        manager as never,
+        buildOrder({ id: 'order-first' }),
+      ),
+    ).resolves.toHaveLength(1);
+    await expect(
+      service.reserveDiscountsForOrder(
+        manager as never,
+        buildOrder({ id: 'order-second' }),
+      ),
+    ).rejects.toThrow('Limit użyć promocji został wyczerpany');
+    expect(campaign.usageCount).toBe(1);
+    expect(code.usageCount).toBe(1);
   });
 
   it('applies reserved discounts as durable redemptions idempotently by reservation', async () => {

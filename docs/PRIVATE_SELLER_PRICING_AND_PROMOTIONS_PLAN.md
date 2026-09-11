@@ -1521,7 +1521,7 @@ Pozostają testy pełnego przepływu UI z przekierowaniem do checkoutu.
 - [x] Domyślnie wybierać korzystniejszy rabat, gdy kodu nie można łączyć z
   promocją automatyczną.
 - [x] Nie wysyłać treści kodu do analityki ani logów aplikacyjnych.
-- [ ] Dodać pełny zestaw testów dat, stref czasowych, równoległych użyć i ceny
+- [x] Dodać pełny zestaw testów dat, stref czasowych, równoległych użyć i ceny
   0 zł.
 
 **Kryterium zakończenia:** kodu ponad limit nie da się użyć nawet przy dwóch
@@ -1656,6 +1656,19 @@ zamówieniu.
   logowanej linii monitoringu ani do payloadu analytics;
 - fingerprint idempotency ordera nadal uwzględnia kod w lokalnym SHA-256, ale
   jawna wartość nie jest utrwalana ani logowana.
+
+#### Iteracja 7.8 — testy graniczne promocji (2026-09-11)
+
+- dodano regresję dla pełnego rabatu 100%, który sprowadza quote do `0 zł`,
+  zachowuje poprawne sumy pozycji i VAT `0`;
+- dodano testy okna czasowego kodów: `endsAt` jest granicą wyłączną, a kampania
+  startująca w przyszłości nie nalicza rabatu;
+- dodano test zapisu daty z offsetem strefy czasowej w admin API, żeby
+  potwierdzić przechowywanie dokładnego instantu UTC;
+- dodano test symulujący dwie próby zajęcia ostatniego limitu promocji:
+  pierwsza rezerwacja inkrementuje liczniki, druga kończy się konfliktem;
+- istniejące testy rezerwacji nadal sprawdzają użycie `pessimistic_write`, więc
+  ochrona limitów opiera się na blokadzie bazy, a nie na stanie frontendu.
 
 ### Etap 8 — promocja konkretnego ogłoszenia i operacje admina
 
