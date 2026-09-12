@@ -59,6 +59,14 @@ export interface GrantListingEntitlementInput {
   priorityWeight?: number;
 }
 
+export interface RevokeListingEntitlementInput {
+  listingId: string;
+  entitlementId: string;
+  reason: string;
+  actorUserId: string;
+  now?: Date;
+}
+
 @Injectable()
 export class ListingEntitlementsService {
   private readonly logger = new Logger(ListingEntitlementsService.name);
@@ -146,6 +154,59 @@ export class ListingEntitlementsService {
     }
     if (entitlementType === ListingEntitlementType.FEATURED) {
       await this.syncPremiumCacheForListings(manager, [listing.id], now);
+    }
+
+    return toListingEntitlementContract(saved);
+  }
+
+  async revokeAdminEntitlement(
+    input: RevokeListingEntitlementInput,
+  ): Promise<ListingEntitlementContract> {
+    return this.dataSource.transaction((manager) =>
+      this.revokeAdminEntitlementInTransaction(manager, input),
+    );
+  }
+
+  async revokeAdminEntitlementInTransaction(
+    manager: EntityManager,
+    input: RevokeListingEntitlementInput,
+  ): Promise<ListingEntitlementContract> {
+    const now = input.now ?? new Date();
+    const reason = normalizeAdminGrantReason(input.reason);
+    const entitlement = await manager.findOne(ListingEntitlement, {
+      where: {
+        id: input.entitlementId,
+        listingId: input.listingId,
+      },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!entitlement) throw new NotFoundException('Grant nie istnieje');
+    if (entitlement.sourceType !== ListingEntitlementSource.ADMIN_GRANT) {
+      throw new ConflictException('Można cofnąć tylko grant administratora');
+    }
+    if (!isActiveEntitlementStatus(entitlement.status)) {
+      throw new ConflictException('Grant nie jest aktywny ani zaplanowany');
+    }
+
+    entitlement.status = ListingEntitlementStatus.REVOKED;
+    entitlement.revokedAt = now;
+    entitlement.revokedByUserId = input.actorUserId;
+    entitlement.revokedReason = reason;
+    const saved = await manager.save(ListingEntitlement, entitlement);
+
+    if (entitlement.type === ListingEntitlementType.PUBLICATION) {
+      await this.reconcilePublicationAfterEntitlementChange(
+        manager,
+        entitlement.listingId,
+        now,
+      );
+    }
+    if (entitlement.type === ListingEntitlementType.FEATURED) {
+      await this.syncPremiumCacheForListings(
+        manager,
+        [entitlement.listingId],
+        now,
+      );
     }
 
     return toListingEntitlementContract(saved);
@@ -633,6 +694,61 @@ export class ListingEntitlementsService {
     }
   }
 
+  private async reconcilePublicationAfterEntitlementChange(
+    manager: EntityManager,
+    listingId: string,
+    now: Date,
+  ): Promise<void> {
+    const active = await manager.findOne(ListingEntitlement, {
+      where: {
+        listingId,
+        type: ListingEntitlementType.PUBLICATION,
+        status: ListingEntitlementStatus.ACTIVE,
+        startsAt: LessThanOrEqual(now),
+        endsAt: MoreThan(now),
+      },
+      order: { endsAt: 'DESC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    const latestGrantedPeriod = await manager.findOne(ListingEntitlement, {
+      where: {
+        listingId,
+        type: ListingEntitlementType.PUBLICATION,
+        status: In([...ACTIVE_ENTITLEMENT_STATUSES]),
+        endsAt: MoreThan(now),
+      },
+      order: { endsAt: 'DESC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    const listing = await manager.findOne(Listing, {
+      where: { id: listingId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!listing) return;
+
+    listing.expiresAt = latestGrantedPeriod?.endsAt ?? now;
+    if (active) {
+      listing.status = ListingStatus.ACTIVE;
+      listing.publicationStatus = ListingPublicationStatus.PUBLISHED;
+      listing.unpublishedAt = null;
+    } else if (
+      listing.publicationStatus === ListingPublicationStatus.PUBLISHED
+    ) {
+      listing.publicationStatus = ListingPublicationStatus.UNPUBLISHED;
+      listing.unpublishedAt = now;
+    }
+    await manager.save(Listing, listing);
+
+    const submission = await manager.findOne(PublicListingSubmission, {
+      where: { publishedListingId: listing.id },
+      order: { createdAt: 'DESC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!submission) return;
+    submission.expiresAt = listing.expiresAt;
+    await manager.save(PublicListingSubmission, submission);
+  }
+
   private async sendFeaturedExpiryReminderEmail(input: {
     to: string;
     listingTitle: string;
@@ -785,4 +901,10 @@ function isListingProductType(value: unknown): value is ListingProductType {
     value === ListingProductType.RENEWAL ||
     value === ListingProductType.FEATURED
   );
+}
+
+function isActiveEntitlementStatus(
+  status: ListingEntitlementStatus,
+): status is (typeof ACTIVE_ENTITLEMENT_STATUSES)[number] {
+  return ACTIVE_ENTITLEMENT_STATUSES.some((activeStatus) => activeStatus === status);
 }

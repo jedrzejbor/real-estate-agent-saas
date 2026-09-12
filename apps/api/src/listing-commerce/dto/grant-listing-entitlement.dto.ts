@@ -44,3 +44,10 @@ export class GrantListingEntitlementDto {
   @Max(1_000_000)
   priorityWeight?: number;
 }
+
+export class RevokeListingEntitlementDto {
+  @IsString()
+  @MinLength(3)
+  @MaxLength(1_000)
+  reason: string;
+}

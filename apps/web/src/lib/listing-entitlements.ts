@@ -90,6 +90,10 @@ export interface GrantListingEntitlementInput {
   priorityWeight?: number;
 }
 
+export interface RevokeListingEntitlementInput {
+  reason: string;
+}
+
 export type AdminEntitlementGrantFormField =
   keyof AdminEntitlementGrantFormValues;
 export type AdminEntitlementGrantFormErrors = Partial<
@@ -190,6 +194,17 @@ export function toGrantListingEntitlementInput(
   };
 }
 
+export function validateRevokeListingEntitlementReason(
+  reason: string,
+): string | null {
+  const trimmed = reason.trim();
+  if (trimmed.length < 3) return 'Podaj powód cofnięcia grantu';
+  if (trimmed.length > 1_000) {
+    return 'Powód może mieć maksymalnie 1000 znaków';
+  }
+  return null;
+}
+
 export function fetchAdminListingCommerceSummary(
   listingId: string,
 ): Promise<AdminListingCommerceSummary> {
@@ -207,6 +222,20 @@ export function grantAdminListingEntitlement(
     {
       method: 'POST',
       body: input,
+    },
+  );
+}
+
+export function revokeAdminListingEntitlement(
+  listingId: string,
+  entitlementId: string,
+  input: RevokeListingEntitlementInput,
+): Promise<AdminListingEntitlement> {
+  return apiFetch<AdminListingEntitlement>(
+    `/admin/listings/${encodeURIComponent(listingId)}/entitlements/${encodeURIComponent(entitlementId)}/revoke`,
+    {
+      method: 'POST',
+      body: { reason: input.reason.trim() },
     },
   );
 }

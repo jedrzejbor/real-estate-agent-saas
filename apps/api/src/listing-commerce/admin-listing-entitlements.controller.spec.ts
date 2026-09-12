@@ -16,6 +16,7 @@ describe('AdminListingEntitlementsController', () => {
       grantAdminEntitlement: jest.fn().mockResolvedValue({
         id: 'entitlement-1',
       }),
+      revokeAdminEntitlement: jest.fn(),
     };
     const controller = new AdminListingEntitlementsController(service as never);
 
@@ -50,6 +51,7 @@ describe('AdminListingEntitlementsController', () => {
         entitlements: [],
       }),
       grantAdminEntitlement: jest.fn(),
+      revokeAdminEntitlement: jest.fn(),
     };
     const controller = new AdminListingEntitlementsController(service as never);
 
@@ -64,5 +66,31 @@ describe('AdminListingEntitlementsController', () => {
     expect(service.findAdminCommerceSummary).toHaveBeenCalledWith(
       '550e8400-e29b-41d4-a716-446655440000',
     );
+  });
+
+  it('revokes an admin entitlement as the current admin user', async () => {
+    const service = {
+      findAdminCommerceSummary: jest.fn(),
+      grantAdminEntitlement: jest.fn(),
+      revokeAdminEntitlement: jest.fn().mockResolvedValue({
+        id: 'entitlement-1',
+      }),
+    };
+    const controller = new AdminListingEntitlementsController(service as never);
+
+    await expect(
+      controller.revokeListingEntitlement(
+        'admin-2',
+        '550e8400-e29b-41d4-a716-446655440000',
+        '650e8400-e29b-41d4-a716-446655440000',
+        { reason: 'Grant przyznany omyłkowo' },
+      ),
+    ).resolves.toEqual({ id: 'entitlement-1' });
+    expect(service.revokeAdminEntitlement).toHaveBeenCalledWith({
+      actorUserId: 'admin-2',
+      listingId: '550e8400-e29b-41d4-a716-446655440000',
+      entitlementId: '650e8400-e29b-41d4-a716-446655440000',
+      reason: 'Grant przyznany omyłkowo',
+    });
   });
 });

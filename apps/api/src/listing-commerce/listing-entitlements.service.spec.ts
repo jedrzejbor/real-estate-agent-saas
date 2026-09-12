@@ -597,6 +597,158 @@ describe('ListingEntitlementsService', () => {
     });
   });
 
+  it('revokes an active admin publication grant and unpublishes without another active publication', async () => {
+    const now = new Date('2026-09-12T10:00:00.000Z');
+    const listing = buildListing({
+      status: ListingStatus.ACTIVE,
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publishedAt: new Date('2026-09-01T10:00:00.000Z'),
+      expiresAt: new Date('2026-11-01T10:00:00.000Z'),
+    });
+    const submission = buildSubmission({
+      status: PublicListingSubmissionStatus.PUBLISHED,
+      publishedAt: new Date('2026-09-01T10:00:00.000Z'),
+      expiresAt: listing.expiresAt,
+    });
+    const entitlement = Object.assign(new ListingEntitlement(), {
+      id: 'grant-1',
+      listingId: listing.id,
+      type: ListingEntitlementType.PUBLICATION,
+      status: ListingEntitlementStatus.ACTIVE,
+      sourceType: ListingEntitlementSource.ADMIN_GRANT,
+      startsAt: new Date('2026-09-01T10:00:00.000Z'),
+      endsAt: listing.expiresAt,
+    });
+    const manager = {
+      findOne: jest.fn(async (entity: unknown, options?: { where?: object }) => {
+        if (entity === ListingEntitlement) {
+          const where = options?.where as
+            | { id?: string; status?: ListingEntitlementStatus }
+            | undefined;
+          if (where?.id === entitlement.id) return entitlement;
+          return null;
+        }
+        if (entity === Listing) return listing;
+        if (entity === PublicListingSubmission) return submission;
+        return null;
+      }),
+      save: jest.fn(async (_entity: unknown, value: object) => value),
+    };
+    const service = new ListingEntitlementsService({
+      transaction: (callback: (tx: EntityManager) => unknown) =>
+        callback(manager as unknown as EntityManager),
+    } as unknown as DataSource);
+
+    await service.revokeAdminEntitlementInTransaction(
+      manager as unknown as EntityManager,
+      {
+        actorUserId: 'admin-2',
+        listingId: listing.id,
+        entitlementId: entitlement.id,
+        reason: 'Grant przyznany omyłkowo',
+        now,
+      },
+    );
+
+    expect(entitlement).toMatchObject({
+      status: ListingEntitlementStatus.REVOKED,
+      revokedAt: now,
+      revokedByUserId: 'admin-2',
+      revokedReason: 'Grant przyznany omyłkowo',
+    });
+    expect(listing.publicationStatus).toBe(
+      ListingPublicationStatus.UNPUBLISHED,
+    );
+    expect(listing.unpublishedAt).toBe(now);
+    expect(listing.expiresAt).toBe(now);
+    expect(submission.expiresAt).toBe(now);
+  });
+
+  it('revokes an active admin featured grant and clears premium cache', async () => {
+    const now = new Date('2026-09-12T10:00:00.000Z');
+    const listing = buildListing({
+      status: ListingStatus.ACTIVE,
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publishedAt: new Date('2026-09-01T10:00:00.000Z'),
+      expiresAt: new Date('2026-11-01T10:00:00.000Z'),
+      isPremium: true,
+    });
+    const entitlement = Object.assign(new ListingEntitlement(), {
+      id: 'grant-1',
+      listingId: listing.id,
+      type: ListingEntitlementType.FEATURED,
+      status: ListingEntitlementStatus.ACTIVE,
+      sourceType: ListingEntitlementSource.ADMIN_GRANT,
+      startsAt: new Date('2026-09-10T10:00:00.000Z'),
+      endsAt: new Date('2026-09-17T10:00:00.000Z'),
+    });
+    const manager = {
+      findOne: jest.fn(async (entity: unknown, options?: { where?: object }) => {
+        if (entity === ListingEntitlement) {
+          const where = options?.where as { id?: string } | undefined;
+          if (where?.id === entitlement.id) return entitlement;
+          return null;
+        }
+        if (entity === Listing) return listing;
+        return null;
+      }),
+      save: jest.fn(async (_entity: unknown, value: object) => value),
+    };
+    const service = new ListingEntitlementsService({
+      transaction: (callback: (tx: EntityManager) => unknown) =>
+        callback(manager as unknown as EntityManager),
+    } as unknown as DataSource);
+
+    await service.revokeAdminEntitlementInTransaction(
+      manager as unknown as EntityManager,
+      {
+        actorUserId: 'admin-2',
+        listingId: listing.id,
+        entitlementId: entitlement.id,
+        reason: 'Grant przyznany omyłkowo',
+        now,
+      },
+    );
+
+    expect(entitlement.status).toBe(ListingEntitlementStatus.REVOKED);
+    expect(listing.isPremium).toBe(false);
+    expect(manager.save).toHaveBeenCalledWith(Listing, listing);
+  });
+
+  it('does not allow revoking a paid order entitlement through admin grant tooling', async () => {
+    const entitlement = Object.assign(new ListingEntitlement(), {
+      id: 'paid-entitlement-1',
+      listingId: 'listing-1',
+      type: ListingEntitlementType.PUBLICATION,
+      status: ListingEntitlementStatus.ACTIVE,
+      sourceType: ListingEntitlementSource.ORDER_ITEM,
+      startsAt: new Date('2026-09-01T10:00:00.000Z'),
+      endsAt: new Date('2026-11-01T10:00:00.000Z'),
+    });
+    const manager = {
+      findOne: jest.fn().mockResolvedValue(entitlement),
+      save: jest.fn(),
+    };
+    const service = new ListingEntitlementsService({
+      transaction: (callback: (tx: EntityManager) => unknown) =>
+        callback(manager as unknown as EntityManager),
+    } as unknown as DataSource);
+
+    await expect(
+      service.revokeAdminEntitlementInTransaction(
+        manager as unknown as EntityManager,
+        {
+          actorUserId: 'admin-2',
+          listingId: 'listing-1',
+          entitlementId: entitlement.id,
+          reason: 'Nie dotyczy',
+          now: fulfilledAt,
+        },
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(manager.save).not.toHaveBeenCalled();
+  });
+
   it('sends 2-day featured expiry reminders once per entitlement end date', async () => {
     const now = new Date('2026-09-12T10:00:00.000Z');
     const endsAt = new Date('2026-09-14T09:00:00.000Z');

@@ -34,7 +34,9 @@ import {
   ListingEntitlementStatus,
   ListingEntitlementType,
   ListingProductType,
+  revokeAdminListingEntitlement,
   toGrantListingEntitlementInput,
+  validateRevokeListingEntitlementReason,
   validateAdminEntitlementGrantForm,
   type AdminEntitlementGrantFormErrors,
   type AdminEntitlementGrantFormValues,
@@ -652,6 +654,11 @@ function AdminListingCommercePanel({ listingId }: { listingId: string }) {
   );
   const [errors, setErrors] = useState<AdminEntitlementGrantFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [revokeReasons, setRevokeReasons] = useState<Record<string, string>>(
+    {},
+  );
+  const [revokeErrors, setRevokeErrors] = useState<Record<string, string>>({});
+  const [revokingId, setRevokingId] = useState<string | null>(null);
 
   async function loadSummary() {
     setIsLoading(true);
@@ -722,6 +729,68 @@ function AdminListingCommercePanel({ listingId }: { listingId: string }) {
     }
   }
 
+  function updateRevokeReason(entitlementId: string, reason: string) {
+    setRevokeReasons((current) => ({ ...current, [entitlementId]: reason }));
+    setRevokeErrors((current) => {
+      const next = { ...current };
+      delete next[entitlementId];
+      return next;
+    });
+  }
+
+  async function revokeGrant(entitlement: AdminListingEntitlement) {
+    const reason = revokeReasons[entitlement.id] ?? '';
+    const reasonError = validateRevokeListingEntitlementReason(reason);
+    if (reasonError) {
+      setRevokeErrors((current) => ({
+        ...current,
+        [entitlement.id]: reasonError,
+      }));
+      showErrorToast({
+        title: 'Podaj powód cofnięcia',
+        description: 'Powód zostanie zapisany w audycie operacji.',
+      });
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Cofnąć grant administratora?',
+      description: `Cofnięcie może od razu wpłynąć na publikację lub wyróżnienie oferty. Powód: ${reason.trim()}`,
+      confirmLabel: 'Cofnij grant',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
+
+    setRevokingId(entitlement.id);
+    try {
+      await revokeAdminListingEntitlement(listingId, entitlement.id, {
+        reason,
+      });
+      showSuccessToast({
+        title: 'Grant cofnięty',
+        description: 'Status oferty został przeliczony na podstawie pozostałych uprawnień.',
+      });
+      setRevokeReasons((current) => {
+        const next = { ...current };
+        delete next[entitlement.id];
+        return next;
+      });
+      setRevokeErrors((current) => {
+        const next = { ...current };
+        delete next[entitlement.id];
+        return next;
+      });
+      await loadSummary();
+    } catch (revokeError) {
+      showErrorToast({
+        title: 'Nie udało się cofnąć grantu',
+        description: getApiErrorMessage(revokeError),
+      });
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
   return (
     <PreviewSection title="Cena i promocja">
       <div className="space-y-4">
@@ -752,10 +821,17 @@ function AdminListingCommercePanel({ listingId }: { listingId: string }) {
               {summary.entitlements.length > 0 ? (
                 <div className="space-y-2">
                   {summary.entitlements.map((entitlement) => (
-                    <AdminEntitlementRow
-                      key={entitlement.id}
-                      entitlement={entitlement}
-                    />
+                      <AdminEntitlementRow
+                        key={entitlement.id}
+                        entitlement={entitlement}
+                        revokeReason={revokeReasons[entitlement.id] ?? ''}
+                        revokeError={revokeErrors[entitlement.id]}
+                        isRevoking={revokingId === entitlement.id}
+                        onRevokeReasonChange={(reason) =>
+                          updateRevokeReason(entitlement.id, reason)
+                        }
+                        onRevoke={() => revokeGrant(entitlement)}
+                      />
                   ))}
                 </div>
               ) : (
@@ -864,11 +940,25 @@ function AdminListingCommercePanel({ listingId }: { listingId: string }) {
 
 function AdminEntitlementRow({
   entitlement,
+  revokeReason,
+  revokeError,
+  isRevoking,
+  onRevokeReasonChange,
+  onRevoke,
 }: {
   entitlement: AdminListingEntitlement;
+  revokeReason: string;
+  revokeError?: string;
+  isRevoking: boolean;
+  onRevokeReasonChange: (reason: string) => void;
+  onRevoke: () => void;
 }) {
   const isAdminGrant =
     entitlement.sourceType === ListingEntitlementSource.ADMIN_GRANT;
+  const canRevoke =
+    isAdminGrant &&
+    (entitlement.status === ListingEntitlementStatus.ACTIVE ||
+      entitlement.status === ListingEntitlementStatus.SCHEDULED);
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm">
       <div className="flex flex-wrap items-center gap-2">
@@ -888,6 +978,35 @@ function AdminEntitlementRow({
         Źródło: {isAdminGrant ? 'grant admina' : 'zamówienie'}
         {entitlement.audit.reason ? ` · ${entitlement.audit.reason}` : ''}
       </p>
+      {entitlement.audit.revokedReason ? (
+        <p className="mt-1 text-xs text-destructive">
+          Cofnięto: {entitlement.audit.revokedReason}
+        </p>
+      ) : null}
+      {canRevoke ? (
+        <div className="mt-3 grid gap-2">
+          <FormField label="Powód cofnięcia" error={revokeError}>
+            <textarea
+              value={revokeReason}
+              rows={2}
+              placeholder="Np. grant przyznany omyłkowo"
+              className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              disabled={isRevoking}
+              onChange={(event) => onRevokeReasonChange(event.target.value)}
+            />
+          </FormField>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="cursor-pointer rounded-xl"
+            disabled={isRevoking}
+            onClick={onRevoke}
+          >
+            {isRevoking ? 'Cofanie…' : 'Cofnij grant'}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

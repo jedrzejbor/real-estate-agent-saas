@@ -1673,15 +1673,15 @@ zamówieniu.
 ### Etap 8 — promocja konkretnego ogłoszenia i operacje admina
 
 - [ ] Dodać ręczne korekty z obowiązkowym powodem i okresem ważności.
-- [ ] Dodać panel `Cena i promocja` w szczegółach zgłoszenia/oferty.
-- [ ] Dodać grant darmowej publikacji, wyróżnienia i przedłużenia.
-- [ ] Realizować granty przez ten sam serwis entitlementów co opłacone
+- [x] Dodać panel `Cena i promocja` w szczegółach zgłoszenia/oferty.
+- [x] Dodać grant darmowej publikacji, wyróżnienia i przedłużenia.
+- [x] Realizować granty przez ten sam serwis entitlementów co opłacone
   zamówienia, bez bezpośredniego ustawiania `isPremium` lub dat publikacji.
 - [ ] Pokazywać ręczny rabat jako osobną pozycję w quote i zamówieniu.
-- [ ] Dodać anulowanie/revocation z pełnym audytem.
+- [x] Dodać anulowanie/revocation z pełnym audytem.
 - [ ] Dodać uprawnienia bardziej szczegółowe niż ogólna rola admina, jeśli
   operacje finansowe będą obsługiwać różne osoby.
-- [ ] Dodać testy uprawnień, audytu i wpływu cofnięcia grantu na aktywną usługę.
+- [x] Dodać testy uprawnień, audytu i wpływu cofnięcia grantu na aktywną usługę.
 
 **Kryterium zakończenia:** administrator może pomóc konkretnemu użytkownikowi
 bez ręcznej zmiany danych w bazie i bez utraty śladu audytowego.
@@ -1779,6 +1779,33 @@ adminowej szczegółów zgłoszenia/oferty.
 
 Następny krok etapu 8: dodać cofanie/revocation grantu z pełnym audytem i
 wpływem na aktywną publikację lub wyróżnienie.
+
+#### Iteracja 8.6 — cofanie grantów admina
+
+- [x] Dodano domenową metodę `revokeAdminEntitlement`, która cofa wyłącznie
+  entitlementy ze źródłem `ADMIN_GRANT`.
+- [x] Cofnięcie wymaga autora i powodu audytowego, zapisuje `revokedAt`,
+  `revokedByUserId` oraz `revokedReason`.
+- [x] Cofnięcie aktywnej publikacji przelicza stan ogłoszenia na podstawie
+  pozostałych aktywnych/zaplanowanych entitlementów i zdejmuje ofertę z
+  katalogu, jeśli nie ma już aktywnej publikacji.
+- [x] Cofnięcie wyróżnienia odświeża legacy cache `Listing.isPremium` przez
+  istniejącą synchronizację entitlementów.
+- [x] Dodano endpoint
+  `POST /api/admin/listings/:listingId/entitlements/:entitlementId/revoke`.
+- [x] Dodano DTO `RevokeListingEntitlementDto` z obowiązkowym powodem
+  audytowym.
+- [x] Frontowy moduł `listing-entitlements` obsługuje `revokeAdminListingEntitlement`
+  i walidację powodu cofnięcia.
+- [x] Panel `Cena i promocja` pokazuje przy aktywnych/zaplanowanych grantach
+  pole powodu i akcję `Cofnij grant`, z dialogiem potwierdzenia i odświeżeniem
+  summary po sukcesie.
+- [x] Dodano testy domeny, kontrolera, DTO i frontowego boundary dla cofania
+  grantów.
+
+Następny krok etapu 8: dodać ręczne korekty/rabaty jako jawne pozycje w quote
+i zamówieniu albo, jeśli zdecydujemy operacyjnie, doprecyzować granularne
+uprawnienia ponad `ADMIN`.
 
 ### Etap 9 — analityka zbiorcza, QA i rollout
 

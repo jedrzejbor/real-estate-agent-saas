@@ -6,7 +6,9 @@ import {
   fetchAdminListingCommerceSummary,
   grantAdminListingEntitlement,
   ListingProductType,
+  revokeAdminListingEntitlement,
   toGrantListingEntitlementInput,
+  validateRevokeListingEntitlementReason,
   validateAdminEntitlementGrantForm,
 } from './listing-entitlements';
 
@@ -101,6 +103,31 @@ describe('listing entitlement admin boundary', () => {
           reason: 'Przedłużenie obsługi posprzedażowej',
           featuredTier: null,
         },
+      },
+    );
+  });
+
+  it('validates revoke reasons before sending an admin operation', () => {
+    expect(validateRevokeListingEntitlementReason('x')).toBe(
+      'Podaj powód cofnięcia grantu',
+    );
+    expect(
+      validateRevokeListingEntitlementReason('Grant przyznany omyłkowo'),
+    ).toBeNull();
+  });
+
+  it('posts an admin revoke request for a grant', async () => {
+    apiFetchMock.mockResolvedValueOnce({ id: 'entitlement-1' });
+
+    await revokeAdminListingEntitlement('listing-1', 'entitlement-1', {
+      reason: ' Grant przyznany omyłkowo ',
+    });
+
+    expect(apiFetchMock).toHaveBeenCalledWith(
+      '/admin/listings/listing-1/entitlements/entitlement-1/revoke',
+      {
+        method: 'POST',
+        body: { reason: 'Grant przyznany omyłkowo' },
       },
     );
   });

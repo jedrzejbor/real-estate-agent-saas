@@ -9,7 +9,10 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums';
-import { GrantListingEntitlementDto } from './dto';
+import {
+  GrantListingEntitlementDto,
+  RevokeListingEntitlementDto,
+} from './dto';
 import { ListingEntitlementsService } from './listing-entitlements.service';
 
 @Controller('admin/listings/:listingId')
@@ -40,6 +43,21 @@ export class AdminListingEntitlementsController {
       reason: dto.reason,
       featuredTier: dto.featuredTier ?? undefined,
       priorityWeight: dto.priorityWeight,
+    });
+  }
+
+  @Post('entitlements/:entitlementId/revoke')
+  async revokeListingEntitlement(
+    @CurrentUser('id') adminUserId: string,
+    @Param('listingId', ParseUUIDPipe) listingId: string,
+    @Param('entitlementId', ParseUUIDPipe) entitlementId: string,
+    @Body() dto: RevokeListingEntitlementDto,
+  ) {
+    return this.listingEntitlementsService.revokeAdminEntitlement({
+      actorUserId: adminUserId,
+      listingId,
+      entitlementId,
+      reason: dto.reason,
     });
   }
 }

@@ -4,7 +4,10 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { ListingProductType } from '../listing-commerce.types';
-import { GrantListingEntitlementDto } from './grant-listing-entitlement.dto';
+import {
+  GrantListingEntitlementDto,
+  RevokeListingEntitlementDto,
+} from './grant-listing-entitlement.dto';
 
 const pipe = new ValidationPipe({
   whitelist: true,
@@ -78,6 +81,21 @@ describe('GrantListingEntitlementDto', () => {
         },
         metadata(GrantListingEntitlementDto),
       ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('requires a meaningful audit reason for revoke requests', async () => {
+    await expect(
+      pipe.transform(
+        {
+          reason: 'Grant przyznany omyłkowo',
+        },
+        metadata(RevokeListingEntitlementDto),
+      ),
+    ).resolves.toMatchObject({ reason: 'Grant przyznany omyłkowo' });
+
+    await expect(
+      pipe.transform({ reason: 'x' }, metadata(RevokeListingEntitlementDto)),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
