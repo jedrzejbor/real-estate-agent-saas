@@ -21,8 +21,12 @@ import {
 import { EmailService } from '../email';
 import { Listing } from '../listings/entities';
 import { PublicListingSubmission } from '../public-listing-submissions/entities';
-import type { ListingOrderFulfillmentContract } from './contracts';
-import type { ListingEntitlementContract } from './contracts';
+import type {
+  AdminListingCommerceSummaryContract,
+  AdminListingEntitlementAuditContract,
+  ListingEntitlementContract,
+  ListingOrderFulfillmentContract,
+} from './contracts';
 import { ListingEntitlement, ListingOrder } from './entities';
 import { toListingEntitlementContract } from './listing-entitlement.presenter';
 import { getEntitlementTypeForProduct } from './listing-commerce.policy';
@@ -170,6 +174,48 @@ export class ListingEntitlementsService {
         order: { startsAt: 'ASC' },
       });
     return entitlements.map(toListingEntitlementContract);
+  }
+
+  async findAdminCommerceSummary(
+    listingId: string,
+  ): Promise<AdminListingCommerceSummaryContract> {
+    const listing = await this.dataSource.getRepository(Listing).findOne({
+      where: { id: listingId },
+    });
+    if (!listing) throw new NotFoundException('Ogłoszenie nie istnieje');
+
+    const entitlements = await this.dataSource
+      .getRepository(ListingEntitlement)
+      .find({
+        where: { listingId },
+        order: { startsAt: 'DESC', createdAt: 'DESC' },
+      });
+
+    return {
+      listing: {
+        id: listing.id,
+        title: listing.publicTitle ?? listing.title,
+        publicSlug: listing.publicSlug ?? null,
+        status: listing.status,
+        publicationStatus: listing.publicationStatus,
+        publishedAt: listing.publishedAt?.toISOString() ?? null,
+        unpublishedAt: listing.unpublishedAt?.toISOString() ?? null,
+        expiresAt: listing.expiresAt?.toISOString() ?? null,
+        isPremium: listing.isPremium,
+      },
+      entitlements: entitlements.map((entitlement) => ({
+        id: entitlement.id,
+        type: entitlement.type,
+        status: entitlement.status,
+        tier: entitlement.tier ?? null,
+        sourceType: entitlement.sourceType,
+        orderItemId: entitlement.orderItemId ?? null,
+        startsAt: entitlement.startsAt.toISOString(),
+        endsAt: entitlement.endsAt.toISOString(),
+        createdAt: entitlement.createdAt?.toISOString() ?? null,
+        audit: toAdminEntitlementAudit(entitlement),
+      })),
+    };
   }
 
   /**
@@ -695,4 +741,48 @@ function normalizeAdminGrantDuration(value: unknown): number {
     );
   }
   return durationDays;
+}
+
+function toAdminEntitlementAudit(
+  entitlement: ListingEntitlement,
+): AdminListingEntitlementAuditContract {
+  const grantAudit = readAdminGrantAudit(entitlement.parameters);
+  return {
+    grantedByUserId:
+      entitlement.grantedByUserId ?? grantAudit.grantedByUserId ?? null,
+    grantedAt: grantAudit.grantedAt ?? null,
+    reason: grantAudit.reason ?? null,
+    productType: grantAudit.productType ?? null,
+    revokedByUserId: entitlement.revokedByUserId ?? null,
+    revokedAt: entitlement.revokedAt?.toISOString() ?? null,
+    revokedReason: entitlement.revokedReason ?? null,
+  };
+}
+
+function readAdminGrantAudit(
+  parameters: ListingProductFulfillmentParameters | null | undefined,
+): Partial<AdminListingEntitlementAuditContract> {
+  const adminGrant = parameters?.adminGrant;
+  if (typeof adminGrant !== 'object' || adminGrant === null) return {};
+
+  const audit = adminGrant as Record<string, unknown>;
+  return {
+    grantedByUserId:
+      typeof audit.grantedByUserId === 'string'
+        ? audit.grantedByUserId
+        : undefined,
+    grantedAt: typeof audit.grantedAt === 'string' ? audit.grantedAt : undefined,
+    reason: typeof audit.reason === 'string' ? audit.reason : undefined,
+    productType: isListingProductType(audit.productType)
+      ? audit.productType
+      : undefined,
+  };
+}
+
+function isListingProductType(value: unknown): value is ListingProductType {
+  return (
+    value === ListingProductType.PUBLICATION ||
+    value === ListingProductType.RENEWAL ||
+    value === ListingProductType.FEATURED
+  );
 }

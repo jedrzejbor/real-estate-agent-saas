@@ -1707,6 +1707,58 @@ bez ręcznej zmiany danych w bazie i bez utraty śladu audytowego.
 Następny krok etapu 8: wystawić bezpieczny endpoint admina i podpiąć go w
 panelu szczegółów zgłoszenia/oferty jako sekcję `Cena i promocja`.
 
+#### Iteracja 8.2 — endpoint admina dla grantów
+
+- [x] Dodano endpoint `POST /api/admin/listings/:listingId/entitlement-grants`
+  do przyznawania publikacji, przedłużenia i wyróżnienia z panelu admina.
+- [x] Endpoint jest chroniony rolą `ADMIN` i pobiera autora operacji z
+  aktualnego użytkownika, bez przyjmowania `actorUserId` z body.
+- [x] Dodano DTO `GrantListingEntitlementDto` z walidacją typu produktu,
+  okresu ważności, powodu audytowego, konfiguracji wyróżnienia i liczbowych
+  pól formularza.
+- [x] Kontroler pozostaje cienką warstwą transportową i przekazuje żądanie do
+  `ListingEntitlementsService.grantAdminEntitlement`.
+- [x] Dodano testy kontrolera, ochrony admin-only i walidacji DTO.
+
+Następny krok etapu 8: przygotować dane pod panel `Cena i promocja` w
+szczegółach zgłoszenia/oferty, aby admin przed wykonaniem grantu widział
+aktywną publikację, wyróżnienia, zaplanowane okresy i historię grantów.
+
+#### Iteracja 8.3 — read-model pod panel `Cena i promocja`
+
+- [x] Dodano endpoint `GET /api/admin/listings/:listingId/commerce-summary`,
+  który zwraca snapshot publikacji ogłoszenia oraz listę wszystkich
+  entitlementów.
+- [x] Summary pokazuje status ogłoszenia, status publikacji, daty publikacji,
+  wygaśnięcia, `publicSlug` i aktualny stan legacy `isPremium`.
+- [x] Entitlementy w summary zawierają typ, status, poziom wyróżnienia,
+  źródło, powiązany `orderItemId`, daty oraz bezpieczny audyt grantu/admin
+  revoke bez wystawiania surowego JSON `parameters`.
+- [x] Dodano test serwisu sprawdzający kształt danych i mapowanie audytu
+  `ADMIN_GRANT`.
+- [x] Dodano test kontrolera dla odczytu summary.
+
+Następny krok etapu 8: zbudować frontendową sekcję `Cena i promocja` w panelu
+admina i podpiąć akcję przyznawania grantu do nowego endpointu.
+
+#### Iteracja 8.4 — frontowy boundary dla panelu admina
+
+- [x] Dodano moduł `listing-entitlements` po stronie web z typami dla
+  adminowego summary i entitlementów.
+- [x] Dodano funkcję `fetchAdminListingCommerceSummary` dla endpointu
+  `GET /api/admin/listings/:listingId/commerce-summary`.
+- [x] Dodano funkcję `grantAdminListingEntitlement` dla endpointu
+  `POST /api/admin/listings/:listingId/entitlement-grants`.
+- [x] Dodano formularzowy boundary dla ręcznego grantu:
+  `createEmptyAdminEntitlementGrantForm`,
+  `validateAdminEntitlementGrantForm` i `toGrantListingEntitlementInput`.
+- [x] Walidacja frontowa wymusza powód, okres ważności i `featuredTier` tylko
+  dla wyróżnień, a liczby konwertuje dopiero przy budowie payloadu API.
+- [x] Dodano testy modułu web dla walidacji, konwersji i wywołań HTTP.
+
+Następny krok etapu 8: użyć tego modułu w widocznej sekcji UI na stronie
+adminowej szczegółów zgłoszenia/oferty.
+
 ### Etap 9 — analityka zbiorcza, QA i rollout
 
 - [ ] Instrumentować podstawowe zdarzenia w każdym wcześniejszym etapie zamiast

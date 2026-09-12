@@ -8,6 +8,7 @@ export {
   CreateListingQuoteItemDto,
 } from './create-listing-quote.dto';
 export { ListingProductActionDto } from './listing-product-action.dto';
+export { GrantListingEntitlementDto } from './grant-listing-entitlement.dto';
 export {
   CreateListingPromotionCampaignDto,
   CreateListingPromotionCodeDto,

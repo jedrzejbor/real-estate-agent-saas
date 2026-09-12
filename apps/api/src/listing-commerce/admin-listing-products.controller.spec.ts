@@ -1,6 +1,7 @@
 import { IS_PUBLIC_KEY } from '../auth/decorators/public.decorator';
 import { ROLES_KEY } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums';
+import { AdminListingEntitlementsController } from './admin-listing-entitlements.controller';
 import { AdminListingProductsController } from './admin-listing-products.controller';
 import { AdminListingPromotionsController } from './admin-listing-promotions.controller';
 import { ListingCheckoutController } from './listing-checkout.controller';
@@ -14,6 +15,9 @@ describe('listing product controller access', () => {
     ]);
     expect(
       Reflect.getMetadata(ROLES_KEY, AdminListingPromotionsController),
+    ).toEqual([UserRole.ADMIN]);
+    expect(
+      Reflect.getMetadata(ROLES_KEY, AdminListingEntitlementsController),
     ).toEqual([UserRole.ADMIN]);
   });
 
@@ -29,6 +33,9 @@ describe('listing product controller access', () => {
     ).toBeUndefined();
     expect(
       Reflect.getMetadata(IS_PUBLIC_KEY, AdminListingPromotionsController),
+    ).toBeUndefined();
+    expect(
+      Reflect.getMetadata(IS_PUBLIC_KEY, AdminListingEntitlementsController),
     ).toBeUndefined();
     expect(
       Reflect.getMetadata(

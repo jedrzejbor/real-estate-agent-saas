@@ -514,6 +514,89 @@ describe('ListingEntitlementsService', () => {
     );
   });
 
+  it('returns an admin commerce summary with entitlement audit data', async () => {
+    const listing = buildListing({
+      title: 'Mieszkanie przy parku',
+      publicTitle: 'Publiczne mieszkanie przy parku',
+      status: ListingStatus.ACTIVE,
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publishedAt: new Date('2026-09-01T10:00:00.000Z'),
+      expiresAt: new Date('2026-11-01T10:00:00.000Z'),
+      isPremium: true,
+    } as Partial<Listing>);
+    const entitlement = Object.assign(new ListingEntitlement(), {
+      id: 'entitlement-1',
+      listingId: listing.id,
+      type: ListingEntitlementType.FEATURED,
+      status: ListingEntitlementStatus.ACTIVE,
+      tier: 'standard',
+      sourceType: ListingEntitlementSource.ADMIN_GRANT,
+      orderItemId: null,
+      startsAt: new Date('2026-09-07T10:00:00.000Z'),
+      endsAt: new Date('2026-09-14T10:00:00.000Z'),
+      createdAt: new Date('2026-09-07T09:55:00.000Z'),
+      grantedByUserId: 'admin-1',
+      parameters: {
+        durationDays: 7,
+        featuredTier: 'standard',
+        adminGrant: {
+          reason: 'Promocyjne wyróżnienie po kontakcie z supportem',
+          grantedByUserId: 'admin-1',
+          grantedAt: '2026-09-07T09:55:00.000Z',
+          productType: ListingProductType.FEATURED,
+        },
+      },
+    });
+    const listingRepo = { findOne: jest.fn().mockResolvedValue(listing) };
+    const entitlementRepo = { find: jest.fn().mockResolvedValue([entitlement]) };
+    const service = new ListingEntitlementsService({
+      getRepository: (entity: unknown) =>
+        entity === Listing ? listingRepo : entitlementRepo,
+    } as never);
+
+    await expect(
+      service.findAdminCommerceSummary(listing.id),
+    ).resolves.toEqual({
+      listing: {
+        id: listing.id,
+        title: 'Publiczne mieszkanie przy parku',
+        publicSlug: listing.publicSlug,
+        status: ListingStatus.ACTIVE,
+        publicationStatus: ListingPublicationStatus.PUBLISHED,
+        publishedAt: '2026-09-01T10:00:00.000Z',
+        unpublishedAt: null,
+        expiresAt: '2026-11-01T10:00:00.000Z',
+        isPremium: true,
+      },
+      entitlements: [
+        {
+          id: 'entitlement-1',
+          type: ListingEntitlementType.FEATURED,
+          status: ListingEntitlementStatus.ACTIVE,
+          tier: 'standard',
+          sourceType: ListingEntitlementSource.ADMIN_GRANT,
+          orderItemId: null,
+          startsAt: '2026-09-07T10:00:00.000Z',
+          endsAt: '2026-09-14T10:00:00.000Z',
+          createdAt: '2026-09-07T09:55:00.000Z',
+          audit: {
+            grantedByUserId: 'admin-1',
+            grantedAt: '2026-09-07T09:55:00.000Z',
+            reason: 'Promocyjne wyróżnienie po kontakcie z supportem',
+            productType: ListingProductType.FEATURED,
+            revokedByUserId: null,
+            revokedAt: null,
+            revokedReason: null,
+          },
+        },
+      ],
+    });
+    expect(entitlementRepo.find).toHaveBeenCalledWith({
+      where: { listingId: listing.id },
+      order: { startsAt: 'DESC', createdAt: 'DESC' },
+    });
+  });
+
   it('sends 2-day featured expiry reminders once per entitlement end date', async () => {
     const now = new Date('2026-09-12T10:00:00.000Z');
     const endsAt = new Date('2026-09-14T09:00:00.000Z');
