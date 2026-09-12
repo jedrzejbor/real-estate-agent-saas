@@ -1759,6 +1759,27 @@ admina i podpiąć akcję przyznawania grantu do nowego endpointu.
 Następny krok etapu 8: użyć tego modułu w widocznej sekcji UI na stronie
 adminowej szczegółów zgłoszenia/oferty.
 
+#### Iteracja 8.5 — UI panelu `Cena i promocja`
+
+- [x] Dodano sekcję `Cena i promocja` w modalnym podglądzie adminowej
+  moderacji zgłoszenia.
+- [x] Panel pobiera `commerce-summary` dla powiązanego `publishedListingId` i
+  pokazuje status publikacji, daty publikacji/wygaśnięcia, stan wyróżnienia
+  oraz historię entitlementów.
+- [x] Entitlementy są prezentowane z czytelnymi etykietami statusu, typu,
+  okresem działania i źródłem (`zamówienie` albo `grant admina`).
+- [x] Dodano formularz ręcznego grantu administratora dla publikacji,
+  przedłużenia i wyróżnienia.
+- [x] Formularz korzysta z frontowego boundary `listing-entitlements`, więc UI
+  nie parsuje samodzielnie payloadu i nie powiela reguł walidacji.
+- [x] Przed wykonaniem grantu administrator dostaje dialog potwierdzający typ,
+  okres i powód audytowy.
+- [x] Po udanym grancie panel odświeża summary, aby administrator widział
+  efekt operacji bez ręcznego przeładowania strony.
+
+Następny krok etapu 8: dodać cofanie/revocation grantu z pełnym audytem i
+wpływem na aktywną publikację lub wyróżnienie.
+
 ### Etap 9 — analityka zbiorcza, QA i rollout
 
 - [ ] Instrumentować podstawowe zdarzenia w każdym wcześniejszym etapie zamiast

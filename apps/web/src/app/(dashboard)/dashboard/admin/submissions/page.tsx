@@ -5,6 +5,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Eye,
+  Gift,
   Mail,
   MapPin,
   ShieldAlert,
@@ -26,6 +27,21 @@ import {
   TRANSACTION_TYPE_LABELS,
 } from '@/lib/listings';
 import {
+  createEmptyAdminEntitlementGrantForm,
+  fetchAdminListingCommerceSummary,
+  grantAdminListingEntitlement,
+  ListingEntitlementSource,
+  ListingEntitlementStatus,
+  ListingEntitlementType,
+  ListingProductType,
+  toGrantListingEntitlementInput,
+  validateAdminEntitlementGrantForm,
+  type AdminEntitlementGrantFormErrors,
+  type AdminEntitlementGrantFormValues,
+  type AdminListingCommerceSummary,
+  type AdminListingEntitlement,
+} from '@/lib/listing-entitlements';
+import {
   approveAdminPublicListingSubmission,
   fetchAdminPublicListingSubmission,
   fetchAdminPublicListingSubmissions,
@@ -34,6 +50,25 @@ import {
   type SellerPublicListingSubmissionDetail,
 } from '@/lib/public-listing-submissions';
 import { cn } from '@/lib/utils';
+
+const LISTING_PRODUCT_TYPE_LABELS = {
+  [ListingProductType.PUBLICATION]: 'Publikacja ogłoszenia',
+  [ListingProductType.RENEWAL]: 'Przedłużenie publikacji',
+  [ListingProductType.FEATURED]: 'Wyróżnienie ogłoszenia',
+} as const;
+
+const ENTITLEMENT_TYPE_LABELS = {
+  [ListingEntitlementType.PUBLICATION]: 'Publikacja',
+  [ListingEntitlementType.FEATURED]: 'Wyróżnienie',
+} as const;
+
+const ENTITLEMENT_STATUS_LABELS = {
+  [ListingEntitlementStatus.SCHEDULED]: 'Zaplanowane',
+  [ListingEntitlementStatus.ACTIVE]: 'Aktywne',
+  [ListingEntitlementStatus.EXPIRED]: 'Wygasłe',
+  [ListingEntitlementStatus.REVOKED]: 'Cofnięte',
+  [ListingEntitlementStatus.CANCELLED]: 'Anulowane',
+} as const;
 
 export default function AdminListingSubmissionsPage() {
   const { user } = useAuth();
@@ -582,6 +617,18 @@ function SubmissionPreviewModal({
                   />
                 </PreviewSection>
 
+                {detail.publishedListingId ? (
+                  <AdminListingCommercePanel
+                    listingId={detail.publishedListingId}
+                  />
+                ) : (
+                  <PreviewSection title="Cena i promocja">
+                    <p className="text-sm text-muted-foreground">
+                      Brak powiązanego ogłoszenia do operacji cenowych.
+                    </p>
+                  </PreviewSection>
+                )}
+
                 <ModerationChecklist items={getModerationChecklist(item)} />
               </div>
             </div>
@@ -589,6 +636,277 @@ function SubmissionPreviewModal({
         </div>
       </section>
     </div>
+  );
+}
+
+function AdminListingCommercePanel({ listingId }: { listingId: string }) {
+  const { confirm } = useConfirm();
+  const { success: showSuccessToast, error: showErrorToast } = useToast();
+  const [summary, setSummary] = useState<AdminListingCommerceSummary | null>(
+    null,
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState<AdminEntitlementGrantFormValues>(() =>
+    createEmptyAdminEntitlementGrantForm(),
+  );
+  const [errors, setErrors] = useState<AdminEntitlementGrantFormErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function loadSummary() {
+    setIsLoading(true);
+    try {
+      setSummary(await fetchAdminListingCommerceSummary(listingId));
+      setError(null);
+    } catch (fetchError) {
+      setError(getApiErrorMessage(fetchError));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listingId]);
+
+  function updateForm<K extends keyof AdminEntitlementGrantFormValues>(
+    field: K,
+    value: AdminEntitlementGrantFormValues[K],
+  ) {
+    setForm((current) => ({ ...current, [field]: value }));
+    setErrors((current) => {
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
+  async function submitGrant() {
+    const validation = validateAdminEntitlementGrantForm(form);
+    if (!validation.data) {
+      setErrors(validation.errors);
+      showErrorToast({
+        title: 'Uzupełnij dane grantu',
+        description: 'Sprawdź typ, okres ważności i powód operacji.',
+      });
+      return;
+    }
+
+    const payload = toGrantListingEntitlementInput(validation.data);
+    const confirmed = await confirm({
+      title: 'Przyznać grant dla ogłoszenia?',
+      description: `Typ: ${LISTING_PRODUCT_TYPE_LABELS[payload.productType]}. Okres: ${payload.durationDays} dni. Powód: ${payload.reason}`,
+      confirmLabel: 'Przyznaj grant',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
+
+    setIsSubmitting(true);
+    try {
+      await grantAdminListingEntitlement(listingId, payload);
+      showSuccessToast({
+        title: 'Grant przyznany',
+        description: 'Uprawnienie zostało zapisane i aktywowane przez domenę.',
+      });
+      setForm(createEmptyAdminEntitlementGrantForm());
+      setErrors({});
+      await loadSummary();
+    } catch (grantError) {
+      showErrorToast({
+        title: 'Nie udało się przyznać grantu',
+        description: getApiErrorMessage(grantError),
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <PreviewSection title="Cena i promocja">
+      <div className="space-y-4">
+        {isLoading ? (
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            Ładowanie danych rozliczeniowych…
+          </div>
+        ) : error ? (
+          <div className="rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
+        ) : summary ? (
+          <>
+            <PreviewGrid
+              rows={[
+                ['Status publikacji', summary.listing.publicationStatus],
+                ['Opublikowano', formatDateTime(summary.listing.publishedAt)],
+                ['Wygasa', formatDateTime(summary.listing.expiresAt)],
+                ['Wyróżnienie', summary.listing.isPremium ? 'Aktywne' : 'Brak'],
+              ]}
+            />
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                Uprawnienia
+              </p>
+              {summary.entitlements.length > 0 ? (
+                <div className="space-y-2">
+                  {summary.entitlements.map((entitlement) => (
+                    <AdminEntitlementRow
+                      key={entitlement.id}
+                      entitlement={entitlement}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+                  Brak historii płatnych produktów i grantów dla tej oferty.
+                </p>
+              )}
+            </div>
+          </>
+        ) : null}
+
+        <div className="rounded-xl border border-border bg-card p-3">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+            <Gift className="h-4 w-4 text-primary" />
+            Ręczny grant administratora
+          </div>
+
+          <div className="grid gap-3">
+            <FormField label="Typ grantu" error={errors.productType}>
+              <select
+                value={form.productType}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                disabled={isSubmitting}
+                onChange={(event) =>
+                  updateForm(
+                    'productType',
+                    event.target.value as AdminEntitlementGrantFormValues['productType'],
+                  )
+                }
+              >
+                <option value={ListingProductType.PUBLICATION}>
+                  Publikacja ogłoszenia
+                </option>
+                <option value={ListingProductType.RENEWAL}>
+                  Przedłużenie publikacji
+                </option>
+                <option value={ListingProductType.FEATURED}>
+                  Wyróżnienie ogłoszenia
+                </option>
+              </select>
+            </FormField>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField label="Okres (dni)" error={errors.durationDays}>
+                <input
+                  value={form.durationDays}
+                  inputMode="numeric"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  disabled={isSubmitting}
+                  onChange={(event) =>
+                    updateForm('durationDays', event.target.value)
+                  }
+                />
+              </FormField>
+
+              <FormField label="Tier wyróżnienia" error={errors.featuredTier}>
+                <input
+                  value={form.featuredTier}
+                  placeholder="standard"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  disabled={isSubmitting}
+                  onChange={(event) =>
+                    updateForm('featuredTier', event.target.value)
+                  }
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Waga wyróżnienia" error={errors.priorityWeight}>
+              <input
+                value={form.priorityWeight}
+                inputMode="numeric"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                disabled={isSubmitting}
+                onChange={(event) =>
+                  updateForm('priorityWeight', event.target.value)
+                }
+              />
+            </FormField>
+
+            <FormField label="Powód audytowy" error={errors.reason}>
+              <textarea
+                value={form.reason}
+                rows={3}
+                placeholder="Np. rekompensata po zgłoszeniu klienta"
+                className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                disabled={isSubmitting}
+                onChange={(event) => updateForm('reason', event.target.value)}
+              />
+            </FormField>
+
+            <Button
+              type="button"
+              className="cursor-pointer rounded-xl"
+              disabled={isSubmitting}
+              onClick={submitGrant}
+            >
+              {isSubmitting ? 'Przyznawanie…' : 'Przyznaj grant'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </PreviewSection>
+  );
+}
+
+function AdminEntitlementRow({
+  entitlement,
+}: {
+  entitlement: AdminListingEntitlement;
+}) {
+  const isAdminGrant =
+    entitlement.sourceType === ListingEntitlementSource.ADMIN_GRANT;
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={getEntitlementBadgeVariant(entitlement.status)}>
+          {ENTITLEMENT_STATUS_LABELS[entitlement.status]}
+        </Badge>
+        <span className="font-medium">
+          {ENTITLEMENT_TYPE_LABELS[entitlement.type]}
+          {entitlement.tier ? ` · ${entitlement.tier}` : ''}
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {formatDateTime(entitlement.startsAt)} —{' '}
+        {formatDateTime(entitlement.endsAt)}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Źródło: {isAdminGrant ? 'grant admina' : 'zamówienie'}
+        {entitlement.audit.reason ? ` · ${entitlement.audit.reason}` : ''}
+      </p>
+    </div>
+  );
+}
+
+function FormField({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="grid gap-1 text-sm">
+      <span className="font-medium text-foreground">{label}</span>
+      {children}
+      {error ? <span className="text-xs text-destructive">{error}</span> : null}
+    </label>
   );
 }
 
@@ -786,4 +1104,24 @@ function formatDate(value: string): string {
     month: '2-digit',
     year: 'numeric',
   });
+}
+
+function formatDateTime(value: string | null): string {
+  if (!value) return 'Brak';
+  return new Date(value).toLocaleString('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function getEntitlementBadgeVariant(
+  status: AdminListingEntitlement['status'],
+): 'default' | 'secondary' | 'destructive' | 'outline' {
+  if (status === ListingEntitlementStatus.ACTIVE) return 'default';
+  if (status === ListingEntitlementStatus.SCHEDULED) return 'secondary';
+  if (status === ListingEntitlementStatus.REVOKED) return 'destructive';
+  return 'outline';
 }
