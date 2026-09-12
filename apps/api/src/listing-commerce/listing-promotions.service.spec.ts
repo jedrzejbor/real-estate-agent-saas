@@ -229,6 +229,30 @@ describe('ListingPromotionsService', () => {
     ]);
   });
 
+  it('does not reserve admin adjustment discounts as promotion usage', async () => {
+    const order = buildOrder({
+      pricingSnapshot: {
+        ...buildOrder().pricingSnapshot,
+        discounts: [
+          {
+            sourceType: 'admin_adjustment',
+            sourceReference: 'adjustment-1',
+            label: 'Ręczna korekta ceny',
+            grossAmount: 1_000,
+          },
+        ],
+      },
+    });
+    const { service } = buildService();
+    const manager = buildManager();
+
+    await expect(
+      service.reserveDiscountsForOrder(manager as never, order),
+    ).resolves.toEqual([]);
+    expect(manager.findOne).not.toHaveBeenCalled();
+    expect(manager.save).not.toHaveBeenCalled();
+  });
+
   it('targets discounts to configured product types', async () => {
     const campaign = buildCampaign({
       targetScope: ListingPromotionTargetScope.PRODUCT_TYPES,

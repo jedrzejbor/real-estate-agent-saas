@@ -7,7 +7,12 @@ import {
 } from '../common/enums';
 import { Listing } from '../listings/entities';
 import { PublicListingSubmission } from '../public-listing-submissions/entities';
-import { ListingEntitlement, ListingOrder, ListingOrderItem } from './entities';
+import {
+  ListingEntitlement,
+  ListingManualAdjustment,
+  ListingOrder,
+  ListingOrderItem,
+} from './entities';
 import { ListingEntitlementsService } from './listing-entitlements.service';
 import {
   ListingEntitlementSource,
@@ -549,9 +554,14 @@ describe('ListingEntitlementsService', () => {
     });
     const listingRepo = { findOne: jest.fn().mockResolvedValue(listing) };
     const entitlementRepo = { find: jest.fn().mockResolvedValue([entitlement]) };
+    const manualAdjustmentRepo = { find: jest.fn().mockResolvedValue([]) };
     const service = new ListingEntitlementsService({
-      getRepository: (entity: unknown) =>
-        entity === Listing ? listingRepo : entitlementRepo,
+      getRepository: (entity: unknown) => {
+        if (entity === Listing) return listingRepo;
+        if (entity === ListingEntitlement) return entitlementRepo;
+        if (entity === ListingManualAdjustment) return manualAdjustmentRepo;
+        throw new Error('Unexpected repository');
+      },
     } as never);
 
     await expect(
@@ -590,8 +600,13 @@ describe('ListingEntitlementsService', () => {
           },
         },
       ],
+      manualAdjustments: [],
     });
     expect(entitlementRepo.find).toHaveBeenCalledWith({
+      where: { listingId: listing.id },
+      order: { startsAt: 'DESC', createdAt: 'DESC' },
+    });
+    expect(manualAdjustmentRepo.find).toHaveBeenCalledWith({
       where: { listingId: listing.id },
       order: { startsAt: 'DESC', createdAt: 'DESC' },
     });

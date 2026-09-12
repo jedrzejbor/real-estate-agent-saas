@@ -36,6 +36,30 @@ export const ListingEntitlementSource = {
 export type ListingEntitlementSource =
   (typeof ListingEntitlementSource)[keyof typeof ListingEntitlementSource];
 
+export const ListingPromotionDiscountType = {
+  PERCENTAGE: 'percentage',
+  FIXED_GROSS: 'fixed_gross',
+} as const;
+
+export type ListingPromotionDiscountType =
+  (typeof ListingPromotionDiscountType)[keyof typeof ListingPromotionDiscountType];
+
+export const ListingPromotionTargetScope = {
+  ALL_PRODUCTS: 'all_products',
+  PRODUCT_TYPES: 'product_types',
+  PRODUCT_CODES: 'product_codes',
+} as const;
+
+export type ListingPromotionTargetScope =
+  (typeof ListingPromotionTargetScope)[keyof typeof ListingPromotionTargetScope];
+
+export interface ListingPromotionTargetRules {
+  productTypes?: ListingProductTypeValue[];
+  productCodes?: string[];
+  minimumSubtotalGrossAmount?: number;
+  [key: string]: unknown;
+}
+
 export interface AdminListingEntitlementAudit {
   grantedByUserId: string | null;
   grantedAt: string | null;
@@ -59,6 +83,26 @@ export interface AdminListingEntitlement {
   audit: AdminListingEntitlementAudit;
 }
 
+export interface AdminListingManualAdjustment {
+  id: string;
+  listingId: string;
+  label: string;
+  reason: string;
+  discountType: ListingPromotionDiscountType;
+  discountValue: number;
+  maxDiscountGrossAmount: number | null;
+  targetScope: ListingPromotionTargetScope;
+  targetRules: ListingPromotionTargetRules;
+  startsAt: string;
+  endsAt: string;
+  createdByUserId: string;
+  archivedByUserId: string | null;
+  archivedReason: string | null;
+  archivedAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
 export interface AdminListingCommerceSummary {
   listing: {
     id: string;
@@ -72,6 +116,7 @@ export interface AdminListingCommerceSummary {
     isPremium: boolean;
   };
   entitlements: AdminListingEntitlement[];
+  manualAdjustments: AdminListingManualAdjustment[];
 }
 
 export interface AdminEntitlementGrantFormValues {
@@ -91,6 +136,22 @@ export interface GrantListingEntitlementInput {
 }
 
 export interface RevokeListingEntitlementInput {
+  reason: string;
+}
+
+export interface CreateListingManualAdjustmentInput {
+  label: string;
+  reason: string;
+  discountType: ListingPromotionDiscountType;
+  discountValue: number;
+  maxDiscountGrossAmount?: number | null;
+  targetScope?: ListingPromotionTargetScope;
+  targetRules?: ListingPromotionTargetRules;
+  startsAt?: string | null;
+  endsAt: string;
+}
+
+export interface ArchiveListingManualAdjustmentInput {
   reason: string;
 }
 
@@ -233,6 +294,37 @@ export function revokeAdminListingEntitlement(
 ): Promise<AdminListingEntitlement> {
   return apiFetch<AdminListingEntitlement>(
     `/admin/listings/${encodeURIComponent(listingId)}/entitlements/${encodeURIComponent(entitlementId)}/revoke`,
+    {
+      method: 'POST',
+      body: { reason: input.reason.trim() },
+    },
+  );
+}
+
+export function createAdminListingManualAdjustment(
+  listingId: string,
+  input: CreateListingManualAdjustmentInput,
+): Promise<AdminListingManualAdjustment> {
+  return apiFetch<AdminListingManualAdjustment>(
+    `/admin/listings/${encodeURIComponent(listingId)}/manual-adjustments`,
+    {
+      method: 'POST',
+      body: {
+        ...input,
+        label: input.label.trim(),
+        reason: input.reason.trim(),
+      },
+    },
+  );
+}
+
+export function archiveAdminListingManualAdjustment(
+  listingId: string,
+  adjustmentId: string,
+  input: ArchiveListingManualAdjustmentInput,
+): Promise<AdminListingManualAdjustment> {
+  return apiFetch<AdminListingManualAdjustment>(
+    `/admin/listings/${encodeURIComponent(listingId)}/manual-adjustments/${encodeURIComponent(adjustmentId)}/archive`,
     {
       method: 'POST',
       body: { reason: input.reason.trim() },

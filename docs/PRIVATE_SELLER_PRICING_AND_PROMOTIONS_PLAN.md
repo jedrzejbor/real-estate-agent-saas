@@ -1672,12 +1672,12 @@ zamówieniu.
 
 ### Etap 8 — promocja konkretnego ogłoszenia i operacje admina
 
-- [ ] Dodać ręczne korekty z obowiązkowym powodem i okresem ważności.
+- [x] Dodać ręczne korekty z obowiązkowym powodem i okresem ważności.
 - [x] Dodać panel `Cena i promocja` w szczegółach zgłoszenia/oferty.
 - [x] Dodać grant darmowej publikacji, wyróżnienia i przedłużenia.
 - [x] Realizować granty przez ten sam serwis entitlementów co opłacone
   zamówienia, bez bezpośredniego ustawiania `isPremium` lub dat publikacji.
-- [ ] Pokazywać ręczny rabat jako osobną pozycję w quote i zamówieniu.
+- [x] Pokazywać ręczny rabat jako osobną pozycję w quote i zamówieniu.
 - [x] Dodać anulowanie/revocation z pełnym audytem.
 - [ ] Dodać uprawnienia bardziej szczegółowe niż ogólna rola admina, jeśli
   operacje finansowe będą obsługiwać różne osoby.
@@ -1803,9 +1803,36 @@ wpływem na aktywną publikację lub wyróżnienie.
 - [x] Dodano testy domeny, kontrolera, DTO i frontowego boundary dla cofania
   grantów.
 
-Następny krok etapu 8: dodać ręczne korekty/rabaty jako jawne pozycje w quote
-i zamówieniu albo, jeśli zdecydujemy operacyjnie, doprecyzować granularne
-uprawnienia ponad `ADMIN`.
+#### Iteracja 8.7 — ręczne korekty ceny dla konkretnego ogłoszenia
+
+- [x] Dodano encję `ListingManualAdjustment` i migrację
+  `listing_manual_adjustments` dla ręcznych korekt ceny przypisanych do
+  konkretnego ogłoszenia.
+- [x] Korekta wymaga etykiety, powodu audytowego, autora, typu/wartości rabatu,
+  okresu ważności oraz może zawężać działanie przez te same reguły targetowania
+  produktów co promocje.
+- [x] Dodano serwis `ListingManualAdjustmentsService`, który tworzy korekty,
+  archiwizuje je z powodem i przelicza aktywne korekty do listy rabatów quote
+  jako osobne źródło `admin_adjustment`.
+- [x] Quote łączy rabaty promocyjne z aktywnymi korektami admina bez przyjmowania
+  ceny ani rabatu z frontendu.
+- [x] Zamówienie zapisuje ręczną korektę w `pricingSnapshot`, dzięki czemu
+  rabat pozostaje widoczny jako osobna pozycja także po zakupie.
+- [x] Rezerwacja promocji ignoruje źródło `admin_adjustment`, więc ręczna korekta
+  nie zużywa limitów kampanii ani kodów promocyjnych.
+- [x] Dodano endpointy:
+  `POST /api/admin/listings/:listingId/manual-adjustments` oraz
+  `POST /api/admin/listings/:listingId/manual-adjustments/:adjustmentId/archive`.
+- [x] `commerce-summary` zwraca listę ręcznych korekt obok entitlementów, dzięki
+  czemu panel admina ma jeden read-model dla sekcji `Cena i promocja`.
+- [x] Frontowy moduł `listing-entitlements` ma typy oraz funkcje HTTP do
+  tworzenia i archiwizacji ręcznych korekt.
+- [x] Dodano testy migracji, serwisu, kontrolera, DTO, quote, rezerwacji promocji
+  i frontowego boundary.
+
+Następny krok etapu 8: dodać formularz tworzenia/archiwizacji ręcznych korekt w
+widocznej sekcji `Cena i promocja` oraz — jeśli operacyjnie będzie potrzebne —
+doprecyzować granularne uprawnienia ponad `ADMIN`.
 
 ### Etap 9 — analityka zbiorcza, QA i rollout
 

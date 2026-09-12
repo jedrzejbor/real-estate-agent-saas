@@ -14,6 +14,7 @@ import { AdminListingPromotionsController } from './admin-listing-promotions.con
 import { AdminListingPromotionsService } from './admin-listing-promotions.service';
 import {
   ListingEntitlement,
+  ListingManualAdjustment,
   ListingOrder,
   ListingOrderItem,
   ListingPaymentAttempt,
@@ -36,6 +37,7 @@ import { ListingOrdersService } from './listing-orders.service';
 import { ListingPaymentEventsService } from './listing-payment-events.service';
 import { ListingPaymentReconciliationScheduler } from './listing-payment-reconciliation.scheduler';
 import { ListingPaymentReconciliationService } from './listing-payment-reconciliation.service';
+import { ListingManualAdjustmentsService } from './listing-manual-adjustments.service';
 import { ListingProductsController } from './listing-products.controller';
 import { ListingProductsService } from './listing-products.service';
 import { ListingPromotionsService } from './listing-promotions.service';
@@ -50,6 +52,7 @@ const LISTING_COMMERCE_ENTITIES = [
   ListingPaymentAttempt,
   ListingPaymentEvent,
   ListingEntitlement,
+  ListingManualAdjustment,
   ListingProductChange,
   ListingPromotionCampaign,
   ListingPromotionCode,
@@ -81,6 +84,7 @@ const LISTING_COMMERCE_ENTITIES = [
   providers: [
     ListingProductsService,
     ListingPromotionsService,
+    ListingManualAdjustmentsService,
     AdminListingProductsService,
     AdminListingPromotionsService,
     ListingQuotesService,
@@ -101,6 +105,7 @@ const LISTING_COMMERCE_ENTITIES = [
     TypeOrmModule,
     ListingProductsService,
     ListingPromotionsService,
+    ListingManualAdjustmentsService,
     ListingEntitlementsService,
     ListingPaymentEventsService,
   ],

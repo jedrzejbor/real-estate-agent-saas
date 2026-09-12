@@ -90,7 +90,10 @@ export class ListingPromotionsService {
     now = new Date(),
   ): Promise<ListingPromotionReservation[]> {
     const discounts = order.pricingSnapshot.discounts.filter(
-      (discount) => discount.grossAmount > 0,
+      (discount) =>
+        discount.grossAmount > 0 &&
+        (discount.sourceType === 'campaign' ||
+          discount.sourceType === 'promotion_code'),
     );
     if (!discounts.length) return [];
 

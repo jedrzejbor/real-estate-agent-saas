@@ -2,10 +2,13 @@ jest.mock('./api-client', () => ({ apiFetch: jest.fn() }));
 
 import { apiFetch } from './api-client';
 import {
+  archiveAdminListingManualAdjustment,
+  createAdminListingManualAdjustment,
   createEmptyAdminEntitlementGrantForm,
   fetchAdminListingCommerceSummary,
   grantAdminListingEntitlement,
   ListingProductType,
+  ListingPromotionDiscountType,
   revokeAdminListingEntitlement,
   toGrantListingEntitlementInput,
   validateRevokeListingEntitlementReason,
@@ -128,6 +131,48 @@ describe('listing entitlement admin boundary', () => {
       {
         method: 'POST',
         body: { reason: 'Grant przyznany omyłkowo' },
+      },
+    );
+  });
+
+  it('posts an admin manual adjustment request for a listing', async () => {
+    apiFetchMock.mockResolvedValueOnce({ id: 'adjustment-1' });
+
+    await createAdminListingManualAdjustment('listing-1', {
+      label: ' Ręczna korekta ceny ',
+      reason: ' Rekompensata po kontakcie z supportem ',
+      discountType: ListingPromotionDiscountType.FIXED_GROSS,
+      discountValue: 1_000,
+      endsAt: '2026-09-20T10:00:00.000Z',
+    });
+
+    expect(apiFetchMock).toHaveBeenCalledWith(
+      '/admin/listings/listing-1/manual-adjustments',
+      {
+        method: 'POST',
+        body: {
+          label: 'Ręczna korekta ceny',
+          reason: 'Rekompensata po kontakcie z supportem',
+          discountType: ListingPromotionDiscountType.FIXED_GROSS,
+          discountValue: 1_000,
+          endsAt: '2026-09-20T10:00:00.000Z',
+        },
+      },
+    );
+  });
+
+  it('posts an admin archive request for a manual adjustment', async () => {
+    apiFetchMock.mockResolvedValueOnce({ id: 'adjustment-1' });
+
+    await archiveAdminListingManualAdjustment('listing-1', 'adjustment-1', {
+      reason: ' Korekta nie jest już potrzebna ',
+    });
+
+    expect(apiFetchMock).toHaveBeenCalledWith(
+      '/admin/listings/listing-1/manual-adjustments/adjustment-1/archive',
+      {
+        method: 'POST',
+        body: { reason: 'Korekta nie jest już potrzebna' },
       },
     );
   });

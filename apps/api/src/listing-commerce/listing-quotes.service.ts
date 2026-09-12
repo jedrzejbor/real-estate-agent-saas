@@ -18,6 +18,7 @@ import {
   ListingProductUnavailableError,
 } from './listing-purchase.policy';
 import { ListingProductType } from './listing-commerce.types';
+import { ListingManualAdjustmentsService } from './listing-manual-adjustments.service';
 import { ListingPromotionsService } from './listing-promotions.service';
 
 export interface AuthorizedListingQuote {
@@ -48,6 +49,7 @@ export class ListingQuotesService {
     private readonly productRepo: Repository<ListingProductCatalog>,
     private readonly releaseFlagsService: ReleaseFlagsService,
     private readonly promotionsService: ListingPromotionsService,
+    private readonly manualAdjustmentsService: ListingManualAdjustmentsService,
   ) {}
 
   async createQuote(
@@ -163,13 +165,19 @@ export class ListingQuotesService {
     }
 
     try {
-      const discounts = flags.privateListingPromotionsEnabled
+      const promotionDiscounts = flags.privateListingPromotionsEnabled
         ? await this.promotionsService.resolveDiscounts({
             products,
             promotionCode: dto.promotionCode,
             now,
           })
         : [];
+      const manualAdjustmentDiscounts =
+        await this.manualAdjustmentsService.resolveDiscounts({
+          listingId: listing.id,
+          products,
+          now,
+        });
 
       return {
         quote: buildListingQuote({
@@ -179,7 +187,7 @@ export class ListingQuotesService {
             products.map((product) => [product.code, product]),
           ),
           quotedAt: now,
-          discounts,
+          discounts: [...promotionDiscounts, ...manualAdjustmentDiscounts],
         }),
         products,
       };

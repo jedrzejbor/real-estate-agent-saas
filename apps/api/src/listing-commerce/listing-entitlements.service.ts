@@ -27,9 +27,14 @@ import type {
   ListingEntitlementContract,
   ListingOrderFulfillmentContract,
 } from './contracts';
-import { ListingEntitlement, ListingOrder } from './entities';
+import {
+  ListingEntitlement,
+  ListingManualAdjustment,
+  ListingOrder,
+} from './entities';
 import { toListingEntitlementContract } from './listing-entitlement.presenter';
 import { getEntitlementTypeForProduct } from './listing-commerce.policy';
+import { toAdminListingManualAdjustment } from './listing-manual-adjustment.presenter';
 import {
   ListingEntitlementSource,
   ListingEntitlementStatus,
@@ -251,6 +256,12 @@ export class ListingEntitlementsService {
         where: { listingId },
         order: { startsAt: 'DESC', createdAt: 'DESC' },
       });
+    const manualAdjustments = await this.dataSource
+      .getRepository(ListingManualAdjustment)
+      .find({
+        where: { listingId },
+        order: { startsAt: 'DESC', createdAt: 'DESC' },
+      });
 
     return {
       listing: {
@@ -276,6 +287,7 @@ export class ListingEntitlementsService {
         createdAt: entitlement.createdAt?.toISOString() ?? null,
         audit: toAdminEntitlementAudit(entitlement),
       })),
+      manualAdjustments: manualAdjustments.map(toAdminListingManualAdjustment),
     };
   }
 

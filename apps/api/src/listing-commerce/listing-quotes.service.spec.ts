@@ -15,6 +15,7 @@ import { ReleaseFlagsService } from '../release-flags';
 import { ListingProductCatalog } from './entities';
 import { ListingProductType } from './listing-commerce.types';
 import type { ListingQuoteDiscountInput } from './listing-quote.calculator';
+import { ListingManualAdjustmentsService } from './listing-manual-adjustments.service';
 import { ListingPromotionsService } from './listing-promotions.service';
 import { ListingQuotesService } from './listing-quotes.service';
 
@@ -73,6 +74,7 @@ function buildService(options?: {
   featuredEnabled?: boolean;
   promotionsEnabled?: boolean;
   discounts?: ListingQuoteDiscountInput[];
+  manualAdjustmentDiscounts?: ListingQuoteDiscountInput[];
 }) {
   const listing =
     options && 'listing' in options ? options.listing : buildListing();
@@ -101,15 +103,28 @@ function buildService(options?: {
   const promotionsService = {
     resolveDiscounts: jest.fn().mockResolvedValue(options?.discounts ?? []),
   };
+  const manualAdjustmentsService = {
+    resolveDiscounts: jest
+      .fn()
+      .mockResolvedValue(options?.manualAdjustmentDiscounts ?? []),
+  };
   const service = new ListingQuotesService(
     listingRepo as unknown as Repository<Listing>,
     submissionRepo as unknown as Repository<PublicListingSubmission>,
     productRepo as unknown as Repository<ListingProductCatalog>,
     releaseFlagsService as unknown as ReleaseFlagsService,
     promotionsService as unknown as ListingPromotionsService,
+    manualAdjustmentsService as unknown as ListingManualAdjustmentsService,
   );
 
-  return { service, listingRepo, submissionRepo, productRepo, promotionsService };
+  return {
+    service,
+    listingRepo,
+    submissionRepo,
+    productRepo,
+    promotionsService,
+    manualAdjustmentsService,
+  };
 }
 
 const quoteDto = {
@@ -264,6 +279,41 @@ describe('ListingQuotesService', () => {
     });
     expect(quote.discountGrossAmount).toBe(900);
     expect(quote.totalGrossAmount).toBe(4_000);
+  });
+
+  it('applies active admin adjustments as separate quote discounts', async () => {
+    const { service, manualAdjustmentsService } = buildService({
+      manualAdjustmentDiscounts: [
+        {
+          sourceType: 'admin_adjustment',
+          sourceReference: 'adjustment-1',
+          label: 'Ręczna korekta ceny',
+          grossAmount: 1_000,
+          productCodes: ['publication_60_days'],
+        },
+      ],
+    });
+
+    const quote = await service.createQuote('owner-1', quoteDto);
+
+    expect(manualAdjustmentsService.resolveDiscounts).toHaveBeenCalledWith({
+      listingId: quoteDto.listingId,
+      products: [expect.objectContaining({ code: 'publication_60_days' })],
+      now: expect.any(Date),
+    });
+    expect(quote).toMatchObject({
+      subtotalGrossAmount: 4_900,
+      discountGrossAmount: 1_000,
+      totalGrossAmount: 3_900,
+      discounts: [
+        {
+          sourceType: 'admin_adjustment',
+          sourceReference: 'adjustment-1',
+          label: 'Ręczna korekta ceny',
+          grossAmount: 1_000,
+        },
+      ],
+    });
   });
 
   it('gates quote creation independently from public pricing', async () => {

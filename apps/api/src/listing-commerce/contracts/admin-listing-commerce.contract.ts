@@ -3,6 +3,9 @@ import type {
   ListingEntitlementSource,
   ListingEntitlementStatus,
   ListingEntitlementType,
+  ListingPromotionDiscountType,
+  ListingPromotionTargetRules,
+  ListingPromotionTargetScope,
   ListingProductType,
 } from '../listing-commerce.types';
 
@@ -42,4 +45,25 @@ export interface AdminListingCommerceSummaryContract {
     isPremium: boolean;
   };
   entitlements: AdminListingEntitlementContract[];
+  manualAdjustments: AdminListingManualAdjustmentContract[];
+}
+
+export interface AdminListingManualAdjustmentContract {
+  id: string;
+  listingId: string;
+  label: string;
+  reason: string;
+  discountType: ListingPromotionDiscountType;
+  discountValue: number;
+  maxDiscountGrossAmount: number | null;
+  targetScope: ListingPromotionTargetScope;
+  targetRules: ListingPromotionTargetRules;
+  startsAt: string;
+  endsAt: string;
+  createdByUserId: string | null;
+  archivedByUserId: string | null;
+  archivedReason: string | null;
+  archivedAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
 }

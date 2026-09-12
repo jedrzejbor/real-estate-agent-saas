@@ -3,11 +3,18 @@ import {
   BadRequestException,
   ValidationPipe,
 } from '@nestjs/common';
-import { ListingProductType } from '../listing-commerce.types';
+import {
+  ListingProductType,
+  ListingPromotionDiscountType,
+} from '../listing-commerce.types';
 import {
   GrantListingEntitlementDto,
   RevokeListingEntitlementDto,
 } from './grant-listing-entitlement.dto';
+import {
+  ArchiveListingManualAdjustmentDto,
+  CreateListingManualAdjustmentDto,
+} from './listing-manual-adjustment.dto';
 
 const pipe = new ValidationPipe({
   whitelist: true,
@@ -96,6 +103,63 @@ describe('GrantListingEntitlementDto', () => {
 
     await expect(
       pipe.transform({ reason: 'x' }, metadata(RevokeListingEntitlementDto)),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('CreateListingManualAdjustmentDto', () => {
+  it('accepts and transforms a valid manual adjustment payload', async () => {
+    await expect(
+      pipe.transform(
+        {
+          label: 'Ręczna korekta ceny',
+          reason: 'Rekompensata po kontakcie z supportem',
+          discountType: ListingPromotionDiscountType.FIXED_GROSS,
+          discountValue: '1000',
+          maxDiscountGrossAmount: '1500',
+          endsAt: '2026-09-20T10:00:00.000Z',
+        },
+        metadata(CreateListingManualAdjustmentDto),
+      ),
+    ).resolves.toMatchObject({
+      label: 'Ręczna korekta ceny',
+      reason: 'Rekompensata po kontakcie z supportem',
+      discountType: ListingPromotionDiscountType.FIXED_GROSS,
+      discountValue: 1_000,
+      maxDiscountGrossAmount: 1_500,
+      endsAt: '2026-09-20T10:00:00.000Z',
+    });
+  });
+
+  it('rejects invalid manual adjustment payloads', async () => {
+    await expect(
+      pipe.transform(
+        {
+          label: '',
+          reason: 'x',
+          discountType: 'invalid',
+          discountValue: 0,
+          endsAt: 'not-a-date',
+        },
+        metadata(CreateListingManualAdjustmentDto),
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('ArchiveListingManualAdjustmentDto', () => {
+  it('requires a meaningful audit reason for archive requests', async () => {
+    await expect(
+      pipe.transform(
+        {
+          reason: 'Korekta nie jest już potrzebna',
+        },
+        metadata(ArchiveListingManualAdjustmentDto),
+      ),
+    ).resolves.toMatchObject({ reason: 'Korekta nie jest już potrzebna' });
+
+    await expect(
+      pipe.transform({ reason: 'x' }, metadata(ArchiveListingManualAdjustmentDto)),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
