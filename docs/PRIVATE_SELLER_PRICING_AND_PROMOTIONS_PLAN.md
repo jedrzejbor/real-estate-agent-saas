@@ -1679,7 +1679,7 @@ zamówieniu.
   zamówienia, bez bezpośredniego ustawiania `isPremium` lub dat publikacji.
 - [x] Pokazywać ręczny rabat jako osobną pozycję w quote i zamówieniu.
 - [x] Dodać anulowanie/revocation z pełnym audytem.
-- [ ] Dodać uprawnienia bardziej szczegółowe niż ogólna rola admina, jeśli
+- [x] Dodać uprawnienia bardziej szczegółowe niż ogólna rola admina, jeśli
   operacje finansowe będą obsługiwać różne osoby.
 - [x] Dodać testy uprawnień, audytu i wpływu cofnięcia grantu na aktywną usługę.
 
@@ -1846,8 +1846,28 @@ wpływem na aktywną publikację lub wyróżnienie.
 - [x] Dodano testy frontowego boundary dla walidacji, konwersji i endpointów
   ręcznych korekt.
 
-Następny krok etapu 8: doprecyzować granularne uprawnienia ponad `ADMIN`, jeśli
-operacje finansowe będą obsługiwać różne osoby, albo przejść do etapu 9
+#### Iteracja 8.9 — granularne permissiony dla operacji commerce admina
+
+- [x] Dodano enum `AdminPermission` z capability dla odczytu commerce,
+  zarządzania produktami/cenami, promocjami/kodami, grantami oraz ręcznymi
+  korektami.
+- [x] Dodano pole `users.admin_permissions`, aby można było ograniczać konkretne
+  konta administratorów bez mnożenia globalnych ról.
+- [x] Migracja wymusza, że jawne `admin_permissions` można przypisać tylko
+  użytkownikowi z rolą `admin`.
+- [x] Dodano dekorator `@Permissions(...)` i rozszerzono globalny `RolesGuard`
+  o sprawdzanie wymaganych capability po przejściu kontroli roli.
+- [x] Zachowano kompatybilność wdrożeniową: admin z `adminPermissions = null`
+  ma pełny dotychczasowy dostęp, a dopiero jawnie ustawiona lista zaczyna
+  ograniczać operacje.
+- [x] Strategia JWT ładuje permissiony z bazy przy każdym żądaniu i dokłada je
+  do `request.user`, więc zmiana uprawnień nie zależy od danych zapisanych w
+  tokenie.
+- [x] Endpointy produktów/cen, promocji/kodów, grantów i korekt w module
+  listing-commerce mają osobne wymagania permissionów dla odczytu i mutacji.
+- [x] Dodano testy guarda, migracji i metadanych kontrolerów.
+
+Etap 8 jest funkcjonalnie domknięty. Następny krok: przejść do etapu 9
 — analityki, QA i rollout.
 
 ### Etap 9 — analityka zbiorcza, QA i rollout

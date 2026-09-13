@@ -8,9 +8,10 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
+import { Permissions } from '../auth/decorators/permissions.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../common/enums';
+import { AdminPermission, UserRole } from '../common/enums';
 import { AdminListingPromotionsService } from './admin-listing-promotions.service';
 import {
   CreateListingPromotionCampaignDto,
@@ -20,6 +21,7 @@ import {
 
 @Controller('admin/listing-promotions')
 @Roles(UserRole.ADMIN)
+@Permissions(AdminPermission.LISTING_COMMERCE_READ)
 export class AdminListingPromotionsController {
   constructor(
     private readonly adminListingPromotionsService: AdminListingPromotionsService,
@@ -31,6 +33,7 @@ export class AdminListingPromotionsController {
   }
 
   @Post()
+  @Permissions(AdminPermission.LISTING_COMMERCE_MANAGE_PROMOTIONS)
   async createCampaign(
     @CurrentUser('id') adminUserId: string,
     @Body() dto: CreateListingPromotionCampaignDto,
@@ -44,6 +47,7 @@ export class AdminListingPromotionsController {
   }
 
   @Patch(':code')
+  @Permissions(AdminPermission.LISTING_COMMERCE_MANAGE_PROMOTIONS)
   async updateCampaign(
     @CurrentUser('id') adminUserId: string,
     @Param('code') code: string,
@@ -58,6 +62,7 @@ export class AdminListingPromotionsController {
 
   @Post(':code/archive')
   @HttpCode(HttpStatus.OK)
+  @Permissions(AdminPermission.LISTING_COMMERCE_MANAGE_PROMOTIONS)
   async archiveCampaign(
     @CurrentUser('id') adminUserId: string,
     @Param('code') code: string,
@@ -70,6 +75,7 @@ export class AdminListingPromotionsController {
 
   @Post(':code/restore')
   @HttpCode(HttpStatus.OK)
+  @Permissions(AdminPermission.LISTING_COMMERCE_MANAGE_PROMOTIONS)
   async restoreCampaign(
     @CurrentUser('id') adminUserId: string,
     @Param('code') code: string,
@@ -81,6 +87,7 @@ export class AdminListingPromotionsController {
   }
 
   @Post(':code/codes')
+  @Permissions(AdminPermission.LISTING_COMMERCE_MANAGE_PROMOTIONS)
   async createCode(
     @CurrentUser('id') adminUserId: string,
     @Param('code') campaignCode: string,

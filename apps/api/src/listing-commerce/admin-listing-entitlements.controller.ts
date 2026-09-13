@@ -6,9 +6,10 @@ import {
   ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
+import { Permissions } from '../auth/decorators/permissions.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../common/enums';
+import { AdminPermission, UserRole } from '../common/enums';
 import {
   ArchiveListingManualAdjustmentDto,
   CreateListingManualAdjustmentDto,
@@ -20,6 +21,7 @@ import { ListingManualAdjustmentsService } from './listing-manual-adjustments.se
 
 @Controller('admin/listings/:listingId')
 @Roles(UserRole.ADMIN)
+@Permissions(AdminPermission.LISTING_COMMERCE_READ)
 export class AdminListingEntitlementsController {
   constructor(
     private readonly listingEntitlementsService: ListingEntitlementsService,
@@ -34,6 +36,7 @@ export class AdminListingEntitlementsController {
   }
 
   @Post('entitlement-grants')
+  @Permissions(AdminPermission.LISTING_COMMERCE_MANAGE_GRANTS)
   async grantListingEntitlement(
     @CurrentUser('id') adminUserId: string,
     @Param('listingId', ParseUUIDPipe) listingId: string,
@@ -51,6 +54,7 @@ export class AdminListingEntitlementsController {
   }
 
   @Post('entitlements/:entitlementId/revoke')
+  @Permissions(AdminPermission.LISTING_COMMERCE_MANAGE_GRANTS)
   async revokeListingEntitlement(
     @CurrentUser('id') adminUserId: string,
     @Param('listingId', ParseUUIDPipe) listingId: string,
@@ -66,6 +70,7 @@ export class AdminListingEntitlementsController {
   }
 
   @Post('manual-adjustments')
+  @Permissions(AdminPermission.LISTING_COMMERCE_MANAGE_ADJUSTMENTS)
   async createManualAdjustment(
     @CurrentUser('id') adminUserId: string,
     @Param('listingId', ParseUUIDPipe) listingId: string,
@@ -87,6 +92,7 @@ export class AdminListingEntitlementsController {
   }
 
   @Post('manual-adjustments/:adjustmentId/archive')
+  @Permissions(AdminPermission.LISTING_COMMERCE_MANAGE_ADJUSTMENTS)
   async archiveManualAdjustment(
     @CurrentUser('id') adminUserId: string,
     @Param('listingId', ParseUUIDPipe) listingId: string,

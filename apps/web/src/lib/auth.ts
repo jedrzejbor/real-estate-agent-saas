@@ -11,6 +11,7 @@ export interface AuthUser {
   id: string;
   email: string;
   role: string;
+  adminPermissions?: string[] | null;
   isActive?: boolean;
   createdAt?: string;
   agency: {
