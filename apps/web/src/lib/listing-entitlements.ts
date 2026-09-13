@@ -155,10 +155,26 @@ export interface ArchiveListingManualAdjustmentInput {
   reason: string;
 }
 
+export interface AdminManualAdjustmentFormValues {
+  label: string;
+  reason: string;
+  discountType: ListingPromotionDiscountType;
+  discountPercent: string;
+  discountGrossPln: string;
+  maxDiscountGrossPln: string;
+  startsAt: string;
+  endsAt: string;
+}
+
 export type AdminEntitlementGrantFormField =
   keyof AdminEntitlementGrantFormValues;
 export type AdminEntitlementGrantFormErrors = Partial<
   Record<AdminEntitlementGrantFormField, string>
+>;
+export type AdminManualAdjustmentFormField =
+  keyof AdminManualAdjustmentFormValues;
+export type AdminManualAdjustmentFormErrors = Partial<
+  Record<AdminManualAdjustmentFormField, string>
 >;
 
 const integerInputSchema = (min: number, max: number, message: string) =>
@@ -170,6 +186,51 @@ const integerInputSchema = (min: number, max: number, message: string) =>
       const parsed = Number(value);
       return parsed >= min && parsed <= max;
     }, message);
+
+const optionalMoneyInputSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) => value === '' || /^\d+(?:[.,]\d{1,2})?$/.test(value),
+    'Podaj kwotę z maksymalnie 2 miejscami po przecinku',
+  )
+  .refine(
+    (value) => value === '' || decimalToInteger(value, 2) <= 2_147_483_647,
+    'Kwota jest zbyt wysoka',
+  );
+
+const optionalDateTimeSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) => value === '' || !Number.isNaN(new Date(value).getTime()),
+    'Podaj poprawną datę',
+  );
+
+const requiredDateTimeSchema = z
+  .string()
+  .trim()
+  .min(1, 'Data końca jest wymagana')
+  .refine(
+    (value) => !Number.isNaN(new Date(value).getTime()),
+    'Podaj poprawną datę',
+  );
+
+const percentageSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) => /^\d+(?:[.,]\d{1,2})?$/.test(value),
+    'Podaj procent z maksymalnie 2 miejscami po przecinku',
+  )
+  .refine(
+    (value) => decimalToInteger(value, 2) >= 1,
+    'Rabat musi być większy od 0',
+  )
+  .refine(
+    (value) => decimalToInteger(value, 2) <= 10_000,
+    'Rabat procentowy nie może przekraczać 100%',
+  );
 
 export const adminEntitlementGrantFormSchema = z
   .object({
@@ -212,6 +273,39 @@ export const adminEntitlementGrantFormSchema = z
     }
   });
 
+const adminManualAdjustmentFormSchema = z
+  .object({
+    label: z.string().trim().min(1, 'Etykieta jest wymagana').max(160),
+    reason: z
+      .string()
+      .trim()
+      .min(3, 'Podaj powód korekty')
+      .max(1_000, 'Powód może mieć maksymalnie 1000 znaków'),
+    discountType: z.enum([
+      ListingPromotionDiscountType.PERCENTAGE,
+      ListingPromotionDiscountType.FIXED_GROSS,
+    ]),
+    discountPercent: z.string(),
+    discountGrossPln: z.string(),
+    maxDiscountGrossPln: optionalMoneyInputSchema,
+    startsAt: optionalDateTimeSchema,
+    endsAt: requiredDateTimeSchema,
+  })
+  .superRefine((value, context) => {
+    validateManualAdjustmentDiscountValue(value, context);
+    if (
+      value.startsAt &&
+      value.endsAt &&
+      new Date(value.endsAt).getTime() <= new Date(value.startsAt).getTime()
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['endsAt'],
+        message: 'Data końca musi być późniejsza niż start',
+      });
+    }
+  });
+
 export function createEmptyAdminEntitlementGrantForm(): AdminEntitlementGrantFormValues {
   return {
     productType: ListingProductType.PUBLICATION,
@@ -219,6 +313,19 @@ export function createEmptyAdminEntitlementGrantForm(): AdminEntitlementGrantFor
     reason: '',
     featuredTier: '',
     priorityWeight: '0',
+  };
+}
+
+export function createEmptyAdminManualAdjustmentForm(): AdminManualAdjustmentFormValues {
+  return {
+    label: '',
+    reason: '',
+    discountType: ListingPromotionDiscountType.FIXED_GROSS,
+    discountPercent: '',
+    discountGrossPln: '',
+    maxDiscountGrossPln: '',
+    startsAt: '',
+    endsAt: '',
   };
 }
 
@@ -241,6 +348,17 @@ export function validateAdminEntitlementGrantForm(
   return { errors };
 }
 
+export function validateAdminManualAdjustmentForm(
+  values: AdminManualAdjustmentFormValues,
+): {
+  data?: AdminManualAdjustmentFormValues;
+  errors: AdminManualAdjustmentFormErrors;
+} {
+  const parsed = adminManualAdjustmentFormSchema.safeParse(values);
+  if (parsed.success) return { data: parsed.data, errors: {} };
+  return { errors: collectFormErrors(parsed.error.issues) };
+}
+
 export function toGrantListingEntitlementInput(
   values: AdminEntitlementGrantFormValues,
 ): GrantListingEntitlementInput {
@@ -255,11 +373,42 @@ export function toGrantListingEntitlementInput(
   };
 }
 
+export function toCreateListingManualAdjustmentInput(
+  values: AdminManualAdjustmentFormValues,
+): CreateListingManualAdjustmentInput {
+  const parsed = adminManualAdjustmentFormSchema.parse(values);
+  return {
+    label: parsed.label.trim(),
+    reason: parsed.reason.trim(),
+    discountType: parsed.discountType,
+    discountValue:
+      parsed.discountType === ListingPromotionDiscountType.PERCENTAGE
+        ? decimalToInteger(parsed.discountPercent, 2)
+        : decimalToInteger(parsed.discountGrossPln, 2),
+    maxDiscountGrossAmount: nullableMoneyValue(parsed.maxDiscountGrossPln),
+    targetScope: ListingPromotionTargetScope.ALL_PRODUCTS,
+    targetRules: {},
+    startsAt: nullableDateValue(parsed.startsAt),
+    endsAt: new Date(parsed.endsAt).toISOString(),
+  };
+}
+
 export function validateRevokeListingEntitlementReason(
   reason: string,
 ): string | null {
   const trimmed = reason.trim();
   if (trimmed.length < 3) return 'Podaj powód cofnięcia grantu';
+  if (trimmed.length > 1_000) {
+    return 'Powód może mieć maksymalnie 1000 znaków';
+  }
+  return null;
+}
+
+export function validateArchiveListingManualAdjustmentReason(
+  reason: string,
+): string | null {
+  const trimmed = reason.trim();
+  if (trimmed.length < 3) return 'Podaj powód archiwizacji korekty';
   if (trimmed.length > 1_000) {
     return 'Powód może mieć maksymalnie 1000 znaków';
   }
@@ -329,5 +478,61 @@ export function archiveAdminListingManualAdjustment(
       method: 'POST',
       body: { reason: input.reason.trim() },
     },
+  );
+}
+
+function validateManualAdjustmentDiscountValue(
+  value: AdminManualAdjustmentFormValues,
+  context: z.RefinementCtx,
+) {
+  const source =
+    value.discountType === ListingPromotionDiscountType.PERCENTAGE
+      ? value.discountPercent
+      : value.discountGrossPln;
+  const schema =
+    value.discountType === ListingPromotionDiscountType.PERCENTAGE
+      ? percentageSchema
+      : optionalMoneyInputSchema.refine((input) => input !== '', 'Podaj kwotę');
+  const parsed = schema.safeParse(source);
+  if (!parsed.success) {
+    context.addIssue({
+      code: 'custom',
+      path: [
+        value.discountType === ListingPromotionDiscountType.PERCENTAGE
+          ? 'discountPercent'
+          : 'discountGrossPln',
+      ],
+      message: parsed.error.issues[0]?.message ?? 'Nieprawidłowy rabat',
+    });
+  }
+}
+
+function collectFormErrors<TField extends string>(
+  issues: z.ZodIssue[],
+): Partial<Record<TField, string>> {
+  const errors: Partial<Record<TField, string>> = {};
+  for (const issue of issues) {
+    const field = issue.path[0];
+    if (typeof field === 'string' && !(field in errors)) {
+      errors[field as TField] = issue.message;
+    }
+  }
+  return errors;
+}
+
+function nullableMoneyValue(value: string): number | null {
+  return value.trim() ? decimalToInteger(value, 2) : null;
+}
+
+function nullableDateValue(value: string): string | null {
+  return value.trim() ? new Date(value).toISOString() : null;
+}
+
+function decimalToInteger(value: string, precision: number): number {
+  const normalized = value.trim().replace(',', '.');
+  const [whole = '0', fraction = ''] = normalized.split('.');
+  return (
+    Number(whole) * 10 ** precision +
+    Number(fraction.padEnd(precision, '0').slice(0, precision))
   );
 }

@@ -1830,9 +1830,25 @@ wpływem na aktywną publikację lub wyróżnienie.
 - [x] Dodano testy migracji, serwisu, kontrolera, DTO, quote, rezerwacji promocji
   i frontowego boundary.
 
-Następny krok etapu 8: dodać formularz tworzenia/archiwizacji ręcznych korekt w
-widocznej sekcji `Cena i promocja` oraz — jeśli operacyjnie będzie potrzebne —
-doprecyzować granularne uprawnienia ponad `ADMIN`.
+#### Iteracja 8.8 — UI ręcznych korekt w panelu `Cena i promocja`
+
+- [x] Rozszerzono frontowy boundary `listing-entitlements` o formularzowe typy,
+  walidację i konwersję ręcznej korekty ceny.
+- [x] Formularz przyjmuje kwoty w złotych i procenty w naturalnej postaci dla
+  administratora, a payload API buduje w groszach/basis points.
+- [x] Panel `Cena i promocja` pokazuje historię ręcznych korekt z czytelnym
+  statusem: aktywna, zaplanowana, wygasła albo archiwum.
+- [x] Dodano formularz tworzenia korekty z etykietą, typem rabatu, wartością,
+  opcjonalnym limitem maksymalnym, datami i obowiązkowym powodem audytowym.
+- [x] Dodano archiwizację korekty z osobnym powodem i dialogiem potwierdzenia.
+- [x] Po utworzeniu lub archiwizacji panel odświeża `commerce-summary`, aby
+  administrator od razu widział aktualny stan bez przeładowania strony.
+- [x] Dodano testy frontowego boundary dla walidacji, konwersji i endpointów
+  ręcznych korekt.
+
+Następny krok etapu 8: doprecyzować granularne uprawnienia ponad `ADMIN`, jeśli
+operacje finansowe będą obsługiwać różne osoby, albo przejść do etapu 9
+— analityki, QA i rollout.
 
 ### Etap 9 — analityka zbiorcza, QA i rollout
 

@@ -28,20 +28,30 @@ import {
 } from '@/lib/listings';
 import {
   createEmptyAdminEntitlementGrantForm,
+  createEmptyAdminManualAdjustmentForm,
+  createAdminListingManualAdjustment,
+  archiveAdminListingManualAdjustment,
   fetchAdminListingCommerceSummary,
   grantAdminListingEntitlement,
   ListingEntitlementSource,
   ListingEntitlementStatus,
   ListingEntitlementType,
   ListingProductType,
+  ListingPromotionDiscountType,
   revokeAdminListingEntitlement,
+  toCreateListingManualAdjustmentInput,
   toGrantListingEntitlementInput,
+  validateAdminManualAdjustmentForm,
+  validateArchiveListingManualAdjustmentReason,
   validateRevokeListingEntitlementReason,
   validateAdminEntitlementGrantForm,
   type AdminEntitlementGrantFormErrors,
   type AdminEntitlementGrantFormValues,
   type AdminListingCommerceSummary,
   type AdminListingEntitlement,
+  type AdminListingManualAdjustment,
+  type AdminManualAdjustmentFormErrors,
+  type AdminManualAdjustmentFormValues,
 } from '@/lib/listing-entitlements';
 import {
   approveAdminPublicListingSubmission,
@@ -70,6 +80,11 @@ const ENTITLEMENT_STATUS_LABELS = {
   [ListingEntitlementStatus.EXPIRED]: 'Wygasłe',
   [ListingEntitlementStatus.REVOKED]: 'Cofnięte',
   [ListingEntitlementStatus.CANCELLED]: 'Anulowane',
+} as const;
+
+const MANUAL_ADJUSTMENT_DISCOUNT_TYPE_LABELS = {
+  [ListingPromotionDiscountType.FIXED_GROSS]: 'Kwota brutto',
+  [ListingPromotionDiscountType.PERCENTAGE]: 'Procent',
 } as const;
 
 export default function AdminListingSubmissionsPage() {
@@ -654,11 +669,27 @@ function AdminListingCommercePanel({ listingId }: { listingId: string }) {
   );
   const [errors, setErrors] = useState<AdminEntitlementGrantFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [adjustmentForm, setAdjustmentForm] =
+    useState<AdminManualAdjustmentFormValues>(() =>
+      createEmptyAdminManualAdjustmentForm(),
+    );
+  const [adjustmentErrors, setAdjustmentErrors] =
+    useState<AdminManualAdjustmentFormErrors>({});
+  const [isSubmittingAdjustment, setIsSubmittingAdjustment] = useState(false);
   const [revokeReasons, setRevokeReasons] = useState<Record<string, string>>(
     {},
   );
   const [revokeErrors, setRevokeErrors] = useState<Record<string, string>>({});
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [archiveAdjustmentReasons, setArchiveAdjustmentReasons] = useState<
+    Record<string, string>
+  >({});
+  const [archiveAdjustmentErrors, setArchiveAdjustmentErrors] = useState<
+    Record<string, string>
+  >({});
+  const [archivingAdjustmentId, setArchivingAdjustmentId] = useState<
+    string | null
+  >(null);
 
   async function loadSummary() {
     setIsLoading(true);
@@ -683,6 +714,18 @@ function AdminListingCommercePanel({ listingId }: { listingId: string }) {
   ) {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => {
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
+  function updateAdjustmentForm<K extends keyof AdminManualAdjustmentFormValues>(
+    field: K,
+    value: AdminManualAdjustmentFormValues[K],
+  ) {
+    setAdjustmentForm((current) => ({ ...current, [field]: value }));
+    setAdjustmentErrors((current) => {
       const next = { ...current };
       delete next[field];
       return next;
@@ -726,6 +769,46 @@ function AdminListingCommercePanel({ listingId }: { listingId: string }) {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function submitManualAdjustment() {
+    const validation = validateAdminManualAdjustmentForm(adjustmentForm);
+    if (!validation.data) {
+      setAdjustmentErrors(validation.errors);
+      showErrorToast({
+        title: 'Uzupełnij dane korekty',
+        description: 'Sprawdź wartość rabatu, termin ważności i powód operacji.',
+      });
+      return;
+    }
+
+    const payload = toCreateListingManualAdjustmentInput(validation.data);
+    const confirmed = await confirm({
+      title: 'Dodać ręczną korektę ceny?',
+      description: `Korekta będzie naliczana w checkout dla tego ogłoszenia do ${formatDateTime(payload.endsAt)}. Powód: ${payload.reason}`,
+      confirmLabel: 'Dodaj korektę',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
+
+    setIsSubmittingAdjustment(true);
+    try {
+      await createAdminListingManualAdjustment(listingId, payload);
+      showSuccessToast({
+        title: 'Korekta dodana',
+        description: 'Rabat będzie widoczny jako osobna pozycja w wycenie.',
+      });
+      setAdjustmentForm(createEmptyAdminManualAdjustmentForm());
+      setAdjustmentErrors({});
+      await loadSummary();
+    } catch (adjustmentError) {
+      showErrorToast({
+        title: 'Nie udało się dodać korekty',
+        description: getApiErrorMessage(adjustmentError),
+      });
+    } finally {
+      setIsSubmittingAdjustment(false);
     }
   }
 
@@ -791,6 +874,73 @@ function AdminListingCommercePanel({ listingId }: { listingId: string }) {
     }
   }
 
+  function updateArchiveAdjustmentReason(adjustmentId: string, reason: string) {
+    setArchiveAdjustmentReasons((current) => ({
+      ...current,
+      [adjustmentId]: reason,
+    }));
+    setArchiveAdjustmentErrors((current) => {
+      const next = { ...current };
+      delete next[adjustmentId];
+      return next;
+    });
+  }
+
+  async function archiveManualAdjustment(
+    adjustment: AdminListingManualAdjustment,
+  ) {
+    const reason = archiveAdjustmentReasons[adjustment.id] ?? '';
+    const reasonError = validateArchiveListingManualAdjustmentReason(reason);
+    if (reasonError) {
+      setArchiveAdjustmentErrors((current) => ({
+        ...current,
+        [adjustment.id]: reasonError,
+      }));
+      showErrorToast({
+        title: 'Podaj powód archiwizacji',
+        description: 'Powód zostanie zapisany w audycie korekty.',
+      });
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Zarchiwizować ręczną korektę?',
+      description: `Korekta przestanie naliczać się w nowych wycenach. Powód: ${reason.trim()}`,
+      confirmLabel: 'Zarchiwizuj korektę',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
+
+    setArchivingAdjustmentId(adjustment.id);
+    try {
+      await archiveAdminListingManualAdjustment(listingId, adjustment.id, {
+        reason,
+      });
+      showSuccessToast({
+        title: 'Korekta zarchiwizowana',
+        description: 'Nowe wyceny nie będą już naliczać tej korekty.',
+      });
+      setArchiveAdjustmentReasons((current) => {
+        const next = { ...current };
+        delete next[adjustment.id];
+        return next;
+      });
+      setArchiveAdjustmentErrors((current) => {
+        const next = { ...current };
+        delete next[adjustment.id];
+        return next;
+      });
+      await loadSummary();
+    } catch (archiveError) {
+      showErrorToast({
+        title: 'Nie udało się zarchiwizować korekty',
+        description: getApiErrorMessage(archiveError),
+      });
+    } finally {
+      setArchivingAdjustmentId(null);
+    }
+  }
+
   return (
     <PreviewSection title="Cena i promocja">
       <div className="space-y-4">
@@ -821,17 +971,17 @@ function AdminListingCommercePanel({ listingId }: { listingId: string }) {
               {summary.entitlements.length > 0 ? (
                 <div className="space-y-2">
                   {summary.entitlements.map((entitlement) => (
-                      <AdminEntitlementRow
-                        key={entitlement.id}
-                        entitlement={entitlement}
-                        revokeReason={revokeReasons[entitlement.id] ?? ''}
-                        revokeError={revokeErrors[entitlement.id]}
-                        isRevoking={revokingId === entitlement.id}
-                        onRevokeReasonChange={(reason) =>
-                          updateRevokeReason(entitlement.id, reason)
-                        }
-                        onRevoke={() => revokeGrant(entitlement)}
-                      />
+                    <AdminEntitlementRow
+                      key={entitlement.id}
+                      entitlement={entitlement}
+                      revokeReason={revokeReasons[entitlement.id] ?? ''}
+                      revokeError={revokeErrors[entitlement.id]}
+                      isRevoking={revokingId === entitlement.id}
+                      onRevokeReasonChange={(reason) =>
+                        updateRevokeReason(entitlement.id, reason)
+                      }
+                      onRevoke={() => revokeGrant(entitlement)}
+                    />
                   ))}
                 </div>
               ) : (
@@ -840,8 +990,190 @@ function AdminListingCommercePanel({ listingId }: { listingId: string }) {
                 </p>
               )}
             </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                Ręczne korekty ceny
+              </p>
+              {summary.manualAdjustments.length > 0 ? (
+                <div className="space-y-2">
+                  {summary.manualAdjustments.map((adjustment) => (
+                    <AdminManualAdjustmentRow
+                      key={adjustment.id}
+                      adjustment={adjustment}
+                      archiveReason={
+                        archiveAdjustmentReasons[adjustment.id] ?? ''
+                      }
+                      archiveError={archiveAdjustmentErrors[adjustment.id]}
+                      isArchiving={archivingAdjustmentId === adjustment.id}
+                      onArchiveReasonChange={(reason) =>
+                        updateArchiveAdjustmentReason(adjustment.id, reason)
+                      }
+                      onArchive={() => archiveManualAdjustment(adjustment)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+                  Brak ręcznych korekt ceny dla tej oferty.
+                </p>
+              )}
+            </div>
           </>
         ) : null}
+
+        <div className="rounded-xl border border-border bg-card p-3">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+            <Gift className="h-4 w-4 text-primary" />
+            Ręczna korekta ceny
+          </div>
+
+          <div className="grid gap-3">
+            <FormField label="Etykieta rabatu" error={adjustmentErrors.label}>
+              <input
+                value={adjustmentForm.label}
+                placeholder="Np. rabat po zgłoszeniu"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                disabled={isSubmittingAdjustment}
+                onChange={(event) =>
+                  updateAdjustmentForm('label', event.target.value)
+                }
+              />
+            </FormField>
+
+            <FormField
+              label="Typ korekty"
+              error={adjustmentErrors.discountType}
+            >
+              <select
+                value={adjustmentForm.discountType}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                disabled={isSubmittingAdjustment}
+                onChange={(event) =>
+                  updateAdjustmentForm(
+                    'discountType',
+                    event.target
+                      .value as AdminManualAdjustmentFormValues['discountType'],
+                  )
+                }
+              >
+                <option value={ListingPromotionDiscountType.FIXED_GROSS}>
+                  Kwota brutto
+                </option>
+                <option value={ListingPromotionDiscountType.PERCENTAGE}>
+                  Procent
+                </option>
+              </select>
+            </FormField>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {adjustmentForm.discountType ===
+              ListingPromotionDiscountType.PERCENTAGE ? (
+                <FormField
+                  label="Rabat (%)"
+                  error={adjustmentErrors.discountPercent}
+                >
+                  <input
+                    value={adjustmentForm.discountPercent}
+                    inputMode="decimal"
+                    placeholder="10"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    disabled={isSubmittingAdjustment}
+                    onChange={(event) =>
+                      updateAdjustmentForm('discountPercent', event.target.value)
+                    }
+                  />
+                </FormField>
+              ) : (
+                <FormField
+                  label="Rabat brutto (zł)"
+                  error={adjustmentErrors.discountGrossPln}
+                >
+                  <input
+                    value={adjustmentForm.discountGrossPln}
+                    inputMode="decimal"
+                    placeholder="20"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    disabled={isSubmittingAdjustment}
+                    onChange={(event) =>
+                      updateAdjustmentForm(
+                        'discountGrossPln',
+                        event.target.value,
+                      )
+                    }
+                  />
+                </FormField>
+              )}
+
+              <FormField
+                label="Maksymalny rabat (zł)"
+                error={adjustmentErrors.maxDiscountGrossPln}
+              >
+                <input
+                  value={adjustmentForm.maxDiscountGrossPln}
+                  inputMode="decimal"
+                  placeholder="Opcjonalnie"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  disabled={isSubmittingAdjustment}
+                  onChange={(event) =>
+                    updateAdjustmentForm(
+                      'maxDiscountGrossPln',
+                      event.target.value,
+                    )
+                  }
+                />
+              </FormField>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField label="Start" error={adjustmentErrors.startsAt}>
+                <input
+                  type="datetime-local"
+                  value={adjustmentForm.startsAt}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  disabled={isSubmittingAdjustment}
+                  onChange={(event) =>
+                    updateAdjustmentForm('startsAt', event.target.value)
+                  }
+                />
+              </FormField>
+
+              <FormField label="Koniec" error={adjustmentErrors.endsAt}>
+                <input
+                  type="datetime-local"
+                  value={adjustmentForm.endsAt}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  disabled={isSubmittingAdjustment}
+                  onChange={(event) =>
+                    updateAdjustmentForm('endsAt', event.target.value)
+                  }
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Powód audytowy" error={adjustmentErrors.reason}>
+              <textarea
+                value={adjustmentForm.reason}
+                rows={3}
+                placeholder="Np. rekompensata po kontakcie z supportem"
+                className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                disabled={isSubmittingAdjustment}
+                onChange={(event) =>
+                  updateAdjustmentForm('reason', event.target.value)
+                }
+              />
+            </FormField>
+
+            <Button
+              type="button"
+              className="cursor-pointer rounded-xl"
+              disabled={isSubmittingAdjustment}
+              onClick={submitManualAdjustment}
+            >
+              {isSubmittingAdjustment ? 'Dodawanie…' : 'Dodaj korektę'}
+            </Button>
+          </div>
+        </div>
 
         <div className="rounded-xl border border-border bg-card p-3">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
@@ -1004,6 +1336,76 @@ function AdminEntitlementRow({
             onClick={onRevoke}
           >
             {isRevoking ? 'Cofanie…' : 'Cofnij grant'}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function AdminManualAdjustmentRow({
+  adjustment,
+  archiveReason,
+  archiveError,
+  isArchiving,
+  onArchiveReasonChange,
+  onArchive,
+}: {
+  adjustment: AdminListingManualAdjustment;
+  archiveReason: string;
+  archiveError?: string;
+  isArchiving: boolean;
+  onArchiveReasonChange: (reason: string) => void;
+  onArchive: () => void;
+}) {
+  const status = getManualAdjustmentStatus(adjustment);
+  const canArchive = status !== 'archived';
+
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={getManualAdjustmentBadgeVariant(status)}>
+          {getManualAdjustmentStatusLabel(status)}
+        </Badge>
+        <span className="font-medium">{adjustment.label}</span>
+        <span className="text-xs text-muted-foreground">
+          {MANUAL_ADJUSTMENT_DISCOUNT_TYPE_LABELS[adjustment.discountType]} ·{' '}
+          {formatManualAdjustmentValue(adjustment)}
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {formatDateTime(adjustment.startsAt)} —{' '}
+        {formatDateTime(adjustment.endsAt)}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Powód: {adjustment.reason}
+      </p>
+      {adjustment.archivedReason ? (
+        <p className="mt-1 text-xs text-destructive">
+          Archiwizacja: {adjustment.archivedReason}
+        </p>
+      ) : null}
+      {canArchive ? (
+        <div className="mt-3 grid gap-2">
+          <FormField label="Powód archiwizacji" error={archiveError}>
+            <textarea
+              value={archiveReason}
+              rows={2}
+              placeholder="Np. korekta nie jest już potrzebna"
+              className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              disabled={isArchiving}
+              onChange={(event) => onArchiveReasonChange(event.target.value)}
+            />
+          </FormField>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="cursor-pointer rounded-xl"
+            disabled={isArchiving}
+            onClick={onArchive}
+          >
+            {isArchiving ? 'Archiwizowanie…' : 'Zarchiwizuj korektę'}
           </Button>
         </div>
       ) : null}
@@ -1243,4 +1645,61 @@ function getEntitlementBadgeVariant(
   if (status === ListingEntitlementStatus.SCHEDULED) return 'secondary';
   if (status === ListingEntitlementStatus.REVOKED) return 'destructive';
   return 'outline';
+}
+
+type ManualAdjustmentStatus = 'active' | 'scheduled' | 'expired' | 'archived';
+
+function getManualAdjustmentStatus(
+  adjustment: AdminListingManualAdjustment,
+): ManualAdjustmentStatus {
+  if (adjustment.archivedAt) return 'archived';
+  const now = Date.now();
+  if (new Date(adjustment.startsAt).getTime() > now) return 'scheduled';
+  if (new Date(adjustment.endsAt).getTime() <= now) return 'expired';
+  return 'active';
+}
+
+function getManualAdjustmentStatusLabel(status: ManualAdjustmentStatus): string {
+  const labels: Record<ManualAdjustmentStatus, string> = {
+    active: 'Aktywna',
+    scheduled: 'Zaplanowana',
+    expired: 'Wygasła',
+    archived: 'Archiwum',
+  };
+  return labels[status];
+}
+
+function getManualAdjustmentBadgeVariant(
+  status: ManualAdjustmentStatus,
+): 'default' | 'secondary' | 'destructive' | 'outline' {
+  if (status === 'active') return 'default';
+  if (status === 'scheduled') return 'secondary';
+  if (status === 'archived') return 'destructive';
+  return 'outline';
+}
+
+function formatManualAdjustmentValue(
+  adjustment: AdminListingManualAdjustment,
+): string {
+  const value =
+    adjustment.discountType === ListingPromotionDiscountType.PERCENTAGE
+      ? formatBasisPointsPercent(adjustment.discountValue)
+      : formatGrossAmount(adjustment.discountValue);
+  const max =
+    adjustment.maxDiscountGrossAmount === null
+      ? ''
+      : `, maks. ${formatGrossAmount(adjustment.maxDiscountGrossAmount)}`;
+  return `${value}${max}`;
+}
+
+function formatBasisPointsPercent(value: number): string {
+  const percent = value / 100;
+  return `${new Intl.NumberFormat('pl-PL', {
+    minimumFractionDigits: Number.isInteger(percent) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(percent)}%`;
+}
+
+function formatGrossAmount(value: number): string {
+  return formatPrice(value / 100);
 }

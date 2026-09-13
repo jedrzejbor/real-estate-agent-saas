@@ -5,12 +5,16 @@ import {
   archiveAdminListingManualAdjustment,
   createAdminListingManualAdjustment,
   createEmptyAdminEntitlementGrantForm,
+  createEmptyAdminManualAdjustmentForm,
   fetchAdminListingCommerceSummary,
   grantAdminListingEntitlement,
   ListingProductType,
   ListingPromotionDiscountType,
   revokeAdminListingEntitlement,
+  toCreateListingManualAdjustmentInput,
   toGrantListingEntitlementInput,
+  validateArchiveListingManualAdjustmentReason,
+  validateAdminManualAdjustmentForm,
   validateRevokeListingEntitlementReason,
   validateAdminEntitlementGrantForm,
 } from './listing-entitlements';
@@ -175,5 +179,56 @@ describe('listing entitlement admin boundary', () => {
         body: { reason: 'Korekta nie jest już potrzebna' },
       },
     );
+  });
+
+  it('validates and converts a fixed manual adjustment form', () => {
+    const values = {
+      ...createEmptyAdminManualAdjustmentForm(),
+      label: ' Ręczna korekta ceny ',
+      reason: ' Rekompensata po kontakcie z supportem ',
+      discountType: ListingPromotionDiscountType.FIXED_GROSS,
+      discountGrossPln: '15,50',
+      maxDiscountGrossPln: '',
+      endsAt: '2026-09-20T10:00',
+    };
+
+    expect(validateAdminManualAdjustmentForm(values).errors).toEqual({});
+    expect(toCreateListingManualAdjustmentInput(values)).toMatchObject({
+      label: 'Ręczna korekta ceny',
+      reason: 'Rekompensata po kontakcie z supportem',
+      discountType: ListingPromotionDiscountType.FIXED_GROSS,
+      discountValue: 1_550,
+      maxDiscountGrossAmount: null,
+      targetRules: {},
+    });
+  });
+
+  it('validates and converts a percentage manual adjustment form', () => {
+    const payload = toCreateListingManualAdjustmentInput({
+      ...createEmptyAdminManualAdjustmentForm(),
+      label: 'Rabat po reklamacji',
+      reason: 'Rekompensata po reklamacji',
+      discountType: ListingPromotionDiscountType.PERCENTAGE,
+      discountPercent: '10,5',
+      maxDiscountGrossPln: '20',
+      endsAt: '2026-09-20T10:00',
+    });
+
+    expect(payload).toMatchObject({
+      discountType: ListingPromotionDiscountType.PERCENTAGE,
+      discountValue: 1_050,
+      maxDiscountGrossAmount: 2_000,
+    });
+  });
+
+  it('validates manual adjustment archive reasons', () => {
+    expect(validateArchiveListingManualAdjustmentReason('x')).toBe(
+      'Podaj powód archiwizacji korekty',
+    );
+    expect(
+      validateArchiveListingManualAdjustmentReason(
+        'Korekta nie jest już potrzebna',
+      ),
+    ).toBeNull();
   });
 });
