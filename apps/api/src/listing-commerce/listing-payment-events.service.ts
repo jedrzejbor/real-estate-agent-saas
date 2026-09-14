@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { DataSource, EntityManager, QueryFailedError } from 'typeorm';
 import type {
@@ -25,6 +26,7 @@ import {
   ListingPaymentAttemptStatus,
   ListingPaymentEventType,
 } from './listing-commerce.types';
+import { ListingCommerceTelemetryService } from './listing-commerce-telemetry.service';
 
 @Injectable()
 export class ListingPaymentEventsService {
@@ -32,6 +34,8 @@ export class ListingPaymentEventsService {
     private readonly dataSource: DataSource,
     private readonly listingEntitlementsService: ListingEntitlementsService,
     private readonly listingPromotionsService: ListingPromotionsService,
+    @Optional()
+    private readonly telemetryService?: ListingCommerceTelemetryService,
   ) {}
 
   async processVerifiedEvent(
@@ -40,7 +44,7 @@ export class ListingPaymentEventsService {
     const event = normalizeAndValidateEvent(input);
 
     try {
-      return await this.dataSource.transaction(async (manager) => {
+      const result = await this.dataSource.transaction(async (manager) => {
         const knownEvent = await this.findEvent(manager, event, true);
         if (knownEvent?.status === 'processed') {
           return duplicateResult(knownEvent, event.orderId);
@@ -100,6 +104,12 @@ export class ListingPaymentEventsService {
           orderStatus: order.status,
         };
       });
+      await this.telemetryService?.trackPaymentEventProcessed({
+        result,
+        eventType: event.eventType,
+        provider: event.provider,
+      });
+      return result;
     } catch (error) {
       if (isUniqueViolation(error)) {
         const duplicate = await this.dataSource
@@ -112,6 +122,12 @@ export class ListingPaymentEventsService {
         }
       }
       await this.recordFailedEvent(event, error);
+      await this.telemetryService?.trackPaymentEventFailed({
+        orderId: event.orderId,
+        eventType: event.eventType,
+        provider: event.provider,
+        error,
+      });
       throw error;
     }
   }

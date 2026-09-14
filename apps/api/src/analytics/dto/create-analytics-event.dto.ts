@@ -67,6 +67,11 @@ export const ANALYTICS_EVENT_NAMES = [
   'pricing_audience_selected',
   'private_pricing_viewed',
   'listing_product_selected',
+  'listing_quote_created',
+  'listing_order_created',
+  'listing_checkout_session_created',
+  'listing_payment_event_processed',
+  'listing_payment_event_failed',
 ] as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENT_NAMES)[number];

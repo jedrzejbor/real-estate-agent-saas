@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { DataSource, EntityManager, In, QueryFailedError } from 'typeorm';
 import { User } from '../users/entities';
@@ -11,6 +12,7 @@ import { CreateListingOrderDto, ListingOrderBuyerDto } from './dto';
 import { ListingOrder, ListingOrderItem } from './entities';
 import { toListingOrderContract } from './listing-order.presenter';
 import { ListingEntitlementsService } from './listing-entitlements.service';
+import { ListingCommerceTelemetryService } from './listing-commerce-telemetry.service';
 import { ListingPromotionsService } from './listing-promotions.service';
 import { ListingQuotesService } from './listing-quotes.service';
 import {
@@ -33,6 +35,8 @@ export class ListingOrdersService {
     private readonly listingQuotesService: ListingQuotesService,
     private readonly listingEntitlementsService: ListingEntitlementsService,
     private readonly listingPromotionsService: ListingPromotionsService,
+    @Optional()
+    private readonly telemetryService?: ListingCommerceTelemetryService,
   ) {}
 
   async findOwnedOrder(
@@ -72,17 +76,20 @@ export class ListingOrdersService {
     const requestFingerprint = buildOrderRequestFingerprint(dto);
 
     try {
-      return await this.dataSource.transaction(async (manager) => {
+      const creation = await this.dataSource.transaction(async (manager) => {
         const existing = await this.findOrderByIdempotencyKey(
           manager,
           idempotencyKey,
         );
         if (existing) {
-          return this.assertMatchingIdempotentOrder(
-            existing,
-            buyerUserId,
-            requestFingerprint,
-          );
+          return {
+            order: this.assertMatchingIdempotentOrder(
+              existing,
+              buyerUserId,
+              requestFingerprint,
+            ),
+            created: false,
+          };
         }
 
         const buyer = await manager.findOne(User, {
@@ -106,11 +113,14 @@ export class ListingOrdersService {
           idempotencyKey,
         );
         if (concurrentlyCreated) {
-          return this.assertMatchingIdempotentOrder(
-            concurrentlyCreated,
-            buyerUserId,
-            requestFingerprint,
-          );
+          return {
+            order: this.assertMatchingIdempotentOrder(
+              concurrentlyCreated,
+              buyerUserId,
+              requestFingerprint,
+            ),
+            created: false,
+          };
         }
 
         await this.expireStaleAndAssertNoCollision(
@@ -191,8 +201,15 @@ export class ListingOrdersService {
           );
         }
 
-        return toListingOrderContract(savedOrder);
+        return { order: toListingOrderContract(savedOrder), created: true };
       });
+      if (creation.created) {
+        await this.telemetryService?.trackOrderCreated({
+          buyerUserId,
+          order: creation.order,
+        });
+      }
+      return creation.order;
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
 

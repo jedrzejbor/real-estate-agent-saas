@@ -482,6 +482,7 @@ type AnalyticsEventCategory =
   | 'matching'
   | 'retention'
   | 'public_growth'
+  | 'commerce'
   | 'limits'
   | 'other';
 
@@ -491,6 +492,7 @@ const ANALYTICS_EVENT_CATEGORY_ORDER: AnalyticsEventCategory[] = [
   'matching',
   'retention',
   'public_growth',
+  'commerce',
   'limits',
   'other',
 ];
@@ -544,6 +546,15 @@ function getAnalyticsEventCategory(name: string): AnalyticsEventCategory {
 
   if (name.startsWith('limit_') || name === 'upgrade_cta_clicked') {
     return 'limits';
+  }
+
+  if (
+    name.startsWith('listing_quote_') ||
+    name.startsWith('listing_order_') ||
+    name.startsWith('listing_checkout_') ||
+    name.startsWith('listing_payment_')
+  ) {
+    return 'commerce';
   }
 
   return 'other';

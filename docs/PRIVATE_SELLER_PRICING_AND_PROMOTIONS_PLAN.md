@@ -1872,7 +1872,7 @@ Etap 8 jest funkcjonalnie domknięty. Następny krok: przejść do etapu 9
 
 ### Etap 9 — analityka zbiorcza, QA i rollout
 
-- [ ] Instrumentować podstawowe zdarzenia w każdym wcześniejszym etapie zamiast
+- [x] Instrumentować podstawowe zdarzenia w każdym wcześniejszym etapie zamiast
   odkładać całą analitykę na koniec.
 - [ ] Dodać lejek i raporty sprzedażowe.
 - [ ] Wykonać testy E2E wszystkich ścieżek płatności i promocji.
@@ -1888,6 +1888,31 @@ Etap 8 jest funkcjonalnie domknięty. Następny krok: przejść do etapu 9
 **Kryterium zakończenia:** wszystkie scenariusze krytyczne przechodzą w E2E,
 monitoring wykrywa rozbieżności, procedura operacyjna jest udokumentowana, a
 każdą funkcję można niezależnie wyłączyć feature flagą.
+
+#### Iteracja 9.1 — telemetry fundament dla lejka commerce
+
+- [x] Dodano `ListingCommerceTelemetryService` jako cienką warstwę domenową nad
+  `AnalyticsService.trackSystemEvent`.
+- [x] Telemetry jest best-effort: błąd zapisu analytics generuje warning, ale
+  nie przerywa wyceny, zamówienia, checkoutu ani webhooka płatności.
+- [x] Dodano systemowe zdarzenia:
+  `listing_quote_created`, `listing_order_created`,
+  `listing_checkout_session_created`, `listing_payment_event_processed` oraz
+  `listing_payment_event_failed`.
+- [x] Zdarzenia są tworzone po głównej operacji domenowej i nie uczestniczą w
+  transakcyjnych decyzjach biznesowych.
+- [x] Payload telemetry nie zapisuje jawnego kodu promocyjnego, URL checkoutu
+  ani danych kupującego; zachowuje tylko bezpieczne metryki: kwoty, walutę,
+  typy produktów, źródła rabatów, statusy i identyfikatory operacyjne.
+- [x] Idempotentne ponowienie utworzenia zamówienia nie emituje ponownie
+  `listing_order_created`, aby retry klienta nie zawyżały lejka sprzedażowego.
+- [x] Moduł admin analytics ma nową kategorię `commerce`, aby zdarzenia lejka
+  sprzedażowego nie trafiały do grupy `other`.
+- [x] Dodano testy serwisu telemetrycznego, kategorii raportowej i regresyjny
+  przebieg testów dotkniętych serwisów commerce.
+
+Następny krok etapu 9: zbudować agregowany lejek sprzedażowy dla admina na
+bazie nowych eventów oraz danych zamówień/płatności.
 
 ### 14.1 Zasady implementacji między etapami
 

@@ -16,6 +16,7 @@ import {
 } from './listing-orders.service';
 import { ListingQuotesService } from './listing-quotes.service';
 import { ListingEntitlementsService } from './listing-entitlements.service';
+import { ListingCommerceTelemetryService } from './listing-commerce-telemetry.service';
 import { ListingPromotionsService } from './listing-promotions.service';
 import {
   ListingOrderStatus,
@@ -153,6 +154,9 @@ function buildHarness(options?: {
     applyReservedDiscountsForPaidOrder: jest.fn().mockResolvedValue([]),
     releaseReservationsForOrders: jest.fn().mockResolvedValue(0),
   };
+  const telemetryService = {
+    trackOrderCreated: jest.fn().mockResolvedValue(undefined),
+  };
   const manager = {
     findOne: jest.fn(async (entity: unknown) => {
       if (entity === ListingOrder) return options?.existingIdempotentOrder ?? null;
@@ -192,6 +196,7 @@ function buildHarness(options?: {
     listingQuotesService as unknown as ListingQuotesService,
     listingEntitlementsService as unknown as ListingEntitlementsService,
     listingPromotionsService as unknown as ListingPromotionsService,
+    telemetryService as unknown as ListingCommerceTelemetryService,
   );
 
   return {
@@ -201,6 +206,7 @@ function buildHarness(options?: {
     listingQuotesService,
     listingEntitlementsService,
     listingPromotionsService,
+    telemetryService,
   };
 }
 
@@ -209,7 +215,8 @@ describe('ListingOrdersService', () => {
 
   it('atomically persists the quote snapshot and matching item snapshots', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-09-07T10:00:00.000Z'));
-    const { service, manager, listingQuotesService } = buildHarness();
+    const { service, manager, listingQuotesService, telemetryService } =
+      buildHarness();
 
     const result = await service.createOrder('owner-1', 'request-key-1', orderDto);
 
@@ -243,6 +250,13 @@ describe('ListingOrdersService', () => {
       fullName: 'Jan Kowalski',
     });
     expect(savedOrder.pricingSnapshot).toEqual(buildQuote());
+    expect(telemetryService.trackOrderCreated).toHaveBeenCalledWith({
+      buyerUserId: 'owner-1',
+      order: expect.objectContaining({
+        id: 'order-created',
+        totalGrossAmount: 4_900,
+      }),
+    });
   });
 
   it('reserves promotion discounts after the order snapshot is persisted', async () => {
@@ -300,20 +314,22 @@ describe('ListingOrdersService', () => {
 
   it('returns the original order for an identical idempotent retry', async () => {
     const existing = buildPersistedOrder();
-    const { service, listingQuotesService, manager } = buildHarness({
+    const { service, listingQuotesService, manager, telemetryService } =
+      buildHarness({
       existingIdempotentOrder: existing,
-    });
+      });
 
     const result = await service.createOrder('owner-1', 'request-key-1', orderDto);
 
     expect(result.id).toBe(existing.id);
     expect(listingQuotesService.createQuoteInTransaction).not.toHaveBeenCalled();
     expect(manager.save).not.toHaveBeenCalled();
+    expect(telemetryService.trackOrderCreated).not.toHaveBeenCalled();
   });
 
   it('returns a parallel retry committed while waiting for the listing lock', async () => {
     const concurrentlyCreated = buildPersistedOrder();
-    const { service, manager } = buildHarness();
+    const { service, manager, telemetryService } = buildHarness();
     manager.findOne
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ id: 'owner-1', email: 'owner@example.com' })
@@ -328,6 +344,7 @@ describe('ListingOrdersService', () => {
     expect(result.id).toBe(concurrentlyCreated.id);
     expect(manager.find).not.toHaveBeenCalled();
     expect(manager.save).not.toHaveBeenCalled();
+    expect(telemetryService.trackOrderCreated).not.toHaveBeenCalled();
   });
 
   it('rejects reuse of an idempotency key with different input', async () => {

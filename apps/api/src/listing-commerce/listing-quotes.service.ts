@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,6 +21,7 @@ import {
 import { ListingProductType } from './listing-commerce.types';
 import { ListingManualAdjustmentsService } from './listing-manual-adjustments.service';
 import { ListingPromotionsService } from './listing-promotions.service';
+import { ListingCommerceTelemetryService } from './listing-commerce-telemetry.service';
 
 export interface AuthorizedListingQuote {
   quote: ListingQuoteContract;
@@ -50,6 +52,8 @@ export class ListingQuotesService {
     private readonly releaseFlagsService: ReleaseFlagsService,
     private readonly promotionsService: ListingPromotionsService,
     private readonly manualAdjustmentsService: ListingManualAdjustmentsService,
+    @Optional()
+    private readonly telemetryService?: ListingCommerceTelemetryService,
   ) {}
 
   async createQuote(
@@ -62,6 +66,11 @@ export class ListingQuotesService {
       dto,
       new Date(),
     );
+    await this.telemetryService?.trackQuoteCreated({
+      buyerUserId,
+      quote: result.quote,
+      promotionCodeProvided: Boolean(dto.promotionCode?.trim()),
+    });
     return result.quote;
   }
 

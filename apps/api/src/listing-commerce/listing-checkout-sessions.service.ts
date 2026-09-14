@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
@@ -22,6 +23,7 @@ import {
   ListingOrderStatus,
   ListingPaymentAttemptStatus,
 } from './listing-commerce.types';
+import { ListingCommerceTelemetryService } from './listing-commerce-telemetry.service';
 
 const CHECKOUT_ELIGIBLE_ORDER_STATUSES = new Set([
   ListingOrderStatus.DRAFT,
@@ -42,6 +44,8 @@ export class ListingCheckoutSessionsService {
     @Inject(LISTING_PAYMENT_GATEWAY)
     private readonly paymentGateway: ListingPaymentGateway,
     private readonly releaseFlagsService: ReleaseFlagsService,
+    @Optional()
+    private readonly telemetryService?: ListingCommerceTelemetryService,
   ) {}
 
   async createOwnedCheckoutSession(
@@ -64,7 +68,7 @@ export class ListingCheckoutSessionsService {
     const session =
       await this.paymentGateway.createCheckoutSession(paymentInput);
 
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const order = await this.findOwnedOrderForUpdate(
         manager,
         buyerUserId,
@@ -124,6 +128,11 @@ export class ListingCheckoutSessionsService {
         expiresAt: attempt.expiresAt.toISOString(),
       };
     });
+    await this.telemetryService?.trackCheckoutSessionCreated({
+      buyerUserId,
+      session: result,
+    });
+    return result;
   }
 
   private async prepareAttempt(

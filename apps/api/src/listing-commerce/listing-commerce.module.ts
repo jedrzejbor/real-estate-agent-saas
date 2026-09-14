@@ -4,6 +4,7 @@ import { ReleaseFlagsModule } from '../release-flags';
 import { MonitoringModule } from '../monitoring';
 import { UsersModule } from '../users';
 import { EmailModule } from '../email';
+import { AnalyticsModule } from '../analytics';
 import { Listing } from '../listings/entities';
 import { PublicListingSubmissionsModule } from '../public-listing-submissions';
 import { PublicListingSubmission } from '../public-listing-submissions/entities';
@@ -29,6 +30,7 @@ import {
 import { ListingCheckoutController } from './listing-checkout.controller';
 import { ListingEntitlementsController } from './listing-entitlements.controller';
 import { ListingCheckoutSessionsService } from './listing-checkout-sessions.service';
+import { ListingCommerceTelemetryService } from './listing-commerce-telemetry.service';
 import { ListingEntitlementsService } from './listing-entitlements.service';
 import { ListingEntitlementsScheduler } from './listing-entitlements.scheduler';
 import { LISTING_PAYMENT_GATEWAY } from './listing-payment-gateway.port';
@@ -69,6 +71,7 @@ const LISTING_COMMERCE_ENTITIES = [
     MonitoringModule,
     UsersModule,
     EmailModule,
+    AnalyticsModule,
     PublicListingSubmissionsModule,
   ],
   controllers: [
@@ -90,6 +93,7 @@ const LISTING_COMMERCE_ENTITIES = [
     ListingQuotesService,
     ListingOrdersService,
     ListingCheckoutSessionsService,
+    ListingCommerceTelemetryService,
     ListingEntitlementsService,
     ListingEntitlementsScheduler,
     ListingPaymentEventsService,
@@ -107,6 +111,7 @@ const LISTING_COMMERCE_ENTITIES = [
     ListingPromotionsService,
     ListingManualAdjustmentsService,
     ListingEntitlementsService,
+    ListingCommerceTelemetryService,
     ListingPaymentEventsService,
   ],
 })

@@ -1,6 +1,57 @@
 import { AnalyticsService } from './analytics.service';
 
 describe('AnalyticsService', () => {
+  it('groups listing commerce telemetry under the commerce category', async () => {
+    const queryBuilder = {
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([
+        { name: 'listing_quote_created', count: '3' },
+        { name: 'listing_order_created', count: '2' },
+        { name: 'listing_payment_event_failed', count: '1' },
+      ]),
+    };
+    const analyticsEventRepo = {
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+    };
+    const service = new AnalyticsService(
+      analyticsEventRepo as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await (
+      service as unknown as {
+        getAnalyticsEventCategories: (from: Date) => Promise<
+          Array<{
+            category: string;
+            count: number;
+            events: Array<{ name: string; count: number }>;
+          }>
+        >;
+      }
+    ).getAnalyticsEventCategories(new Date('2026-09-01T00:00:00.000Z'));
+
+    expect(result).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: 'commerce',
+          count: 6,
+          events: expect.arrayContaining([
+            { name: 'listing_quote_created', count: 3 },
+            { name: 'listing_order_created', count: 2 },
+            { name: 'listing_payment_event_failed', count: 1 },
+          ]),
+        }),
+      ]),
+    );
+  });
+
   it('builds marketplace funnel metrics from analytics event counts', async () => {
     const queryBuilder = {
       select: jest.fn().mockReturnThis(),
