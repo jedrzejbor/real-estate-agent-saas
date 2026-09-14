@@ -46,6 +46,8 @@ describe('public pricing analytics', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
+      {} as never,
       monitoring as never,
     );
 

@@ -4,6 +4,11 @@ import { MoreThanOrEqual, Repository } from 'typeorm';
 import { UsersService } from '../users';
 import { ListingPublicationStatus } from '../common/enums';
 import { Listing } from '../listings/entities/listing.entity';
+import { ListingOrder, ListingPaymentAttempt } from '../listing-commerce/entities';
+import {
+  ListingOrderStatus,
+  ListingPaymentAttemptStatus,
+} from '../listing-commerce/listing-commerce.types';
 import { MonitoringService } from '../monitoring';
 import { Agent } from '../users/entities/agent.entity';
 import { BlogPost, BlogPostStatus } from '../blog/entities/blog-post.entity';
@@ -26,6 +31,20 @@ const MARKETPLACE_ANALYTICS_EVENT_NAMES = [
   'agent_assignment_listing_copy_created',
 ] as const;
 
+const COMMERCE_ANALYTICS_EVENT_NAMES = [
+  'listing_quote_created',
+  'listing_order_created',
+  'listing_checkout_session_created',
+  'listing_payment_event_processed',
+  'listing_payment_event_failed',
+] as const;
+
+const PAID_ORDER_STATUSES = new Set<ListingOrderStatus>([
+  ListingOrderStatus.PAID,
+  ListingOrderStatus.PARTIALLY_REFUNDED,
+  ListingOrderStatus.REFUNDED,
+]);
+
 @Injectable()
 export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
@@ -39,6 +58,10 @@ export class AnalyticsService {
     private readonly agentRepo: Repository<Agent>,
     @InjectRepository(BlogPost)
     private readonly blogPostRepo: Repository<BlogPost>,
+    @InjectRepository(ListingOrder)
+    private readonly listingOrderRepo: Repository<ListingOrder>,
+    @InjectRepository(ListingPaymentAttempt)
+    private readonly listingPaymentAttemptRepo: Repository<ListingPaymentAttempt>,
     private readonly usersService: UsersService,
     private readonly monitoringService: MonitoringService,
   ) {}
@@ -113,6 +136,7 @@ export class AnalyticsService {
       dailyEvents,
       recentEvents,
       marketplace,
+      commerce,
     ] = await Promise.all([
       this.getAnalyticsUsageTotals(from),
       this.getTopAnalyticsEvents(from),
@@ -120,6 +144,7 @@ export class AnalyticsService {
       this.getDailyAnalyticsEvents(from),
       this.getRecentAnalyticsEvents(from),
       this.getMarketplaceAnalyticsSummary(from),
+      this.getCommerceAnalyticsSummary(from),
     ]);
 
     return {
@@ -134,6 +159,7 @@ export class AnalyticsService {
       dailyEvents,
       recentEvents,
       marketplace,
+      commerce,
     };
   }
 
@@ -419,6 +445,165 @@ export class AnalyticsService {
     };
   }
 
+  private async getCommerceAnalyticsSummary(from: Date) {
+    const [eventRows, orderStatusRows, paidOrderRow, attemptStatusRows] =
+      await Promise.all([
+        this.analyticsEventRepo
+          .createQueryBuilder('event')
+          .select('event.name', 'name')
+          .addSelect('COUNT(*)', 'count')
+          .where('event.createdAt >= :from', { from })
+          .andWhere('event.name IN (:...eventNames)', {
+            eventNames: [...COMMERCE_ANALYTICS_EVENT_NAMES],
+          })
+          .groupBy('event.name')
+          .getRawMany<{ name: string; count: string }>(),
+        this.listingOrderRepo
+          .createQueryBuilder('listingOrder')
+          .select('listingOrder.status', 'status')
+          .addSelect('COUNT(*)', 'count')
+          .addSelect(
+            'COALESCE(SUM(listingOrder.total_gross_amount), 0)',
+            'totalGross',
+          )
+          .addSelect(
+            'COALESCE(SUM(listingOrder.discount_gross_amount), 0)',
+            'discountGross',
+          )
+          .addSelect(
+            `COUNT(*) FILTER (WHERE listingOrder.total_gross_amount = 0)`,
+            'zeroValue',
+          )
+          .addSelect(
+            `COUNT(*) FILTER (WHERE listingOrder.discount_gross_amount > 0)`,
+            'discounted',
+          )
+          .where('listingOrder.createdAt >= :from', { from })
+          .groupBy('listingOrder.status')
+          .getRawMany<{
+            status: ListingOrderStatus;
+            count: string;
+            totalGross: string | null;
+            discountGross: string | null;
+            zeroValue: string | null;
+            discounted: string | null;
+          }>(),
+        this.listingOrderRepo
+          .createQueryBuilder('listingOrder')
+          .select('COUNT(*)', 'paidOrders')
+          .addSelect(
+            'COALESCE(SUM(listingOrder.total_gross_amount), 0)',
+            'grossRevenue',
+          )
+          .where('listingOrder.paid_at >= :from', { from })
+          .getRawOne<{
+            paidOrders: string | null;
+            grossRevenue: string | null;
+          }>(),
+        this.listingPaymentAttemptRepo
+          .createQueryBuilder('attempt')
+          .select('attempt.status', 'status')
+          .addSelect('COUNT(*)', 'count')
+          .where('attempt.createdAt >= :from', { from })
+          .groupBy('attempt.status')
+          .getRawMany<{ status: ListingPaymentAttemptStatus; count: string }>(),
+      ]);
+
+    const eventCounts = new Map(
+      eventRows.map((row) => [row.name, parseCount(row.count)]),
+    );
+    const orderStatuses = orderStatusRows.map((row) => ({
+      status: row.status,
+      count: parseCount(row.count),
+      totalGrossAmount: parseAmount(row.totalGross),
+      discountGrossAmount: parseAmount(row.discountGross),
+    }));
+    const attemptStatuses = attemptStatusRows.map((row) => ({
+      status: row.status,
+      count: parseCount(row.count),
+    }));
+
+    const ordersCreated = sumCounts(orderStatuses);
+    const checkoutSessionsCreated = getEventCount(
+      eventCounts,
+      'listing_checkout_session_created',
+    );
+    const paidOrdersFromStatus = orderStatuses
+      .filter((row) => PAID_ORDER_STATUSES.has(row.status))
+      .reduce((sum, row) => sum + row.count, 0);
+    const paidOrders = Math.max(
+      paidOrdersFromStatus,
+      parseCount(paidOrderRow?.paidOrders),
+    );
+    const failedOrders = getOrderStatusCount(
+      orderStatuses,
+      ListingOrderStatus.PAYMENT_FAILED,
+    );
+    const expiredOrders = getOrderStatusCount(
+      orderStatuses,
+      ListingOrderStatus.EXPIRED,
+    );
+    const zeroValueOrders = orderStatusRows.reduce(
+      (sum, row) => sum + parseCount(row.zeroValue),
+      0,
+    );
+    const discountedOrders = orderStatusRows.reduce(
+      (sum, row) => sum + parseCount(row.discounted),
+      0,
+    );
+    const paymentEventsProcessed = getEventCount(
+      eventCounts,
+      'listing_payment_event_processed',
+    );
+    const paymentEventsFailed = getEventCount(
+      eventCounts,
+      'listing_payment_event_failed',
+    );
+
+    return {
+      quotesCreated: getEventCount(eventCounts, 'listing_quote_created'),
+      ordersCreated,
+      checkoutSessionsCreated,
+      paymentEventsProcessed,
+      paymentEventsFailed,
+      paidOrders,
+      failedOrders,
+      expiredOrders,
+      zeroValueOrders,
+      discountedOrders,
+      grossRevenueAmount: parseAmount(paidOrderRow?.grossRevenue),
+      discountGrossAmount: orderStatuses.reduce(
+        (sum, row) => sum + row.discountGrossAmount,
+        0,
+      ),
+      averageOrderGrossAmount:
+        ordersCreated === 0
+          ? 0
+          : Math.round(
+              orderStatuses.reduce(
+                (sum, row) => sum + row.totalGrossAmount,
+                0,
+              ) / ordersCreated,
+            ),
+      quoteToOrderRate: calculateRate(
+        ordersCreated,
+        getEventCount(eventCounts, 'listing_quote_created'),
+      ),
+      orderToCheckoutRate: calculateRate(checkoutSessionsCreated, ordersCreated),
+      checkoutToPaidRate: calculateRate(paidOrders, checkoutSessionsCreated),
+      paymentFailureRate: calculateRate(
+        paymentEventsFailed,
+        paymentEventsProcessed + paymentEventsFailed,
+      ),
+      statuses: orderStatuses,
+      attempts: attemptStatuses,
+      events: COMMERCE_ANALYTICS_EVENT_NAMES.map((name) => ({
+        name,
+        count: getEventCount(eventCounts, name),
+      })),
+    };
+  }
+
   private async trackPublicBlogCore(
     slug: string,
     dto: CreatePublicBlogAnalyticsEventDto,
@@ -466,6 +651,28 @@ export class AnalyticsService {
 function parseCount(value: string | number | null | undefined): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseAmount(value: string | number | null | undefined): number {
+  return parseCount(value);
+}
+
+function sumCounts(rows: Array<{ count: number }>): number {
+  return rows.reduce((sum, row) => sum + row.count, 0);
+}
+
+function getEventCount(
+  counts: Map<string, number>,
+  name: (typeof COMMERCE_ANALYTICS_EVENT_NAMES)[number],
+): number {
+  return counts.get(name) ?? 0;
+}
+
+function getOrderStatusCount(
+  rows: Array<{ status: ListingOrderStatus; count: number }>,
+  status: ListingOrderStatus,
+): number {
+  return rows.find((row) => row.status === status)?.count ?? 0;
 }
 
 function calculateRate(numerator: number, denominator: number): number {

@@ -197,6 +197,7 @@ export default function AdminAnalyticsUsagePage() {
           </div>
 
           <MarketplaceFunnelPanel data={data} />
+          <CommerceFunnelPanel data={data} />
 
           <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
@@ -411,6 +412,7 @@ const EVENT_LABELS: Record<string, string> = {
     'Właściciel otworzył propozycję agenta',
   listing_agent_proposal_rejected: 'Odrzucono propozycję agenta',
   listing_agent_proposal_sent: 'Wysłano propozycję współpracy',
+  listing_checkout_session_created: 'Utworzono sesję checkout',
   message_template_copied: 'Skopiowano szablon wiadomości',
   message_template_rendered: 'Wyrenderowano szablon wiadomości',
   notification_center_opened: 'Otworzono centrum powiadomień',
@@ -424,6 +426,10 @@ const EVENT_LABELS: Record<string, string> = {
   owner_report_link_copied: 'Skopiowano link raportu właściciela',
   owner_report_summary_copied: 'Skopiowano podsumowanie raportu',
   owner_report_viewed: 'Wyświetlono raport właściciela',
+  listing_order_created: 'Utworzono zamówienie ogłoszenia',
+  listing_payment_event_failed: 'Błąd eventu płatności ogłoszenia',
+  listing_payment_event_processed: 'Przetworzono event płatności ogłoszenia',
+  listing_quote_created: 'Utworzono wycenę ogłoszenia',
   product_feedback_submitted: 'Wysłano feedback produktowy',
   public_lead_accepted: 'Zaakceptowano publiczny lead',
   public_lead_submitted: 'Wysłano publiczny lead',
@@ -826,6 +832,175 @@ function DecisionInsightCard({ insight }: { insight: DecisionInsight }) {
   );
 }
 
+function CommerceFunnelPanel({ data }: { data: AdminAnalyticsUsageSummary }) {
+  const commerce = data.commerce;
+  const funnelSteps = [
+    {
+      id: 'quotes',
+      label: 'Wyceny',
+      value: commerce.quotesCreated,
+      description: 'Użytkownicy policzyli cenę produktów ogłoszenia.',
+    },
+    {
+      id: 'orders',
+      label: 'Zamówienia',
+      value: commerce.ordersCreated,
+      description: `${commerce.quoteToOrderRate}% względem wycen.`,
+    },
+    {
+      id: 'checkout',
+      label: 'Checkout',
+      value: commerce.checkoutSessionsCreated,
+      description: `${commerce.orderToCheckoutRate}% zamówień rozpoczęło płatność.`,
+    },
+    {
+      id: 'paid',
+      label: 'Opłacone',
+      value: commerce.paidOrders,
+      description: `${commerce.checkoutToPaidRate}% checkoutów zakończyło się płatnością.`,
+    },
+  ];
+  const maxValue = Math.max(1, ...funnelSteps.map((step) => step.value));
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="font-heading text-lg font-semibold text-foreground">
+              Sprzedaż ogłoszeń indywidualnych
+            </h2>
+            <Badge variant="outline" className="rounded-full">
+              Commerce
+            </Badge>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Lejek od wyceny przez checkout po opłacone zamówienie, oparty o
+            eventy oraz trwałe tabele zamówień.
+          </p>
+        </div>
+        <BarChart3 className="h-5 w-5 text-primary" />
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {funnelSteps.map((step) => (
+          <div
+            key={step.id}
+            className="rounded-xl border border-border/70 bg-muted/20 p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">
+                  {step.label}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {step.description}
+                </p>
+              </div>
+              <span className="shrink-0 text-xl font-semibold text-foreground">
+                {step.value.toLocaleString('pl-PL')}
+              </span>
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary"
+                style={{
+                  width: `${Math.max(4, (step.value / maxValue) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <MarketplaceRateCard
+          label="Przychód brutto"
+          valueLabel={formatGrossAmount(commerce.grossRevenueAmount)}
+          description="Suma opłaconych zamówień w wybranym okresie."
+        />
+        <MarketplaceRateCard
+          label="Średnie zamówienie"
+          valueLabel={formatGrossAmount(commerce.averageOrderGrossAmount)}
+          description="Średnia wartość zamówień utworzonych w okresie."
+        />
+        <MarketplaceRateCard
+          label="Rabaty"
+          valueLabel={formatGrossAmount(commerce.discountGrossAmount)}
+          description={`${commerce.discountedOrders} zamówień z rabatem lub korektą.`}
+        />
+        <MarketplaceRateCard
+          label="Błędy płatności"
+          valueLabel={`${commerce.paymentFailureRate}%`}
+          description={`${commerce.paymentEventsFailed} nieudanych eventów płatności.`}
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <CommerceBreakdownCard
+          title="Statusy zamówień"
+          rows={commerce.statuses.map((status) => ({
+            label: formatOrderStatus(status.status),
+            value: status.count,
+            detail: `${formatGrossAmount(status.totalGrossAmount)} · rabaty ${formatGrossAmount(status.discountGrossAmount)}`,
+          }))}
+        />
+        <CommerceBreakdownCard
+          title="Próby płatności"
+          rows={commerce.attempts.map((attempt) => ({
+            label: formatPaymentAttemptStatus(attempt.status),
+            value: attempt.count,
+            detail: attempt.status,
+          }))}
+        />
+      </div>
+    </section>
+  );
+}
+
+function CommerceBreakdownCard({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: Array<{ label: string; value: number; detail: string }>;
+}) {
+  const maxValue = Math.max(1, ...rows.map((row) => row.value));
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
+      <p className="font-medium text-foreground">{title}</p>
+      <div className="mt-4 space-y-3">
+        {rows.length > 0 ? (
+          rows.map((row) => (
+            <div key={`${title}-${row.label}`} className="space-y-1">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 truncate font-medium text-foreground">
+                  {row.label}
+                </span>
+                <span className="text-muted-foreground">{row.value}</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary/70"
+                  style={{
+                    width: `${Math.max(4, (row.value / maxValue) * 100)}%`,
+                  }}
+                />
+              </div>
+              <p className="truncate text-xs text-muted-foreground">
+                {row.detail}
+              </p>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-muted-foreground">Brak danych.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MarketplaceFunnelPanel({
   data,
 }: {
@@ -946,10 +1121,12 @@ function MarketplaceFunnelPanel({
 function MarketplaceRateCard({
   label,
   value,
+  valueLabel,
   description,
 }: {
   label: string;
-  value: number;
+  value?: number;
+  valueLabel?: string;
   description: string;
 }) {
   return (
@@ -957,7 +1134,7 @@ function MarketplaceRateCard({
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium text-foreground">{label}</p>
         <Badge variant="outline" className="rounded-full">
-          {value}%
+          {valueLabel ?? `${value ?? 0}%`}
         </Badge>
       </div>
       <p className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -1001,6 +1178,11 @@ const ANALYTICS_CATEGORY_CONFIG: Record<
     label: 'Public growth',
     description: 'Publiczne oferty, leady, blog i feedback.',
     icon: BarChart3,
+  },
+  commerce: {
+    label: 'Commerce',
+    description: 'Wyceny, zamówienia, checkout i płatności ogłoszeń.',
+    icon: TrendingUp,
   },
   limits: {
     label: 'Limity',
@@ -1117,4 +1299,39 @@ function formatAnalyticsDate(value: string): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value));
+}
+
+function formatGrossAmount(value: number): string {
+  return new Intl.NumberFormat('pl-PL', {
+    style: 'currency',
+    currency: 'PLN',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value / 100);
+}
+
+function formatOrderStatus(status: string): string {
+  const labels: Record<string, string> = {
+    draft: 'Szkic',
+    pending_payment: 'Oczekuje na płatność',
+    paid: 'Opłacone',
+    payment_failed: 'Płatność nieudana',
+    expired: 'Wygasłe',
+    cancelled: 'Anulowane',
+    partially_refunded: 'Częściowy zwrot',
+    refunded: 'Zwrot',
+  };
+  return labels[status] ?? status;
+}
+
+function formatPaymentAttemptStatus(status: string): string {
+  const labels: Record<string, string> = {
+    creating: 'Tworzenie',
+    pending: 'Oczekuje',
+    succeeded: 'Udana',
+    failed: 'Nieudana',
+    expired: 'Wygasła',
+    cancelled: 'Anulowana',
+  };
+  return labels[status] ?? status;
 }

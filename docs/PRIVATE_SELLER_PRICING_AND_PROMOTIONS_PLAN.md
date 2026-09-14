@@ -1874,7 +1874,7 @@ Etap 8 jest funkcjonalnie domknięty. Następny krok: przejść do etapu 9
 
 - [x] Instrumentować podstawowe zdarzenia w każdym wcześniejszym etapie zamiast
   odkładać całą analitykę na koniec.
-- [ ] Dodać lejek i raporty sprzedażowe.
+- [x] Dodać lejek i raporty sprzedażowe.
 - [ ] Wykonać testy E2E wszystkich ścieżek płatności i promocji.
 - [ ] Przetestować wygasanie produktów i harmonogramy w UTC/Europe/Warsaw.
 - [ ] Włączyć monitoring błędów webhooków, różnic kwot i nieudanych aktywacji.
@@ -1911,8 +1911,26 @@ każdą funkcję można niezależnie wyłączyć feature flagą.
 - [x] Dodano testy serwisu telemetrycznego, kategorii raportowej i regresyjny
   przebieg testów dotkniętych serwisów commerce.
 
-Następny krok etapu 9: zbudować agregowany lejek sprzedażowy dla admina na
-bazie nowych eventów oraz danych zamówień/płatności.
+#### Iteracja 9.2 — agregowany lejek sprzedażowy admina
+
+- [x] Rozszerzono `AnalyticsService.getAdminUsageSummary` o sekcję `commerce`.
+- [x] Lejek łączy eventy telemetryczne (`quote`, `order`, `checkout`, webhooki)
+  z trwałymi tabelami `listing_orders` i `listing_payment_attempts`.
+- [x] Raport zwraca liczbę wycen, zamówień, checkoutów, opłaconych zamówień,
+  błędów płatności, zamówień z rabatem, zamówień zero-value oraz statusy
+  zamówień i prób płatności.
+- [x] Raport liczy przychód brutto, sumę rabatów, średnią wartość zamówienia
+  oraz rate’y: quote→order, order→checkout, checkout→paid i failure rate
+  webhooków płatności.
+- [x] `AnalyticsModule` korzysta bezpośrednio z repozytoriów zamówień i prób
+  płatności, aby kwoty i statusy nie zależały wyłącznie od eventów trackingowych.
+- [x] Frontowy kontrakt `admin-analytics` obsługuje nową sekcję `commerce`.
+- [x] Panel admin analytics pokazuje osobny blok `Sprzedaż ogłoszeń
+  indywidualnych` z lejkiem, metrykami finansowymi oraz breakdownem statusów.
+- [x] Dodano test agregatu commerce i zachowano type-check/lint API oraz web.
+
+Następny krok etapu 9: włączyć monitoring rozbieżności — błędy webhooków,
+różnice kwot i opłacone zamówienia bez aktywowanych entitlementów.
 
 ### 14.1 Zasady implementacji między etapami
 
