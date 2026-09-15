@@ -1877,8 +1877,8 @@ Etap 8 jest funkcjonalnie domknięty. Następny krok: przejść do etapu 9
 - [x] Dodać lejek i raporty sprzedażowe.
 - [ ] Wykonać testy E2E wszystkich ścieżek płatności i promocji.
 - [ ] Przetestować wygasanie produktów i harmonogramy w UTC/Europe/Warsaw.
-- [ ] Włączyć monitoring błędów webhooków, różnic kwot i nieudanych aktywacji.
-- [ ] Przygotować procedurę ręcznego pogodzenia opłaconego zamówienia z brakiem
+- [x] Włączyć monitoring błędów webhooków, różnic kwot i nieudanych aktywacji.
+- [x] Przygotować procedurę ręcznego pogodzenia opłaconego zamówienia z brakiem
   entitlementu.
 - [ ] Uruchomić za feature flagą najpierw dla kont testowych.
 - [ ] Uruchomić kolejno: publiczny cennik → płatną publikację → odnowienia →
@@ -1958,7 +1958,7 @@ Zakres sprintu:
 - [x] Jeżeli automatyczna moderacja przechodzi bez zastrzeżeń, ustawić
   zgłoszenie w stanie umożliwiającym zakup publikacji, a nie w stanie publicznej
   publikacji.
-- [ ] Jeżeli moderacja wymaga ręcznego sprawdzenia, zachować obecny etap review:
+- [x] Jeżeli moderacja wymaga ręcznego sprawdzenia, zachować obecny etap review:
   admin zatwierdza treść, ale nadal nie publikuje oferty bez płatności albo
   grantu.
 - [x] Zweryfikować `approveByAdmin`, aby przy włączonym checkout kończył się
@@ -1967,7 +1967,7 @@ Zakres sprintu:
   `PublicListingSubmission` przejście do `PUBLISHED` może nastąpić wyłącznie
   przez aktywację entitlementu publikacji albo kontrolowaną ścieżkę legacy
   wyraźnie oznaczoną w metadanych.
-- [ ] Zachować możliwość ręcznego grantu admina jako legalnej ścieżki publikacji
+- [x] Zachować możliwość ręcznego grantu admina jako legalnej ścieżki publikacji
   bez płatności, ale tylko z autorem, powodem i audytem.
 - [x] Upewnić się, że zamówienie zero-value po kodzie promocyjnym lub korekcie
   admina aktywuje publikację tą samą ścieżką entitlementów co płatne
@@ -2010,7 +2010,7 @@ Krytyczne testy regresyjne sprintu:
 - [x] Cofnięcie jedynego aktywnego grantu publikacji zdejmuje ofertę z katalogu.
 - [x] Katalog publiczny nie zwraca prywatnych draftów, zgłoszeń `CLAIMED` ani
   zaakceptowanych, ale nieopłaconych ofert.
-- [ ] Front po rejestracji z `claimToken` prowadzi użytkownika do miejsca, w
+- [x] Front po rejestracji z `claimToken` prowadzi użytkownika do miejsca, w
   którym widzi następny płatny krok.
 
 Kolejność implementacji:
@@ -2024,13 +2024,69 @@ Kolejność implementacji:
 5. [x] Widoczność panelu checkoutu i stany informacyjne na szczegółach ogłoszenia
    właściciela.
 6. [x] Testy katalogu publicznego oraz ścieżki opłaconego zamówienia.
-7. Decyzja migracyjna dla ofert już opublikowanych bez entitlementów przed
+7. [x] Decyzja migracyjna dla ofert już opublikowanych bez entitlementów przed
    włączeniem flagi produkcyjnej.
 
 **Kryterium zakończenia:** żadna nowa oferta prywatnego sprzedającego nie może
 zostać publicznie opublikowana bez aktywnego entitlementu publikacji albo
 jawnego legacy/grantu admina; użytkownik zawsze widzi cenę i krok płatności
 przed publiczną publikacją.
+
+#### Iteracja 9.4 — monitoring i procedura reconciliation płatności
+
+Cel sprintu: mieć automatyczny bezpiecznik dla sytuacji, w której płatność
+została zaksięgowana, ale zamówienie nie dostało entitlementu albo checkout
+utknął w stanie pośrednim.
+
+Zakres sprintu:
+
+- [x] Wykorzystać cykliczny `ListingPaymentReconciliationScheduler` jako
+  watchdog dla checkoutu prywatnych ogłoszeń.
+- [x] Wygaszać porzucone próby płatności i powiązane zamówienia w sposób
+  transakcyjny, z blokadą rekordu zamówienia i ostatniej próby płatności.
+- [x] Wykrywać opłacone zamówienia bez entitlementu po okresie ochronnym
+  `LISTING_PAYMENT_RECONCILIATION_FULFILLMENT_GRACE_MS`.
+- [x] Naprawiać brakujący entitlement przez tę samą domenową ścieżkę
+  `fulfillPaidOrder`, aby ręczne/automatyczne pogodzenie nie omijało reguł
+  publikacji, odnowienia i wyróżnienia.
+- [x] Raportować do `MonitoringService`:
+  `paid_order_missing_entitlement`,
+  `paid_order_entitlement_recovery_failed`,
+  `payment_attempt_expiration_failed`,
+  `scheduler_run_failed`,
+  `scheduler_run_skipped_lock_busy` oraz zbiorczy
+  `scheduler_run_completed`.
+- [x] Błędy różnicy kwoty albo waluty w webhooku płatności są audytowane jako
+  `failed` payment event i nie aktywują fulfillmentu.
+- [x] Scheduler używa advisory locka, więc wiele instancji API nie powinno
+  przetwarzać tego samego batcha równolegle.
+
+Procedura operacyjna dla opłaconego zamówienia bez entitlementu:
+
+1. Sprawdzić logi monitoringu dla `listing_payment_reconciliation` i eventu
+   `paid_order_missing_entitlement`.
+2. Zweryfikować w bazie, czy `listing_orders.status = 'paid'`,
+   `paid_at IS NOT NULL` oraz czy istnieją `listing_order_items` bez wierszy w
+   `listing_entitlements.order_item_id`.
+3. Poczekać na najbliższy przebieg scheduler'a albo lokalnie wymusić restart
+   API, jeżeli środowisko developerskie nie uruchomiło jeszcze timera.
+4. Jeżeli `recoveredOrderIds` zawiera zamówienie, uznać sprawę za naprawioną:
+   publikacja/wyróżnienie powinny być zsynchronizowane przez lifecycle
+   entitlementów.
+5. Jeżeli pojawia się `paid_order_entitlement_recovery_failed`, nie zmieniać
+   ręcznie statusu ogłoszenia w tabeli `listings`; najpierw naprawić przyczynę
+   domenową, a dopiero potem ponowić reconciliation. Ręczny grant admina jest
+   dopuszczalny tylko jako świadoma decyzja operacyjna z autorem i powodem.
+
+Krytyczne testy regresyjne sprintu:
+
+- [x] Scheduler raportuje brakujące entitlementy i wynik batcha do monitoringu.
+- [x] Per-record failure nie zatrzymuje całego batcha.
+- [x] Advisory lock blokuje równoległy przebieg.
+- [x] Nieoczekiwany błąd batcha jest raportowany jako failure i nie crashuje
+  procesu.
+- [x] Mismatch kwoty/waluty z webhooka jest audytowany i nie aktywuje
+  entitlementu.
 
 ### 14.1 Zasady implementacji między etapami
 
