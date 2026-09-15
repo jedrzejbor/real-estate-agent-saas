@@ -1986,9 +1986,10 @@ Zakres sprintu:
   publikacją.
 - [x] Przejrzeć stare akcje `renewForOwner`, `unpublishForOwner` i podobne, aby
   nie obchodziły modelu entitlementów w nowym płatnym flow.
-- [ ] Przygotować regułę migracyjną dla już opublikowanych ogłoszeń prywatnych
-  bez entitlementów: oznaczyć je jako legacy/free-publication albo cofnąć do
-  draftu dopiero po decyzji biznesowej.
+- [x] Przygotować decyzję migracyjną dla już opublikowanych ogłoszeń prywatnych
+  bez entitlementów: w środowisku lokalnym nie migrujemy ich automatycznie, bo
+  obecne dane są testowe; w razie potrzeby środowisko można wyczyścić i zacząć
+  od nowej bazy po odpaleniu migracji.
 
 Krytyczne testy regresyjne sprintu:
 
