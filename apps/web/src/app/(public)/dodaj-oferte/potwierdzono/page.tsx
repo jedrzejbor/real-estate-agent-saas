@@ -197,7 +197,7 @@ function VerificationShell({ state }: { state: VerificationState }) {
               <p className="mt-2 max-w-xl text-sm text-muted-foreground">
                 {isPrivateSeller
                   ? 'Zgłoszenie jest przypisane do Twojego konta. W panelu właściciela zobaczysz jego aktualny status i kolejne kroki publikacji.'
-                  : 'Załóż konto albo zaloguj się, a przypniemy ofertę do Twojego workspace i otworzymy ją w panelu CRM. Jeśli oferta przejdzie automatyczną kontrolę, po przejęciu będzie mogła pojawić się w publicznym katalogu; w przeciwnym razie poczeka na sprawdzenie przed publikacją.'}
+                  : 'Załóż konto albo zaloguj się, a przypniemy ofertę do Twojego workspace i otworzymy ją w panelu CRM. Jeśli oferta przejdzie automatyczną kontrolę, po przejęciu będzie mogła pojawić się w publicznym katalogu w przeciwnym razie poczeka na sprawdzenie przed publikacją.'}
               </p>
               <div className="mt-5 max-w-xl rounded-2xl border border-border bg-muted/30 px-4 py-3 text-left">
                 <p className="text-sm font-semibold text-foreground">
@@ -205,7 +205,7 @@ function VerificationShell({ state }: { state: VerificationState }) {
                 </p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   Oferta przechodzi weryfikację jakości i bezpieczeństwa. Po
-                  akceptacji może pojawić się w publicznym katalogu; jeżeli
+                  akceptacji może pojawić się w publicznym katalogu jeżeli
                   będzie wymagała uzupełnienia, status zobaczysz w panelu.
                 </p>
               </div>

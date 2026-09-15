@@ -3,7 +3,7 @@
 > Status: decyzje produktowe Etapu 0 zaakceptowane; kwestie księgowo-prawne
 > pozostają warunkiem publicznego uruchomienia
 > Data utworzenia: 2026-09-04
-> Ostatnia aktualizacja: 2026-09-07
+> Ostatnia aktualizacja: 2026-09-15
 > Zakres: strona główna, pełny cennik, ścieżka prywatnego sprzedającego,
 > płatności oraz zarządzanie ofertą handlową w panelu administratora
 
@@ -1931,6 +1931,105 @@ każdą funkcję można niezależnie wyłączyć feature flagą.
 
 Następny krok etapu 9: włączyć monitoring rozbieżności — błędy webhooków,
 różnice kwot i opłacone zamówienia bez aktywowanych entitlementów.
+
+#### Iteracja 9.3 — uszczelnienie flow publikacji i bramka płatności
+
+> Powód dodania: test manualny wykazał, że użytkownik niezalogowany może
+> rozpocząć dodawanie ogłoszenia, utworzyć konto, przejąć zgłoszenie i dostać
+> już opublikowane ogłoszenie bez prezentacji ceny oraz bez procesu płatności.
+> Jest to luka w integracji starego flow automatycznej publikacji z nowym
+> modelem płatnej publikacji dla klientów indywidualnych.
+
+Cel sprintu: zagwarantować, że ogłoszenie klienta indywidualnego nie może
+pojawić się w publicznym katalogu bez aktywnego uprawnienia publikacji
+wynikającego z opłaconego zamówienia, zamówienia zero-value albo jawnego grantu
+administratora.
+
+Zakres sprintu:
+
+- [ ] Rozdzielić w kodzie pojęcia `zatwierdzone do publikacji` i
+  `opublikowane publicznie`.
+- [ ] Zmienić flow `claim` anonimowego zgłoszenia tak, aby po przejęciu przez
+  konto prywatnego sprzedającego nie publikował automatycznie ogłoszenia nawet
+  wtedy, gdy automatyczna moderacja nie wymaga ręcznego review.
+- [ ] Po claimie tworzyć powiązane `Listing` jako `DRAFT` /
+  `publicationStatus = DRAFT`, z przypisanym właścicielem i wygenerowanym albo
+  gotowym do wygenerowania slugiem, ale bez `publishedAt` i bez `expiresAt`.
+- [ ] Jeżeli automatyczna moderacja przechodzi bez zastrzeżeń, ustawić
+  zgłoszenie w stanie umożliwiającym zakup publikacji, a nie w stanie publicznej
+  publikacji.
+- [ ] Jeżeli moderacja wymaga ręcznego sprawdzenia, zachować obecny etap review:
+  admin zatwierdza treść, ale nadal nie publikuje oferty bez płatności albo
+  grantu.
+- [ ] Zweryfikować `approveByAdmin`, aby przy włączonym checkout kończył się
+  stanem `APPROVED` + prywatny draft, a nie publikacją.
+- [ ] Dodać domenowy invariant: dla prywatnego ogłoszenia powiązanego z
+  `PublicListingSubmission` przejście do `PUBLISHED` może nastąpić wyłącznie
+  przez aktywację entitlementu publikacji albo kontrolowaną ścieżkę legacy
+  wyraźnie oznaczoną w metadanych.
+- [ ] Zachować możliwość ręcznego grantu admina jako legalnej ścieżki publikacji
+  bez płatności, ale tylko z autorem, powodem i audytem.
+- [ ] Upewnić się, że zamówienie zero-value po kodzie promocyjnym lub korekcie
+  admina aktywuje publikację tą samą ścieżką entitlementów co płatne
+  zamówienie.
+- [ ] Poprawić komunikaty po potwierdzeniu e-maila i po rejestracji: nie
+  obiecywać automatycznej publikacji po przejęciu, tylko jasno pokazać kolejność
+  `weryfikacja → wybór pakietu → płatność → publikacja`.
+- [ ] Po rejestracji z `claimToken` kierować użytkownika bezpośrednio do
+  szczegółów przejętego ogłoszenia albo do panelu z jednoznacznym CTA
+  `Wybierz pakiet publikacji`, zamiast tylko na ogólny panel właściciela.
+- [ ] Pokazywać panel checkoutu dla stanu `APPROVED` i nieopublikowanego
+  `publishedListingId`, a dla stanów wcześniejszych pokazywać blok
+  informacyjny z oczekiwaniem na weryfikację.
+- [ ] Upewnić się, że publiczny katalog i publiczna strona oferty filtrują tylko
+  ogłoszenia z `publicationStatus = PUBLISHED`, aktywnym statusem i niewygasłą
+  publikacją.
+- [ ] Przejrzeć stare akcje `renewForOwner`, `unpublishForOwner` i podobne, aby
+  nie obchodziły modelu entitlementów w nowym płatnym flow.
+- [ ] Przygotować regułę migracyjną dla już opublikowanych ogłoszeń prywatnych
+  bez entitlementów: oznaczyć je jako legacy/free-publication albo cofnąć do
+  draftu dopiero po decyzji biznesowej.
+
+Krytyczne testy regresyjne sprintu:
+
+- [ ] Niezalogowany użytkownik dodaje ogłoszenie, potwierdza e-mail, tworzy
+  konto i przejmuje zgłoszenie — ogłoszenie nie jest publiczne i nie ma
+  `publishedAt`.
+- [ ] Automatycznie zaakceptowane zgłoszenie po claimie trafia do stanu
+  oczekującego na wybór pakietu / płatność.
+- [ ] Zgłoszenie wymagające ręcznego review po akceptacji admina jest
+  `APPROVED`, ale nadal nie jest publiczne.
+- [ ] Próba ręcznego wywołania endpointu quote przed akceptacją moderacji jest
+  odrzucana.
+- [ ] Opłacone zamówienie publikacji tworzy entitlement i dopiero wtedy ustawia
+  listing jako `PUBLISHED`.
+- [ ] Ponowiony webhook nie wydłuża drugi raz publikacji.
+- [ ] Grant admina publikuje ofertę bez płatności, ale zapisuje autora, powód i
+  źródło entitlementu.
+- [ ] Cofnięcie jedynego aktywnego grantu publikacji zdejmuje ofertę z katalogu.
+- [ ] Katalog publiczny nie zwraca prywatnych draftów, zgłoszeń `CLAIMED` ani
+  zaakceptowanych, ale nieopłaconych ofert.
+- [ ] Front po rejestracji z `claimToken` prowadzi użytkownika do miejsca, w
+  którym widzi następny płatny krok.
+
+Kolejność implementacji:
+
+1. Backend invariant i zmiana `claimCore`, bo to jest główne miejsce obejścia
+   płatności.
+2. Testy jednostkowe serwisu zgłoszeń dla anonymous submit → register → claim.
+3. Weryfikacja i dopięcie `approveByAdmin` pod model `APPROVED` bez publikacji.
+4. Frontowe przekierowanie po claimie oraz komunikaty w ekranach
+   `/dodaj-oferte/potwierdzono`, `/register?claimToken=...` i `/seller`.
+5. Widoczność panelu checkoutu i stany informacyjne na szczegółach ogłoszenia
+   właściciela.
+6. Testy katalogu publicznego oraz ścieżki opłaconego zamówienia.
+7. Decyzja migracyjna dla ofert już opublikowanych bez entitlementów przed
+   włączeniem flagi produkcyjnej.
+
+**Kryterium zakończenia:** żadna nowa oferta prywatnego sprzedającego nie może
+zostać publicznie opublikowana bez aktywnego entitlementu publikacji albo
+jawnego legacy/grantu admina; użytkownik zawsze widzi cenę i krok płatności
+przed publiczną publikacją.
 
 ### 14.1 Zasady implementacji między etapami
 
