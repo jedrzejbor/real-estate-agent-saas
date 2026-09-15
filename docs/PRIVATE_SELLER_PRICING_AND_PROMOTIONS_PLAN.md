@@ -1947,21 +1947,21 @@ administratora.
 
 Zakres sprintu:
 
-- [ ] Rozdzielić w kodzie pojęcia `zatwierdzone do publikacji` i
+- [x] Rozdzielić w kodzie pojęcia `zatwierdzone do publikacji` i
   `opublikowane publicznie`.
-- [ ] Zmienić flow `claim` anonimowego zgłoszenia tak, aby po przejęciu przez
+- [x] Zmienić flow `claim` anonimowego zgłoszenia tak, aby po przejęciu przez
   konto prywatnego sprzedającego nie publikował automatycznie ogłoszenia nawet
   wtedy, gdy automatyczna moderacja nie wymaga ręcznego review.
-- [ ] Po claimie tworzyć powiązane `Listing` jako `DRAFT` /
+- [x] Po claimie tworzyć powiązane `Listing` jako `DRAFT` /
   `publicationStatus = DRAFT`, z przypisanym właścicielem i wygenerowanym albo
   gotowym do wygenerowania slugiem, ale bez `publishedAt` i bez `expiresAt`.
-- [ ] Jeżeli automatyczna moderacja przechodzi bez zastrzeżeń, ustawić
+- [x] Jeżeli automatyczna moderacja przechodzi bez zastrzeżeń, ustawić
   zgłoszenie w stanie umożliwiającym zakup publikacji, a nie w stanie publicznej
   publikacji.
 - [ ] Jeżeli moderacja wymaga ręcznego sprawdzenia, zachować obecny etap review:
   admin zatwierdza treść, ale nadal nie publikuje oferty bez płatności albo
   grantu.
-- [ ] Zweryfikować `approveByAdmin`, aby przy włączonym checkout kończył się
+- [x] Zweryfikować `approveByAdmin`, aby przy włączonym checkout kończył się
   stanem `APPROVED` + prywatny draft, a nie publikacją.
 - [ ] Dodać domenowy invariant: dla prywatnego ogłoszenia powiązanego z
   `PublicListingSubmission` przejście do `PUBLISHED` może nastąpić wyłącznie
@@ -1972,10 +1972,10 @@ Zakres sprintu:
 - [ ] Upewnić się, że zamówienie zero-value po kodzie promocyjnym lub korekcie
   admina aktywuje publikację tą samą ścieżką entitlementów co płatne
   zamówienie.
-- [ ] Poprawić komunikaty po potwierdzeniu e-maila i po rejestracji: nie
+- [x] Poprawić komunikaty po potwierdzeniu e-maila i po rejestracji: nie
   obiecywać automatycznej publikacji po przejęciu, tylko jasno pokazać kolejność
   `weryfikacja → wybór pakietu → płatność → publikacja`.
-- [ ] Po rejestracji z `claimToken` kierować użytkownika bezpośrednio do
+- [x] Po rejestracji z `claimToken` kierować użytkownika bezpośrednio do
   szczegółów przejętego ogłoszenia albo do panelu z jednoznacznym CTA
   `Wybierz pakiet publikacji`, zamiast tylko na ogólny panel właściciela.
 - [ ] Pokazywać panel checkoutu dla stanu `APPROVED` i nieopublikowanego
@@ -1992,12 +1992,12 @@ Zakres sprintu:
 
 Krytyczne testy regresyjne sprintu:
 
-- [ ] Niezalogowany użytkownik dodaje ogłoszenie, potwierdza e-mail, tworzy
+- [x] Niezalogowany użytkownik dodaje ogłoszenie, potwierdza e-mail, tworzy
   konto i przejmuje zgłoszenie — ogłoszenie nie jest publiczne i nie ma
   `publishedAt`.
-- [ ] Automatycznie zaakceptowane zgłoszenie po claimie trafia do stanu
+- [x] Automatycznie zaakceptowane zgłoszenie po claimie trafia do stanu
   oczekującego na wybór pakietu / płatność.
-- [ ] Zgłoszenie wymagające ręcznego review po akceptacji admina jest
+- [x] Zgłoszenie wymagające ręcznego review po akceptacji admina jest
   `APPROVED`, ale nadal nie jest publiczne.
 - [ ] Próba ręcznego wywołania endpointu quote przed akceptacją moderacji jest
   odrzucana.
@@ -2014,11 +2014,11 @@ Krytyczne testy regresyjne sprintu:
 
 Kolejność implementacji:
 
-1. Backend invariant i zmiana `claimCore`, bo to jest główne miejsce obejścia
+1. [x] Backend invariant i zmiana `claimCore`, bo to jest główne miejsce obejścia
    płatności.
-2. Testy jednostkowe serwisu zgłoszeń dla anonymous submit → register → claim.
-3. Weryfikacja i dopięcie `approveByAdmin` pod model `APPROVED` bez publikacji.
-4. Frontowe przekierowanie po claimie oraz komunikaty w ekranach
+2. [x] Testy jednostkowe serwisu zgłoszeń dla anonymous submit → register → claim.
+3. [x] Weryfikacja i dopięcie `approveByAdmin` pod model `APPROVED` bez publikacji.
+4. [x] Frontowe przekierowanie po claimie oraz komunikaty w ekranach
    `/dodaj-oferte/potwierdzono`, `/register?claimToken=...` i `/seller`.
 5. Widoczność panelu checkoutu i stany informacyjne na szczegółach ogłoszenia
    właściciela.

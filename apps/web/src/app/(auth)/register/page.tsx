@@ -32,6 +32,7 @@ import {
 } from '@/lib/public-pricing';
 import {
   buildClaimAuthPath,
+  buildSellerListingPath,
   claimPublicListingSubmission,
 } from '@/lib/public-listing-submissions';
 import { useAuthForm } from '@/hooks/use-auth-form';
@@ -126,7 +127,7 @@ function RegisterForm() {
 
       hasClaimedAuthenticatedTokenRef.current = true;
       claimPublicListingSubmission(claimToken)
-        .then(() => router.replace(PRIVATE_SELLER_HOME_PATH))
+        .then((result) => router.replace(buildSellerListingPath(result.id)))
         .catch((error) => {
           setAuthenticatedClaimError(getApiErrorMessage(error));
         });
@@ -151,12 +152,12 @@ function RegisterForm() {
           { skipRedirect: true },
         );
         try {
-          await claimPublicListingSubmission(claimToken);
+          const result = await claimPublicListingSubmission(claimToken);
+          router.push(buildSellerListingPath(result.id));
         } catch (error) {
           setAuthenticatedClaimError(getApiErrorMessage(error));
           return;
         }
-        router.push(PRIVATE_SELLER_HOME_PATH);
         return;
       }
 

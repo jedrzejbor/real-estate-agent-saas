@@ -164,6 +164,7 @@ function buildService(submission: PublicListingSubmission) {
     createQueryBuilder: jest.fn(),
   };
   const listingRepo = {
+    count: jest.fn().mockResolvedValue(0),
     findOne: jest.fn().mockResolvedValue(null),
   };
   const analyticsEventRepo = {
@@ -186,7 +187,16 @@ function buildService(submission: PublicListingSubmission) {
     createQueryBuilder: jest.fn().mockReturnValue(transactionQueryBuilder),
     delete: jest.fn().mockResolvedValue(undefined),
     findOne: jest.fn().mockResolvedValue(null),
-    save: jest.fn(async (_entity: unknown, value: unknown) => value),
+    save: jest.fn(async (entity: unknown, value: unknown) => {
+      if (Array.isArray(value)) return value;
+      if (entity === Listing) {
+        return {
+          ...(value as object),
+          id: (value as { id?: string }).id ?? 'claimed-listing-1',
+        };
+      }
+      return value;
+    }),
   };
   const dataSource = {
     transaction: jest.fn(async (callback: (manager: unknown) => unknown) =>
@@ -203,6 +213,27 @@ function buildService(submission: PublicListingSubmission) {
         lastName: 'Kowalski',
         phone: '600100200',
         agency: null,
+      },
+    }),
+    getAgencyAccessContext: jest.fn().mockResolvedValue({
+      user: {
+        id: 'owner-1',
+        role: UserRole.VIEWER,
+      },
+      agent: {
+        id: 'agent-1',
+      },
+      agency: {
+        id: 'agency-1',
+      },
+      agencyAgentIds: ['agent-1'],
+      entitlements: {
+        plan: {
+          code: 'private-seller',
+        },
+        limits: {
+          activeListings: null,
+        },
       },
     }),
   };
@@ -372,6 +403,72 @@ describe('PublicListingSubmissionsService authenticated seller create', () => {
     expect(emailService.send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'current.owner@example.com',
+      }),
+    );
+  });
+});
+
+describe('PublicListingSubmissionsService claim flow', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('keeps an automatically approved claimed listing private until payment when checkout is enabled', async () => {
+    const submission = buildSubmission({
+      status: PublicListingSubmissionStatus.VERIFIED,
+      claimTokenHash: 'hashed-claim-token',
+      claimedAt: null,
+      ownerUserId: null,
+      publishedListing: undefined,
+      publishedListingId: null,
+      claimedAgentId: null,
+      claimedAgencyId: null,
+    });
+    const {
+      service,
+      emailService,
+      releaseFlagsService,
+      transactionManager,
+    } = buildService(submission);
+    releaseFlagsService.getFlags.mockReturnValue({
+      privateListingCheckoutEnabled: true,
+    });
+
+    const result = await service.claim('owner-1', {
+      claimToken: 'claim-token',
+    });
+
+    const savedListing = transactionManager.save.mock.calls.find(
+      ([entity]) => entity === Listing,
+    )?.[1] as Listing | undefined;
+
+    expect(savedListing).toMatchObject({
+      ownerUserId: 'owner-1',
+      agentId: 'agent-1',
+      status: ListingStatus.DRAFT,
+      publicationStatus: ListingPublicationStatus.DRAFT,
+      publicSlug: 'mieszkanie-testowe-warszawa',
+      publishedAt: undefined,
+      expiresAt: null,
+    });
+    expect(submission.status).toBe(PublicListingSubmissionStatus.APPROVED);
+    expect(submission.publishedAt).toBeNull();
+    expect(submission.expiresAt).toBeNull();
+    expect(submission.publishedListingId).toBe('claimed-listing-1');
+    expect(submission.metadata.paidPublicationRequired).toMatchObject({
+      reason: 'automatic_moderation_passed',
+    });
+    expect(result).toMatchObject({
+      status: PublicListingSubmissionStatus.APPROVED,
+      listingId: 'claimed-listing-1',
+      publicSlug: 'mieszkanie-testowe-warszawa',
+      reviewRequired: false,
+    });
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: submission.email,
+        subject: 'Twoje ogłoszenie zostało zaakceptowane',
+        text: expect.stringContaining('Nie jest jeszcze widoczne'),
       }),
     );
   });

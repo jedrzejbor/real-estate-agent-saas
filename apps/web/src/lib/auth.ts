@@ -221,7 +221,8 @@ export function getAuthenticatedRedirectPath(
 
   if (
     isPrivateSellerUser(user) &&
-    preferredPath.startsWith(AGENT_DASHBOARD_PATH)
+    preferredPath.startsWith(AGENT_DASHBOARD_PATH) &&
+    !preferredPath.startsWith('/dashboard/claim-listing')
   ) {
     return PRIVATE_SELLER_HOME_PATH;
   }

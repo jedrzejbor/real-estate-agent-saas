@@ -17,10 +17,11 @@ import { PublicListingSubmissionProcess } from '@/components/public-listing-subm
 import { APP_NAME } from '@/lib/brand';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
-import { isPrivateSellerUser, PRIVATE_SELLER_HOME_PATH } from '@/lib/auth';
+import { isPrivateSellerUser } from '@/lib/auth';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
   buildClaimAuthPath,
+  buildSellerListingPath,
   claimPublicListingSubmission,
   verifyPublicListingSubmission,
 } from '@/lib/public-listing-submissions';
@@ -103,10 +104,12 @@ function VerificationContent() {
             ? 'Oferta czeka na sprawdzenie'
             : 'Oferta została dodana',
           description:
-            'Przenieśliśmy ją do panelu właściciela. Status publikacji zobaczysz na liście ogłoszeń.',
+            result.reviewRequired
+              ? 'Przenieśliśmy ją do panelu właściciela. Po akceptacji zobaczysz kolejny krok publikacji.'
+              : 'Przenieśliśmy ją do panelu właściciela. Wybierz pakiet publikacji, aby pokazać ofertę w katalogu.',
           duration: 6000,
         });
-        router.replace(PRIVATE_SELLER_HOME_PATH);
+        router.replace(buildSellerListingPath(result.id));
       })
       .catch((error) => {
         hasClaimedRef.current = false;
@@ -197,7 +200,7 @@ function VerificationShell({ state }: { state: VerificationState }) {
               <p className="mt-2 max-w-xl text-sm text-muted-foreground">
                 {isPrivateSeller
                   ? 'Zgłoszenie jest przypisane do Twojego konta. W panelu właściciela zobaczysz jego aktualny status i kolejne kroki publikacji.'
-                  : 'Załóż konto albo zaloguj się, a przypniemy ofertę do Twojego workspace i otworzymy ją w panelu CRM. Jeśli oferta przejdzie automatyczną kontrolę, po przejęciu będzie mogła pojawić się w publicznym katalogu w przeciwnym razie poczeka na sprawdzenie przed publikacją.'}
+                  : 'Załóż konto albo zaloguj się, a przypniemy ofertę do panelu właściciela. Po weryfikacji wybierzesz pakiet publikacji i dopiero po opłaceniu oferta pojawi się w publicznym katalogu.'}
               </p>
               <div className="mt-5 max-w-xl rounded-2xl border border-border bg-muted/30 px-4 py-3 text-left">
                 <p className="text-sm font-semibold text-foreground">
@@ -205,8 +208,8 @@ function VerificationShell({ state }: { state: VerificationState }) {
                 </p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   Oferta przechodzi weryfikację jakości i bezpieczeństwa. Po
-                  akceptacji może pojawić się w publicznym katalogu jeżeli
-                  będzie wymagała uzupełnienia, status zobaczysz w panelu.
+                  akceptacji pokażemy kolejny krok: wybór pakietu, ewentualne
+                  wyróżnienie i płatność za publikację.
                 </p>
               </div>
               {isPrivateSeller ? (

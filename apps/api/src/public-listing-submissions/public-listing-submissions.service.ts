@@ -1149,10 +1149,20 @@ export class PublicListingSubmissionsService {
 
     const now = new Date();
     const moderation = evaluateSubmissionModeration(submission);
-    const listingState = getModeratedListingState(moderation);
+    const paidCheckoutEnabled = this.releaseFlagsService.getFlags()
+      .privateListingCheckoutEnabled;
+    const awaitingPaidPublication =
+      paidCheckoutEnabled && !moderation.reviewRequired;
+    const listingState = awaitingPaidPublication
+      ? {
+          status: ListingStatus.DRAFT,
+          publicationStatus: ListingPublicationStatus.DRAFT,
+          publishedAt: undefined,
+        }
+      : getModeratedListingState(moderation);
     const ownerUserId = submission.ownerUserId ?? userId;
     const publicationExpiresAt =
-      ownerUserId && !moderation.reviewRequired
+      ownerUserId && !moderation.reviewRequired && !awaitingPaidPublication
         ? buildSellerListingExpiresAt(now)
         : null;
     const claimed = await this.dataSource.transaction(async (manager) => {
@@ -1194,9 +1204,12 @@ export class PublicListingSubmissionsService {
         await manager.save(ListingImage, images);
       }
 
-      submission.status = PublicListingSubmissionStatus.CLAIMED;
+      submission.status = awaitingPaidPublication
+        ? PublicListingSubmissionStatus.APPROVED
+        : PublicListingSubmissionStatus.CLAIMED;
       submission.claimedAt = now;
-      submission.publishedAt = moderation.reviewRequired ? null : now;
+      submission.publishedAt =
+        moderation.reviewRequired || awaitingPaidPublication ? null : now;
       submission.expiresAt = publicationExpiresAt;
       submission.publishedListingId = savedListing.id;
       submission.ownerUserId = ownerUserId;
@@ -1212,6 +1225,14 @@ export class PublicListingSubmissionsService {
           claimedAt: now.toISOString(),
         },
         moderation,
+        ...(awaitingPaidPublication
+          ? {
+              paidPublicationRequired: {
+                approvedAt: now.toISOString(),
+                reason: 'automatic_moderation_passed',
+              },
+            }
+          : {}),
       };
       const savedSubmission = await manager.save(
         PublicListingSubmission,
@@ -1239,6 +1260,10 @@ export class PublicListingSubmissionsService {
     this.logger.log(
       `Public listing submission claimed: ${claimed.submission.id} -> listing ${claimed.listing.id}`,
     );
+
+    if (awaitingPaidPublication) {
+      await this.sendPaymentRequiredApprovalEmail(claimed.submission);
+    }
 
     return {
       id: claimed.submission.id,
