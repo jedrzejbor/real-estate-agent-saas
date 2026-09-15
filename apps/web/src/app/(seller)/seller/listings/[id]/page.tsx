@@ -222,15 +222,24 @@ export default function SellerListingDetailPage() {
   const isExpired = Boolean(
     submission.expiresAt && new Date(submission.expiresAt).getTime() <= Date.now(),
   );
+  const releaseFlags = getResolvedReleaseFlags(user.releaseFlags);
+  const isPaidListingCommerceEnabled =
+    releaseFlags.privateListingCheckoutEnabled;
   const publicHref =
     submission.publishedListingSlug && isPublished && !isExpired
       ? `/oferty/${submission.publishedListingSlug}`
       : null;
-  const canRenew = Boolean(submission.publishedListingId);
+  const canRenew = Boolean(
+    submission.publishedListingId && !isPaidListingCommerceEnabled,
+  );
   const canUnpublish = Boolean(submission.publishedListingId && isPublished);
   const canEdit = submission.status !== 'approved';
   const primaryImage = submission.images[0]?.url ?? submission.primaryImageUrl;
-  const releaseFlags = getResolvedReleaseFlags(user.releaseFlags);
+  const shouldShowListingCheckout = Boolean(
+    submission.publishedListingId &&
+      isPaidListingCommerceEnabled &&
+      (submission.status === 'approved' || isPublished || isExpired),
+  );
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -315,9 +324,7 @@ export default function SellerListingDetailPage() {
         </section>
 
         <aside className="space-y-4">
-          {submission.status === 'approved' &&
-          submission.publishedListingId &&
-          releaseFlags.privateListingCheckoutEnabled ? (
+          {shouldShowListingCheckout && submission.publishedListingId ? (
             <SellerListingCheckoutPanel
               listingId={submission.publishedListingId}
               ownerName={submission.ownerName}

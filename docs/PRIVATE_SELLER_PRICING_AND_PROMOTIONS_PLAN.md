@@ -1963,13 +1963,13 @@ Zakres sprintu:
   grantu.
 - [x] Zweryfikować `approveByAdmin`, aby przy włączonym checkout kończył się
   stanem `APPROVED` + prywatny draft, a nie publikacją.
-- [ ] Dodać domenowy invariant: dla prywatnego ogłoszenia powiązanego z
+- [x] Dodać domenowy invariant: dla prywatnego ogłoszenia powiązanego z
   `PublicListingSubmission` przejście do `PUBLISHED` może nastąpić wyłącznie
   przez aktywację entitlementu publikacji albo kontrolowaną ścieżkę legacy
   wyraźnie oznaczoną w metadanych.
 - [ ] Zachować możliwość ręcznego grantu admina jako legalnej ścieżki publikacji
   bez płatności, ale tylko z autorem, powodem i audytem.
-- [ ] Upewnić się, że zamówienie zero-value po kodzie promocyjnym lub korekcie
+- [x] Upewnić się, że zamówienie zero-value po kodzie promocyjnym lub korekcie
   admina aktywuje publikację tą samą ścieżką entitlementów co płatne
   zamówienie.
 - [x] Poprawić komunikaty po potwierdzeniu e-maila i po rejestracji: nie
@@ -1978,13 +1978,13 @@ Zakres sprintu:
 - [x] Po rejestracji z `claimToken` kierować użytkownika bezpośrednio do
   szczegółów przejętego ogłoszenia albo do panelu z jednoznacznym CTA
   `Wybierz pakiet publikacji`, zamiast tylko na ogólny panel właściciela.
-- [ ] Pokazywać panel checkoutu dla stanu `APPROVED` i nieopublikowanego
+- [x] Pokazywać panel checkoutu dla stanu `APPROVED` i nieopublikowanego
   `publishedListingId`, a dla stanów wcześniejszych pokazywać blok
   informacyjny z oczekiwaniem na weryfikację.
-- [ ] Upewnić się, że publiczny katalog i publiczna strona oferty filtrują tylko
+- [x] Upewnić się, że publiczny katalog i publiczna strona oferty filtrują tylko
   ogłoszenia z `publicationStatus = PUBLISHED`, aktywnym statusem i niewygasłą
   publikacją.
-- [ ] Przejrzeć stare akcje `renewForOwner`, `unpublishForOwner` i podobne, aby
+- [x] Przejrzeć stare akcje `renewForOwner`, `unpublishForOwner` i podobne, aby
   nie obchodziły modelu entitlementów w nowym płatnym flow.
 - [ ] Przygotować regułę migracyjną dla już opublikowanych ogłoszeń prywatnych
   bez entitlementów: oznaczyć je jako legacy/free-publication albo cofnąć do
@@ -1999,15 +1999,15 @@ Krytyczne testy regresyjne sprintu:
   oczekującego na wybór pakietu / płatność.
 - [x] Zgłoszenie wymagające ręcznego review po akceptacji admina jest
   `APPROVED`, ale nadal nie jest publiczne.
-- [ ] Próba ręcznego wywołania endpointu quote przed akceptacją moderacji jest
+- [x] Próba ręcznego wywołania endpointu quote przed akceptacją moderacji jest
   odrzucana.
-- [ ] Opłacone zamówienie publikacji tworzy entitlement i dopiero wtedy ustawia
+- [x] Opłacone zamówienie publikacji tworzy entitlement i dopiero wtedy ustawia
   listing jako `PUBLISHED`.
-- [ ] Ponowiony webhook nie wydłuża drugi raz publikacji.
-- [ ] Grant admina publikuje ofertę bez płatności, ale zapisuje autora, powód i
+- [x] Ponowiony webhook nie wydłuża drugi raz publikacji.
+- [x] Grant admina publikuje ofertę bez płatności, ale zapisuje autora, powód i
   źródło entitlementu.
-- [ ] Cofnięcie jedynego aktywnego grantu publikacji zdejmuje ofertę z katalogu.
-- [ ] Katalog publiczny nie zwraca prywatnych draftów, zgłoszeń `CLAIMED` ani
+- [x] Cofnięcie jedynego aktywnego grantu publikacji zdejmuje ofertę z katalogu.
+- [x] Katalog publiczny nie zwraca prywatnych draftów, zgłoszeń `CLAIMED` ani
   zaakceptowanych, ale nieopłaconych ofert.
 - [ ] Front po rejestracji z `claimToken` prowadzi użytkownika do miejsca, w
   którym widzi następny płatny krok.
@@ -2020,9 +2020,9 @@ Kolejność implementacji:
 3. [x] Weryfikacja i dopięcie `approveByAdmin` pod model `APPROVED` bez publikacji.
 4. [x] Frontowe przekierowanie po claimie oraz komunikaty w ekranach
    `/dodaj-oferte/potwierdzono`, `/register?claimToken=...` i `/seller`.
-5. Widoczność panelu checkoutu i stany informacyjne na szczegółach ogłoszenia
+5. [x] Widoczność panelu checkoutu i stany informacyjne na szczegółach ogłoszenia
    właściciela.
-6. Testy katalogu publicznego oraz ścieżki opłaconego zamówienia.
+6. [x] Testy katalogu publicznego oraz ścieżki opłaconego zamówienia.
 7. Decyzja migracyjna dla ofert już opublikowanych bez entitlementów przed
    włączeniem flagi produkcyjnej.
 

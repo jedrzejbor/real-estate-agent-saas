@@ -631,6 +631,36 @@ describe('PublicListingSubmissionsService admin moderation', () => {
     expect(emailService.send).not.toHaveBeenCalled();
   });
 
+  it('blocks the legacy free renewal endpoint when checkout is enabled', async () => {
+    const listing = buildListing({
+      publicSlug: 'mieszkanie-testowe-warszawa',
+      status: ListingStatus.ACTIVE,
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publishedAt: new Date('2026-01-01T00:10:00.000Z'),
+      expiresAt: new Date('2026-03-01T00:00:00.000Z'),
+    });
+    const submission = buildSubmission({
+      publishedListing: listing,
+      publishedListingId: listing.id,
+      expiresAt: listing.expiresAt,
+    });
+    const {
+      service,
+      releaseFlagsService,
+      transactionManager,
+    } = buildService(submission);
+    releaseFlagsService.getFlags.mockReturnValue({
+      privateListingCheckoutEnabled: true,
+    });
+
+    await expect(
+      service.renewForOwner('owner-1', submission.id),
+    ).rejects.toThrow('Odnowienie ogłoszenia wymaga przejścia przez checkout');
+
+    expect(transactionManager.save).not.toHaveBeenCalled();
+    expect(listing.expiresAt?.toISOString()).toBe('2026-03-01T00:00:00.000Z');
+  });
+
   it('adds public stats to seller submission list items', async () => {
     const submission = buildSubmission();
     const { service, analyticsEventRepo, publicLeadRepo, listing } =

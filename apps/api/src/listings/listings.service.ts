@@ -46,6 +46,7 @@ import {
   MatchingService,
   type MatchingReason,
 } from '../matching';
+import { ReleaseFlagsService } from '../release-flags';
 import {
   ListingEntitlementStatus,
   ListingEntitlementType,
@@ -395,6 +396,8 @@ export class ListingsService {
     @Optional()
     @InjectRepository(MatchingDismissal)
     private readonly matchingDismissalRepo?: Repository<MatchingDismissal>,
+    @Optional()
+    private readonly releaseFlagsService?: ReleaseFlagsService,
   ) {}
 
   // ── Create ──
@@ -1239,6 +1242,16 @@ export class ListingsService {
 
   private async publishCore(id: string, userId: string): Promise<Listing> {
     const listing = await this.findOneOrFail(id);
+
+    if (
+      listing.ownerUserId &&
+      this.releaseFlagsService?.getFlags().privateListingCheckoutEnabled
+    ) {
+      throw new BadRequestException(
+        'Publikacja ogłoszenia prywatnego wymaga aktywnego pakietu publikacji',
+      );
+    }
+
     await this.assertOwnership(listing, userId);
     const access = await this.usersService.getAgencyAccessContext(userId);
 

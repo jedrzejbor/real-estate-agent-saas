@@ -634,6 +634,12 @@ export class PublicListingSubmissionsService {
       throw new BadRequestException('Ogłoszenie wymaga jeszcze weryfikacji');
     }
 
+    if (this.releaseFlagsService.getFlags().privateListingCheckoutEnabled) {
+      throw new BadRequestException(
+        'Odnowienie ogłoszenia wymaga przejścia przez checkout',
+      );
+    }
+
     const now = new Date();
     const expiresAt = buildSellerListingExpiresAt(now);
 
