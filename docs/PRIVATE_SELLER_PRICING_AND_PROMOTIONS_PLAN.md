@@ -1880,6 +1880,8 @@ Etap 8 jest funkcjonalnie domknięty. Następny krok: przejść do etapu 9
 - [x] Włączyć monitoring błędów webhooków, różnic kwot i nieudanych aktywacji.
 - [x] Przygotować procedurę ręcznego pogodzenia opłaconego zamówienia z brakiem
   entitlementu.
+- [x] Pokazać aktywne promocje automatyczne w publicznym cenniku, aby użytkownik
+  widział cenę promocyjną przed rozpoczęciem dodawania ogłoszenia.
 - [ ] Uruchomić za feature flagą najpierw dla kont testowych.
 - [ ] Uruchomić kolejno: publiczny cennik → płatną publikację → odnowienia →
   wyróżnienia → promocje i kody.
@@ -2087,6 +2089,28 @@ Krytyczne testy regresyjne sprintu:
   procesu.
 - [x] Mismatch kwoty/waluty z webhooka jest audytowany i nie aktywuje
   entitlementu.
+
+#### Iteracja 9.5 — czytelność promocji dla admina i publicznego cennika
+
+Cel sprintu: promocja startowa ma być zrozumiała dla administratora i widoczna
+dla użytkownika przed rozpoczęciem dodawania ogłoszenia.
+
+Zakres sprintu:
+
+- [x] Publiczny endpoint produktów zwraca opcjonalny `promotionPreview`
+  obliczony po stronie backendu na podstawie aktywnych kampanii
+  automatycznych.
+- [x] Publiczny cennik pokazuje cenę bazową przekreśloną, cenę promocyjną,
+  etykietę promocji i kwotę oszczędności.
+- [x] Checkout nadal tworzy finalną wycenę przez endpoint quote; publiczny
+  `promotionPreview` jest tylko marketingowym podglądem aktualnej promocji.
+- [x] Kampanie kodowe nie obniżają publicznego cennika automatycznie — rabat
+  pojawia się dopiero po wpisaniu kodu w checkoutcie.
+- [x] Panel admina wyjaśnia różnicę między kampanią automatyczną i kodową.
+- [x] Admin widzi ostrzeżenie, gdy aktywna kampania nie jest automatyczna i nie
+  ma kodów, czyli realnie nie zostanie zastosowana.
+- [x] Lista kampanii pokazuje szybki status zastosowania: automatycznie w
+  cenniku, działa po kodzie, nie wpływa na ceny albo brak automatyzacji i kodów.
 
 ### 14.1 Zasady implementacji między etapami
 

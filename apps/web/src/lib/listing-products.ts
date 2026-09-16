@@ -22,11 +22,18 @@ export interface PublicListingProduct {
   description: string | null;
   type: ListingProductType;
   priceGrossAmount: number;
+  promotionPreview: PublicListingProductPromotionPreview | null;
   currency: string;
   vatRateBasisPoints: number | null;
   durationDays: number;
   featuredTier: string | null;
   sortOrder: number;
+}
+
+export interface PublicListingProductPromotionPreview {
+  label: string;
+  discountGrossAmount: number;
+  priceGrossAmount: number;
 }
 
 export interface AdminListingProduct extends PublicListingProduct {

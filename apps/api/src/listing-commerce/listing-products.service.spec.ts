@@ -38,13 +38,16 @@ describe('ListingProductsService', () => {
         privateListingPricingEnabled: false,
       }),
     };
+    const promotionsService = { resolveDiscounts: jest.fn() };
     const service = new ListingProductsService(
       productRepo as never,
       releaseFlagsService as never,
+      promotionsService as never,
     );
 
     await expect(service.findPublicProducts()).resolves.toEqual([]);
     expect(productRepo.find).not.toHaveBeenCalled();
+    expect(promotionsService.resolveDiscounts).not.toHaveBeenCalled();
   });
 
   it('returns only the safe public contract from active public products', async () => {
@@ -54,11 +57,15 @@ describe('ListingProductsService', () => {
     const releaseFlagsService = {
       getFlags: jest.fn().mockReturnValue({
         privateListingPricingEnabled: true,
+        privateListingFeaturedEnabled: true,
+        privateListingPromotionsEnabled: false,
       }),
     };
+    const promotionsService = { resolveDiscounts: jest.fn() };
     const service = new ListingProductsService(
       productRepo as never,
       releaseFlagsService as never,
+      promotionsService as never,
     );
 
     const products = await service.findPublicProducts();
@@ -75,6 +82,7 @@ describe('ListingProductsService', () => {
       expect.objectContaining({
         code: 'publication_60_days',
         priceGrossAmount: 4900,
+        promotionPreview: null,
         durationDays: 60,
       }),
     ]);
@@ -85,6 +93,51 @@ describe('ListingProductsService', () => {
     expect(products[0]).not.toHaveProperty('archivedAt');
     expect(products[0]).not.toHaveProperty('priorityWeight');
     expect(products[0]).not.toHaveProperty('fulfillmentParameters');
+    expect(promotionsService.resolveDiscounts).not.toHaveBeenCalled();
+  });
+
+  it('exposes promotional public prices for active automatic campaigns', async () => {
+    const product = buildProduct();
+    const productRepo = {
+      find: jest.fn().mockResolvedValue([product]),
+    };
+    const releaseFlagsService = {
+      getFlags: jest.fn().mockReturnValue({
+        privateListingPricingEnabled: true,
+        privateListingFeaturedEnabled: true,
+        privateListingPromotionsEnabled: true,
+      }),
+    };
+    const promotionsService = {
+      resolveDiscounts: jest.fn().mockResolvedValue([
+        {
+          label: 'Promocja startowa',
+          grossAmount: 4_410,
+          productCodes: ['publication_60_days'],
+        },
+      ]),
+    };
+    const service = new ListingProductsService(
+      productRepo as never,
+      releaseFlagsService as never,
+      promotionsService as never,
+    );
+
+    await expect(service.findPublicProducts()).resolves.toEqual([
+      expect.objectContaining({
+        code: 'publication_60_days',
+        priceGrossAmount: 4900,
+        promotionPreview: {
+          label: 'Promocja startowa',
+          discountGrossAmount: 4_410,
+          priceGrossAmount: 490,
+        },
+      }),
+    ]);
+    expect(promotionsService.resolveDiscounts).toHaveBeenCalledWith({
+      products: [product],
+      now: expect.any(Date),
+    });
   });
 
   it('hides featured products until the independent rollout flag is enabled', async () => {
@@ -98,9 +151,17 @@ describe('ListingProductsService', () => {
       priorityWeight: 100,
     });
     const productRepo = { find: jest.fn().mockResolvedValue([featured]) };
-    const flags = { privateListingPricingEnabled: true, privateListingFeaturedEnabled: false };
+    const flags = {
+      privateListingPricingEnabled: true,
+      privateListingFeaturedEnabled: false,
+      privateListingPromotionsEnabled: false,
+    };
     const releaseFlagsService = { getFlags: jest.fn().mockReturnValue(flags) };
-    const service = new ListingProductsService(productRepo as never, releaseFlagsService as never);
+    const service = new ListingProductsService(
+      productRepo as never,
+      releaseFlagsService as never,
+      { resolveDiscounts: jest.fn() } as never,
+    );
 
     await expect(service.findPublicProducts()).resolves.toEqual([]);
     flags.privateListingFeaturedEnabled = true;

@@ -12,6 +12,7 @@ describe('listing commerce contracts', () => {
       description: 'Publikacja na 60 dni',
       type: ListingProductType.PUBLICATION,
       priceGrossAmount: 4900,
+      promotionPreview: null,
       currency: 'PLN',
       vatRateBasisPoints: null,
       durationDays: 60,

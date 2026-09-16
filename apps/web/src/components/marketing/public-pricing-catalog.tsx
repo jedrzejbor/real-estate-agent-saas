@@ -333,9 +333,7 @@ function PrivatePricing({
                       {LISTING_PRODUCT_TYPE_LABELS[product.type]} · {product.durationDays} dni
                     </p>
                   </div>
-                  <strong className="text-lg text-foreground">
-                    {formatListingProductPrice(product.priceGrossAmount, product.currency)}
-                  </strong>
+                  <ProductPriceSummary product={product} />
                 </div>
               ))}
               {additions.length === 0 ? (
@@ -383,6 +381,34 @@ function PrivatePricing({
       <PrivatePricingProcess />
       <PrivatePricingFaq />
     </>
+  );
+}
+
+function ProductPriceSummary({ product }: { product: PublicListingProduct }) {
+  const promotionalPrice = product.promotionPreview?.priceGrossAmount;
+
+  if (promotionalPrice === undefined) {
+    return (
+      <strong className="text-lg text-foreground">
+        {formatListingProductPrice(product.priceGrossAmount, product.currency)}
+      </strong>
+    );
+  }
+
+  return (
+    <div className="text-left sm:text-right">
+      <Badge variant="gold" className="mb-1">
+        {product.promotionPreview?.label}
+      </Badge>
+      <div className="flex flex-wrap items-baseline gap-2 sm:justify-end">
+        <span className="text-sm text-muted-foreground line-through">
+          {formatListingProductPrice(product.priceGrossAmount, product.currency)}
+        </span>
+        <strong className="text-lg text-foreground">
+          {formatListingProductPrice(promotionalPrice, product.currency)}
+        </strong>
+      </div>
+    </div>
   );
 }
 

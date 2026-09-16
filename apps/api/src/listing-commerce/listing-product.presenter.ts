@@ -18,6 +18,7 @@ export function toPublicListingProduct(
     description: product.description ?? null,
     type: product.type,
     priceGrossAmount: product.priceGrossAmount,
+    promotionPreview: null,
     currency: product.currency,
     vatRateBasisPoints: product.vatRateBasisPoints ?? null,
     durationDays: product.durationDays,

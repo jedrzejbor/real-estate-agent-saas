@@ -12,11 +12,18 @@ export interface PublicListingProductContract {
   description: string | null;
   type: ListingProductType;
   priceGrossAmount: number;
+  promotionPreview: PublicListingProductPromotionPreviewContract | null;
   currency: string;
   vatRateBasisPoints: number | null;
   durationDays: number;
   featuredTier: string | null;
   sortOrder: number;
+}
+
+export interface PublicListingProductPromotionPreviewContract {
+  label: string;
+  discountGrossAmount: number;
+  priceGrossAmount: number;
 }
 
 export interface AdminListingProductContract

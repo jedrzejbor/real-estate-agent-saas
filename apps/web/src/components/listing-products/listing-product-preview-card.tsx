@@ -69,13 +69,34 @@ export function ListingProductPreviewCard(
         {product.description || 'Opis korzyści widoczny dla klienta.'}
       </p>
 
-      <div className="mt-6 flex items-end gap-2">
-        <span className="font-heading text-3xl font-bold tracking-tight text-foreground">
-          {product.priceGrossAmount === null
-            ? '—'
-            : formatListingProductPrice(product.priceGrossAmount, 'PLN')}
-        </span>
-        <span className="pb-1 text-xs text-muted-foreground">brutto</span>
+      <div className="mt-6">
+        {product.promotionPreview ? (
+          <Badge variant="gold" className="mb-2">
+            {product.promotionPreview.label}
+          </Badge>
+        ) : null}
+        <div className="flex flex-wrap items-end gap-2">
+          {product.promotionPreview ? (
+            <span className="pb-1 text-sm text-muted-foreground line-through">
+              {formatListingProductPrice(product.priceGrossAmount ?? 0, 'PLN')}
+            </span>
+          ) : null}
+          <span className="font-heading text-3xl font-bold tracking-tight text-foreground">
+            {product.displayPriceGrossAmount === null
+              ? '—'
+              : formatListingProductPrice(product.displayPriceGrossAmount, 'PLN')}
+          </span>
+          <span className="pb-1 text-xs text-muted-foreground">brutto</span>
+        </div>
+        {product.promotionPreview ? (
+          <p className="mt-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+            Oszczędzasz{' '}
+            {formatListingProductPrice(
+              product.promotionPreview.discountGrossAmount,
+              'PLN',
+            )}
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-5 space-y-3 border-t border-border pt-5 text-sm">
@@ -131,6 +152,8 @@ function toPreviewProduct(props: ListingProductPreviewCardProps): {
   description: string;
   type: ListingProductFormValues['type'];
   priceGrossAmount: number | null;
+  displayPriceGrossAmount: number | null;
+  promotionPreview: PublicListingProduct['promotionPreview'];
   durationDays: string;
   featuredTier: string;
 } {
@@ -140,16 +163,24 @@ function toPreviewProduct(props: ListingProductPreviewCardProps): {
       description: props.product.description ?? '',
       type: props.product.type,
       priceGrossAmount: props.product.priceGrossAmount,
+      displayPriceGrossAmount:
+        props.product.promotionPreview?.priceGrossAmount ??
+        props.product.priceGrossAmount,
+      promotionPreview: props.product.promotionPreview,
       durationDays: String(props.product.durationDays),
       featuredTier: props.product.featuredTier ?? '',
     };
   }
 
+  const priceGrossAmount = parsePricePreview(props.draft.priceGrossPln);
+
   return {
     name: props.draft.name,
     description: props.draft.description,
     type: props.draft.type,
-    priceGrossAmount: parsePricePreview(props.draft.priceGrossPln),
+    priceGrossAmount,
+    displayPriceGrossAmount: priceGrossAmount,
+    promotionPreview: null,
     durationDays: props.draft.durationDays,
     featuredTier: props.draft.featuredTier,
   };

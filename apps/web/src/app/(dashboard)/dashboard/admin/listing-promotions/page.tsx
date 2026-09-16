@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   Archive,
   BadgePercent,
+  CheckCircle2,
+  Info,
   KeyRound,
   Plus,
   RefreshCw,
@@ -414,6 +417,9 @@ export default function AdminListingPromotionsPage() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     {campaign.code}
                   </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <CampaignApplicationBadge campaign={campaign} />
+                  </div>
                   <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                     <span>{formatDiscount(campaign)}</span>
                     <strong className="text-foreground">
@@ -508,7 +514,8 @@ function CampaignEditor({
             {isArchived ? <Badge variant="destructive">Archiwum</Badge> : null}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Aktywna kampania od razu wpływa na nowe wyceny checkoutu.
+            Kampania automatyczna wpływa na publiczny cennik i nowe wyceny
+            checkoutu. Kampania kodowa działa dopiero po wpisaniu kodu.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -548,6 +555,8 @@ function CampaignEditor({
           </Button>
         </div>
       </div>
+
+      <CampaignActivationNotice campaign={campaign} value={value} />
 
       <div className={cn('space-y-5', isArchived && 'pointer-events-none opacity-60')}>
         <div className="grid gap-4 md:grid-cols-2">
@@ -722,6 +731,89 @@ function CampaignEditor({
         </div>
 
         {campaign ? <CampaignStats campaign={campaign} /> : null}
+      </div>
+    </div>
+  );
+}
+
+function CampaignActivationNotice({
+  campaign,
+  value,
+}: {
+  campaign: AdminListingPromotionCampaign | null;
+  value: ListingPromotionCampaignFormValues;
+}) {
+  const hasCodes = Boolean(campaign?.codes.length);
+  const isActive = value.status === ListingPromotionCampaignStatus.ACTIVE;
+
+  if (!isActive) {
+    return (
+      <AdminNotice
+        tone="neutral"
+        icon={Info}
+        title="Kampania nie jest aktywna"
+        description="Nie wpłynie na publiczny cennik ani na wyceny checkoutu, dopóki nie zmienisz statusu na aktywny."
+      />
+    );
+  }
+
+  if (value.isAutomatic) {
+    return (
+      <AdminNotice
+        tone="success"
+        icon={CheckCircle2}
+        title="Promocja działa automatycznie"
+        description="Jeśli zakres produktów, daty i limity są spełnione, rabat pokaże się w publicznym cenniku i zostanie naliczony w checkoutcie bez wpisywania kodu."
+      />
+    );
+  }
+
+  if (hasCodes) {
+    return (
+      <AdminNotice
+        tone="neutral"
+        icon={Info}
+        title="Promocja działa tylko po kodzie"
+        description="Rabat nie pokaże się automatycznie w publicznym cenniku. Użytkownik zobaczy go dopiero po wpisaniu jednego z kodów w checkoutcie."
+      />
+    );
+  }
+
+  return (
+    <AdminNotice
+      tone="warning"
+      icon={AlertTriangle}
+      title="Aktywna kampania nie zostanie zastosowana"
+      description="Zaznacz „Promocja automatyczna”, jeśli rabat ma obniżać ceny w cenniku i checkoutcie, albo dodaj kody promocyjne, jeśli rabat ma działać po wpisaniu kodu."
+    />
+  );
+}
+
+function AdminNotice({
+  tone,
+  icon: Icon,
+  title,
+  description,
+}: {
+  tone: 'neutral' | 'success' | 'warning';
+  icon: typeof Info;
+  title: string;
+  description: string;
+}) {
+  const className = {
+    neutral: 'border-border bg-muted/40 text-muted-foreground',
+    success:
+      'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+    warning:
+      'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300',
+  }[tone];
+
+  return (
+    <div className={`flex gap-3 rounded-2xl border p-4 text-sm ${className}`}>
+      <Icon className="mt-0.5 h-5 w-5 shrink-0" />
+      <div>
+        <p className="font-semibold">{title}</p>
+        <p className="mt-1 leading-6">{description}</p>
       </div>
     </div>
   );
@@ -1130,6 +1222,26 @@ function PromotionStatusBadge({
         ? 'destructive'
         : 'outline';
   return <Badge variant={variant}>{PROMOTION_STATUS_LABELS[status]}</Badge>;
+}
+
+function CampaignApplicationBadge({
+  campaign,
+}: {
+  campaign: AdminListingPromotionCampaign;
+}) {
+  if (campaign.status !== ListingPromotionCampaignStatus.ACTIVE) {
+    return <Badge variant="outline">Nie wpływa na ceny</Badge>;
+  }
+
+  if (campaign.isAutomatic) {
+    return <Badge variant="gold">Automatycznie w cenniku</Badge>;
+  }
+
+  if (campaign.codes.length > 0) {
+    return <Badge variant="outline">Działa po kodzie</Badge>;
+  }
+
+  return <Badge variant="destructive">Brak automatyzacji i kodów</Badge>;
 }
 
 function AccessDenied() {

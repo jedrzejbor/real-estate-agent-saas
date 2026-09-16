@@ -96,6 +96,7 @@ function productFixture(): AdminListingProduct {
     description: null,
     type: ListingProductType.PUBLICATION,
     priceGrossAmount: 14_999,
+    promotionPreview: null,
     currency: 'PLN',
     vatRateBasisPoints: 2_300,
     durationDays: 30,
