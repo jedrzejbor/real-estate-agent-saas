@@ -2175,3 +2175,145 @@ Funkcja jest gotowa, gdy:
 7. Ręczny grant admina wyłącznie przez kontrolowaną akcję z powodem i audytem.
 8. Aktywacja publikacji i dodatków wyłącznie po webhooku albo jawnym grancie
    administratora.
+
+## 18. Nowy sprint — promocje dla planów agentów i biur
+
+> Zakres poza modułem prywatnych ogłoszeń. Promocje produktów ogłoszeniowych
+> pozostają w `listing-commerce`, a promocje abonamentów agentów powinny mieć
+> osobny model domenowy, ponieważ dotyczą subskrypcji, okresów rozliczeniowych,
+> triali, checkoutu planów i lifecycle agencji.
+
+### 18.1 Cel sprintu
+
+Umożliwić administratorowi tworzenie promocji dla planów agentów i biur bez
+zmiany kodu, tak aby:
+
+- publiczny cennik agentów pokazywał cenę promocyjną i cenę bazową;
+- rejestracja/agencja widziała tę samą cenę, którą potem potwierdza backend;
+- kod promocyjny albo automatyczna kampania mogły działać na wybrane plany;
+- promocja była bezpieczna dla subskrypcji i nie zmieniała historycznych
+  billing snapshots;
+- billing/webhook nie musiał interpretować promocji z modułu ogłoszeń
+  prywatnych.
+
+### 18.2 Decyzja architektoniczna
+
+Nie rozszerzamy `listing_promotion_campaigns`, bo są zoptymalizowane pod
+jednorazowe produkty ogłoszeniowe i fulfillment entitlementów listingowych.
+
+Tworzymy osobny bounded context, roboczo:
+
+- backend: `agency-plan-promotions` albo `plan-commerce`;
+- tabele: osobne od `listing_*`;
+- publiczne preview promocji: przez endpoint planów;
+- finalna wycena: przez osobny quote dla planu/agencji;
+- billing: integracja z checkoutem/subskrypcją agentów, a nie z
+  `listing_orders`.
+
+### 18.3 Model domenowy V1
+
+Proponowane encje:
+
+- `agency_plan_promotion_campaigns`
+  - `code`, `name`, `description`;
+  - `status`: `draft`, `active`, `paused`, `archived`;
+  - `discount_type`: `percentage` albo `fixed_gross`;
+  - `discount_value`;
+  - `max_discount_gross_amount`;
+  - `target_scope`: `all_plans`, `plan_codes`, `billing_intervals`;
+  - `target_rules`: np. `planCodes`, `billingIntervals`;
+  - `is_automatic`;
+  - `is_combinable` — w V1 domyślnie `false`;
+  - `usage_limit_total`, `usage_limit_per_account`, `usage_count`;
+  - `starts_at`, `ends_at`;
+  - `created_by_user_id`, `updated_by_user_id`, `archived_at`.
+- `agency_plan_promotion_codes`
+  - kod przechowywany jako hash, nie plaintext;
+  - `code_last4`, `label`;
+  - opcjonalne override’y rabatu i limitów;
+  - `usage_count`, zakres dat.
+- `agency_plan_promotion_reservations`
+  - rezerwacja rabatu na czas checkoutu;
+  - powiązanie z agency/subscription checkout attempt;
+  - status `reserved`, `applied`, `released`, `expired`.
+- `agency_plan_promotion_redemptions`
+  - trwały zapis faktycznie użytego rabatu;
+  - snapshot kwoty i źródła rabatu;
+  - powiązanie z agencją, planem i billing eventem.
+
+### 18.4 Zakres funkcjonalny V1
+
+- [ ] Admin może tworzyć kampanię promocyjną dla planów agentów.
+- [ ] Admin może ograniczyć promocję do konkretnych planów, np. tylko
+  `professional`.
+- [ ] Admin może ograniczyć promocję do okresu rozliczenia: monthly/yearly.
+- [ ] Admin może ustawić kampanię automatyczną widoczną w publicznym cenniku
+  agentów.
+- [ ] Admin może tworzyć kody promocyjne dla planów agentów.
+- [ ] Publiczny cennik agentów pokazuje:
+  - cenę bazową;
+  - cenę promocyjną;
+  - etykietę promocji;
+  - informację, czy promocja dotyczy miesięcznie/rocznie.
+- [ ] Rejestracja agenta i checkout planu korzystają z backendowej wyceny planu,
+  a nie z ceny policzonej na froncie.
+- [ ] Backend zapisuje snapshot ceny planu i rabatu użyty do checkoutu.
+- [ ] Webhook subskrypcji potwierdza status billingowy, ale nie przelicza
+  rabatu od nowa.
+- [ ] Analityka rozróżnia promocje planów agentów od promocji ogłoszeń
+  prywatnych.
+
+### 18.5 Czego nie robić w V1
+
+- Nie mieszać promocji agentów z `listing_promotion_campaigns`.
+- Nie stosować promocji planów agentów do produktów prywatnych.
+- Nie stosować promocji prywatnych ogłoszeń do planów agentów.
+- Nie trzymać plaintextu kodów promocyjnych.
+- Nie aktualizować historycznych checkoutów po zmianie promocji.
+- Nie obniżać aktywnej subskrypcji retroaktywnie bez osobnej decyzji
+  billingowej.
+
+### 18.6 Kolejność implementacji
+
+1. [ ] Audyt obecnego flow rejestracji agenta, `GET /api/plans`,
+   `/dashboard/admin/plans` i webhooków subskrypcji.
+2. [ ] Decyzja billingowa: czy promocja ma dotyczyć tylko pierwszego okresu,
+   pierwszych N okresów, czy całej subskrypcji.
+3. [ ] Migracje i encje `agency_plan_promotion_*`.
+4. [ ] Serwis quote dla planów: `AgencyPlanQuotesService`.
+5. [ ] Publiczny preview promocji w `GET /api/plans`.
+6. [ ] Admin API kampanii i kodów dla planów.
+7. [ ] UI admina jako osobna zakładka: `Promocje planów agentów`.
+8. [ ] UI publicznego cennika agentów z ceną bazową/przekreśloną i promocyjną.
+9. [ ] Rejestracja/checkout agenta oparta o quote snapshot.
+10. [ ] Rezerwacje, redemptions i limity użyć.
+11. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
+12. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
+    wygasły kod, zmiana promocji po utworzeniu quote.
+
+### 18.7 Krytyczne testy sprintu
+
+- [ ] Publiczny cennik agentów pokazuje promocyjną cenę tylko dla planów
+  objętych kampanią.
+- [ ] Kod promocyjny dla agentów nie działa na checkout ogłoszenia prywatnego.
+- [ ] Kod promocyjny ogłoszenia prywatnego nie działa na plan agenta.
+- [ ] Wycena planu i snapshot checkoutu pozostają niezmienne po zmianie kampanii.
+- [ ] Limit użyć globalny i per-agencja nie jest przekraczany przy równoległych
+  próbach.
+- [ ] Wyłączona, przyszła, wygasła albo zarchiwizowana kampania nie nalicza
+  rabatu.
+- [ ] Promocja monthly nie obniża planu yearly, jeżeli reguły na to nie
+  pozwalają.
+- [ ] Publiczny cennik nie pokazuje danych wrażliwych: provider price id,
+  plaintext kodu, wewnętrzne identyfikatory kampanii.
+
+### 18.8 Otwarte decyzje przed kodowaniem
+
+- Czy promocja agentów obejmuje tylko pierwszy okres rozliczeniowy, czy np.
+  pierwsze 3 miesiące?
+- Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
+- Czy promocja ma działać dla nowych agencji tylko, czy też dla upgrade’u
+  istniejącej agencji?
+- Czy admin może ręcznie przypisać promocję do istniejącej agencji?
+- Czy ceny promocyjne w publicznym cenniku mają być widoczne zawsze, czy tylko
+  przy kampanii automatycznej?
