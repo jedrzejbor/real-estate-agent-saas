@@ -92,6 +92,17 @@ function buildService(initialCampaigns: ListingPromotionCampaign[] = []) {
       else campaigns.push(value as ListingPromotionCampaign);
       return value;
     }),
+    update: jest.fn(async (entity, id, value) => {
+      if (entity !== ListingPromotionCampaign) return { affected: 0 };
+      const index = campaigns.findIndex((campaign) => campaign.id === id);
+      if (index < 0) return { affected: 0 };
+      campaigns[index] = {
+        ...campaigns[index],
+        ...value,
+        updatedAt: new Date('2026-09-10T11:30:00.000Z'),
+      } as ListingPromotionCampaign;
+      return { affected: 1 };
+    }),
   };
   const dataSource = {
     manager,
@@ -194,7 +205,7 @@ describe('AdminListingPromotionsService', () => {
     const existingCampaign = buildCampaign({
       status: ListingPromotionCampaignStatus.ACTIVE,
     });
-    const { service, codes } = buildService([existingCampaign]);
+    const { service, codes, manager } = buildService([existingCampaign]);
 
     const campaign = await service.createCode(
       'admin-2',
@@ -214,6 +225,17 @@ describe('AdminListingPromotionsService', () => {
       label: 'Kod START10',
       usageCount: 0,
     });
+    expect(manager.update).toHaveBeenCalledWith(
+      ListingPromotionCampaign,
+      existingCampaign.id,
+      { updatedByUserId: 'admin-2' },
+    );
+    expect(manager.save).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: existingCampaign.id,
+        codes: expect.any(Array),
+      }),
+    );
     expect(campaign.codes).toHaveLength(1);
     expect(campaign.codes[0]).toMatchObject({
       codeLast4: 'T-10',

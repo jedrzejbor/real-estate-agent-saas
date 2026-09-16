@@ -229,8 +229,9 @@ export class AdminListingPromotionsService {
         this.prepareAndAssertCode(promotionCode);
         await manager.save(promotionCode);
 
-        campaign.updatedByUserId = actorUserId;
-        await manager.save(campaign);
+        await manager.update(ListingPromotionCampaign, campaign.id, {
+          updatedByUserId: actorUserId,
+        });
         return toAdminListingPromotionCampaign(
           await this.findCampaignEntity(manager, campaign.code),
         );
