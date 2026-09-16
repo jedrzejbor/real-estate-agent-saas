@@ -7,6 +7,11 @@ const listingProducts = [
     description: 'Publiczna strona oferty i panel właściciela.',
     type: 'publication',
     priceGrossAmount: 4_900,
+    promotionPreview: {
+      label: 'Promocja startowa',
+      discountGrossAmount: 4_410,
+      priceGrossAmount: 490,
+    },
     currency: 'PLN',
     vatRateBasisPoints: null,
     durationDays: 60,
@@ -19,6 +24,7 @@ const listingProducts = [
     description: 'Dodatkowa widoczność oferty.',
     type: 'featured',
     priceGrossAmount: 1_900,
+    promotionPreview: null,
     currency: 'PLN',
     vatRateBasisPoints: null,
     durationDays: 7,
@@ -92,6 +98,31 @@ test('pełny cennik synchronizuje odbiorcę z URL i działa z klawiatury', async
   await expect(page).toHaveURL(/\/cennik$/);
   await expect(privateButton).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText('Publikacja testowa')).toBeVisible();
+});
+
+test('cennik prywatny pokazuje automatyczną promocję z backendu', async ({
+  page,
+}) => {
+  await page.goto('/cennik?dla=prywatnych');
+
+  await expect(page.getByText('Publikacja testowa')).toBeVisible();
+  await expect(page.getByText('Promocja startowa')).toBeVisible();
+  await expect(page.getByText('49,00 zł')).toBeVisible();
+  await expect(page.getByText('4,90 zł')).toBeVisible();
+  await expect(page.getByText('Oszczędzasz 44,10 zł')).toBeVisible();
+});
+
+test('homepage pokazuje promocyjną cenę publikacji i dodatki bez rabatu', async ({
+  page,
+}) => {
+  await page.goto('/?dla=prywatnych#pricing');
+
+  await expect(page.getByText('Publikacja testowa')).toBeVisible();
+  await expect(page.getByText('Promocja startowa')).toBeVisible();
+  await expect(page.getByText('4,90 zł')).toBeVisible();
+  await expect(page.getByText('Wyróżnienie testowe')).toBeVisible();
+  await expect(page.getByText('19,00 zł')).toBeVisible();
+  await expect(page.getByText('Promocja startowa')).toHaveCount(1);
 });
 
 test('układ cennika nie powoduje poziomego przewijania', async ({

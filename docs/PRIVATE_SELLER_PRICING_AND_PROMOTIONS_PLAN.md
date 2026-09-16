@@ -2112,6 +2112,47 @@ Zakres sprintu:
 - [x] Lista kampanii pokazuje szybki status zastosowania: automatycznie w
   cenniku, działa po kodzie, nie wpływa na ceny albo brak automatyzacji i kodów.
 
+#### Iteracja 9.6 — QA closure przed rolloutem
+
+Cel sprintu: zamknąć regresje, które wyszły podczas testów manualnych Etapu 9,
+oraz mieć powtarzalny minimalny zestaw testów przed włączeniem funkcji dla
+kont testowych.
+
+Zakres wykonany:
+
+- [x] Naprawiono błąd 500 przy tworzeniu kodu promocyjnego. Przyczyną było
+  zapisywanie kampanii z załadowaną relacją `codes`, przez co TypeORM próbował
+  odpiąć nowo utworzony kod przez `campaign_id = null`. Serwis aktualizuje teraz
+  tylko metadane kampanii przez celowane `update`.
+- [x] Dodano regresję jednostkową dla tworzenia kodu promocyjnego, która
+  pilnuje, że serwis nie zapisuje ponownie całej kampanii z relacjami.
+- [x] Dodano Playwright E2E dla publicznego cennika prywatnych ogłoszeń:
+  automatyczna promocja pokazuje etykietę, cenę bazową, cenę promocyjną i
+  oszczędność.
+- [x] Dodano Playwright E2E dla homepage: promocyjna cena publikacji jest
+  widoczna w sekcji cennika, a dodatek bez promocji pozostaje w cenie bazowej.
+- [x] Zweryfikowano E2E cennika na desktop i mobile:
+  `pnpm --filter web test:e2e -- pricing.spec.ts` — 14/14 testów.
+- [x] Zweryfikowano krytyczne testy backendowe commerce:
+  quote, orders, promotions, checkout sessions, reconciliation scheduler,
+  reconciliation service, produkty i adminowe promocje — 9 suite’ów / 80
+  testów.
+- [x] Zweryfikowano web unit testy dla pricing audience, produktów, HTTP
+  produktów, checkoutu i promocji — 5 suite’ów / 43 testy.
+- [x] Zweryfikowano `type-check` dla API i web.
+
+Pozostaje przed oznaczeniem całego Etapu 9 jako produkcyjnie zamkniętego:
+
+- [ ] Manualny przebieg pełnej płatności z operatorem albo sandboxem operatora:
+  utworzenie quote → order → checkout session → webhook sukcesu → entitlement
+  → publikacja.
+- [ ] Manualny przebieg błędnej/porzuconej płatności:
+  checkout expired/payment failed → brak entitlementu → status użytkownika i
+  monitoring.
+- [ ] Manualny przebieg kodu promocyjnego w checkoutcie na działającym
+  środowisku: kod aktywny, kod wygasły, limit użyć, kod spoza zakresu produktu.
+- [ ] Kontrolowany rollout przez feature flagi na kontach testowych.
+
 ### 14.1 Zasady implementacji między etapami
 
 - Backend pozostaje źródłem prawdy dla ceny, rabatu, statusu płatności i czasu
