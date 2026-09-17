@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, LessThanOrEqual, MoreThan, Repository } from 'typeorm';
@@ -111,6 +112,19 @@ export class AgencyPlanPromotionsService {
       order: { createdAt: 'ASC' },
     });
   }
+}
+
+export function hashAgencyPlanPromotionCode(
+  rawCode: string | undefined,
+): string | null {
+  const normalizedCode = normalizePromotionCode(rawCode);
+  if (!normalizedCode) return null;
+  return createHash('sha256').update(normalizedCode).digest('hex');
+}
+
+function normalizePromotionCode(rawCode: string | undefined): string | null {
+  const normalizedCode = rawCode?.trim().toUpperCase().replace(/\s+/g, '');
+  return normalizedCode || null;
 }
 
 function isAutomaticInitialCheckoutCampaign(

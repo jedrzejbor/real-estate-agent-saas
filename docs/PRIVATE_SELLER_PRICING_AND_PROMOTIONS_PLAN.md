@@ -2367,13 +2367,13 @@ Proponowane encje:
 
 ### 18.4 Zakres funkcjonalny V1
 
-- [ ] Admin może tworzyć kampanię promocyjną dla planów agentów.
-- [ ] Admin może ograniczyć promocję do konkretnych planów, np. tylko
+- [x] Admin może tworzyć kampanię promocyjną dla planów agentów.
+- [x] Admin może ograniczyć promocję do konkretnych planów, np. tylko
   `professional`.
-- [ ] Admin może ograniczyć promocję do okresu rozliczenia: monthly/yearly.
-- [ ] Admin może ustawić kampanię automatyczną widoczną w publicznym cenniku
+- [x] Admin może ograniczyć promocję do okresu rozliczenia: monthly/yearly.
+- [x] Admin może ustawić kampanię automatyczną widoczną w publicznym cenniku
   agentów.
-- [ ] Admin może tworzyć kody promocyjne dla planów agentów.
+- [x] Admin może tworzyć kody promocyjne dla planów agentów.
 - [x] Publiczny cennik agentów pokazuje:
   - cenę bazową;
   - cenę promocyjną;
@@ -2412,7 +2412,7 @@ Proponowane encje:
 4. [x] Bazowy serwis quote dla planów: `AgencyPlanQuotesService` tworzy
    snapshot ceny planu i ma kontrakt przygotowany pod rabaty wielookresowe.
 5. [x] Publiczny preview promocji w `GET /api/plans`.
-6. [ ] Admin API kampanii i kodów dla planów.
+6. [x] Admin API kampanii i kodów dla planów.
 7. [ ] UI admina jako osobna zakładka: `Promocje planów agentów`.
 8. [x] UI publicznego cennika agentów z ceną bazową/przekreśloną, promocyjną i
    opisem okresu obowiązywania rabatu.
@@ -2450,11 +2450,35 @@ Zrealizowane w pierwszej iteracji modułu promocji planów agentów:
   ignorowanie niekwalifikujących się kampanii oraz E2E widoku cennika
   desktop/mobile.
 
-Następny krok:
+Status:
 
-- Admin API kampanii i kodów dla planów agentów, najlepiej jako osobny
+- Admin API kampanii i kodów dla planów agentów zostało wdrożone jako osobny
   kontroler w `agency-plan-commerce`, analogiczny do administracji promocjami
   ogłoszeń, ale bez współdzielenia tabel ani kodów.
+
+### 18.9 Log iteracji — Admin API promocji planów agentów
+
+Zrealizowane:
+
+- osobne endpointy adminowe pod `admin/agency-plan-promotions`;
+- lista, szczegół, tworzenie, aktualizacja, archiwizacja i przywracanie
+  kampanii;
+- tworzenie kodów promocyjnych dla kampanii planów agentów;
+- walidacja rabatu procentowego/fixed gross, dat, liczby okresów
+  rozliczeniowych, limitów użyć oraz reguł targetowania;
+- obsługa targetowania po planach i okresach rozliczenia przez `targetRules`;
+- bezpieczeństwo kodów promocyjnych: backend zapisuje hash, a API zwraca tylko
+  `codeLast4`, bez plaintextu i bez `codeHash`;
+- testy jednostkowe serwisu adminowego dla tworzenia kampanii, błędnych reguł,
+  dat, kodów, duplikatów oraz archive/restore.
+
+Następny krok:
+
+- UI admina jako osobna zakładka `Promocje planów agentów`, korzystająca z
+  nowego API.
+
+Checklisty testowe do domknięcia przy checkout/quote:
+
 - [ ] Promocja monthly nie obniża planu yearly, jeżeli reguły na to nie
   pozwalają.
 - [ ] Promocja na kilka okresów zapisuje liczbę okresów w snapshotcie i nie
@@ -2464,7 +2488,7 @@ Następny krok:
 - [ ] Publiczny cennik nie pokazuje danych wrażliwych: provider price id,
   plaintext kodu, wewnętrzne identyfikatory kampanii.
 
-### 18.8 Otwarte decyzje przed kodowaniem
+### 18.10 Otwarte decyzje przed kodowaniem
 
 - Jakie wartości `duration_billing_cycles` eksponujemy w UI admina w pierwszym
   wydaniu: dowolna liczba, czy preset 1 / 3 / 6 / 12?
