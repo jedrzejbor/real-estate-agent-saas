@@ -33,6 +33,7 @@ import { FavoriteListingsModule } from './favorite-listings';
 import { AgentListingMarketModule } from './agent-listing-market';
 import { ListingAgentProposalsModule } from './listing-agent-proposals';
 import { ListingCommerceModule } from './listing-commerce';
+import { AgencyPlanCommerceModule } from './agency-plan-commerce';
 
 function getBooleanConfig(
   configService: ConfigService,
@@ -83,6 +84,7 @@ function getBooleanConfig(
     AgentListingMarketModule,
     ListingAgentProposalsModule,
     ListingCommerceModule,
+    AgencyPlanCommerceModule,
     ReportsModule,
     SearchModule,
     NotificationsModule,

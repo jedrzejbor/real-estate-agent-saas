@@ -2251,6 +2251,77 @@ Tworzymy osobny bounded context, roboczo:
 - billing: integracja z checkoutem/subskrypcją agentów, a nie z
   `listing_orders`.
 
+### 18.2.1 Audyt obecnego flow planów agentów
+
+Stan na start sprintu:
+
+- `GET /api/plans` zwraca publiczny katalog z `plan_catalog` przez
+  `PlansService.findPublicPlans`.
+- Publiczny cennik agentów i ekran rejestracji pobierają ten sam katalog planów
+  z backendu.
+- Link z cennika prowadzi do `/register?plan=<code>&billing=<interval>`, ale
+  rejestracja obecnie wykorzystuje tylko `plan`; parametr `billing` nie jest
+  jeszcze częścią backendowego kontraktu rejestracji.
+- `POST /api/auth/register` przy koncie agenta ustawia `initialPlan` na wybrany
+  plan albo `free`. To jest konfiguracja startowa agencji, a nie finalny,
+  opłacony checkout abonamentu.
+- `/dashboard/upgrade` pokazuje katalog planów i pozwala wybrać plan oraz okres
+  rozliczenia, ale obecnie zapisuje intencję upgrade w analityce zamiast tworzyć
+  checkout subskrypcji.
+- `/dashboard/admin/plans` zarządza bazowym katalogiem planów: cenami,
+  limitami, widocznością i provider price id.
+- `BillingSubscriptionEventsService` obsługuje webhooki subskrypcji i aktualizuje
+  `Agency.plan`, `subscription`, `billingInterval`, `currentPeriodEnd`,
+  `billingCustomerId` oraz `billingSubscriptionId`.
+- Brakuje jeszcze osobnego quote/snapshotu dla abonamentu agenta. To jest
+  krytyczny fundament przed promocjami, bo bez snapshotu webhook albo późniejsza
+  zmiana kampanii mogłyby nieświadomie przeliczać rabat od nowa.
+
+Wniosek architektoniczny: promocje planów agentów muszą wejść razem z
+`AgencyPlanQuotesService` i snapshotem warunków subskrypcji. Publiczny cennik
+może pokazywać `promotionPreview`, ale finalna decyzja billingowa musi być
+potwierdzona przez backendowy quote dla konkretnego planu, okresu rozliczenia,
+kodu promocyjnego i konta/agencji.
+
+### 18.2.2 Notatka produktowa — okres działania promocji
+
+Promocja planów agentów ma być komunikowana użytkownikowi wprost w cenniku:
+użytkownik powinien widzieć nie tylko obniżoną cenę, ale też okres obowiązywania
+rabatu, np. `pierwszy miesiąc`, `pierwsze 3 miesiące`, `pierwsze 6 miesięcy`
+albo inny limit okresów rozliczeniowych.
+
+Założenia produktowe:
+
+- Kampania automatyczna widoczna w publicznym cenniku może obniżać cenę przez
+  jeden albo kilka pierwszych okresów rozliczeniowych.
+- Promocja startowa jest przypisywana do konta/agencji w momencie założenia
+  konta i opłacenia planu, a nie dynamicznie przeliczana później na podstawie
+  aktualnego cennika.
+- Kod promocyjny użyty przy zakupie planu powinien w podstawowym wariancie
+  obniżać pierwszy okres rozliczeniowy, czyli okres, w którym użytkownik kupuje
+  subskrypcję.
+- System powinien jednak od początku mieć model pozwalający na kody dla
+  istniejących klientów, które obniżają kolejną płatność albo kilka kolejnych
+  płatności.
+- Benefity dla stałych klientów będą osobnym zastosowaniem tego samego silnika:
+  użytkownik może otrzymać kod/promocję za działania korzystne dla firmy, np.
+  aktywność produktową, polecenia, udział w testach, materiały marketingowe albo
+  inne akcje growth.
+
+Rekomendacja implementacyjna:
+
+- V1 powinien wspierać `duration_billing_cycles`, czyli liczbę okresów
+  rozliczeniowych objętych rabatem.
+- Dla promocji automatycznej w cenniku dopuszczamy `duration_billing_cycles >= 1`
+  i pokazujemy opis okresu użytkownikowi.
+- Dla kodów używanych przy zakupie planu domyślnie ustawiamy
+  `duration_billing_cycles = 1`.
+- Dla benefitów dla istniejących klientów model powinien mieć osobny
+  `application_timing`: `initial_checkout`, `next_invoice` albo
+  `future_invoices`.
+- W V1 UI może eksponować głównie `initial_checkout`, ale model bazy i serwis
+  quote nie powinny blokować późniejszego `next_invoice`.
+
 ### 18.3 Model domenowy V1
 
 Proponowane encje:
@@ -2263,6 +2334,10 @@ Proponowane encje:
   - `max_discount_gross_amount`;
   - `target_scope`: `all_plans`, `plan_codes`, `billing_intervals`;
   - `target_rules`: np. `planCodes`, `billingIntervals`;
+  - `duration_billing_cycles`: liczba pierwszych/kolejnych okresów
+    rozliczeniowych objętych rabatem;
+  - `application_timing`: `initial_checkout`, `next_invoice`,
+    `future_invoices`;
   - `is_automatic`;
   - `is_combinable` — w V1 domyślnie `false`;
   - `usage_limit_total`, `usage_limit_per_account`, `usage_count`;
@@ -2272,7 +2347,14 @@ Proponowane encje:
   - kod przechowywany jako hash, nie plaintext;
   - `code_last4`, `label`;
   - opcjonalne override’y rabatu i limitów;
+  - opcjonalne override’y `duration_billing_cycles` i `application_timing`;
   - `usage_count`, zakres dat.
+- `agency_plan_quotes`
+  - tymczasowy snapshot wyboru planu, okresu rozliczenia, ceny bazowej,
+    promocji, kodu i ceny po rabacie;
+  - ważność quote, np. kilkanaście minut;
+  - powiązanie z użytkownikiem/agencją albo anonymous registration attempt,
+    jeśli checkout będzie możliwy przed pełnym utworzeniem workspace.
 - `agency_plan_promotion_reservations`
   - rezerwacja rabatu na czas checkoutu;
   - powiązanie z agency/subscription checkout attempt;
@@ -2280,6 +2362,7 @@ Proponowane encje:
 - `agency_plan_promotion_redemptions`
   - trwały zapis faktycznie użytego rabatu;
   - snapshot kwoty i źródła rabatu;
+  - liczba okresów objętych rabatem;
   - powiązanie z agencją, planem i billing eventem.
 
 ### 18.4 Zakres funkcjonalny V1
@@ -2295,10 +2378,13 @@ Proponowane encje:
   - cenę bazową;
   - cenę promocyjną;
   - etykietę promocji;
-  - informację, czy promocja dotyczy miesięcznie/rocznie.
+  - informację, czy promocja dotyczy miesięcznie/rocznie;
+  - informację, ile okresów rozliczeniowych obejmuje promocja.
 - [ ] Rejestracja agenta i checkout planu korzystają z backendowej wyceny planu,
   a nie z ceny policzonej na froncie.
 - [ ] Backend zapisuje snapshot ceny planu i rabatu użyty do checkoutu.
+- [ ] Quote rozróżnia promocję startową, kod na pierwszy okres i benefit dla
+  istniejącej agencji.
 - [ ] Webhook subskrypcji potwierdza status billingowy, ale nie przelicza
   rabatu od nowa.
 - [ ] Analityka rozróżnia promocje planów agentów od promocji ogłoszeń
@@ -2312,20 +2398,24 @@ Proponowane encje:
 - Nie trzymać plaintextu kodów promocyjnych.
 - Nie aktualizować historycznych checkoutów po zmianie promocji.
 - Nie obniżać aktywnej subskrypcji retroaktywnie bez osobnej decyzji
-  billingowej.
+  billingowej i bez modelu `next_invoice` / `future_invoices`.
 
 ### 18.6 Kolejność implementacji
 
-1. [ ] Audyt obecnego flow rejestracji agenta, `GET /api/plans`,
+1. [x] Audyt obecnego flow rejestracji agenta, `GET /api/plans`,
    `/dashboard/admin/plans` i webhooków subskrypcji.
-2. [ ] Decyzja billingowa: czy promocja ma dotyczyć tylko pierwszego okresu,
-   pierwszych N okresów, czy całej subskrypcji.
-3. [ ] Migracje i encje `agency_plan_promotion_*`.
-4. [ ] Serwis quote dla planów: `AgencyPlanQuotesService`.
+2. [x] Decyzja produktowo-billingowa: model wspiera promocje na 1 albo kilka
+   okresów rozliczeniowych; kod przy zakupie domyślnie działa na pierwszy okres;
+   benefity dla istniejących klientów projektujemy przez `next_invoice` /
+   `future_invoices`, ale UI może wejść później.
+3. [x] Migracje i encje `agency_plan_promotion_*` oraz `agency_plan_quotes`.
+4. [x] Bazowy serwis quote dla planów: `AgencyPlanQuotesService` tworzy
+   snapshot ceny planu i ma kontrakt przygotowany pod rabaty wielookresowe.
 5. [ ] Publiczny preview promocji w `GET /api/plans`.
 6. [ ] Admin API kampanii i kodów dla planów.
 7. [ ] UI admina jako osobna zakładka: `Promocje planów agentów`.
-8. [ ] UI publicznego cennika agentów z ceną bazową/przekreśloną i promocyjną.
+8. [ ] UI publicznego cennika agentów z ceną bazową/przekreśloną, promocyjną i
+   opisem okresu obowiązywania rabatu.
 9. [ ] Rejestracja/checkout agenta oparta o quote snapshot.
 10. [ ] Rezerwacje, redemptions i limity użyć.
 11. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
@@ -2345,16 +2435,20 @@ Proponowane encje:
   rabatu.
 - [ ] Promocja monthly nie obniża planu yearly, jeżeli reguły na to nie
   pozwalają.
+- [ ] Promocja na kilka okresów zapisuje liczbę okresów w snapshotcie i nie
+  zależy od późniejszej zmiany kampanii.
+- [ ] Kod dla istniejącej agencji może zostać ograniczony do kolejnej faktury i
+  nie działa w checkoutcie startowym, jeżeli `application_timing` tak stanowi.
 - [ ] Publiczny cennik nie pokazuje danych wrażliwych: provider price id,
   plaintext kodu, wewnętrzne identyfikatory kampanii.
 
 ### 18.8 Otwarte decyzje przed kodowaniem
 
-- Czy promocja agentów obejmuje tylko pierwszy okres rozliczeniowy, czy np.
-  pierwsze 3 miesiące?
+- Jakie wartości `duration_billing_cycles` eksponujemy w UI admina w pierwszym
+  wydaniu: dowolna liczba, czy preset 1 / 3 / 6 / 12?
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
-- Czy promocja ma działać dla nowych agencji tylko, czy też dla upgrade’u
-  istniejącej agencji?
+- Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko
+  na `next_invoice`, czy od razu na kilka kolejnych faktur?
 - Czy admin może ręcznie przypisać promocję do istniejącej agencji?
 - Czy ceny promocyjne w publicznym cenniku mają być widoczne zawsze, czy tylko
   przy kampanii automatycznej?
