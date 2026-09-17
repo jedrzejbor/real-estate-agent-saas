@@ -2374,7 +2374,7 @@ Proponowane encje:
 - [ ] Admin może ustawić kampanię automatyczną widoczną w publicznym cenniku
   agentów.
 - [ ] Admin może tworzyć kody promocyjne dla planów agentów.
-- [ ] Publiczny cennik agentów pokazuje:
+- [x] Publiczny cennik agentów pokazuje:
   - cenę bazową;
   - cenę promocyjną;
   - etykietę promocji;
@@ -2411,10 +2411,10 @@ Proponowane encje:
 3. [x] Migracje i encje `agency_plan_promotion_*` oraz `agency_plan_quotes`.
 4. [x] Bazowy serwis quote dla planów: `AgencyPlanQuotesService` tworzy
    snapshot ceny planu i ma kontrakt przygotowany pod rabaty wielookresowe.
-5. [ ] Publiczny preview promocji w `GET /api/plans`.
+5. [x] Publiczny preview promocji w `GET /api/plans`.
 6. [ ] Admin API kampanii i kodów dla planów.
 7. [ ] UI admina jako osobna zakładka: `Promocje planów agentów`.
-8. [ ] UI publicznego cennika agentów z ceną bazową/przekreśloną, promocyjną i
+8. [x] UI publicznego cennika agentów z ceną bazową/przekreśloną, promocyjną i
    opisem okresu obowiązywania rabatu.
 9. [ ] Rejestracja/checkout agenta oparta o quote snapshot.
 10. [ ] Rezerwacje, redemptions i limity użyć.
@@ -2433,6 +2433,28 @@ Proponowane encje:
   próbach.
 - [ ] Wyłączona, przyszła, wygasła albo zarchiwizowana kampania nie nalicza
   rabatu.
+
+### 18.8 Log iteracji — publiczny preview promocji planów
+
+Zrealizowane w pierwszej iteracji modułu promocji planów agentów:
+
+- backendowy `AgencyPlanPromotionsService` wybiera najlepszą aktywną kampanię
+  automatyczną dla pary `plan + billingInterval`;
+- `GET /api/plans` zwraca `promotionPreview.monthly/yearly` bez ujawniania
+  wewnętrznego `campaignId`;
+- publiczny cennik agentów pokazuje promocyjną cenę, przekreśloną cenę bazową,
+  etykietę promocji, kwotę oszczędności i okres obowiązywania rabatu;
+- formatowanie kwot w cenniku planów agentów ma stały separator tysięcy, np.
+  `1 990 zł`, niezależnie od domyślnych niuansów `Intl` w przeglądarce;
+- testy pokrywają wybór promocji automatycznej, targetowanie planu/okresu,
+  ignorowanie niekwalifikujących się kampanii oraz E2E widoku cennika
+  desktop/mobile.
+
+Następny krok:
+
+- Admin API kampanii i kodów dla planów agentów, najlepiej jako osobny
+  kontroler w `agency-plan-commerce`, analogiczny do administracji promocjami
+  ogłoszeń, ale bez współdzielenia tabel ani kodów.
 - [ ] Promocja monthly nie obniża planu yearly, jeżeli reguły na to nie
   pozwalają.
 - [ ] Promocja na kilka okresów zapisuje liczbę okresów w snapshotcie i nie

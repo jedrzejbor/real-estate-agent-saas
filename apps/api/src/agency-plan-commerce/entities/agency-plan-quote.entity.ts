@@ -10,7 +10,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { AgencyPlan } from '../../common/enums';
-import { PlanCatalog } from '../../plans';
+import { PlanCatalog } from '../../plans/entities';
 import { Agency, User } from '../../users/entities';
 import type { AgencyPlanQuoteContract } from '../contracts';
 import {

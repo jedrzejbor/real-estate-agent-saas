@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 import { AgencyPlan } from '../common/enums';
-import { PlanCatalog } from '../plans';
+import { PlanCatalog } from '../plans/entities';
 import type { AgencyPlanQuoteContract } from './contracts';
 import { AgencyPlanQuote } from './entities';
 import {

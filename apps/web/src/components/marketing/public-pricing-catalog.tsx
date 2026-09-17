@@ -36,8 +36,12 @@ import {
 } from '@/lib/pricing-audience';
 import {
   formatPlanPrice,
+  formatPlanBasePrice,
+  formatPlanMoney,
   getPlanFallbackDescription,
   getPlanHighlights,
+  getPlanPromotionDurationLabel,
+  getPlanPromotionPreview,
   getPriceHelper,
   type BillingInterval,
 } from '@/lib/public-pricing';
@@ -472,6 +476,7 @@ function AgentPricingCard({
   const isPopular = plan.code === 'professional';
   const isEnterprise = plan.code === 'enterprise';
   const enterpriseHref = `mailto:${APP_CONTACT_EMAIL}?subject=${encodeURIComponent(`${APP_NAME} Enterprise`)}`;
+  const promotionPreview = getPlanPromotionPreview(plan, billingInterval);
 
   return (
     <article
@@ -492,6 +497,22 @@ function AgentPricingCard({
       <p className="mt-4 font-heading text-3xl font-bold">
         {formatPlanPrice(plan, billingInterval)}
       </p>
+      {promotionPreview ? (
+        <div className="mt-2 space-y-1">
+          <Badge variant="gold">{promotionPreview.label}</Badge>
+          <p className="text-sm text-muted-foreground">
+            <span className="line-through">
+              {formatPlanBasePrice(plan, billingInterval)}
+            </span>{' '}
+            <span className="font-medium text-emerald-700 dark:text-emerald-300">
+              oszczędzasz {formatPlanMoney(promotionPreview.discountGrossAmount)}
+            </span>
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {getPlanPromotionDurationLabel(promotionPreview, billingInterval)}
+          </p>
+        </div>
+      ) : null}
       <p className="mt-1 text-xs text-muted-foreground">
         {getPriceHelper(plan, billingInterval)}
       </p>

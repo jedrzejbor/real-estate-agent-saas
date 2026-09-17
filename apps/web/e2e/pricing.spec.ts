@@ -40,6 +40,7 @@ const agencyPlans = [
     description: 'Plan startowy dla agenta.',
     priceMonthlyPln: 0,
     priceYearlyPln: 0,
+    promotionPreview: null,
     limits: {
       activeListings: 2,
       clients: 10,
@@ -56,6 +57,15 @@ const agencyPlans = [
     description: 'Plan dla rozwijającego się biura.',
     priceMonthlyPln: 19_900,
     priceYearlyPln: 199_000,
+    promotionPreview: {
+      monthly: {
+        label: 'Start dla agentów',
+        discountGrossAmount: 9_950,
+        priceGrossAmount: 9_950,
+        durationBillingCycles: 3,
+      },
+      yearly: null,
+    },
     limits: {
       activeListings: 100,
       clients: 1_000,
@@ -98,6 +108,31 @@ test('pełny cennik synchronizuje odbiorcę z URL i działa z klawiatury', async
   await expect(page).toHaveURL(/\/cennik$/);
   await expect(privateButton).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText('Publikacja testowa')).toBeVisible();
+});
+
+test('cennik agentów pokazuje promocyjną cenę dla właściwego okresu', async ({
+  page,
+}) => {
+  await page.goto('/cennik?dla=agentow');
+
+  const professionalCard = page
+    .locator('article')
+    .filter({ hasText: 'Professional testowy' });
+
+  await expect(professionalCard).toBeVisible();
+  await expect(professionalCard.getByText('Start dla agentów')).toBeVisible();
+  await expect(professionalCard.getByText('199 zł')).toBeVisible();
+  await expect(
+    professionalCard.getByText('99,50 zł', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    professionalCard.getByText('przez pierwsze 3 mies.'),
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: 'Rocznie' }).click();
+
+  await expect(professionalCard.getByText('1 990 zł')).toBeVisible();
+  await expect(professionalCard.getByText('Start dla agentów')).toHaveCount(0);
 });
 
 test('cennik prywatny pokazuje automatyczną promocję z backendu', async ({

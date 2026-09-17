@@ -54,9 +54,22 @@ export interface PublicPlan {
   description: string | null;
   priceMonthlyPln: number;
   priceYearlyPln: number;
+  promotionPreview: PublicPlanPromotionPreview | null;
   limits: AgencyPlanLimits;
   features: AgencyPlanFeatures;
   sortOrder: number;
+}
+
+export interface PublicPlanPromotionPreview {
+  monthly: PublicPlanIntervalPromotionPreview | null;
+  yearly: PublicPlanIntervalPromotionPreview | null;
+}
+
+export interface PublicPlanIntervalPromotionPreview {
+  label: string;
+  discountGrossAmount: number;
+  priceGrossAmount: number;
+  durationBillingCycles: number;
 }
 
 export interface AdminAgencyListItem {

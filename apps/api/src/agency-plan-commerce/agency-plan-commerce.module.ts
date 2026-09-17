@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { PlanCatalog } from '../plans';
+import { PlanCatalog } from '../plans/entities';
+import { AgencyPlanPromotionsService } from './agency-plan-promotions.service';
 import { AgencyPlanQuotesService } from './agency-plan-quotes.service';
 import {
   AgencyPlanPromotionCampaign,
@@ -21,7 +22,7 @@ import {
       AgencyPlanQuote,
     ]),
   ],
-  providers: [AgencyPlanQuotesService],
-  exports: [AgencyPlanQuotesService],
+  providers: [AgencyPlanPromotionsService, AgencyPlanQuotesService],
+  exports: [AgencyPlanPromotionsService, AgencyPlanQuotesService],
 })
 export class AgencyPlanCommerceModule {}
