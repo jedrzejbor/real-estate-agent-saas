@@ -219,6 +219,11 @@ const adminGroup: DashboardNavGroup = {
       icon: CreditCard,
     },
     {
+      label: 'Promocje planów',
+      href: '/dashboard/admin/agency-plan-promotions',
+      icon: BadgePercent,
+    },
+    {
       label: 'Produkty ogłoszeń',
       href: '/dashboard/admin/listing-products',
       icon: ShoppingBag,

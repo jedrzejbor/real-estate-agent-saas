@@ -2413,7 +2413,7 @@ Proponowane encje:
    snapshot ceny planu i ma kontrakt przygotowany pod rabaty wielookresowe.
 5. [x] Publiczny preview promocji w `GET /api/plans`.
 6. [x] Admin API kampanii i kodów dla planów.
-7. [ ] UI admina jako osobna zakładka: `Promocje planów agentów`.
+7. [x] UI admina jako osobna zakładka: `Promocje planów agentów`.
 8. [x] UI publicznego cennika agentów z ceną bazową/przekreśloną, promocyjną i
    opisem okresu obowiązywania rabatu.
 9. [ ] Rejestracja/checkout agenta oparta o quote snapshot.
@@ -2472,10 +2472,41 @@ Zrealizowane:
 - testy jednostkowe serwisu adminowego dla tworzenia kampanii, błędnych reguł,
   dat, kodów, duplikatów oraz archive/restore.
 
-Następny krok:
+Status:
 
 - UI admina jako osobna zakładka `Promocje planów agentów`, korzystająca z
-  nowego API.
+  nowego API, został wdrożony.
+
+### 18.10 Log iteracji — UI admina promocji planów agentów
+
+Zrealizowane:
+
+- nowy ekran `/dashboard/admin/agency-plan-promotions`;
+- link w bocznym menu admina jako `Promocje planów`;
+- lista kampanii z filtrem statusu i wyszukiwaniem po nazwie/kodzie;
+- edytor kampanii z polami: status, rabat, targetowanie, liczba okresów
+  rozliczeniowych, moment zastosowania, automatyzacja, łączenie rabatów, limity
+  użyć oraz daty;
+- targetowanie po planach (`free`, `starter`, `professional`, `enterprise`) i
+  okresach rozliczeniowych (`monthly`, `yearly`);
+- panel kodów promocyjnych z tworzeniem kodu, nadpisaniem rabatu,
+  opcjonalnym nadpisaniem liczby okresów i momentu zastosowania;
+- bezpieczny UX kodów: informacja, że pełny kod jest widoczny tylko przed
+  zapisem, potem panel pokazuje końcówkę;
+- helper `agency-plan-promotions.ts` z typami, walidacją formularzy i funkcjami
+  API;
+- testy jednostkowe helpera dla endpointów, payloadów, targetowania i kodów.
+
+Decyzja V1:
+
+- `durationBillingCycles` w UI admina jest dowolną liczbą z zakresu 1–120,
+  zamiast presetów. Dzięki temu obsłużymy zarówno promocje 1-miesięczne, jak i
+  dłuższe kampanie oraz benefity dla stałych klientów.
+
+Następny krok:
+
+- Rejestracja/checkout agenta oparta o quote snapshot, tak aby wybór planu,
+  okres rozliczenia i kod promocyjny były zawsze potwierdzane przez backend.
 
 Checklisty testowe do domknięcia przy checkout/quote:
 
@@ -2488,10 +2519,8 @@ Checklisty testowe do domknięcia przy checkout/quote:
 - [ ] Publiczny cennik nie pokazuje danych wrażliwych: provider price id,
   plaintext kodu, wewnętrzne identyfikatory kampanii.
 
-### 18.10 Otwarte decyzje przed kodowaniem
+### 18.11 Otwarte decyzje przed kodowaniem
 
-- Jakie wartości `duration_billing_cycles` eksponujemy w UI admina w pierwszym
-  wydaniu: dowolna liczba, czy preset 1 / 3 / 6 / 12?
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko
   na `next_invoice`, czy od razu na kilka kolejnych faktur?
