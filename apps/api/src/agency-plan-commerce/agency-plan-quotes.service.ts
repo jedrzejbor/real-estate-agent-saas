@@ -21,6 +21,14 @@ export interface CreateAgencyPlanQuoteInput {
   discounts?: readonly AgencyPlanQuoteDiscountSnapshot[];
 }
 
+export interface PrepareAgencyPlanQuoteInput {
+  planCode: AgencyPlan;
+  billingInterval: AgencyPlanBillingInterval;
+  userId?: string | null;
+  agencyId?: string | null;
+  now?: Date;
+}
+
 const AGENCY_PLAN_QUOTE_TTL_MS = 15 * 60 * 1000;
 const AGENCY_PLAN_CURRENCY = 'PLN' as const;
 const MAX_PERSISTED_GROSS_AMOUNT = 2_147_483_647;
@@ -81,6 +89,22 @@ export class AgencyPlanQuotesService {
     await this.quoteRepo.save(quote);
 
     return snapshot;
+  }
+
+  async prepareQuoteInput(
+    input: PrepareAgencyPlanQuoteInput,
+  ): Promise<{ plan: PlanCatalog; quoteInput: CreateAgencyPlanQuoteInput }> {
+    const plan = await this.findQuotablePlan(input.planCode);
+    return {
+      plan,
+      quoteInput: {
+        planCode: input.planCode,
+        billingInterval: input.billingInterval,
+        userId: input.userId ?? null,
+        agencyId: input.agencyId ?? null,
+        now: input.now,
+      },
+    };
   }
 
   private async findQuotablePlan(planCode: AgencyPlan): Promise<PlanCatalog> {

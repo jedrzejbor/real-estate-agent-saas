@@ -17,6 +17,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import {
+  createAgencyPlanQuote,
+  type AgencyPlanQuote,
+} from '@/lib/agency-plan-checkout';
+import {
   fetchPublicPlans,
   type AgencyPlanCode,
   type PublicPlan,
@@ -29,6 +33,7 @@ import {
 } from '@/lib/growth-upsells';
 import {
   formatPlanPrice,
+  formatPlanMoney,
   getPlanFallbackDescription,
   getPlanHighlights,
   getPriceHelper,
@@ -80,6 +85,10 @@ export default function UpgradePage() {
       (upsellId ? GROWTH_UPSELLS[upsellId].recommendedPlan : 'professional'),
   );
   const [priority, setPriority] = useState(priorityOptions[0].value);
+  const [promotionCode, setPromotionCode] = useState('');
+  const [quote, setQuote] = useState<AgencyPlanQuote | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   const selectedUpsell = upsellId ? GROWTH_UPSELLS[upsellId] : null;
@@ -123,6 +132,45 @@ export default function UpgradePage() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isSelectableUpgradePlan(selectedPlan) || selectedPlan === 'enterprise') {
+      return;
+    }
+
+    let isMounted = true;
+    const debounce = window.setTimeout(() => {
+      setIsLoadingQuote(true);
+      setQuoteError(null);
+      createAgencyPlanQuote({
+        planCode: selectedPlan,
+        billingInterval,
+        promotionCode,
+      })
+        .then((response) => {
+          if (!isMounted) return;
+          setQuote(response);
+          setQuoteError(null);
+        })
+        .catch((error) => {
+          if (!isMounted) return;
+          setQuote(null);
+          setQuoteError(
+            error instanceof Error
+              ? error.message
+              : 'Nie udało się przeliczyć ceny',
+          );
+        })
+        .finally(() => {
+          if (isMounted) setIsLoadingQuote(false);
+        });
+    }, 250);
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(debounce);
+    };
+  }, [billingInterval, promotionCode, selectedPlan]);
 
   function trackPlanSelection(plan: PublicPlan) {
     if (!isSelectableUpgradePlan(plan.code)) return;
@@ -389,6 +437,53 @@ export default function UpgradePage() {
                 className="h-10 rounded-xl"
               />
             </label>
+            <label className="space-y-1.5 sm:col-span-2">
+              <span className="text-sm font-medium text-foreground">
+                Kod promocyjny
+              </span>
+              <Input
+                value={promotionCode}
+                placeholder="Opcjonalnie"
+                autoComplete="off"
+                className="h-10 rounded-xl"
+                onChange={(event) => setPromotionCode(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-border bg-muted/20 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-foreground">
+                Wycena z backendu
+              </p>
+              <Badge variant="outline">
+                {billingInterval === 'monthly' ? 'Miesięcznie' : 'Rocznie'}
+              </Badge>
+            </div>
+            {selectedPlan === 'enterprise' ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Enterprise wymaga indywidualnej wyceny.
+              </p>
+            ) : isLoadingQuote ? (
+              <p className="mt-2 flex items-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Przeliczamy cenę…
+              </p>
+            ) : quoteError ? (
+              <p className="mt-2 text-sm text-destructive">{quoteError}</p>
+            ) : quote ? (
+              <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+                <PriceRow label="Cena bazowa" value={quote.subtotalGrossAmount} />
+                <PriceRow label="Rabat" value={-quote.discountGrossAmount} />
+                <PriceRow label="Do zapłaty" value={quote.totalGrossAmount} strong />
+                {quote.discounts.map((discount) => (
+                  <p key={discount.sourceReference} className="pt-1 text-xs">
+                    {discount.label} · przez {discount.durationBillingCycles}{' '}
+                    okres{discount.durationBillingCycles === 1 ? '' : 'y'}
+                  </p>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-5 space-y-3">
@@ -432,6 +527,28 @@ export default function UpgradePage() {
           </Button>
         </form>
       </section>
+    </div>
+  );
+}
+
+function PriceRow({
+  label,
+  value,
+  strong = false,
+}: {
+  label: string;
+  value: number;
+  strong?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-between gap-3',
+        strong && 'font-semibold text-foreground',
+      )}
+    >
+      <span>{label}</span>
+      <span>{formatPlanMoney(value)}</span>
     </div>
   );
 }

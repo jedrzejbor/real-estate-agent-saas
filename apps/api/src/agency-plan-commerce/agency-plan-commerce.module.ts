@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PlanCatalog } from '../plans/entities';
 import { AdminAgencyPlanPromotionsController } from './admin-agency-plan-promotions.controller';
 import { AdminAgencyPlanPromotionsService } from './admin-agency-plan-promotions.service';
+import { AgencyPlanCheckoutController } from './agency-plan-checkout.controller';
 import { AgencyPlanPromotionsService } from './agency-plan-promotions.service';
 import { AgencyPlanQuotesService } from './agency-plan-quotes.service';
 import {
@@ -24,7 +25,10 @@ import {
       AgencyPlanQuote,
     ]),
   ],
-  controllers: [AdminAgencyPlanPromotionsController],
+  controllers: [
+    AdminAgencyPlanPromotionsController,
+    AgencyPlanCheckoutController,
+  ],
   providers: [
     AdminAgencyPlanPromotionsService,
     AgencyPlanPromotionsService,

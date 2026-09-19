@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, LessThanOrEqual, MoreThan, Repository } from 'typeorm';
 import { AgencyPlan } from '../common/enums';
 import { PlanCatalog } from '../plans/entities';
+import type { AgencyPlanQuoteDiscountSnapshot } from './agency-plan-commerce.types';
 import {
   AgencyPlanBillingInterval,
   AgencyPlanPromotionApplicationTiming,
@@ -12,7 +13,10 @@ import {
   AgencyPlanPromotionTargetRules,
   AgencyPlanPromotionTargetScope,
 } from './agency-plan-commerce.types';
-import { AgencyPlanPromotionCampaign } from './entities';
+import {
+  AgencyPlanPromotionCampaign,
+  AgencyPlanPromotionCode,
+} from './entities';
 
 export interface ResolveAgencyPlanPromotionPreviewInput {
   plan: PlanCatalog;
@@ -28,11 +32,41 @@ export interface AgencyPlanPromotionPreview {
   campaignId: string;
 }
 
+export interface ResolveAgencyPlanQuoteDiscountsInput {
+  plan: PlanCatalog;
+  billingInterval: AgencyPlanBillingInterval;
+  promotionCode?: string;
+  now?: Date;
+}
+
+interface CandidateAgencyPlanPromotion {
+  sourceType: 'campaign' | 'promotion_code';
+  sourceReference: string;
+  label: string;
+  discountType: AgencyPlanPromotionDiscountType;
+  discountValue: number;
+  maxDiscountGrossAmount: number | null;
+  durationBillingCycles: number;
+  applicationTiming: AgencyPlanPromotionApplicationTiming;
+  isCombinable: boolean;
+  targetScope: AgencyPlanPromotionTargetScope;
+  targetRules: AgencyPlanPromotionTargetRules;
+  campaign: AgencyPlanPromotionCampaign;
+  code?: AgencyPlanPromotionCode;
+}
+
+interface CalculatedAgencyPlanPromotionDiscount
+  extends AgencyPlanQuoteDiscountSnapshot {
+  isCombinable: boolean;
+}
+
 @Injectable()
 export class AgencyPlanPromotionsService {
   constructor(
     @InjectRepository(AgencyPlanPromotionCampaign)
     private readonly campaignRepo: Repository<AgencyPlanPromotionCampaign>,
+    @InjectRepository(AgencyPlanPromotionCode)
+    private readonly codeRepo: Repository<AgencyPlanPromotionCode>,
   ) {}
 
   async resolveAutomaticPreview(
@@ -69,6 +103,58 @@ export class AgencyPlanPromotionsService {
       durationBillingCycles: best.campaign.durationBillingCycles,
       campaignId: best.campaign.id,
     };
+  }
+
+  async resolveQuoteDiscounts(
+    input: ResolveAgencyPlanQuoteDiscountsInput,
+  ): Promise<AgencyPlanQuoteDiscountSnapshot[]> {
+    const now = input.now ?? new Date();
+    const subtotalGrossAmount = getPlanIntervalPrice(
+      input.plan,
+      input.billingInterval,
+    );
+    if (subtotalGrossAmount <= 0) return [];
+
+    const [automaticCampaigns, promotionCode] = await Promise.all([
+      this.findAutomaticCampaigns(now),
+      this.findPromotionCode(input.promotionCode, now),
+    ]);
+    const candidates = [
+      ...automaticCampaigns.map(campaignToCandidate),
+      ...(promotionCode ? [codeToCandidate(promotionCode)] : []),
+    ];
+    const discounts = candidates
+      .filter((candidate) =>
+        isCandidateAvailableForInitialCheckout(candidate, now),
+      )
+      .filter((candidate) =>
+        isTargetEligible(
+          candidate.targetScope,
+          candidate.targetRules,
+          input.plan,
+          input.billingInterval,
+          subtotalGrossAmount,
+        ),
+      )
+      .map((candidate) =>
+        calculateQuoteDiscount(candidate, subtotalGrossAmount),
+      )
+      .filter(
+        (
+          discount,
+        ): discount is CalculatedAgencyPlanPromotionDiscount =>
+          discount !== null,
+      );
+
+    if (!discounts.length) return [];
+    if (discounts.every((discount) => discount.isCombinable)) {
+      return discounts.map(toQuoteDiscountSnapshot);
+    }
+
+    const bestDiscount = discounts.reduce((best, discount) =>
+      discount.grossAmount > best.grossAmount ? discount : best,
+    );
+    return [toQuoteDiscountSnapshot(bestDiscount)];
   }
 
   private async findAutomaticCampaigns(
@@ -112,6 +198,50 @@ export class AgencyPlanPromotionsService {
       order: { createdAt: 'ASC' },
     });
   }
+
+  private async findPromotionCode(
+    rawCode: string | undefined,
+    now: Date,
+  ): Promise<AgencyPlanPromotionCode | null> {
+    const codeHash = hashAgencyPlanPromotionCode(rawCode);
+    if (!codeHash) return null;
+
+    const code = await this.codeRepo.findOne({
+      where: [
+        {
+          codeHash,
+          status: AgencyPlanPromotionStatus.ACTIVE,
+          startsAt: LessThanOrEqual(now),
+          endsAt: MoreThan(now),
+          archivedAt: IsNull(),
+        },
+        {
+          codeHash,
+          status: AgencyPlanPromotionStatus.ACTIVE,
+          startsAt: LessThanOrEqual(now),
+          endsAt: IsNull(),
+          archivedAt: IsNull(),
+        },
+        {
+          codeHash,
+          status: AgencyPlanPromotionStatus.ACTIVE,
+          startsAt: IsNull(),
+          endsAt: MoreThan(now),
+          archivedAt: IsNull(),
+        },
+        {
+          codeHash,
+          status: AgencyPlanPromotionStatus.ACTIVE,
+          startsAt: IsNull(),
+          endsAt: IsNull(),
+          archivedAt: IsNull(),
+        },
+      ],
+      relations: ['campaign'],
+    });
+
+    return code ?? null;
+  }
 }
 
 export function hashAgencyPlanPromotionCode(
@@ -154,13 +284,14 @@ function isCampaignEligibleForPlan(
   if (campaign.durationBillingCycles < 1) return false;
 
   const rules = campaign.targetRules ?? {};
-  if (!matchesTargetScope(campaign.targetScope, rules, plan, billingInterval)) {
-    return false;
-  }
-
   if (
-    rules.minimumSubtotalGrossAmount !== undefined &&
-    subtotalGrossAmount < rules.minimumSubtotalGrossAmount
+    !isTargetEligible(
+      campaign.targetScope,
+      rules,
+      plan,
+      billingInterval,
+      subtotalGrossAmount,
+    )
   ) {
     return false;
   }
@@ -168,12 +299,19 @@ function isCampaignEligibleForPlan(
   return true;
 }
 
-function matchesTargetScope(
+function isTargetEligible(
   targetScope: AgencyPlanPromotionTargetScope,
   rules: AgencyPlanPromotionTargetRules,
   plan: PlanCatalog,
   billingInterval: AgencyPlanBillingInterval,
+  subtotalGrossAmount: number,
 ): boolean {
+  if (
+    rules.minimumSubtotalGrossAmount !== undefined &&
+    subtotalGrossAmount < rules.minimumSubtotalGrossAmount
+  ) {
+    return false;
+  }
   if (rules.billingIntervals?.length && !rules.billingIntervals.includes(billingInterval)) {
     return false;
   }
@@ -192,8 +330,140 @@ function matchesTargetScope(
   return false;
 }
 
-function calculateDiscountGrossAmount(
+function campaignToCandidate(
   campaign: AgencyPlanPromotionCampaign,
+): CandidateAgencyPlanPromotion {
+  return {
+    sourceType: 'campaign',
+    sourceReference: campaign.id,
+    label: campaign.name,
+    discountType: campaign.discountType,
+    discountValue: campaign.discountValue,
+    maxDiscountGrossAmount: campaign.maxDiscountGrossAmount ?? null,
+    durationBillingCycles: campaign.durationBillingCycles,
+    applicationTiming: campaign.applicationTiming,
+    isCombinable: campaign.isCombinable,
+    targetScope: campaign.targetScope,
+    targetRules: campaign.targetRules ?? {},
+    campaign,
+  };
+}
+
+function codeToCandidate(
+  code: AgencyPlanPromotionCode,
+): CandidateAgencyPlanPromotion {
+  const campaign = code.campaign;
+  return {
+    sourceType: 'promotion_code',
+    sourceReference: code.id,
+    label: code.label,
+    discountType: code.discountType ?? campaign.discountType,
+    discountValue: code.discountValue ?? campaign.discountValue,
+    maxDiscountGrossAmount:
+      code.maxDiscountGrossAmount ?? campaign.maxDiscountGrossAmount ?? null,
+    durationBillingCycles:
+      code.durationBillingCycles ?? campaign.durationBillingCycles,
+    applicationTiming: code.applicationTiming ?? campaign.applicationTiming,
+    isCombinable: code.isCombinable ?? campaign.isCombinable,
+    targetScope: campaign.targetScope,
+    targetRules: campaign.targetRules ?? {},
+    campaign,
+    code,
+  };
+}
+
+function isCandidateAvailableForInitialCheckout(
+  candidate: CandidateAgencyPlanPromotion,
+  now: Date,
+): boolean {
+  if (!isCampaignAvailable(candidate.campaign, now)) return false;
+  if (
+    candidate.applicationTiming !==
+    AgencyPlanPromotionApplicationTiming.INITIAL_CHECKOUT
+  ) {
+    return false;
+  }
+  if (candidate.durationBillingCycles < 1) return false;
+  if (!isUsageAvailable(candidate.campaign, candidate.code)) return false;
+
+  if (!candidate.code) return true;
+  if (candidate.code.status !== AgencyPlanPromotionStatus.ACTIVE) return false;
+  if (candidate.code.archivedAt) return false;
+  if (candidate.code.startsAt && candidate.code.startsAt > now) return false;
+  if (candidate.code.endsAt && candidate.code.endsAt <= now) return false;
+  return true;
+}
+
+function isCampaignAvailable(
+  campaign: AgencyPlanPromotionCampaign | undefined,
+  now: Date,
+): campaign is AgencyPlanPromotionCampaign {
+  if (!campaign) return false;
+  if (campaign.status !== AgencyPlanPromotionStatus.ACTIVE) return false;
+  if (campaign.archivedAt) return false;
+  if (campaign.startsAt && campaign.startsAt > now) return false;
+  if (campaign.endsAt && campaign.endsAt <= now) return false;
+  return true;
+}
+
+function isUsageAvailable(
+  campaign: AgencyPlanPromotionCampaign,
+  code?: AgencyPlanPromotionCode,
+): boolean {
+  if (
+    campaign.usageLimitTotal !== null &&
+    campaign.usageLimitTotal !== undefined &&
+    campaign.usageCount >= campaign.usageLimitTotal
+  ) {
+    return false;
+  }
+  if (
+    code &&
+    code.usageLimitTotal !== null &&
+    code.usageLimitTotal !== undefined &&
+    code.usageCount >= code.usageLimitTotal
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function calculateQuoteDiscount(
+  candidate: CandidateAgencyPlanPromotion,
+  subtotalGrossAmount: number,
+): CalculatedAgencyPlanPromotionDiscount | null {
+  const grossAmount = calculateDiscountGrossAmount(candidate, subtotalGrossAmount);
+  if (grossAmount <= 0) return null;
+
+  return {
+    sourceType: candidate.sourceType,
+    sourceReference: candidate.sourceReference,
+    label: candidate.label,
+    grossAmount,
+    durationBillingCycles: candidate.durationBillingCycles,
+    applicationTiming: candidate.applicationTiming,
+    isCombinable: candidate.isCombinable,
+  };
+}
+
+function toQuoteDiscountSnapshot(
+  discount: CalculatedAgencyPlanPromotionDiscount,
+): AgencyPlanQuoteDiscountSnapshot {
+  return {
+    sourceType: discount.sourceType,
+    sourceReference: discount.sourceReference,
+    label: discount.label,
+    grossAmount: discount.grossAmount,
+    durationBillingCycles: discount.durationBillingCycles,
+    applicationTiming: discount.applicationTiming,
+  };
+}
+
+function calculateDiscountGrossAmount(
+  campaign: Pick<
+    AgencyPlanPromotionCampaign,
+    'discountType' | 'discountValue' | 'maxDiscountGrossAmount'
+  >,
   subtotalGrossAmount: number,
 ): number {
   const rawDiscount =

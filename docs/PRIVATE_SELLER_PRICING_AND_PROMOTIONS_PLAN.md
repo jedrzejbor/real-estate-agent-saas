@@ -2416,7 +2416,7 @@ Proponowane encje:
 7. [x] UI admina jako osobna zakładka: `Promocje planów agentów`.
 8. [x] UI publicznego cennika agentów z ceną bazową/przekreśloną, promocyjną i
    opisem okresu obowiązywania rabatu.
-9. [ ] Rejestracja/checkout agenta oparta o quote snapshot.
+9. [x] Rejestracja/upgrade agenta pokazuje backendowy quote snapshot.
 10. [ ] Rezerwacje, redemptions i limity użyć.
 11. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
 12. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
@@ -2503,10 +2503,43 @@ Decyzja V1:
   zamiast presetów. Dzięki temu obsłużymy zarówno promocje 1-miesięczne, jak i
   dłuższe kampanie oraz benefity dla stałych klientów.
 
+Status:
+
+- Rejestracja i ekran upgrade pokazują backendowy quote snapshot dla wyboru
+  planu, okresu rozliczenia i kodu promocyjnego.
+
+### 18.11 Log iteracji — quote snapshot w rejestracji i upgrade
+
+Zrealizowane:
+
+- publiczny endpoint `POST /api/agency-plan-checkout/quote`;
+- endpoint korzysta z backendowego katalogu planów i zapisuje snapshot w
+  `agency_plan_quotes`;
+- quote obsługuje automatyczne kampanie startowe oraz kod promocyjny;
+- resolver promocji dla quote stosuje tylko rabaty `initial_checkout`, więc kod
+  zaprojektowany na `next_invoice` nie obniży zakupu startowego;
+- jeżeli rabaty nie są łączone, backend wybiera najlepszy rabat;
+- rejestracja agenta respektuje parametr `?billing=monthly/yearly`, pozwala
+  wpisać kod promocyjny i pokazuje cenę bazową, rabat oraz finalną cenę z
+  backendu;
+- `/dashboard/upgrade` pokazuje analogiczny quote dla wybranego planu, okresu i
+  kodu;
+- helper webowy `agency-plan-checkout.ts` izoluje kontrakt quote od katalogu
+  planów;
+- testy jednostkowe pokrywają endpoint helpera, automatyczne promocje,
+  kody promocyjne oraz brak zastosowania kodów `next_invoice` w checkoutcie
+  startowym.
+
+Świadome ograniczenie tej iteracji:
+
+- quote snapshot nie aktywuje jeszcze subskrypcji i nie oznacza opłacenia planu.
+  Rejestracja nadal tworzy workspace zgodnie z dotychczasowym flow. Płatność,
+  rezerwacje użyć, redemptions i aktywacja planu zostają w kolejnym kroku.
+
 Następny krok:
 
-- Rejestracja/checkout agenta oparta o quote snapshot, tak aby wybór planu,
-  okres rozliczenia i kod promocyjny były zawsze potwierdzane przez backend.
+- Rezerwacje promocji, redemptions i idempotentny start checkoutu płatności dla
+  planu agenta.
 
 Checklisty testowe do domknięcia przy checkout/quote:
 
@@ -2519,7 +2552,7 @@ Checklisty testowe do domknięcia przy checkout/quote:
 - [ ] Publiczny cennik nie pokazuje danych wrażliwych: provider price id,
   plaintext kodu, wewnętrzne identyfikatory kampanii.
 
-### 18.11 Otwarte decyzje przed kodowaniem
+### 18.12 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko
