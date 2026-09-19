@@ -13,9 +13,12 @@ export type MonitoredFlow =
   | 'public_submission_claim'
   | 'public_analytics_event'
   | 'public_blog_analytics_event'
+  | 'public_pricing_analytics_event'
   | 'listing_agent_marketplace'
   | 'address_geocoding'
-  | 'plan_limit_enforcement';
+  | 'plan_limit_enforcement'
+  | 'listing_payment_reconciliation'
+  | 'listing_entitlements';
 
 type MonitoringStatus = 'success' | 'failure' | 'warning';
 
@@ -243,6 +246,11 @@ function isSensitiveKey(key: string): boolean {
     'message',
     'ownername',
     'token',
+    'promotioncode',
+    'promocode',
+    'coupon',
+    'couponcode',
+    'discountcode',
     'claimtoken',
     'verificationtoken',
     'iphash',

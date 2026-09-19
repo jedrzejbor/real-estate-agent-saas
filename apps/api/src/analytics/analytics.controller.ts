@@ -19,6 +19,7 @@ import {
   CreateAnalyticsEventDto,
   CreatePublicBlogAnalyticsEventDto,
   CreatePublicListingAnalyticsEventDto,
+  CreatePublicPricingAnalyticsEventDto,
 } from './dto/create-analytics-event.dto';
 import { AdminAnalyticsUsageQueryDto } from './dto/admin-analytics-usage-query.dto';
 
@@ -58,6 +59,15 @@ export class AnalyticsController {
     @Body() dto: CreatePublicBlogAnalyticsEventDto,
   ) {
     return this.analyticsService.trackPublicBlog(slug, dto);
+  }
+
+  /** POST /api/analytics/public-pricing/events — store anonymous pricing analytics. */
+  @Public()
+  @Post('public-pricing/events')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @HttpCode(HttpStatus.ACCEPTED)
+  async trackPublicPricing(@Body() dto: CreatePublicPricingAnalyticsEventDto) {
+    return this.analyticsService.trackPublicPricing(dto);
   }
 }
 

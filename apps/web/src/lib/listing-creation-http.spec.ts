@@ -16,6 +16,8 @@ import {
   type PropertyType as PropertyTypeValue,
 } from './listings';
 import {
+  buildClaimAuthPath,
+  buildSellerListingPath,
   createPublicListingSubmission,
   createSellerPublicListingSubmission,
   type CreatePublicListingSubmissionInput,
@@ -154,6 +156,15 @@ describe('listing creation HTTP contract', () => {
         method: 'POST',
         body: input,
       },
+    );
+  });
+
+  it('builds claim registration and seller listing paths for the paid publication step', () => {
+    expect(buildClaimAuthPath('/register', 'claim token/1')).toBe(
+      '/register?claimToken=claim+token%2F1',
+    );
+    expect(buildSellerListingPath('submission/1')).toBe(
+      '/seller/listings/submission%2F1',
     );
   });
 });

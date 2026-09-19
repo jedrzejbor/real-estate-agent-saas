@@ -296,6 +296,8 @@ export class AuthService {
       id: user.id,
       email: user.email,
       role: user.role,
+      adminPermissions:
+        user.role === UserRole.ADMIN ? (user.adminPermissions ?? null) : null,
       agent: access.agent
         ? {
             id: access.agent.id,

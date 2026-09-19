@@ -102,6 +102,8 @@ PLAN_LIMIT_ENFORCEMENT_SCHEDULER_HOUR=2
 PLAN_LIMIT_ENFORCEMENT_SCHEDULER_MINUTE=15
 PLAN_LIMIT_DOWNGRADE_GRACE_DAYS=7
 BILLING_WEBHOOK_SECRET=change-me-local-billing-webhook-secret
+STRIPE_SECRET_KEY=sk_test_replace_me
+STRIPE_LISTING_WEBHOOK_SECRET=whsec_replace_me
 # Opcjonalne: geokodowanie dokładnego punktu adresu ofert.
 # Bez tych zmiennych endpoint zwróci kontrolowany błąd 503.
 GEOCODING_PROVIDER=
@@ -161,6 +163,19 @@ Konfiguracja opcjonalna:
 | `PLAN_LIMIT_ENFORCEMENT_SCHEDULER_MINUTE`  | `15`                         | minuta lokalnego czasu procesu API                                                                                |
 | `PLAN_LIMIT_DOWNGRADE_GRACE_DAYS`          | `7`                          | liczba dni karencji ustawiana po zmianie planu, gdy aktualne użycie przekracza nowy limit ofert                   |
 | `BILLING_WEBHOOK_SECRET`                   | brak                         | sekret HMAC dla `POST /api/billing/webhooks/subscription-events`; bez niego endpoint zwraca kontrolowany błąd 503 |
+| `STRIPE_SECRET_KEY`                        | brak                         | klucz API Stripe używany do tworzenia jednorazowych sesji Checkout produktów ogłoszeniowych                     |
+| `STRIPE_LISTING_WEBHOOK_SECRET`            | brak                         | osobny sekret podpisu endpointu `POST /api/listing-payments/webhooks/stripe`                                     |
+| `STRIPE_LISTING_SUCCESS_URL`               | URL zbudowany z `FRONTEND_URL` | opcjonalny adres powrotu po checkout; backend dopisuje `orderId` i placeholder identyfikatora sesji            |
+| `STRIPE_LISTING_CANCEL_URL`                | URL zbudowany z `FRONTEND_URL` | opcjonalny adres powrotu po anulowaniu; backend dopisuje `orderId`                                               |
+
+Rekoncyliacja jednorazowych płatności za ogłoszenia:
+
+| Zmienna | Domyślna wartość | Rola |
+|---|---:|---|
+| `LISTING_PAYMENT_RECONCILIATION_ENABLED` | `true`, poza `NODE_ENV=test` | włącza wygaszanie porzuconych prób i naprawę opłaconych zamówień bez kompletu entitlementów |
+| `LISTING_PAYMENT_RECONCILIATION_INTERVAL_MS` | `300000` | odstęp między uruchomieniami; blokada PostgreSQL gwarantuje jeden proces roboczy dla całego klastra |
+| `LISTING_PAYMENT_RECONCILIATION_BATCH_SIZE` | `100` | maksymalna liczba prób oraz zamówień obsłużona w jednej partii |
+| `LISTING_PAYMENT_RECONCILIATION_FULFILLMENT_GRACE_MS` | `120000` | bufor po `paidAt`, po którym brak entitlementu jest zgłaszany i automatycznie naprawiany |
 
 Ręczne wymuszenie dla supportu/admina pozostaje dostępne przez:
 

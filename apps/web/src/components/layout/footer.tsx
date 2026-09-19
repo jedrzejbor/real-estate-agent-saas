@@ -12,7 +12,7 @@ const footerSections = [
       { label: 'Oferty nieruchomości', href: '/oferty' },
       { label: 'Dodaj ofertę', href: '/dodaj-oferte' },
       { label: 'Funkcje', href: '/#features' },
-      { label: 'Cennik', href: '/#pricing' },
+      { label: 'Cennik', href: '/?dla=prywatnych#pricing' },
       { label: 'Integracje', href: '#' },
       { label: 'Blog', href: '/blog' },
     ],

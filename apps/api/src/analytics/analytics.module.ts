@@ -5,6 +5,7 @@ import { Listing } from '../listings/entities/listing.entity';
 import { MonitoringModule } from '../monitoring';
 import { Agent } from '../users/entities/agent.entity';
 import { BlogPost } from '../blog/entities/blog-post.entity';
+import { ListingOrder, ListingPaymentAttempt } from '../listing-commerce/entities';
 import {
   AdminAnalyticsController,
   AnalyticsController,
@@ -14,7 +15,14 @@ import { AnalyticsEvent } from './entities/analytics-event.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AnalyticsEvent, Listing, Agent, BlogPost]),
+    TypeOrmModule.forFeature([
+      AnalyticsEvent,
+      Listing,
+      Agent,
+      BlogPost,
+      ListingOrder,
+      ListingPaymentAttempt,
+    ]),
     UsersModule,
     MonitoringModule,
   ],
