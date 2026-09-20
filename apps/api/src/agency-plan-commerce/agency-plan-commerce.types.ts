@@ -53,6 +53,12 @@ export enum AgencyPlanCheckoutAttemptStatus {
   CANCELLED = 'cancelled',
 }
 
+export enum AgencyPlanPaymentEventType {
+  CHECKOUT_COMPLETED = 'checkout_completed',
+  CHECKOUT_FAILED = 'checkout_failed',
+  CHECKOUT_EXPIRED = 'checkout_expired',
+}
+
 export type AgencyPlanPromotionDiscountSourceType =
   | 'campaign'
   | 'promotion_code'

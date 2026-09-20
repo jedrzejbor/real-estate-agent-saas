@@ -1,7 +1,15 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
-import { AgencyPlanBillingInterval } from './agency-plan-commerce.types';
+import {
+  AgencyPlanBillingInterval,
+  AgencyPlanPaymentEventType,
+} from './agency-plan-commerce.types';
+import type { VerifiedAgencyPlanPaymentEventContract } from './contracts';
 import type {
   AgencyPlanPaymentGateway,
   CreatedAgencyPlanSubscriptionCheckout,
@@ -66,6 +74,33 @@ export class StripeAgencyPlanPaymentAdapter
         ? new Date(session.expires_at * 1_000)
         : null,
     };
+  }
+
+  verifyAndMapWebhook(
+    rawBody: Buffer,
+    signature: string,
+  ): VerifiedAgencyPlanPaymentEventContract | null {
+    const secret = this.configService.get<string>(
+      'STRIPE_AGENCY_PLAN_WEBHOOK_SECRET',
+    );
+    if (!secret) {
+      throw new ServiceUnavailableException(
+        'Stripe agency plan webhook secret is not configured',
+      );
+    }
+
+    let event: Stripe.Event;
+    try {
+      event = this.getClient().webhooks.constructEvent(
+        rawBody,
+        signature,
+        secret,
+      );
+    } catch {
+      throw new BadRequestException('Invalid Stripe webhook signature');
+    }
+
+    return mapStripeAgencyPlanPaymentEvent(event);
   }
 
   private async createDiscountCoupon(
@@ -155,6 +190,63 @@ export class StripeAgencyPlanPaymentAdapter
     return url
       .toString()
       .replace('%7BCHECKOUT_SESSION_ID%7D', '{CHECKOUT_SESSION_ID}');
+  }
+}
+
+export function mapStripeAgencyPlanPaymentEvent(
+  event: Stripe.Event,
+): VerifiedAgencyPlanPaymentEventContract | null {
+  const eventType = mapStripeEventType(event.type);
+  if (!eventType) return null;
+
+  const session = event.data.object as Stripe.Checkout.Session;
+  const quoteId = session.metadata?.agencyPlanQuoteId;
+  if (!quoteId) {
+    throw new BadRequestException(
+      'Stripe checkout session does not identify an agency plan quote',
+    );
+  }
+
+  if (
+    eventType === AgencyPlanPaymentEventType.CHECKOUT_COMPLETED &&
+    session.payment_status !== 'paid'
+  ) {
+    return null;
+  }
+
+  return {
+    provider: STRIPE_PROVIDER,
+    eventId: event.id,
+    eventType,
+    quoteId,
+    checkoutAttemptId:
+      session.metadata?.agencyPlanCheckoutAttemptId ?? null,
+    agencyId: session.metadata?.agencyId ?? null,
+    checkoutSessionId: session.id,
+    subscriptionId: getExpandableId(session.subscription),
+    customerId: getExpandableId(session.customer),
+    amountGross: session.amount_total,
+    currency: session.currency?.toUpperCase() ?? null,
+    occurredAt: new Date(event.created * 1_000),
+    payload: {
+      stripeEventType: event.type,
+      livemode: event.livemode,
+      paymentStatus: session.payment_status,
+      status: session.status,
+    },
+  };
+}
+
+function mapStripeEventType(type: string): AgencyPlanPaymentEventType | null {
+  switch (type) {
+    case 'checkout.session.completed':
+      return AgencyPlanPaymentEventType.CHECKOUT_COMPLETED;
+    case 'checkout.session.async_payment_failed':
+      return AgencyPlanPaymentEventType.CHECKOUT_FAILED;
+    case 'checkout.session.expired':
+      return AgencyPlanPaymentEventType.CHECKOUT_EXPIRED;
+    default:
+      return null;
   }
 }
 

@@ -2424,8 +2424,11 @@ Proponowane encje:
     agenta z kuponem rabatowym na bazie quote.
 13. [x] Podpięcie adaptera płatności do `AgencyPlanCheckoutAttemptsService` i
     zapis provider session id w attempt.
-14. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
-15. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
+14. [x] Weryfikacja i mapowanie webhooków Stripe checkoutu planów agentów do
+    provider-agnostic eventu.
+15. [ ] Procesor webhooka: domknięcie attemptu, aktywacja planu i redemptions.
+16. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
+17. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
     wygasły kod, zmiana promocji po utworzeniu quote.
 
 ### 18.7 Krytyczne testy sprintu
@@ -2668,7 +2671,33 @@ Zrealizowane:
   redemptions po stronie subskrypcji. Następny mały krok to obsługa zdarzenia
   `checkout.session.completed` / subscription webhook i domknięcie attemptu.
 
-### 18.16 Otwarte decyzje przed kodowaniem
+### 18.16 Log iteracji — weryfikacja i mapowanie webhooków planów agentów
+
+Zrealizowane:
+
+- dodany provider-agnostic kontrakt
+  `VerifiedAgencyPlanPaymentEventContract`;
+- dodany enum `AgencyPlanPaymentEventType` dla `checkout_completed`,
+  `checkout_failed` i `checkout_expired`;
+- `StripeAgencyPlanPaymentAdapter` weryfikuje podpis Stripe na raw body przy
+  użyciu `STRIPE_AGENCY_PLAN_WEBHOOK_SECRET`;
+- adapter mapuje `checkout.session.completed`,
+  `checkout.session.async_payment_failed` i `checkout.session.expired`;
+- ukończony checkout bez `payment_status=paid` jest ignorowany, żeby nie
+  aktywować planu przed potwierdzeniem płatności;
+- event bez zaufanego `agencyPlanQuoteId` w metadanych jest odrzucany;
+- z eventu pobieramy quote, attempt, agency, session, subscription, customer,
+  kwotę, walutę i bezpieczne metadane diagnostyczne;
+- testy pokrywają mapowanie eventów, ignorowanie unsupported/unpaid,
+  odrzucenie brakujących metadanych oraz weryfikację podpisu.
+
+Świadome ograniczenie tej iteracji:
+
+- event jest już zweryfikowany i znormalizowany, ale nie jest jeszcze
+  przetwarzany w DB. Następny krok to `AgencyPlanPaymentEventsService`, który
+  zamknie attempt, aktywuje plan/agencję i zapisze redemptions promocji.
+
+### 18.17 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko

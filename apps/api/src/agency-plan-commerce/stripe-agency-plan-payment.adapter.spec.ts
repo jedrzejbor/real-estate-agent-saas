@@ -1,8 +1,157 @@
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { AgencyPlan } from '../common/enums';
-import { AgencyPlanBillingInterval } from './agency-plan-commerce.types';
-import { StripeAgencyPlanPaymentAdapter } from './stripe-agency-plan-payment.adapter';
+import {
+  AgencyPlanBillingInterval,
+  AgencyPlanPaymentEventType,
+} from './agency-plan-commerce.types';
+import {
+  mapStripeAgencyPlanPaymentEvent,
+  StripeAgencyPlanPaymentAdapter,
+} from './stripe-agency-plan-payment.adapter';
+
+function checkoutEvent(
+  type: string,
+  sessionOverrides: Record<string, unknown> = {},
+): Stripe.Event {
+  return {
+    id: 'evt_agent_1',
+    object: 'event',
+    api_version: '2025-12-15.clover',
+    created: 1_789_641_600,
+    data: {
+      object: {
+        id: 'cs_agent_1',
+        object: 'checkout.session',
+        amount_total: 9_950,
+        currency: 'pln',
+        customer: 'cus_agent_1',
+        metadata: {
+          agencyId: 'agency-1',
+          agencyPlanQuoteId: 'quote-1',
+          agencyPlanCheckoutAttemptId: 'attempt-1',
+        },
+        payment_status: 'paid',
+        status: 'complete',
+        subscription: 'sub_agent_1',
+        ...sessionOverrides,
+      },
+    },
+    livemode: false,
+    pending_webhooks: 1,
+    request: { id: null, idempotency_key: null },
+    type,
+  } as unknown as Stripe.Event;
+}
+
+describe('StripeAgencyPlanPaymentAdapter webhook mapping', () => {
+  it.each([
+    [
+      'checkout.session.completed',
+      AgencyPlanPaymentEventType.CHECKOUT_COMPLETED,
+    ],
+    [
+      'checkout.session.async_payment_failed',
+      AgencyPlanPaymentEventType.CHECKOUT_FAILED,
+    ],
+    [
+      'checkout.session.expired',
+      AgencyPlanPaymentEventType.CHECKOUT_EXPIRED,
+    ],
+  ])('maps %s into a verified agency plan payment event', (stripeType, domainType) => {
+    expect(mapStripeAgencyPlanPaymentEvent(checkoutEvent(stripeType))).toEqual({
+      provider: 'stripe',
+      eventId: 'evt_agent_1',
+      eventType: domainType,
+      quoteId: 'quote-1',
+      checkoutAttemptId: 'attempt-1',
+      agencyId: 'agency-1',
+      checkoutSessionId: 'cs_agent_1',
+      subscriptionId: 'sub_agent_1',
+      customerId: 'cus_agent_1',
+      amountGross: 9_950,
+      currency: 'PLN',
+      occurredAt: new Date('2026-09-17T10:40:00.000Z'),
+      payload: {
+        stripeEventType: stripeType,
+        livemode: false,
+        paymentStatus: 'paid',
+        status: 'complete',
+      },
+    });
+  });
+
+  it('ignores unsupported events and completed sessions awaiting payment', () => {
+    expect(mapStripeAgencyPlanPaymentEvent(checkoutEvent('customer.created'))).toBeNull();
+    expect(
+      mapStripeAgencyPlanPaymentEvent(
+        checkoutEvent('checkout.session.completed', {
+          payment_status: 'unpaid',
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it('rejects checkout events without trusted quote metadata', () => {
+    expect(() =>
+      mapStripeAgencyPlanPaymentEvent(
+        checkoutEvent('checkout.session.completed', { metadata: {} }),
+      ),
+    ).toThrow(BadRequestException);
+  });
+});
+
+describe('StripeAgencyPlanPaymentAdapter signature verification', () => {
+  const signingSecret = 'whsec_agency_plan_test';
+  const stripe = new Stripe('sk_test_placeholder');
+  const configService = {
+    get: jest.fn((key: string, fallback?: string) => {
+      const values: Record<string, string> = {
+        STRIPE_SECRET_KEY: 'sk_test_placeholder',
+        STRIPE_AGENCY_PLAN_WEBHOOK_SECRET: signingSecret,
+      };
+      return values[key] ?? fallback;
+    }),
+  };
+
+  it('verifies the signature against the unparsed body before mapping', () => {
+    const payload = JSON.stringify(
+      checkoutEvent('checkout.session.completed'),
+    );
+    const signature = stripe.webhooks.generateTestHeaderString({
+      payload,
+      secret: signingSecret,
+    });
+    const adapter = new StripeAgencyPlanPaymentAdapter(
+      configService as unknown as ConfigService,
+    );
+
+    expect(
+      adapter.verifyAndMapWebhook(Buffer.from(payload), signature),
+    ).toMatchObject({
+      eventId: 'evt_agent_1',
+      eventType: AgencyPlanPaymentEventType.CHECKOUT_COMPLETED,
+      quoteId: 'quote-1',
+      checkoutAttemptId: 'attempt-1',
+    });
+    expect(() =>
+      adapter.verifyAndMapWebhook(Buffer.from(payload), 'invalid'),
+    ).toThrow(BadRequestException);
+  });
+
+  it('fails closed when the webhook secret is missing', () => {
+    const adapter = new StripeAgencyPlanPaymentAdapter({
+      get: jest.fn((key: string) =>
+        key === 'STRIPE_SECRET_KEY' ? 'sk_test_placeholder' : undefined,
+      ),
+    } as unknown as ConfigService);
+
+    expect(() =>
+      adapter.verifyAndMapWebhook(Buffer.from('{}'), 'signature'),
+    ).toThrow(ServiceUnavailableException);
+  });
+});
 
 describe('StripeAgencyPlanPaymentAdapter checkout creation', () => {
   it('creates a subscription checkout with a durable per-attempt coupon discount', async () => {
