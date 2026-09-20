@@ -2420,10 +2420,12 @@ Proponowane encje:
 10. [x] Domenowe rezerwacje, redemptions i limity użyć dla quote planu agenta.
 11. [x] Trwały `agency_plan_checkout_attempt` i idempotentne przygotowanie
     checkoutu planu agenta, które korzysta z quote i rezerwacji.
-12. [ ] Utworzenie zewnętrznej sesji płatności/subskrypcji u operatora na bazie
-    checkout attempt.
-13. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
-14. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
+12. [x] Port płatności i adapter Stripe dla subskrypcyjnego checkoutu planu
+    agenta z kuponem rabatowym na bazie quote.
+13. [ ] Podpięcie adaptera płatności do `AgencyPlanCheckoutAttemptsService` i
+    zapis provider session id w attempt.
+14. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
+15. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
     wygasły kod, zmiana promocji po utworzeniu quote.
 
 ### 18.7 Krytyczne testy sprintu
@@ -2610,7 +2612,34 @@ Zrealizowane:
   operatora. Następny mały krok to port/adapter płatności dla planów agentów,
   analogicznie do `ListingPaymentGateway`, ale dla subskrypcji.
 
-### 18.14 Otwarte decyzje przed kodowaniem
+### 18.14 Log iteracji — port płatności i adapter Stripe dla planów agentów
+
+Zrealizowane:
+
+- dodany provider-agnostic port `AgencyPlanPaymentGateway`;
+- dodany adapter `StripeAgencyPlanPaymentAdapter` dla checkoutu
+  subskrypcyjnego;
+- adapter używa `providerPriceReference` z katalogu planów, więc frontend nie
+  zna i nie przekazuje Stripe price id;
+- rabat ze snapshotu quote jest mapowany na kupon Stripe tworzony per checkout
+  attempt ze stabilnym idempotency key;
+- kupon obsługuje rabat jednorazowy oraz rabat na kilka cykli rozliczeniowych;
+- dla planów rocznych liczba cykli jest mapowana na miesiące kuponu operatora;
+- sesja checkout zawiera metadane quote, attempt, agencji, planu i kwot, które
+  będą potrzebne przy webhookach;
+- redirect URLs są konfigurowalne przez `STRIPE_AGENCY_PLAN_SUCCESS_URL` i
+  `STRIPE_AGENCY_PLAN_CANCEL_URL`, z fallbackiem do dashboardu billingowego;
+- testy adaptera pokrywają checkout z rabatem, checkout bez rabatu, użycie
+  istniejącego klienta Stripe oraz stabilne idempotency keys.
+
+Świadome ograniczenie tej iteracji:
+
+- adapter nie jest jeszcze wywoływany przez `AgencyPlanCheckoutAttemptsService`.
+  Następny mały krok to przygotowanie inputu z quote/agencji/planu, utworzenie
+  sesji u operatora poza transakcją DB i zapis `providerCheckoutSessionId` w
+  attempt.
+
+### 18.15 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko
