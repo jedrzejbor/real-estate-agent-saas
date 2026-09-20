@@ -17,6 +17,7 @@ import {
   AgencyPlanBillingInterval,
   AgencyPlanQuoteStatus,
 } from '../agency-plan-commerce.types';
+import { AgencyPlanCheckoutAttempt } from './agency-plan-checkout-attempt.entity';
 import { AgencyPlanPromotionReservation } from './agency-plan-promotion-reservation.entity';
 
 @Entity('agency_plan_quotes')
@@ -100,4 +101,7 @@ export class AgencyPlanQuote {
 
   @OneToMany(() => AgencyPlanPromotionReservation, (reservation) => reservation.quote)
   promotionReservations?: AgencyPlanPromotionReservation[];
+
+  @OneToMany(() => AgencyPlanCheckoutAttempt, (attempt) => attempt.quote)
+  checkoutAttempts?: AgencyPlanCheckoutAttempt[];
 }

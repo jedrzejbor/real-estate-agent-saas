@@ -7,6 +7,7 @@ import { AgencyPlanCheckoutController } from './agency-plan-checkout.controller'
 import { AgencyPlanPromotionsService } from './agency-plan-promotions.service';
 import { AgencyPlanQuotesService } from './agency-plan-quotes.service';
 import {
+  AgencyPlanCheckoutAttempt,
   AgencyPlanPromotionCampaign,
   AgencyPlanPromotionCode,
   AgencyPlanPromotionRedemption,
@@ -18,6 +19,7 @@ import {
   imports: [
     TypeOrmModule.forFeature([
       PlanCatalog,
+      AgencyPlanCheckoutAttempt,
       AgencyPlanPromotionCampaign,
       AgencyPlanPromotionCode,
       AgencyPlanPromotionRedemption,

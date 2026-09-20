@@ -44,6 +44,15 @@ export enum AgencyPlanQuoteStatus {
   CANCELLED = 'cancelled',
 }
 
+export enum AgencyPlanCheckoutAttemptStatus {
+  CREATING = 'creating',
+  PENDING = 'pending',
+  SUCCEEDED = 'succeeded',
+  FAILED = 'failed',
+  EXPIRED = 'expired',
+  CANCELLED = 'cancelled',
+}
+
 export type AgencyPlanPromotionDiscountSourceType =
   | 'campaign'
   | 'promotion_code'
