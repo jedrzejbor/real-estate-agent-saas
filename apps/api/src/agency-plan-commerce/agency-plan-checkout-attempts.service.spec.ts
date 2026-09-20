@@ -1,15 +1,36 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { AgencyPlan } from '../common/enums';
+import { PlanCatalog } from '../plans/entities';
 import { AgencyPlanCheckoutAttemptsService } from './agency-plan-checkout-attempts.service';
 import {
   AgencyPlanBillingInterval,
   AgencyPlanCheckoutAttemptStatus,
+  AgencyPlanPromotionApplicationTiming,
   AgencyPlanQuoteStatus,
 } from './agency-plan-commerce.types';
 import { AgencyPlanCheckoutAttempt, AgencyPlanQuote } from './entities';
 
 const NOW = new Date('2026-09-17T10:00:00.000Z');
 const EXPIRES_AT = new Date('2026-09-17T10:15:00.000Z');
+
+function buildPlan(overrides: Partial<PlanCatalog> = {}): PlanCatalog {
+  return {
+    code: AgencyPlan.PROFESSIONAL,
+    label: 'Professional',
+    description: null,
+    priceMonthlyPln: 19_900,
+    priceYearlyPln: 199_000,
+    stripePriceIdMonthly: 'price_professional_monthly',
+    stripePriceIdYearly: 'price_professional_yearly',
+    limits: {},
+    features: {},
+    isPublic: true,
+    sortOrder: 1,
+    createdAt: NOW,
+    updatedAt: NOW,
+    ...overrides,
+  } as PlanCatalog;
+}
 
 function buildQuote(overrides: Partial<AgencyPlanQuote> = {}): AgencyPlanQuote {
   return {
@@ -73,14 +94,25 @@ function buildAttempt(
 function buildService(input: {
   quote?: AgencyPlanQuote | null;
   latestAttempt?: AgencyPlanCheckoutAttempt | null;
+  plan?: PlanCatalog | null;
 } = {}) {
   const createdAttempts: AgencyPlanCheckoutAttempt[] = [];
   const saved: unknown[] = [];
   const quote = input.quote === undefined ? buildQuote() : input.quote;
+  const plan = input.plan === undefined ? buildPlan() : input.plan;
   const manager = {
-    findOne: jest.fn(async (entity) => {
+    findOne: jest.fn(async (entity, query) => {
       if (entity === AgencyPlanQuote) return quote;
+      if (entity === PlanCatalog) return plan;
       if (entity === AgencyPlanCheckoutAttempt) {
+        if (query?.where?.id) {
+          return (
+            createdAttempts.find((attempt) => attempt.id === query.where.id) ??
+            (input.latestAttempt?.id === query.where.id
+              ? input.latestAttempt
+              : null)
+          );
+        }
         return input.latestAttempt ?? null;
       }
       return null;
@@ -108,12 +140,26 @@ function buildService(input: {
   };
   const usersService = {
     getAgencyAccessContext: jest.fn().mockResolvedValue({
-      user: { id: 'user-1' },
-      agency: { id: 'agency-1' },
+      user: { id: 'user-1', email: 'owner@example.com' },
+      agency: {
+        id: 'agency-1',
+        name: 'Example Agency',
+        billingCustomerId: null,
+      },
     }),
   };
   const promotionsService = {
     reserveDiscountsForQuote: jest.fn(async () => []),
+  };
+  const paymentGateway = {
+    provider: 'stripe',
+    createSubscriptionCheckoutSession: jest.fn().mockResolvedValue({
+      provider: 'stripe',
+      sessionId: 'cs_agent_1',
+      checkoutUrl: 'https://checkout.stripe.test/session',
+      subscriptionId: 'sub_pending_1',
+      expiresAt: EXPIRES_AT,
+    }),
   };
 
   return {
@@ -121,10 +167,12 @@ function buildService(input: {
       dataSource as never,
       usersService as never,
       promotionsService as never,
+      paymentGateway as never,
     ),
     manager,
     usersService,
     promotionsService,
+    paymentGateway,
     createdAttempts,
     saved,
     quote,
@@ -132,8 +180,31 @@ function buildService(input: {
 }
 
 describe('AgencyPlanCheckoutAttemptsService', () => {
-  it('attaches a public quote to the current agency, reserves discounts and creates an attempt', async () => {
-    const { service, quote, promotionsService, createdAttempts } = buildService();
+  it('attaches a public quote, reserves discounts, creates a provider session and binds it to the attempt', async () => {
+    const {
+      service,
+      quote,
+      promotionsService,
+      paymentGateway,
+      createdAttempts,
+    } = buildService({
+      quote: buildQuote({
+        pricingSnapshot: {
+          ...buildQuote().pricingSnapshot,
+          discounts: [
+            {
+              sourceType: 'campaign',
+              sourceReference: 'campaign-1',
+              label: 'Start',
+              grossAmount: 9_950,
+              durationBillingCycles: 3,
+              applicationTiming:
+                AgencyPlanPromotionApplicationTiming.INITIAL_CHECKOUT,
+            },
+          ],
+        },
+      }),
+    });
 
     const result = await service.createCheckoutAttempt(
       'user-1',
@@ -151,16 +222,41 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
     expect(createdAttempts[0]).toMatchObject({
       quoteId: 'quote-1',
       attemptNumber: 1,
-      status: AgencyPlanCheckoutAttemptStatus.CREATING,
+      status: AgencyPlanCheckoutAttemptStatus.PENDING,
       provider: 'stripe',
       amountGross: 9_950,
+      expiresAt: EXPIRES_AT,
+      providerCheckoutSessionId: 'cs_agent_1',
+      providerSubscriptionId: 'sub_pending_1',
+    });
+    expect(paymentGateway.createSubscriptionCheckoutSession).toHaveBeenCalledWith({
+      quoteId: 'quote-1',
+      checkoutAttemptId: 'attempt-1',
+      attemptNumber: 1,
+      agencyId: 'agency-1',
+      agencyName: 'Example Agency',
+      buyerEmail: 'owner@example.com',
+      billingCustomerId: null,
+      planCode: AgencyPlan.PROFESSIONAL,
+      planLabel: 'Professional',
+      billingInterval: AgencyPlanBillingInterval.MONTHLY,
+      providerPriceReference: 'price_professional_monthly',
+      currency: 'PLN',
+      subtotalGrossAmount: 19_900,
+      discountGrossAmount: 9_950,
+      totalGrossAmount: 9_950,
+      discountDurationBillingCycles: 3,
       expiresAt: EXPIRES_AT,
     });
     expect(result).toMatchObject({
       quoteId: 'quote-1',
       checkoutAttemptId: 'attempt-1',
       attemptNumber: 1,
-      status: AgencyPlanCheckoutAttemptStatus.CREATING,
+      status: AgencyPlanCheckoutAttemptStatus.PENDING,
+      provider: 'stripe',
+      sessionId: 'cs_agent_1',
+      checkoutUrl: 'https://checkout.stripe.test/session',
+      subscriptionId: 'sub_pending_1',
       amountGross: 9_950,
     });
   });
@@ -170,7 +266,7 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
       id: 'attempt-open',
       status: AgencyPlanCheckoutAttemptStatus.PENDING,
     });
-    const { service, manager } = buildService({
+    const { service, manager, paymentGateway } = buildService({
       quote: buildQuote({
         userId: 'user-1',
         agencyId: 'agency-1',
@@ -186,9 +282,15 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
     );
 
     expect(manager.create).not.toHaveBeenCalled();
+    expect(paymentGateway.createSubscriptionCheckoutSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        checkoutAttemptId: 'attempt-open',
+      }),
+    );
     expect(result).toMatchObject({
       checkoutAttemptId: 'attempt-open',
       status: AgencyPlanCheckoutAttemptStatus.PENDING,
+      sessionId: 'cs_agent_1',
     });
   });
 
@@ -203,7 +305,7 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
   });
 
   it('rejects expired quotes before reserving discounts', async () => {
-    const { service, promotionsService } = buildService({
+    const { service, promotionsService, paymentGateway } = buildService({
       quote: buildQuote({
         expiresAt: new Date('2026-09-17T09:59:59.000Z'),
       }),
@@ -213,6 +315,7 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
       service.createCheckoutAttempt('user-1', 'quote-1', NOW),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(promotionsService.reserveDiscountsForQuote).not.toHaveBeenCalled();
+    expect(paymentGateway.createSubscriptionCheckoutSession).not.toHaveBeenCalled();
   });
 
   it('rejects already successful checkout attempts', async () => {
@@ -230,5 +333,16 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
     await expect(
       service.createCheckoutAttempt('user-1', 'quote-1', NOW),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('rejects checkout when the selected interval has no provider price', async () => {
+    const { service, paymentGateway } = buildService({
+      plan: buildPlan({ stripePriceIdMonthly: null }),
+    });
+
+    await expect(
+      service.createCheckoutAttempt('user-1', 'quote-1', NOW),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(paymentGateway.createSubscriptionCheckoutSession).not.toHaveBeenCalled();
   });
 });

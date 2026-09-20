@@ -2422,7 +2422,7 @@ Proponowane encje:
     checkoutu planu agenta, które korzysta z quote i rezerwacji.
 12. [x] Port płatności i adapter Stripe dla subskrypcyjnego checkoutu planu
     agenta z kuponem rabatowym na bazie quote.
-13. [ ] Podpięcie adaptera płatności do `AgencyPlanCheckoutAttemptsService` i
+13. [x] Podpięcie adaptera płatności do `AgencyPlanCheckoutAttemptsService` i
     zapis provider session id w attempt.
 14. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
 15. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
@@ -2634,12 +2634,41 @@ Zrealizowane:
 
 Świadome ograniczenie tej iteracji:
 
-- adapter nie jest jeszcze wywoływany przez `AgencyPlanCheckoutAttemptsService`.
-  Następny mały krok to przygotowanie inputu z quote/agencji/planu, utworzenie
-  sesji u operatora poza transakcją DB i zapis `providerCheckoutSessionId` w
-  attempt.
+- adapter jest gotowy i w kolejnym kroku został podpięty do
+  `AgencyPlanCheckoutAttemptsService`.
 
-### 18.15 Otwarte decyzje przed kodowaniem
+### 18.15 Log iteracji — provider session w checkout attempt planu agenta
+
+Zrealizowane:
+
+- `AgencyPlanCheckoutAttemptsService` przygotowuje attempt i rezerwacje w
+  transakcji DB;
+- sesja operatora płatności jest tworzona poza transakcją, zgodnie ze wzorcem z
+  checkoutu ogłoszeń prywatnych;
+- po odpowiedzi operatora osobna transakcja zapisuje `providerCheckoutSessionId`,
+  opcjonalny `providerSubscriptionId`, status `pending` i aktualne wygaśnięcie
+  attemptu;
+- attempt używa `paymentGateway.provider`, a nie zahardkodowanej nazwy
+  operatora;
+- provider price id jest pobierany z backendowego katalogu planów dla wybranego
+  okresu rozliczenia;
+- brak skonfigurowanej ceny operatora dla danego okresu blokuje checkout przed
+  requestem do operatora;
+- endpoint `POST /api/agency-plan-checkout/attempts` zwraca `checkoutUrl`,
+  `sessionId` i `subscriptionId` z operatora;
+- ponowienie requestu dla otwartego attemptu nadal nie tworzy duplikatu w DB,
+  a operator dostaje ten sam checkout attempt id i stabilny idempotency key;
+- testy jednostkowe pokrywają utworzenie i powiązanie sesji, reuse attemptu,
+  ochronę obcych quote, wygasły quote, zakończony attempt oraz brak provider
+  price id.
+
+Świadome ograniczenie tej iteracji:
+
+- webhook/finalizacja płatności nie aktywuje jeszcze planu i nie tworzy
+  redemptions po stronie subskrypcji. Następny mały krok to obsługa zdarzenia
+  `checkout.session.completed` / subscription webhook i domknięcie attemptu.
+
+### 18.16 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko

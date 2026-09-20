@@ -42,6 +42,9 @@ export interface AgencyPlanCheckoutAttemptContract {
   attemptNumber: number;
   status: string;
   provider: string;
+  sessionId: string;
+  checkoutUrl: string;
+  subscriptionId: string | null;
   amountGross: number;
   currency: 'PLN';
   expiresAt: string;
