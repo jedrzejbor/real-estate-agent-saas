@@ -2417,9 +2417,11 @@ Proponowane encje:
 8. [x] UI publicznego cennika agentów z ceną bazową/przekreśloną, promocyjną i
    opisem okresu obowiązywania rabatu.
 9. [x] Rejestracja/upgrade agenta pokazuje backendowy quote snapshot.
-10. [ ] Rezerwacje, redemptions i limity użyć.
-11. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
-12. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
+10. [x] Domenowe rezerwacje, redemptions i limity użyć dla quote planu agenta.
+11. [ ] Idempotentny start checkoutu płatności planu agenta, który korzysta z
+    quote i rezerwacji.
+12. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
+13. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
     wygasły kod, zmiana promocji po utworzeniu quote.
 
 ### 18.7 Krytyczne testy sprintu
@@ -2552,7 +2554,32 @@ Checklisty testowe do domknięcia przy checkout/quote:
 - [ ] Publiczny cennik nie pokazuje danych wrażliwych: provider price id,
   plaintext kodu, wewnętrzne identyfikatory kampanii.
 
-### 18.12 Otwarte decyzje przed kodowaniem
+### 18.12 Log iteracji — domenowe rezerwacje i redemptions promocji planów
+
+Zrealizowane:
+
+- `AgencyPlanPromotionsService` potrafi zarezerwować rabaty ze snapshotu quote
+  planu agenta;
+- rezerwacja jest idempotentna dla tego samego quote, więc ponowienie requestu
+  nie dubluje użyć promocji;
+- przy rezerwacji blokowany jest aktualny rekord kampanii albo kodu
+  promocyjnego i ponownie sprawdzana jest dostępność promocji;
+- limity globalne oraz per-agencja są sprawdzane na podstawie aktywnych
+  rezerwacji i trwałych wykorzystań;
+- licznik użyć kampanii i kodu jest zwiększany przy rezerwacji;
+- opłacenie quote może zmienić rezerwacje w trwałe redemptions z kopią
+  snapshotu ceny, planu, okresu rozliczenia i źródła rabatu;
+- anulowanie/wygaszenie quote zwalnia rezerwacje i zmniejsza liczniki użyć;
+- testy jednostkowe pokrywają rezerwację, idempotencję, trwałe redemptions i
+  zwolnienie rezerwacji.
+
+Świadome ograniczenie tej iteracji:
+
+- mechanizm jest gotowy domenowo, ale nie jest jeszcze podpięty do publicznego
+  startu checkoutu płatności. Następny mały krok to endpoint/serwis tworzący
+  idempotentną próbę checkoutu dla planu agenta na bazie quote.
+
+### 18.13 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko

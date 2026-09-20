@@ -1,7 +1,14 @@
 import { createHash } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, LessThanOrEqual, MoreThan, Repository } from 'typeorm';
+import {
+  EntityManager,
+  In,
+  IsNull,
+  LessThanOrEqual,
+  MoreThan,
+  Repository,
+} from 'typeorm';
 import { AgencyPlan } from '../common/enums';
 import { PlanCatalog } from '../plans/entities';
 import type { AgencyPlanQuoteDiscountSnapshot } from './agency-plan-commerce.types';
@@ -9,13 +16,18 @@ import {
   AgencyPlanBillingInterval,
   AgencyPlanPromotionApplicationTiming,
   AgencyPlanPromotionDiscountType,
+  AgencyPlanPromotionReservationStatus,
   AgencyPlanPromotionStatus,
   AgencyPlanPromotionTargetRules,
   AgencyPlanPromotionTargetScope,
+  AgencyPlanQuoteStatus,
 } from './agency-plan-commerce.types';
 import {
   AgencyPlanPromotionCampaign,
   AgencyPlanPromotionCode,
+  AgencyPlanPromotionRedemption,
+  AgencyPlanPromotionReservation,
+  AgencyPlanQuote,
 } from './entities';
 
 export interface ResolveAgencyPlanPromotionPreviewInput {
@@ -157,6 +169,159 @@ export class AgencyPlanPromotionsService {
     return [toQuoteDiscountSnapshot(bestDiscount)];
   }
 
+  async reserveDiscountsForQuote(
+    manager: EntityManager,
+    quote: AgencyPlanQuote,
+    now = new Date(),
+  ): Promise<AgencyPlanPromotionReservation[]> {
+    const discounts = quote.pricingSnapshot.discounts.filter(
+      (discount) =>
+        discount.grossAmount > 0 &&
+        (discount.sourceType === 'campaign' ||
+          discount.sourceType === 'promotion_code'),
+    );
+    if (!discounts.length) return [];
+
+    const existingReservations = await manager.find(
+      AgencyPlanPromotionReservation,
+      {
+        where: {
+          quoteId: quote.id,
+          status: In([
+            AgencyPlanPromotionReservationStatus.RESERVED,
+            AgencyPlanPromotionReservationStatus.APPLIED,
+          ]),
+        },
+      },
+    );
+    if (existingReservations.length) return existingReservations;
+
+    const reservations: AgencyPlanPromotionReservation[] = [];
+    for (const discount of discounts) {
+      const source = await this.lockDiscountSource(manager, discount, now);
+      await this.assertUsageAvailableForReservation(
+        manager,
+        source.campaign,
+        source.code,
+        quote.agencyId ?? null,
+      );
+
+      source.campaign.usageCount += 1;
+      await manager.save(AgencyPlanPromotionCampaign, source.campaign);
+      if (source.code) {
+        source.code.usageCount += 1;
+        await manager.save(AgencyPlanPromotionCode, source.code);
+      }
+
+      reservations.push(
+        manager.create(AgencyPlanPromotionReservation, {
+          quoteId: quote.id,
+          campaignId: source.campaign.id,
+          codeId: source.code?.id ?? null,
+          agencyId: quote.agencyId ?? null,
+          status: AgencyPlanPromotionReservationStatus.RESERVED,
+          discountGrossAmount: discount.grossAmount,
+          durationBillingCycles: discount.durationBillingCycles,
+          applicationTiming: discount.applicationTiming,
+          reservedAt: now,
+          expiresAt: quote.expiresAt,
+          releasedAt: null,
+          appliedAt: null,
+          metadata: {
+            sourceType: discount.sourceType,
+            sourceReference: discount.sourceReference,
+            label: discount.label,
+            quoteId: quote.id,
+            quoteExpiresAt: quote.expiresAt.toISOString(),
+          },
+        }),
+      );
+    }
+
+    quote.status = AgencyPlanQuoteStatus.RESERVED;
+    await manager.save(AgencyPlanQuote, quote);
+    return manager.save(AgencyPlanPromotionReservation, reservations);
+  }
+
+  async applyReservedDiscountsForQuote(
+    manager: EntityManager,
+    quote: AgencyPlanQuote,
+    appliedAt = new Date(),
+    billingEventId?: string | null,
+  ): Promise<AgencyPlanPromotionRedemption[]> {
+    const reservations = await manager.find(AgencyPlanPromotionReservation, {
+      where: {
+        quoteId: quote.id,
+        status: AgencyPlanPromotionReservationStatus.RESERVED,
+      },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!reservations.length) return [];
+
+    const redemptions = reservations.map((reservation) =>
+      manager.create(AgencyPlanPromotionRedemption, {
+        agencyId: quote.agencyId ?? reservation.agencyId ?? null,
+        quoteId: quote.id,
+        campaignId: reservation.campaignId,
+        codeId: reservation.codeId ?? null,
+        reservationId: reservation.id,
+        planCode: quote.planCode,
+        billingInterval: quote.billingInterval,
+        currency: quote.currency,
+        subtotalGrossAmount: quote.subtotalGrossAmount,
+        discountGrossAmount: reservation.discountGrossAmount,
+        totalGrossAmount: quote.totalGrossAmount,
+        durationBillingCycles: reservation.durationBillingCycles,
+        applicationTiming: reservation.applicationTiming,
+        sourceType: reservation.codeId ? 'promotion_code' : 'campaign',
+        pricingSnapshot: {
+          quote: quote.pricingSnapshot,
+          reservation: reservation.metadata,
+        },
+        billingEventId: billingEventId ?? null,
+      }),
+    );
+
+    reservations.forEach((reservation) => {
+      reservation.status = AgencyPlanPromotionReservationStatus.APPLIED;
+      reservation.appliedAt = appliedAt;
+    });
+    quote.status = AgencyPlanQuoteStatus.APPLIED;
+    await manager.save(AgencyPlanPromotionReservation, reservations);
+    await manager.save(AgencyPlanQuote, quote);
+    return manager.save(AgencyPlanPromotionRedemption, redemptions);
+  }
+
+  async releaseReservationsForQuotes(
+    manager: EntityManager,
+    quotes: readonly AgencyPlanQuote[],
+    releasedAt = new Date(),
+  ): Promise<number> {
+    const quoteIds = quotes.map((quote) => quote.id).filter(Boolean);
+    if (!quoteIds.length) return 0;
+
+    const reservations = await manager.find(AgencyPlanPromotionReservation, {
+      where: {
+        quoteId: In(quoteIds),
+        status: AgencyPlanPromotionReservationStatus.RESERVED,
+      },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!reservations.length) return 0;
+
+    await this.decrementUsageCounts(manager, reservations);
+    reservations.forEach((reservation) => {
+      reservation.status = AgencyPlanPromotionReservationStatus.RELEASED;
+      reservation.releasedAt = releasedAt;
+    });
+    await manager.save(AgencyPlanPromotionReservation, reservations);
+    for (const quote of quotes) {
+      quote.status = AgencyPlanQuoteStatus.CANCELLED;
+      await manager.save(AgencyPlanQuote, quote);
+    }
+    return reservations.length;
+  }
+
   private async findAutomaticCampaigns(
     now: Date,
   ): Promise<AgencyPlanPromotionCampaign[]> {
@@ -241,6 +406,137 @@ export class AgencyPlanPromotionsService {
     });
 
     return code ?? null;
+  }
+
+  private async lockDiscountSource(
+    manager: EntityManager,
+    discount: AgencyPlanQuoteDiscountSnapshot,
+    now: Date,
+  ): Promise<{
+    campaign: AgencyPlanPromotionCampaign;
+    code?: AgencyPlanPromotionCode;
+  }> {
+    if (discount.sourceType === 'campaign') {
+      const campaign = await manager.findOne(AgencyPlanPromotionCampaign, {
+        where: { id: discount.sourceReference },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const availableCampaign = campaign ?? undefined;
+      if (!isCampaignAvailable(availableCampaign, now)) {
+        throw new ConflictException('Promocja nie jest już dostępna');
+      }
+      return { campaign: availableCampaign };
+    }
+
+    if (discount.sourceType === 'promotion_code') {
+      const code = await manager.findOne(AgencyPlanPromotionCode, {
+        where: { id: discount.sourceReference },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!code || code.status !== AgencyPlanPromotionStatus.ACTIVE) {
+        throw new ConflictException('Kod promocyjny nie jest już dostępny');
+      }
+      const campaign = await manager.findOne(AgencyPlanPromotionCampaign, {
+        where: { id: code.campaignId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const availableCampaign = campaign ?? undefined;
+      if (!isCampaignAvailable(availableCampaign, now)) {
+        throw new ConflictException('Kod promocyjny nie jest już dostępny');
+      }
+      return { campaign: availableCampaign, code };
+    }
+
+    throw new ConflictException('Ten typ rabatu nie obsługuje rezerwacji');
+  }
+
+  private async assertUsageAvailableForReservation(
+    manager: EntityManager,
+    campaign: AgencyPlanPromotionCampaign,
+    code: AgencyPlanPromotionCode | undefined,
+    agencyId: string | null,
+  ): Promise<void> {
+    if (!isUsageAvailable(campaign, code)) {
+      throw new ConflictException('Limit użyć promocji został wyczerpany');
+    }
+
+    if (!agencyId) return;
+
+    if (campaign.usageLimitPerAccount) {
+      const campaignUsage = await this.countReservedOrRedeemedForAgency(
+        manager,
+        { campaignId: campaign.id, agencyId },
+      );
+      if (campaignUsage >= campaign.usageLimitPerAccount) {
+        throw new ConflictException(
+          'Limit użyć promocji dla tego konta został wyczerpany',
+        );
+      }
+    }
+
+    if (code?.usageLimitPerAccount) {
+      const codeUsage = await this.countReservedOrRedeemedForAgency(manager, {
+        codeId: code.id,
+        agencyId,
+      });
+      if (codeUsage >= code.usageLimitPerAccount) {
+        throw new ConflictException(
+          'Limit użyć kodu dla tego konta został wyczerpany',
+        );
+      }
+    }
+  }
+
+  private async countReservedOrRedeemedForAgency(
+    manager: EntityManager,
+    input: {
+      campaignId?: string;
+      codeId?: string;
+      agencyId: string;
+    },
+  ): Promise<number> {
+    const reservationCount = await manager.count(AgencyPlanPromotionReservation, {
+      where: {
+        ...(input.campaignId ? { campaignId: input.campaignId } : {}),
+        ...(input.codeId ? { codeId: input.codeId } : {}),
+        agencyId: input.agencyId,
+        status: AgencyPlanPromotionReservationStatus.RESERVED,
+      },
+    });
+    const redemptionCount = await manager.count(AgencyPlanPromotionRedemption, {
+      where: {
+        ...(input.campaignId ? { campaignId: input.campaignId } : {}),
+        ...(input.codeId ? { codeId: input.codeId } : {}),
+        agencyId: input.agencyId,
+      },
+    });
+    return reservationCount + redemptionCount;
+  }
+
+  private async decrementUsageCounts(
+    manager: EntityManager,
+    reservations: readonly AgencyPlanPromotionReservation[],
+  ): Promise<void> {
+    for (const reservation of reservations) {
+      const campaign = await manager.findOne(AgencyPlanPromotionCampaign, {
+        where: { id: reservation.campaignId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (campaign && campaign.usageCount > 0) {
+        campaign.usageCount -= 1;
+        await manager.save(AgencyPlanPromotionCampaign, campaign);
+      }
+      if (!reservation.codeId) continue;
+
+      const code = await manager.findOne(AgencyPlanPromotionCode, {
+        where: { id: reservation.codeId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (code && code.usageCount > 0) {
+        code.usageCount -= 1;
+        await manager.save(AgencyPlanPromotionCode, code);
+      }
+    }
   }
 }
 
