@@ -2418,10 +2418,12 @@ Proponowane encje:
    opisem okresu obowiązywania rabatu.
 9. [x] Rejestracja/upgrade agenta pokazuje backendowy quote snapshot.
 10. [x] Domenowe rezerwacje, redemptions i limity użyć dla quote planu agenta.
-11. [ ] Idempotentny start checkoutu płatności planu agenta, który korzysta z
-    quote i rezerwacji.
-12. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
-13. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
+11. [x] Trwały `agency_plan_checkout_attempt` i idempotentne przygotowanie
+    checkoutu planu agenta, które korzysta z quote i rezerwacji.
+12. [ ] Utworzenie zewnętrznej sesji płatności/subskrypcji u operatora na bazie
+    checkout attempt.
+13. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
+14. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
     wygasły kod, zmiana promocji po utworzeniu quote.
 
 ### 18.7 Krytyczne testy sprintu
@@ -2579,7 +2581,36 @@ Zrealizowane:
   startu checkoutu płatności. Następny mały krok to endpoint/serwis tworzący
   idempotentną próbę checkoutu dla planu agenta na bazie quote.
 
-### 18.13 Otwarte decyzje przed kodowaniem
+### 18.13 Log iteracji — trwały checkout attempt planu agenta
+
+Zrealizowane:
+
+- dodana tabela i encja `agency_plan_checkout_attempts`;
+- attempt jest powiązany z `agency_plan_quotes` i ma unikalny numer próby per
+  quote;
+- provider session id i provider subscription id są unikalne, jeśli zostaną
+  zapisane;
+- otwarte próby (`creating`, `pending`) mają indeks po czasie wygaśnięcia pod
+  przyszły reconciliation job;
+- `POST /api/agency-plan-checkout/attempts` jest endpointem autoryzowanym i
+  startuje od `quoteId`;
+- serwis przypina publiczny quote do aktualnego użytkownika i jego agencji, ale
+  ukrywa quote należące do innego użytkownika/agencji;
+- serwis rezerwuje rabaty ze snapshotu quote przed utworzeniem/reużyciem
+  próby;
+- ponowienie requestu dla otwartej próby zwraca istniejący attempt zamiast
+  tworzyć duplikat;
+- wygasły, darmowy albo już opłacony checkout jest blokowany;
+- testy jednostkowe pokrywają nowy attempt, idempotencję, ochronę obcych quote,
+  wygasły quote i zakończony attempt.
+
+Świadome ograniczenie tej iteracji:
+
+- attempt nie tworzy jeszcze zewnętrznej sesji płatności ani subskrypcji u
+  operatora. Następny mały krok to port/adapter płatności dla planów agentów,
+  analogicznie do `ListingPaymentGateway`, ale dla subskrypcji.
+
+### 18.14 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko

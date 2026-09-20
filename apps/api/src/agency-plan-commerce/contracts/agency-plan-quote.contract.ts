@@ -34,3 +34,15 @@ export interface AgencyPlanQuoteContract {
   totalGrossAmount: number;
   discounts: AgencyPlanQuoteDiscountContract[];
 }
+
+export interface AgencyPlanCheckoutAttemptContract {
+  quoteId: string;
+  quoteStatus: string;
+  checkoutAttemptId: string;
+  attemptNumber: number;
+  status: string;
+  provider: string;
+  amountGross: number;
+  currency: 'PLN';
+  expiresAt: string;
+}

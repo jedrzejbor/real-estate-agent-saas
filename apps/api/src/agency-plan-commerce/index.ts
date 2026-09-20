@@ -1,5 +1,6 @@
 export { AgencyPlanCommerceModule } from './agency-plan-commerce.module';
 export { AdminAgencyPlanPromotionsService } from './admin-agency-plan-promotions.service';
+export { AgencyPlanCheckoutAttemptsService } from './agency-plan-checkout-attempts.service';
 export {
   AgencyPlanPromotionsService,
   type AgencyPlanPromotionPreview,
