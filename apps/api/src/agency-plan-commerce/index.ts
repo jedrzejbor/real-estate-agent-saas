@@ -1,6 +1,7 @@
 export { AgencyPlanCommerceModule } from './agency-plan-commerce.module';
 export { AdminAgencyPlanPromotionsService } from './admin-agency-plan-promotions.service';
 export { AgencyPlanCheckoutAttemptsService } from './agency-plan-checkout-attempts.service';
+export { AgencyPlanPaymentEventsService } from './agency-plan-payment-events.service';
 export {
   AGENCY_PLAN_PAYMENT_GATEWAY,
   type AgencyPlanPaymentGateway,

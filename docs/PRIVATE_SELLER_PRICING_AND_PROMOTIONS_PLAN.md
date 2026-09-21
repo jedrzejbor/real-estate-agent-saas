@@ -2426,9 +2426,10 @@ Proponowane encje:
     zapis provider session id w attempt.
 14. [x] Weryfikacja i mapowanie webhooków Stripe checkoutu planów agentów do
     provider-agnostic eventu.
-15. [ ] Procesor webhooka: domknięcie attemptu, aktywacja planu i redemptions.
-16. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
-17. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
+15. [x] Procesor webhooka: domknięcie attemptu, aktywacja planu i redemptions.
+16. [ ] Publiczny kontroler webhooka Stripe dla planów agentów.
+17. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
+18. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
     wygasły kod, zmiana promocji po utworzeniu quote.
 
 ### 18.7 Krytyczne testy sprintu
@@ -2697,7 +2698,35 @@ Zrealizowane:
   przetwarzany w DB. Następny krok to `AgencyPlanPaymentEventsService`, który
   zamknie attempt, aktywuje plan/agencję i zapisze redemptions promocji.
 
-### 18.17 Otwarte decyzje przed kodowaniem
+### 18.17 Log iteracji — procesor eventów płatności planów agentów
+
+Zrealizowane:
+
+- dodany `AgencyPlanPaymentEventsService`;
+- procesor przyjmuje wyłącznie zweryfikowany, provider-agnostic event;
+- sukces checkoutu zamyka attempt statusem `succeeded`, zapisuje subscription
+  id, aktywuje plan agencji i czyści grace period limitów;
+- sukces checkoutu wywołuje `applyReservedDiscountsForQuote`, więc zarezerwowane
+  promocje przechodzą w trwałe redemptions;
+- ponowny sukces dla już zakończonego attemptu jest ignorowany jako duplikat i
+  nie tworzy ponownych redemptions;
+- event `checkout_failed` oznacza attempt jako `failed`, o ile nie był już
+  zakończony sukcesem;
+- event `checkout_expired` oznacza attempt jako `expired` i zwalnia rezerwacje
+  promocji;
+- procesor waliduje kwotę i walutę eventu względem quote oraz attemptu;
+- procesor odrzuca sukces bez subscription id;
+- testy jednostkowe pokrywają sukces, duplikat sukcesu, wygaśnięcie oraz
+  mismatch kwoty.
+
+Świadome ograniczenie tej iteracji:
+
+- serwis nie jest jeszcze wystawiony przez publiczny kontroler webhooka Stripe.
+  Następny mały krok to endpoint raw-body, który połączy
+  `StripeAgencyPlanPaymentAdapter.verifyAndMapWebhook` z
+  `AgencyPlanPaymentEventsService.processVerifiedEvent`.
+
+### 18.18 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko
