@@ -7,6 +7,7 @@ import { AdminAgencyPlanPromotionsService } from './admin-agency-plan-promotions
 import { AgencyPlanCheckoutAttemptsService } from './agency-plan-checkout-attempts.service';
 import { AGENCY_PLAN_PAYMENT_GATEWAY } from './agency-plan-payment-gateway.port';
 import { AgencyPlanPaymentEventsService } from './agency-plan-payment-events.service';
+import { AgencyPlanPaymentReconciliationService } from './agency-plan-payment-reconciliation.service';
 import { AgencyPlanCheckoutController } from './agency-plan-checkout.controller';
 import { AgencyPlanPromotionsService } from './agency-plan-promotions.service';
 import { AgencyPlanQuotesService } from './agency-plan-quotes.service';
@@ -43,6 +44,7 @@ import {
     AdminAgencyPlanPromotionsService,
     AgencyPlanCheckoutAttemptsService,
     AgencyPlanPaymentEventsService,
+    AgencyPlanPaymentReconciliationService,
     AgencyPlanPromotionsService,
     AgencyPlanQuotesService,
     StripeAgencyPlanPaymentAdapter,
@@ -55,6 +57,7 @@ import {
     AdminAgencyPlanPromotionsService,
     AgencyPlanCheckoutAttemptsService,
     AgencyPlanPaymentEventsService,
+    AgencyPlanPaymentReconciliationService,
     AgencyPlanPromotionsService,
     AgencyPlanQuotesService,
   ],

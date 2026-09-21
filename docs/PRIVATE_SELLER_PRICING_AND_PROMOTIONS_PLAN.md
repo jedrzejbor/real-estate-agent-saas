@@ -2428,8 +2428,11 @@ Proponowane encje:
     provider-agnostic eventu.
 15. [x] Procesor webhooka: domknięcie attemptu, aktywacja planu i redemptions.
 16. [x] Publiczny kontroler webhooka Stripe dla planów agentów.
-17. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
-18. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
+17. [x] Bazowy reconciliation service wygaszający przeterminowane attempty i
+    zwalniający rezerwacje promocji.
+18. [ ] Scheduler/monitoring reconciliation i raporty sprzedażowe dla promocji
+    planów.
+19. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
     wygasły kod, zmiana promocji po utworzeniu quote.
 
 ### 18.7 Krytyczne testy sprintu
@@ -2748,7 +2751,34 @@ Zrealizowane:
   sytuacji takich jak provider session utworzona tuż przed awarią DB albo
   zalegające attempty `creating/pending`.
 
-### 18.19 Otwarte decyzje przed kodowaniem
+### 18.19 Log iteracji — bazowy reconciliation service planów agentów
+
+Zrealizowane:
+
+- dodany `AgencyPlanPaymentReconciliationService`;
+- serwis wyszukuje przeterminowane attempty w statusach `creating` i `pending`;
+- każdy attempt jest wygaszany w osobnej transakcji, żeby awaria jednego
+  rekordu nie blokowała reszty batcha;
+- locki są pobierane w tej samej kolejności co w procesorze webhooków:
+  najpierw quote, potem attempt;
+- webhook sukcesu jest nadrzędny wobec reconciliation — jeżeli attempt po locku
+  jest już `succeeded`, reconciliation go pomija;
+- stary attempt jest wygaszany bez zwalniania rezerwacji, jeżeli istnieje nowsza
+  próba dla tego samego quote;
+- aktualny przeterminowany attempt jest oznaczany jako `expired`, a rezerwacje
+  promocji quote są zwalniane przez `releaseReservationsForQuotes`;
+- wynik reconciliation zwraca expired attempts, released quotes, skipped
+  attempts oraz per-attempt failures;
+- testy jednostkowe pokrywają wygaszenie aktualnej próby, ochronę sukcesu
+  webhooka, starą próbę z nowszym attemptem oraz izolację błędów.
+
+Świadome ograniczenie tej iteracji:
+
+- serwis nie jest jeszcze uruchamiany cyklicznie. Następny mały krok to
+  scheduler z advisory lockiem i monitoringiem, analogicznie do
+  `ListingPaymentReconciliationScheduler`.
+
+### 18.20 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko
