@@ -11,6 +11,7 @@ import { AgencyPlanCheckoutController } from './agency-plan-checkout.controller'
 import { AgencyPlanPromotionsService } from './agency-plan-promotions.service';
 import { AgencyPlanQuotesService } from './agency-plan-quotes.service';
 import { StripeAgencyPlanPaymentAdapter } from './stripe-agency-plan-payment.adapter';
+import { StripeAgencyPlanWebhooksController } from './stripe-agency-plan-webhooks.controller';
 import {
   AgencyPlanCheckoutAttempt,
   AgencyPlanPromotionCampaign,
@@ -36,6 +37,7 @@ import {
   controllers: [
     AdminAgencyPlanPromotionsController,
     AgencyPlanCheckoutController,
+    StripeAgencyPlanWebhooksController,
   ],
   providers: [
     AdminAgencyPlanPromotionsService,

@@ -11,6 +11,7 @@ export {
   type AgencyPlanPromotionPreview,
 } from './agency-plan-promotions.service';
 export { AgencyPlanQuotesService } from './agency-plan-quotes.service';
+export { StripeAgencyPlanWebhooksController } from './stripe-agency-plan-webhooks.controller';
 export * from './agency-plan-commerce.types';
 export * from './contracts';
 export * from './dto';

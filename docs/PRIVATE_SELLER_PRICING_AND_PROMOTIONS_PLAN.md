@@ -2427,7 +2427,7 @@ Proponowane encje:
 14. [x] Weryfikacja i mapowanie webhooków Stripe checkoutu planów agentów do
     provider-agnostic eventu.
 15. [x] Procesor webhooka: domknięcie attemptu, aktywacja planu i redemptions.
-16. [ ] Publiczny kontroler webhooka Stripe dla planów agentów.
+16. [x] Publiczny kontroler webhooka Stripe dla planów agentów.
 17. [ ] Monitoring, reconciliation i raporty sprzedażowe dla promocji planów.
 18. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
     wygasły kod, zmiana promocji po utworzeniu quote.
@@ -2726,7 +2726,29 @@ Zrealizowane:
   `StripeAgencyPlanPaymentAdapter.verifyAndMapWebhook` z
   `AgencyPlanPaymentEventsService.processVerifiedEvent`.
 
-### 18.18 Otwarte decyzje przed kodowaniem
+### 18.18 Log iteracji — publiczny webhook Stripe dla planów agentów
+
+Zrealizowane:
+
+- dodany `StripeAgencyPlanWebhooksController`;
+- endpoint `POST /api/agency-plan-payments/webhooks/stripe` działa publicznie,
+  ale wymaga raw body i podpisu `stripe-signature`;
+- kontroler nie przetwarza niezaufanego payloadu bezpośrednio — najpierw
+  wywołuje `StripeAgencyPlanPaymentAdapter.verifyAndMapWebhook`;
+- unsupported eventy Stripe są potwierdzane odpowiedzią `{ received: true,
+  processed: false }` bez dotykania domeny;
+- zweryfikowane eventy trafiają do
+  `AgencyPlanPaymentEventsService.processVerifiedEvent`;
+- kontroler został podpięty w `AgencyPlanCommerceModule`;
+- testy pokrywają happy path, unsupported event oraz brak raw body/podpisu.
+
+Świadome ograniczenie tej iteracji:
+
+- flow webhooka jest podpięty, ale nadal brakuje monitoringu/reconciliation dla
+  sytuacji takich jak provider session utworzona tuż przed awarią DB albo
+  zalegające attempty `creating/pending`.
+
+### 18.19 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko
