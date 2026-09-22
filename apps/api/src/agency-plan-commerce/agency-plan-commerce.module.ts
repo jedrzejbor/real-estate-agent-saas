@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { MonitoringModule } from '../monitoring';
 import { PlanCatalog } from '../plans/entities';
 import { UsersModule } from '../users/users.module';
 import { AdminAgencyPlanPromotionsController } from './admin-agency-plan-promotions.controller';
@@ -7,6 +8,7 @@ import { AdminAgencyPlanPromotionsService } from './admin-agency-plan-promotions
 import { AgencyPlanCheckoutAttemptsService } from './agency-plan-checkout-attempts.service';
 import { AGENCY_PLAN_PAYMENT_GATEWAY } from './agency-plan-payment-gateway.port';
 import { AgencyPlanPaymentEventsService } from './agency-plan-payment-events.service';
+import { AgencyPlanPaymentReconciliationScheduler } from './agency-plan-payment-reconciliation.scheduler';
 import { AgencyPlanPaymentReconciliationService } from './agency-plan-payment-reconciliation.service';
 import { AgencyPlanCheckoutController } from './agency-plan-checkout.controller';
 import { AgencyPlanPromotionsService } from './agency-plan-promotions.service';
@@ -24,6 +26,7 @@ import {
 
 @Module({
   imports: [
+    MonitoringModule,
     UsersModule,
     TypeOrmModule.forFeature([
       PlanCatalog,
@@ -44,6 +47,7 @@ import {
     AdminAgencyPlanPromotionsService,
     AgencyPlanCheckoutAttemptsService,
     AgencyPlanPaymentEventsService,
+    AgencyPlanPaymentReconciliationScheduler,
     AgencyPlanPaymentReconciliationService,
     AgencyPlanPromotionsService,
     AgencyPlanQuotesService,

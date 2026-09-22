@@ -2430,9 +2430,9 @@ Proponowane encje:
 16. [x] Publiczny kontroler webhooka Stripe dla planów agentów.
 17. [x] Bazowy reconciliation service wygaszający przeterminowane attempty i
     zwalniający rezerwacje promocji.
-18. [ ] Scheduler/monitoring reconciliation i raporty sprzedażowe dla promocji
-    planów.
-19. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
+18. [x] Scheduler/monitoring reconciliation dla płatności planów agentów.
+19. [ ] Raporty sprzedażowe dla promocji planów agentów.
+20. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
     wygasły kod, zmiana promocji po utworzeniu quote.
 
 ### 18.7 Krytyczne testy sprintu
@@ -2774,11 +2774,43 @@ Zrealizowane:
 
 Świadome ograniczenie tej iteracji:
 
-- serwis nie jest jeszcze uruchamiany cyklicznie. Następny mały krok to
-  scheduler z advisory lockiem i monitoringiem, analogicznie do
-  `ListingPaymentReconciliationScheduler`.
+- na tym etapie serwis nie był jeszcze uruchamiany cyklicznie. Ten brak został
+  domknięty w iteracji 18.20 przez scheduler z advisory lockiem i monitoringiem.
 
-### 18.20 Otwarte decyzje przed kodowaniem
+### 18.20 Log iteracji — scheduler reconciliation planów agentów
+
+Zrealizowane:
+
+- dodany `AgencyPlanPaymentReconciliationScheduler`;
+- scheduler uruchamia `AgencyPlanPaymentReconciliationService.reconcile` w
+  cyklicznym jobie;
+- wiele instancji API jest zabezpieczone osobnym advisory lockiem
+  `agency_plan_payment_reconciliation_scheduler`;
+- konfiguracja jest niezależna od checkoutu ogłoszeń prywatnych:
+  `AGENCY_PLAN_PAYMENT_RECONCILIATION_ENABLED`,
+  `AGENCY_PLAN_PAYMENT_RECONCILIATION_INTERVAL_MS` i
+  `AGENCY_PLAN_PAYMENT_RECONCILIATION_BATCH_SIZE`;
+- scheduler jest domyślnie wyłączony w testach i domyślnie aktywny poza
+  `NODE_ENV=test`;
+- monitoring dostał osobny flow `agency_plan_payment_reconciliation`;
+- sukces batcha raportuje liczbę wygaszonych prób, zwolnionych quote,
+  pominiętych prób, błędów oraz czas wykonania;
+- błędy pojedynczych attemptów są raportowane jako
+  `checkout_attempt_expiration_failed`, ale nie blokują raportu całego batcha;
+- brak locka jest raportowany jako `scheduler_run_skipped_lock_busy`, a
+  równoległe odpalenie w tej samej instancji jako
+  `scheduler_run_skipped_already_running`;
+- scheduler został zarejestrowany w `AgencyPlanCommerceModule`;
+- testy jednostkowe pokrywają batch z limitem, per-attempt failure, lock busy,
+  awarię całego batcha i brak autostartu w środowisku testowym.
+
+Świadome ograniczenie tej iteracji:
+
+- raporty sprzedażowe promocji planów agentów nie są jeszcze wdrożone. To
+  osobny krok, bo powinny korzystać z trwałych redemptions i historii płatności,
+  a nie z technicznego joba reconciliation.
+
+### 18.21 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko

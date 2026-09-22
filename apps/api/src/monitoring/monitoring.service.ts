@@ -18,6 +18,7 @@ export type MonitoredFlow =
   | 'address_geocoding'
   | 'plan_limit_enforcement'
   | 'listing_payment_reconciliation'
+  | 'agency_plan_payment_reconciliation'
   | 'listing_entitlements';
 
 type MonitoringStatus = 'success' | 'failure' | 'warning';
