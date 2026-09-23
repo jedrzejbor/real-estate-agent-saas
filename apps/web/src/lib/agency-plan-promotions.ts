@@ -158,6 +158,42 @@ export interface AdminAgencyPlanPromotionCampaign {
   codes: AdminAgencyPlanPromotionCode[];
 }
 
+export interface AdminAgencyPlanPromotionSalesReport {
+  campaign: Pick<
+    AdminAgencyPlanPromotionCampaign,
+    'id' | 'code' | 'name' | 'usageCount' | 'usageLimitTotal'
+  >;
+  totals: {
+    redemptionCount: number;
+    discountGrossAmount: number;
+    subtotalGrossAmount: number;
+    totalGrossAmount: number;
+    firstRedemptionAt: string | null;
+    lastRedemptionAt: string | null;
+  };
+  byPlan: AdminAgencyPlanPromotionPlanSales[];
+  byCode: AdminAgencyPlanPromotionCodeSales[];
+}
+
+export interface AdminAgencyPlanPromotionPlanSales {
+  planCode: AgencyPlanCode;
+  billingInterval: AgencyPlanBillingInterval;
+  redemptionCount: number;
+  discountGrossAmount: number;
+  subtotalGrossAmount: number;
+  totalGrossAmount: number;
+}
+
+export interface AdminAgencyPlanPromotionCodeSales {
+  codeId: string;
+  codeLast4: string | null;
+  label: string;
+  redemptionCount: number;
+  discountGrossAmount: number;
+  subtotalGrossAmount: number;
+  totalGrossAmount: number;
+}
+
 export interface AgencyPlanPromotionCampaignFormValues {
   code: string;
   name: string;
@@ -582,6 +618,14 @@ export function createAdminAgencyPlanPromotionCode(
   return apiFetch<AdminAgencyPlanPromotionCampaign>(
     `/admin/agency-plan-promotions/${encodeURIComponent(campaignCode)}/codes`,
     { method: 'POST', body: input },
+  );
+}
+
+export function fetchAdminAgencyPlanPromotionSalesReport(
+  campaignCode: string,
+): Promise<AdminAgencyPlanPromotionSalesReport> {
+  return apiFetch<AdminAgencyPlanPromotionSalesReport>(
+    `/admin/agency-plan-promotions/${encodeURIComponent(campaignCode)}/sales-report`,
   );
 }
 

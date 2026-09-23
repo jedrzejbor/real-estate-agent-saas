@@ -2432,7 +2432,7 @@ Proponowane encje:
     zwalniający rezerwacje promocji.
 18. [x] Scheduler/monitoring reconciliation dla płatności planów agentów.
 19. [x] Backendowy raport sprzedażowy dla promocji planów agentów.
-20. [ ] UI raportu sprzedażowego w panelu admina promocji planów.
+20. [x] UI raportu sprzedażowego w panelu admina promocji planów.
 21. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
     wygasły kod, zmiana promocji po utworzeniu quote.
 
@@ -2830,11 +2830,35 @@ Zrealizowane:
 
 Świadome ograniczenie tej iteracji:
 
-- panel admina nie pokazuje jeszcze tego raportu w UI. Następny mały krok to
-  podpięcie endpointu do `apps/web` i czytelny panel “Wyniki promocji” w
-  szczegółach kampanii.
+- na tym etapie raport był dostępny tylko przez backend. Panel admina został
+  podpięty w iteracji 18.22.
 
-### 18.22 Otwarte decyzje przed kodowaniem
+### 18.22 Log iteracji — UI raportu sprzedażowego promocji planów
+
+Zrealizowane:
+
+- `apps/web` dostał typy i klienta
+  `fetchAdminAgencyPlanPromotionSalesReport`;
+- ekran `/dashboard/admin/agency-plan-promotions` pobiera raport dla aktualnie
+  wybranej kampanii niezależnie od formularza edycji;
+- dodany panel “Wyniki promocji” pokazuje opłacone użycia, sumę rabatów,
+  wartość przed rabatem i wartość po rabacie;
+- panel rozróżnia brak danych od błędu ładowania i ma ręczne odświeżenie
+  raportu bez przeładowywania całej listy kampanii;
+- breakdown po planie/okresie pokazuje, które abonamenty realnie korzystają z
+  promocji;
+- breakdown po kodach pokazuje etykietę i końcówkę kodu, bez plaintextu i bez
+  hasha;
+- test helpera webowego potwierdza endpoint
+  `/admin/agency-plan-promotions/:code/sales-report`.
+
+Świadome ograniczenie tej iteracji:
+
+- nie dodaliśmy jeszcze testu E2E pełnego flow promocji planu. To następny
+  etap: utworzenie kampanii/kodu, quote, checkout attempt, webhook sukcesu i
+  weryfikacja raportu oraz UI.
+
+### 18.23 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko

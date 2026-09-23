@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Archive,
   BadgePercent,
+  BarChart3,
   CheckCircle2,
   Info,
   KeyRound,
@@ -39,6 +40,7 @@ import {
   createAdminAgencyPlanPromotionCode,
   createEmptyAgencyPlanPromotionCampaignForm,
   createEmptyAgencyPlanPromotionCodeForm,
+  fetchAdminAgencyPlanPromotionSalesReport,
   fetchAdminAgencyPlanPromotions,
   restoreAdminAgencyPlanPromotionCampaign,
   toAgencyPlanPromotionCampaignForm,
@@ -49,6 +51,7 @@ import {
   validateAgencyPlanPromotionCampaignForm,
   validateAgencyPlanPromotionCodeForm,
   type AdminAgencyPlanPromotionCampaign,
+  type AdminAgencyPlanPromotionSalesReport,
   type AgencyPlanPromotionCampaignFormErrors,
   type AgencyPlanPromotionCampaignFormField,
   type AgencyPlanPromotionCampaignFormValues,
@@ -123,6 +126,11 @@ export default function AdminAgencyPlanPromotionsPage() {
   const [isSavingCode, setIsSavingCode] = useState(false);
   const [isChangingArchiveState, setIsChangingArchiveState] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [salesReport, setSalesReport] =
+    useState<AdminAgencyPlanPromotionSalesReport | null>(null);
+  const [isSalesReportLoading, setIsSalesReportLoading] = useState(false);
+  const [salesReportError, setSalesReportError] = useState<string | null>(null);
+  const [salesReportRefreshToken, setSalesReportRefreshToken] = useState(0);
   const [refreshToken, setRefreshToken] = useState(0);
   const isAdmin = user?.role === 'admin';
 
@@ -194,6 +202,35 @@ export default function AdminAgencyPlanPromotionsPage() {
     // Manual refresh intentionally re-synchronizes the current editor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, refreshToken, selectCampaign, startCreating]);
+
+  useEffect(() => {
+    if (!isAdmin || mode !== 'edit' || !selectedCampaign) {
+      setSalesReport(null);
+      setSalesReportError(null);
+      setIsSalesReportLoading(false);
+      return;
+    }
+    let isMounted = true;
+
+    setIsSalesReportLoading(true);
+    setSalesReportError(null);
+    fetchAdminAgencyPlanPromotionSalesReport(selectedCampaign.code)
+      .then((response) => {
+        if (isMounted) setSalesReport(response);
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        setSalesReport(null);
+        setSalesReportError(getApiErrorMessage(error));
+      })
+      .finally(() => {
+        if (isMounted) setIsSalesReportLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAdmin, mode, selectedCampaign, salesReportRefreshToken]);
 
   if (!isAdmin) return <AccessDenied />;
 
@@ -475,6 +512,19 @@ export default function AdminAgencyPlanPromotionsPage() {
               onRestore={() => void changeArchiveState('restore')}
             />
           </section>
+
+          {mode === 'edit' && selectedCampaign ? (
+            <section className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
+              <PromotionSalesReportPanel
+                report={salesReport}
+                isLoading={isSalesReportLoading}
+                error={salesReportError}
+                onRefresh={() =>
+                  setSalesReportRefreshToken((current) => current + 1)
+                }
+              />
+            </section>
+          ) : null}
 
           {mode === 'edit' && selectedCampaign ? (
             <section className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
@@ -888,6 +938,205 @@ function AdminNotice({
       <div>
         <p className="font-semibold">{title}</p>
         <p className="mt-1 leading-6">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function PromotionSalesReportPanel({
+  report,
+  isLoading,
+  error,
+  onRefresh,
+}: {
+  report: AdminAgencyPlanPromotionSalesReport | null;
+  isLoading: boolean;
+  error: string | null;
+  onRefresh: () => void;
+}) {
+  const hasRedemptions = Boolean(report?.totals.redemptionCount);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            <h2 className="font-heading text-xl font-semibold">
+              Wyniki promocji
+            </h2>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Raport pokazuje wyłącznie opłacone użycia promocji zapisane jako
+            trwałe redemptions. Rezerwacje checkoutu nie są wliczane.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="gap-2 rounded-xl"
+          disabled={isLoading}
+          onClick={onRefresh}
+        >
+          <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+          Odśwież raport
+        </Button>
+      </div>
+
+      {isLoading && !report ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-24 animate-pulse rounded-2xl bg-muted"
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {error ? (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          <p className="font-semibold">Nie udało się pobrać raportu.</p>
+          <p className="mt-1">{error}</p>
+        </div>
+      ) : null}
+
+      {report ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <ReportMetric
+              label="Opłacone użycia"
+              value={String(report.totals.redemptionCount)}
+              hint={formatReportDateRange(report)}
+            />
+            <ReportMetric
+              label="Suma rabatów"
+              value={formatPlanMoney(report.totals.discountGrossAmount)}
+              hint="Łączna wartość obniżek"
+            />
+            <ReportMetric
+              label="Wartość po rabacie"
+              value={formatPlanMoney(report.totals.totalGrossAmount)}
+              hint="Suma opłaconych checkoutów"
+            />
+            <ReportMetric
+              label="Wartość przed rabatem"
+              value={formatPlanMoney(report.totals.subtotalGrossAmount)}
+              hint="Cena bazowa planów"
+            />
+          </div>
+
+          {!hasRedemptions ? (
+            <p className="rounded-xl bg-muted/50 p-4 text-sm text-muted-foreground">
+              Brak opłaconych użyć tej promocji. Gdy klient kupi plan z tą
+              kampanią lub kodem, pojawią się tutaj wartości sprzedażowe.
+            </p>
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <ReportBreakdown
+                title="Według planu i okresu"
+                emptyLabel="Brak danych planów."
+              >
+                {report.byPlan.map((item) => (
+                  <ReportBreakdownRow
+                    key={`${item.planCode}-${item.billingInterval}`}
+                    title={`${AGENCY_PLAN_LABELS[item.planCode] ?? item.planCode} · ${
+                      AGENCY_PLAN_BILLING_INTERVAL_LABELS[item.billingInterval]
+                    }`}
+                    subtitle={`${item.redemptionCount} użyć`}
+                    value={formatPlanMoney(item.discountGrossAmount)}
+                    hint={`Po rabacie: ${formatPlanMoney(item.totalGrossAmount)}`}
+                  />
+                ))}
+              </ReportBreakdown>
+
+              <ReportBreakdown title="Według kodu" emptyLabel="Brak użyć kodów.">
+                {report.byCode.map((item) => (
+                  <ReportBreakdownRow
+                    key={item.codeId}
+                    title={item.label}
+                    subtitle={`Końcówka: ${item.codeLast4 ?? 'brak'} · ${
+                      item.redemptionCount
+                    } użyć`}
+                    value={formatPlanMoney(item.discountGrossAmount)}
+                    hint={`Po rabacie: ${formatPlanMoney(item.totalGrossAmount)}`}
+                  />
+                ))}
+              </ReportBreakdown>
+            </div>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function ReportMetric({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-muted/30 p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-2 text-xl font-semibold">{value}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
+
+function ReportBreakdown({
+  title,
+  emptyLabel,
+  children,
+}: {
+  title: string;
+  emptyLabel: string;
+  children: React.ReactNode;
+}) {
+  const rows = Array.isArray(children) ? children.filter(Boolean) : children;
+  const isEmpty = Array.isArray(rows) ? rows.length === 0 : !rows;
+
+  return (
+    <div className="rounded-2xl border border-border p-4">
+      <h3 className="text-sm font-semibold">{title}</h3>
+      <div className="mt-3 space-y-2">
+        {isEmpty ? (
+          <p className="rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
+            {emptyLabel}
+          </p>
+        ) : (
+          rows
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReportBreakdownRow({
+  title,
+  subtitle,
+  value,
+  hint,
+}: {
+  title: string;
+  subtitle: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-xl bg-muted/30 p-3">
+      <div>
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+      <div className="text-right">
+        <p className="text-sm font-semibold">{value}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
       </div>
     </div>
   );
@@ -1426,6 +1675,24 @@ function formatCodeDuration(
   const cycles = code.durationBillingCycles ?? campaign.durationBillingCycles;
   const timing = code.applicationTiming ?? campaign.applicationTiming;
   return `${cycles} okres${cycles === 1 ? '' : 'y'} · ${AGENCY_PLAN_PROMOTION_APPLICATION_TIMING_LABELS[timing]}`;
+}
+
+function formatReportDateRange(
+  report: AdminAgencyPlanPromotionSalesReport,
+): string {
+  const { firstRedemptionAt, lastRedemptionAt } = report.totals;
+  if (!firstRedemptionAt || !lastRedemptionAt) return 'Brak użyć';
+  const first = formatShortDate(firstRedemptionAt);
+  const last = formatShortDate(lastRedemptionAt);
+  return first === last ? `Użycia: ${first}` : `Użycia: ${first} – ${last}`;
+}
+
+function formatShortDate(value: string): string {
+  return new Intl.DateTimeFormat('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(value));
 }
 
 function formatBasisPoints(value: number): string {

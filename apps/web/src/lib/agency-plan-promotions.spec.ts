@@ -6,6 +6,7 @@ import {
   AgencyPlanPromotionTargetScope,
   createAdminAgencyPlanPromotionCampaign,
   createAdminAgencyPlanPromotionCode,
+  fetchAdminAgencyPlanPromotionSalesReport,
   fetchAdminAgencyPlanPromotions,
   toCreateAgencyPlanPromotionCampaignInput,
   toCreateAgencyPlanPromotionCodeInput,
@@ -51,6 +52,7 @@ describe('agency plan promotions admin HTTP client', () => {
     await updateAdminAgencyPlanPromotionCampaign('start/agents', {
       status: AgencyPlanPromotionStatus.PAUSED,
     });
+    await fetchAdminAgencyPlanPromotionSalesReport('start/agents');
 
     expect(apiFetchMock).toHaveBeenNthCalledWith(
       1,
@@ -65,6 +67,10 @@ describe('agency plan promotions admin HTTP client', () => {
       3,
       '/admin/agency-plan-promotions/start%2Fagents',
       { method: 'PATCH', body: { status: 'paused' } },
+    );
+    expect(apiFetchMock).toHaveBeenNthCalledWith(
+      4,
+      '/admin/agency-plan-promotions/start%2Fagents/sales-report',
     );
   });
 
