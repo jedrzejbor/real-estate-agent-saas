@@ -1,10 +1,12 @@
 import type {
+  AgencyPlanBillingInterval,
   AgencyPlanPromotionApplicationTiming,
   AgencyPlanPromotionDiscountType,
   AgencyPlanPromotionStatus,
   AgencyPlanPromotionTargetRules,
   AgencyPlanPromotionTargetScope,
 } from '../agency-plan-commerce.types';
+import type { AgencyPlan } from '../../common/enums';
 
 export interface AdminAgencyPlanPromotionCodeContract {
   id: string;
@@ -52,4 +54,40 @@ export interface AdminAgencyPlanPromotionCampaignContract {
   createdAt: Date;
   updatedAt: Date;
   codes: AdminAgencyPlanPromotionCodeContract[];
+}
+
+export interface AdminAgencyPlanPromotionSalesReportContract {
+  campaign: Pick<
+    AdminAgencyPlanPromotionCampaignContract,
+    'id' | 'code' | 'name' | 'usageCount' | 'usageLimitTotal'
+  >;
+  totals: {
+    redemptionCount: number;
+    discountGrossAmount: number;
+    subtotalGrossAmount: number;
+    totalGrossAmount: number;
+    firstRedemptionAt: Date | null;
+    lastRedemptionAt: Date | null;
+  };
+  byPlan: AdminAgencyPlanPromotionPlanSalesContract[];
+  byCode: AdminAgencyPlanPromotionCodeSalesContract[];
+}
+
+export interface AdminAgencyPlanPromotionPlanSalesContract {
+  planCode: AgencyPlan;
+  billingInterval: AgencyPlanBillingInterval;
+  redemptionCount: number;
+  discountGrossAmount: number;
+  subtotalGrossAmount: number;
+  totalGrossAmount: number;
+}
+
+export interface AdminAgencyPlanPromotionCodeSalesContract {
+  codeId: string;
+  codeLast4: string | null;
+  label: string;
+  redemptionCount: number;
+  discountGrossAmount: number;
+  subtotalGrossAmount: number;
+  totalGrossAmount: number;
 }

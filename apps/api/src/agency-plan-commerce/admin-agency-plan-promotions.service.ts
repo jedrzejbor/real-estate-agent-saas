@@ -6,7 +6,10 @@ import {
 } from '@nestjs/common';
 import { DataSource, EntityManager, QueryFailedError } from 'typeorm';
 import { AgencyPlan } from '../common/enums';
-import type { AdminAgencyPlanPromotionCampaignContract } from './contracts';
+import type {
+  AdminAgencyPlanPromotionCampaignContract,
+  AdminAgencyPlanPromotionSalesReportContract,
+} from './contracts';
 import type {
   CreateAgencyPlanPromotionCampaignDto,
   CreateAgencyPlanPromotionCodeDto,
@@ -50,6 +53,106 @@ export class AdminAgencyPlanPromotionsService {
       code,
     );
     return toAdminAgencyPlanPromotionCampaign(campaign);
+  }
+
+  async getSalesReport(
+    code: string,
+  ): Promise<AdminAgencyPlanPromotionSalesReportContract> {
+    const campaign = await this.findCampaignEntity(
+      this.dataSource.manager,
+      code,
+    );
+    const [totalsRaw = {}] = await this.dataSource.query<
+      AgencyPlanPromotionSalesTotalsRow[]
+    >(
+      `
+        SELECT
+          COUNT(*)::int AS "redemptionCount",
+          COALESCE(SUM(discount_gross_amount), 0)::int AS "discountGrossAmount",
+          COALESCE(SUM(subtotal_gross_amount), 0)::int AS "subtotalGrossAmount",
+          COALESCE(SUM(total_gross_amount), 0)::int AS "totalGrossAmount",
+          MIN(created_at) AS "firstRedemptionAt",
+          MAX(created_at) AS "lastRedemptionAt"
+        FROM agency_plan_promotion_redemptions
+        WHERE campaign_id = $1
+      `,
+      [campaign.id],
+    );
+    const byPlanRaw = await this.dataSource.query<
+      AgencyPlanPromotionPlanSalesRow[]
+    >(
+      `
+        SELECT
+          plan_code AS "planCode",
+          billing_interval AS "billingInterval",
+          COUNT(*)::int AS "redemptionCount",
+          COALESCE(SUM(discount_gross_amount), 0)::int AS "discountGrossAmount",
+          COALESCE(SUM(subtotal_gross_amount), 0)::int AS "subtotalGrossAmount",
+          COALESCE(SUM(total_gross_amount), 0)::int AS "totalGrossAmount"
+        FROM agency_plan_promotion_redemptions
+        WHERE campaign_id = $1
+        GROUP BY plan_code, billing_interval
+        ORDER BY "discountGrossAmount" DESC, "redemptionCount" DESC, plan_code ASC
+      `,
+      [campaign.id],
+    );
+    const byCodeRaw = await this.dataSource.query<
+      AgencyPlanPromotionCodeSalesRow[]
+    >(
+      `
+        SELECT
+          redemptions.code_id AS "codeId",
+          codes.code_last4 AS "codeLast4",
+          codes.label AS "label",
+          COUNT(*)::int AS "redemptionCount",
+          COALESCE(SUM(redemptions.discount_gross_amount), 0)::int AS "discountGrossAmount",
+          COALESCE(SUM(redemptions.subtotal_gross_amount), 0)::int AS "subtotalGrossAmount",
+          COALESCE(SUM(redemptions.total_gross_amount), 0)::int AS "totalGrossAmount"
+        FROM agency_plan_promotion_redemptions redemptions
+        INNER JOIN agency_plan_promotion_codes codes
+          ON codes.id = redemptions.code_id
+        WHERE redemptions.campaign_id = $1
+          AND redemptions.code_id IS NOT NULL
+        GROUP BY redemptions.code_id, codes.code_last4, codes.label
+        ORDER BY "discountGrossAmount" DESC, "redemptionCount" DESC, codes.label ASC
+      `,
+      [campaign.id],
+    );
+
+    return {
+      campaign: {
+        id: campaign.id,
+        code: campaign.code,
+        name: campaign.name,
+        usageCount: campaign.usageCount,
+        usageLimitTotal: campaign.usageLimitTotal ?? null,
+      },
+      totals: {
+        redemptionCount: toNumber(totalsRaw.redemptionCount),
+        discountGrossAmount: toNumber(totalsRaw.discountGrossAmount),
+        subtotalGrossAmount: toNumber(totalsRaw.subtotalGrossAmount),
+        totalGrossAmount: toNumber(totalsRaw.totalGrossAmount),
+        firstRedemptionAt: toNullableDate(totalsRaw.firstRedemptionAt),
+        lastRedemptionAt: toNullableDate(totalsRaw.lastRedemptionAt),
+      },
+      byPlan: byPlanRaw.map((row) => ({
+        planCode: row.planCode,
+        billingInterval: row.billingInterval,
+        redemptionCount: toNumber(row.redemptionCount),
+        discountGrossAmount: toNumber(row.discountGrossAmount),
+        subtotalGrossAmount: toNumber(row.subtotalGrossAmount),
+        totalGrossAmount: toNumber(row.totalGrossAmount),
+      })),
+      byCode: byCodeRaw.map((row) => ({
+        codeId: row.codeId,
+        codeLast4: row.codeLast4 ?? null,
+        label: row.label,
+        redemptionCount: toNumber(row.redemptionCount),
+        discountGrossAmount: toNumber(row.discountGrossAmount),
+        subtotalGrossAmount: toNumber(row.subtotalGrossAmount),
+        totalGrossAmount: toNumber(row.totalGrossAmount),
+      })),
+    };
   }
 
   async createCampaign(
@@ -363,6 +466,47 @@ function parseNullableDate(value: string | null | undefined): Date | null {
     throw new BadRequestException('Nieprawidłowa data promocji');
   }
   return date;
+}
+
+type NumericRawValue = number | string | bigint | null | undefined;
+
+interface AgencyPlanPromotionSalesTotalsRow {
+  redemptionCount?: NumericRawValue;
+  discountGrossAmount?: NumericRawValue;
+  subtotalGrossAmount?: NumericRawValue;
+  totalGrossAmount?: NumericRawValue;
+  firstRedemptionAt?: Date | string | null;
+  lastRedemptionAt?: Date | string | null;
+}
+
+interface AgencyPlanPromotionPlanSalesRow {
+  planCode: AgencyPlan;
+  billingInterval: AgencyPlanBillingInterval;
+  redemptionCount?: NumericRawValue;
+  discountGrossAmount?: NumericRawValue;
+  subtotalGrossAmount?: NumericRawValue;
+  totalGrossAmount?: NumericRawValue;
+}
+
+interface AgencyPlanPromotionCodeSalesRow {
+  codeId: string;
+  codeLast4?: string | null;
+  label: string;
+  redemptionCount?: NumericRawValue;
+  discountGrossAmount?: NumericRawValue;
+  subtotalGrossAmount?: NumericRawValue;
+  totalGrossAmount?: NumericRawValue;
+}
+
+function toNumber(value: NumericRawValue): number {
+  if (typeof value === 'bigint') return Number(value);
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toNullableDate(value: Date | string | null | undefined): Date | null {
+  if (!value) return null;
+  return value instanceof Date ? value : new Date(value);
 }
 
 function normalizeTargetRules(

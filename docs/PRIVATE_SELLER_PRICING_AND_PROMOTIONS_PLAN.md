@@ -2431,8 +2431,9 @@ Proponowane encje:
 17. [x] Bazowy reconciliation service wygaszający przeterminowane attempty i
     zwalniający rezerwacje promocji.
 18. [x] Scheduler/monitoring reconciliation dla płatności planów agentów.
-19. [ ] Raporty sprzedażowe dla promocji planów agentów.
-20. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
+19. [x] Backendowy raport sprzedażowy dla promocji planów agentów.
+20. [ ] UI raportu sprzedażowego w panelu admina promocji planów.
+21. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
     wygasły kod, zmiana promocji po utworzeniu quote.
 
 ### 18.7 Krytyczne testy sprintu
@@ -2806,11 +2807,34 @@ Zrealizowane:
 
 Świadome ograniczenie tej iteracji:
 
-- raporty sprzedażowe promocji planów agentów nie są jeszcze wdrożone. To
-  osobny krok, bo powinny korzystać z trwałych redemptions i historii płatności,
-  a nie z technicznego joba reconciliation.
+- raport sprzedażowy nie był jeszcze wdrożony w tej iteracji schedulera. Backend
+  raportu został domknięty w 18.21, a UI pozostaje osobnym krokiem.
 
-### 18.21 Otwarte decyzje przed kodowaniem
+### 18.21 Log iteracji — backendowy raport sprzedażowy promocji planów
+
+Zrealizowane:
+
+- dodany read-only endpoint adminowy
+  `GET /admin/agency-plan-promotions/:code/sales-report`;
+- raport bazuje na trwałych rekordach `agency_plan_promotion_redemptions`, a nie
+  na technicznych rezerwacjach, więc pokazuje faktycznie wykorzystane promocje;
+- endpoint zwraca podsumowanie kampanii: liczba trwałych użyć, suma rabatów,
+  suma wartości koszyka przed rabatem, suma finalnej wartości po rabacie oraz
+  zakres dat pierwszego i ostatniego użycia;
+- raport zawiera breakdown po planie i okresie rozliczeniowym;
+- raport zawiera breakdown po kodach promocyjnych, ale nadal pokazuje tylko
+  `codeLast4` i etykietę — bez plaintextu kodu i bez hasha;
+- kontrakt API został dodany do `agency-plan-commerce/contracts`;
+- test jednostkowy pokrywa normalizację liczb z SQL, daty, breakdowny oraz brak
+  wycieku plaintextu/hashu kodu.
+
+Świadome ograniczenie tej iteracji:
+
+- panel admina nie pokazuje jeszcze tego raportu w UI. Następny mały krok to
+  podpięcie endpointu do `apps/web` i czytelny panel “Wyniki promocji” w
+  szczegółach kampanii.
+
+### 18.22 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko

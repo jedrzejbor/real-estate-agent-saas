@@ -44,6 +44,11 @@ export class AdminAgencyPlanPromotionsController {
     );
   }
 
+  @Get(':code/sales-report')
+  async getSalesReport(@Param('code') code: string) {
+    return this.adminAgencyPlanPromotionsService.getSalesReport(code);
+  }
+
   @Get(':code')
   async findCampaign(@Param('code') code: string) {
     return this.adminAgencyPlanPromotionsService.findCampaign(code);

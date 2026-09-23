@@ -51,7 +51,14 @@ function buildCampaign(
   } as AgencyPlanPromotionCampaign;
 }
 
-function buildService(initialCampaigns: AgencyPlanPromotionCampaign[] = []) {
+function buildService(
+  initialCampaigns: AgencyPlanPromotionCampaign[] = [],
+  reportRows?: {
+    totals?: unknown[];
+    byPlan?: unknown[];
+    byCode?: unknown[];
+  },
+) {
   const campaigns = [...initialCampaigns];
   const codes: AgencyPlanPromotionCode[] = [];
 
@@ -111,6 +118,26 @@ function buildService(initialCampaigns: AgencyPlanPromotionCampaign[] = []) {
   const dataSource = {
     manager,
     transaction: jest.fn(async (callback) => callback(manager)),
+    query: jest.fn(async (sql: string) => {
+      if (sql.includes('GROUP BY plan_code, billing_interval')) {
+        return reportRows?.byPlan ?? [];
+      }
+      if (sql.includes('INNER JOIN agency_plan_promotion_codes')) {
+        return reportRows?.byCode ?? [];
+      }
+      return (
+        reportRows?.totals ?? [
+          {
+            redemptionCount: 0,
+            discountGrossAmount: 0,
+            subtotalGrossAmount: 0,
+            totalGrossAmount: 0,
+            firstRedemptionAt: null,
+            lastRedemptionAt: null,
+          },
+        ]
+      );
+    }),
     getRepository: jest.fn(() => ({
       find: jest.fn(async () =>
         campaigns.map((campaign) => ({
@@ -317,5 +344,109 @@ describe('AdminAgencyPlanPromotionsService', () => {
     await expect(service.findCampaign('missing')).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('returns a sales report based on durable redemptions without exposing codes', async () => {
+    const existingCampaign = buildCampaign({
+      id: 'campaign-report',
+      code: 'start_agents',
+      name: 'Start dla agentów',
+      usageCount: 7,
+      usageLimitTotal: 100,
+    });
+    const { service, dataSource, codes } = buildService([existingCampaign], {
+      totals: [
+        {
+          redemptionCount: '3',
+          discountGrossAmount: '15000',
+          subtotalGrossAmount: '60000',
+          totalGrossAmount: '45000',
+          firstRedemptionAt: '2026-09-20T08:00:00.000Z',
+          lastRedemptionAt: '2026-09-21T08:00:00.000Z',
+        },
+      ],
+      byPlan: [
+        {
+          planCode: AgencyPlan.PROFESSIONAL,
+          billingInterval: AgencyPlanBillingInterval.MONTHLY,
+          redemptionCount: '2',
+          discountGrossAmount: '10000',
+          subtotalGrossAmount: '40000',
+          totalGrossAmount: '30000',
+        },
+      ],
+      byCode: [
+        {
+          codeId: 'code-1',
+          codeLast4: 'T-50',
+          label: 'Kod START50',
+          redemptionCount: '1',
+          discountGrossAmount: '5000',
+          subtotalGrossAmount: '20000',
+          totalGrossAmount: '15000',
+        },
+      ],
+    });
+    codes.push({
+      id: 'code-1',
+      campaignId: existingCampaign.id,
+      codeHash: hashAgencyPlanPromotionCode('AGENT-START-50'),
+      codeLast4: 'T-50',
+      label: 'Kod START50',
+      status: AgencyPlanPromotionStatus.ACTIVE,
+      usageCount: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as AgencyPlanPromotionCode);
+
+    const report = await service.getSalesReport('start_agents');
+
+    expect(dataSource.query).toHaveBeenCalledTimes(3);
+    expect(dataSource.query).toHaveBeenNthCalledWith(
+      1,
+      expect.any(String),
+      [existingCampaign.id],
+    );
+    expect(report).toMatchObject({
+      campaign: {
+        id: 'campaign-report',
+        code: 'start_agents',
+        name: 'Start dla agentów',
+        usageCount: 7,
+        usageLimitTotal: 100,
+      },
+      totals: {
+        redemptionCount: 3,
+        discountGrossAmount: 15_000,
+        subtotalGrossAmount: 60_000,
+        totalGrossAmount: 45_000,
+      },
+      byPlan: [
+        {
+          planCode: AgencyPlan.PROFESSIONAL,
+          billingInterval: AgencyPlanBillingInterval.MONTHLY,
+          redemptionCount: 2,
+          discountGrossAmount: 10_000,
+          subtotalGrossAmount: 40_000,
+          totalGrossAmount: 30_000,
+        },
+      ],
+      byCode: [
+        {
+          codeId: 'code-1',
+          codeLast4: 'T-50',
+          label: 'Kod START50',
+          redemptionCount: 1,
+          discountGrossAmount: 5_000,
+          subtotalGrossAmount: 20_000,
+          totalGrossAmount: 15_000,
+        },
+      ],
+    });
+    expect(report.totals.firstRedemptionAt?.toISOString()).toBe(
+      '2026-09-20T08:00:00.000Z',
+    );
+    expect(JSON.stringify(report)).not.toContain('AGENT-START-50');
+    expect(JSON.stringify(report)).not.toContain(codes[0].codeHash);
   });
 });
