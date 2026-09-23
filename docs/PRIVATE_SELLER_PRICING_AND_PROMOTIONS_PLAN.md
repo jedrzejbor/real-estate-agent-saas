@@ -2433,7 +2433,9 @@ Proponowane encje:
 18. [x] Scheduler/monitoring reconciliation dla płatności planów agentów.
 19. [x] Backendowy raport sprzedażowy dla promocji planów agentów.
 20. [x] UI raportu sprzedażowego w panelu admina promocji planów.
-21. [ ] Testy E2E: bez promocji, automatyczna promocja, kod promocyjny, limit,
+21. [x] Pierwszy krytyczny flow spec: webhook sukcesu planu z kodem
+    promocyjnym zapisuje redemption widoczny w raporcie admina.
+22. [ ] Pełne testy E2E/manual QA: bez promocji, automatyczna promocja, kod promocyjny, limit,
     wygasły kod, zmiana promocji po utworzeniu quote.
 
 ### 18.7 Krytyczne testy sprintu
@@ -2858,7 +2860,31 @@ Zrealizowane:
   etap: utworzenie kampanii/kodu, quote, checkout attempt, webhook sukcesu i
   weryfikacja raportu oraz UI.
 
-### 18.23 Otwarte decyzje przed kodowaniem
+### 18.23 Log iteracji — pierwszy krytyczny flow QA promocji planu
+
+Zrealizowane:
+
+- dodany test `agency-plan-promotion-checkout-flow.spec.ts`;
+- test przechodzi przez najważniejszy backendowy happy path po stronie domeny:
+  opłacony checkout planu agenta z kodem promocyjnym;
+- flow korzysta z realnych serwisów `AgencyPlanPaymentEventsService` oraz
+  `AdminAgencyPlanPromotionsService`, a fake’i zastępują wyłącznie repozytoria i
+  zewnętrzną infrastrukturę;
+- test potwierdza, że webhook sukcesu oznacza attempt jako `succeeded`,
+  aktywuje plan agencji, zapisuje dane subskrypcji i czyści grace period
+  limitów;
+- test potwierdza, że zarezerwowany rabat przechodzi w trwały redemption;
+- raport sprzedażowy kampanii pokazuje redemption w totals, breakdownie
+  plan/okres oraz breakdownie kodu;
+- test zabezpiecza brak wycieku plaintextu kodu i hasha kodu w raporcie.
+
+Świadome ograniczenie tej iteracji:
+
+- to nie jest jeszcze pełny test HTTP/E2E z uruchomioną aplikacją i UI. Kolejne
+  małe kroki powinny pokryć scenariusze: bez promocji, automatyczna promocja,
+  kod promocyjny, limity, wygasły kod i zmiana kampanii po utworzeniu quote.
+
+### 18.24 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko
