@@ -2903,7 +2903,23 @@ Zrealizowane:
 - test działa na fake’u repozytorium i nie obejmuje jeszcze prawdziwej bazy,
   Stripe ani warstwy HTTP/UI.
 
-### 18.25 Otwarte decyzje przed kodowaniem
+### 18.25 Log iteracji — granice limitów użyć promocji planów
+
+Zrealizowane:
+
+- testy rezerwacji obejmują wyczerpany limit globalny kampanii oraz kodu;
+- testy limitu na agencję obejmują zarówno wcześniejszą rezerwację, jak i
+  opłacone wykorzystanie;
+- w każdym wariancie odrzucona rezerwacja nie tworzy kolejnej rezerwacji, nie
+  zmienia liczników i nie zmienia statusu quote;
+- testy potwierdzają blokadę rekordu źródła rabatu przy sprawdzaniu limitu.
+
+Świadome ograniczenie tej iteracji:
+
+- fake repozytorium nie dowodzi zachowania przy równoległych transakcjach w
+  PostgreSQL. Punkt o współbieżności w krytycznych testach pozostaje otwarty.
+
+### 18.26 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko

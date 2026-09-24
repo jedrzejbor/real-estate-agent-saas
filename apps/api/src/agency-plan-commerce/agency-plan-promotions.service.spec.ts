@@ -510,6 +510,108 @@ describe('AgencyPlanPromotionsService', () => {
     expect(manager.create).not.toHaveBeenCalled();
   });
 
+  it('rejects a campaign reservation at its global usage limit without changing usage', async () => {
+    const campaign = buildCampaign({ usageCount: 1, usageLimitTotal: 1 });
+    const quote = buildQuote();
+    const { service } = buildService([]);
+    const { manager } = buildManager({ campaign });
+
+    await expect(
+      service.reserveDiscountsForQuote(manager as never, quote, now),
+    ).rejects.toThrow('Limit użyć promocji został wyczerpany');
+
+    expect(manager.findOne).toHaveBeenCalledWith(
+      AgencyPlanPromotionCampaign,
+      expect.objectContaining({
+        where: { id: campaign.id },
+        lock: { mode: 'pessimistic_write' },
+      }),
+    );
+    expect(campaign.usageCount).toBe(1);
+    expect(quote.status).toBe(AgencyPlanQuoteStatus.QUOTED);
+    expect(manager.create).not.toHaveBeenCalled();
+    expect(manager.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects a code reservation at its global usage limit without changing either counter', async () => {
+    const campaign = buildCampaign({ usageCount: 1, usageLimitTotal: 10 });
+    const code = buildCode(campaign, { usageCount: 1, usageLimitTotal: 1 });
+    const quote = buildQuote();
+    quote.pricingSnapshot.discounts[0] = {
+      ...quote.pricingSnapshot.discounts[0],
+      sourceType: 'promotion_code',
+      sourceReference: code.id,
+    };
+    const { service } = buildService([]);
+    const { manager } = buildManager({ campaign, code });
+
+    await expect(
+      service.reserveDiscountsForQuote(manager as never, quote, now),
+    ).rejects.toThrow('Limit użyć promocji został wyczerpany');
+
+    expect(manager.findOne).toHaveBeenCalledWith(
+      AgencyPlanPromotionCode,
+      expect.objectContaining({
+        where: { id: code.id },
+        lock: { mode: 'pessimistic_write' },
+      }),
+    );
+    expect(campaign.usageCount).toBe(1);
+    expect(code.usageCount).toBe(1);
+    expect(quote.status).toBe(AgencyPlanQuoteStatus.QUOTED);
+    expect(manager.create).not.toHaveBeenCalled();
+    expect(manager.save).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['reserved', 1, 0],
+    ['redeemed', 0, 1],
+  ])(
+    'counts an existing %s campaign use against the agency limit',
+    async (_usageType, reservationCount, redemptionCount) => {
+      const campaign = buildCampaign({
+        usageCount: 1,
+        usageLimitTotal: 10,
+        usageLimitPerAccount: 1,
+      });
+      const quote = buildQuote();
+      const { service } = buildService([]);
+      const { manager } = buildManager({
+        campaign,
+        reservationCount,
+        redemptionCount,
+      });
+
+      await expect(
+        service.reserveDiscountsForQuote(manager as never, quote, now),
+      ).rejects.toThrow('Limit użyć promocji dla tego konta został wyczerpany');
+
+      expect(manager.count).toHaveBeenCalledWith(
+        AgencyPlanPromotionReservation,
+        expect.objectContaining({
+          where: expect.objectContaining({
+            campaignId: campaign.id,
+            agencyId: quote.agencyId,
+            status: AgencyPlanPromotionReservationStatus.RESERVED,
+          }),
+        }),
+      );
+      expect(manager.count).toHaveBeenCalledWith(
+        AgencyPlanPromotionRedemption,
+        expect.objectContaining({
+          where: expect.objectContaining({
+            campaignId: campaign.id,
+            agencyId: quote.agencyId,
+          }),
+        }),
+      );
+      expect(campaign.usageCount).toBe(1);
+      expect(quote.status).toBe(AgencyPlanQuoteStatus.QUOTED);
+      expect(manager.create).not.toHaveBeenCalled();
+      expect(manager.save).not.toHaveBeenCalled();
+    },
+  );
+
   it('applies reserved discounts as durable redemptions', async () => {
     const quote = buildQuote({ status: AgencyPlanQuoteStatus.RESERVED });
     const reservation = buildReservation(quote);
