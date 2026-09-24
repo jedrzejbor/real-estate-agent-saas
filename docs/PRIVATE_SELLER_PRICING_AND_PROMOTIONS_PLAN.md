@@ -2433,10 +2433,11 @@ Proponowane encje:
 18. [x] Scheduler/monitoring reconciliation dla płatności planów agentów.
 19. [x] Backendowy raport sprzedażowy dla promocji planów agentów.
 20. [x] UI raportu sprzedażowego w panelu admina promocji planów.
-21. [x] Pierwszy krytyczny flow spec: webhook sukcesu planu z kodem
-    promocyjnym zapisuje redemption widoczny w raporcie admina.
-22. [ ] Pełne testy E2E/manual QA: bez promocji, automatyczna promocja, kod promocyjny, limit,
-    wygasły kod, zmiana promocji po utworzeniu quote.
+21. [x] Backendowe flow specy: opłacony plan z kodem promocyjnym, z kampanią
+    automatyczną i bez promocji; redemptions są widoczne w raporcie admina
+    tylko dla zakupów z rabatem.
+22. [ ] Pełne testy E2E/manual QA: limit, wygasły kod, zmiana promocji po
+    utworzeniu quote oraz ścieżki HTTP/UI.
 
 ### 18.7 Krytyczne testy sprintu
 
@@ -2865,8 +2866,9 @@ Zrealizowane:
 Zrealizowane:
 
 - dodany test `agency-plan-promotion-checkout-flow.spec.ts`;
-- test przechodzi przez najważniejszy backendowy happy path po stronie domeny:
-  opłacony checkout planu agenta z kodem promocyjnym;
+- test przechodzi przez najważniejsze backendowe happy pathy po stronie domeny:
+  opłacony checkout planu agenta z kodem promocyjnym oraz opłacony checkout z
+  automatyczną kampanią bez kodu;
 - flow korzysta z realnych serwisów `AgencyPlanPaymentEventsService` oraz
   `AdminAgencyPlanPromotionsService`, a fake’i zastępują wyłącznie repozytoria i
   zewnętrzną infrastrukturę;
@@ -2874,17 +2876,34 @@ Zrealizowane:
   aktywuje plan agencji, zapisuje dane subskrypcji i czyści grace period
   limitów;
 - test potwierdza, że zarezerwowany rabat przechodzi w trwały redemption;
-- raport sprzedażowy kampanii pokazuje redemption w totals, breakdownie
-  plan/okres oraz breakdownie kodu;
+- raport sprzedażowy kampanii pokazuje redemption w totals i breakdownie
+  plan/okres;
+- wariant z kodem promocyjnym pokazuje redemption również w breakdownie kodu;
+- wariant automatycznej kampanii bez kodu nie dodaje sztucznego wpisu do
+  breakdownu kodów;
 - test zabezpiecza brak wycieku plaintextu kodu i hasha kodu w raporcie.
 
 Świadome ograniczenie tej iteracji:
 
 - to nie jest jeszcze pełny test HTTP/E2E z uruchomioną aplikacją i UI. Kolejne
-  małe kroki powinny pokryć scenariusze: bez promocji, automatyczna promocja,
-  kod promocyjny, limity, wygasły kod i zmiana kampanii po utworzeniu quote.
+  małe kroki powinny pokryć scenariusze: limity, wygasły kod i zmiana kampanii
+  po utworzeniu quote.
 
-### 18.24 Otwarte decyzje przed kodowaniem
+### 18.24 Log iteracji — checkout planu bez promocji
+
+Zrealizowane:
+
+- flow spec obejmuje pełnopłatny checkout bez rabatu i bez rezerwacji promocji;
+- test korzysta z rzeczywistych `AgencyPlanPaymentEventsService` i
+  `AgencyPlanPromotionsService` oraz sprawdza aktywację planu po płatności;
+- potwierdzono, że brak rezerwacji nie tworzy redemption kampanii.
+
+Świadome ograniczenie tej iteracji:
+
+- test działa na fake’u repozytorium i nie obejmuje jeszcze prawdziwej bazy,
+  Stripe ani warstwy HTTP/UI.
+
+### 18.25 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko
