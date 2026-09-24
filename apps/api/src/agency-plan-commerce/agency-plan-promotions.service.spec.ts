@@ -514,6 +514,63 @@ describe('AgencyPlanPromotionsService', () => {
     });
   });
 
+  it('reserves the quoted amount and duration after an active campaign changes', async () => {
+    const campaign = buildCampaign();
+    const { service } = buildService([campaign]);
+    const originalDiscounts = await service.resolveQuoteDiscounts({
+      plan: buildPlan(),
+      billingInterval: AgencyPlanBillingInterval.MONTHLY,
+      now,
+    });
+    const quote = buildQuote();
+    quote.pricingSnapshot.discounts = originalDiscounts;
+
+    campaign.name = 'Nowa oferta';
+    campaign.discountValue = 1_000;
+    campaign.durationBillingCycles = 1;
+
+    await expect(
+      service.resolveQuoteDiscounts({
+        plan: buildPlan(),
+        billingInterval: AgencyPlanBillingInterval.MONTHLY,
+        now,
+      }),
+    ).resolves.toMatchObject([
+      {
+        label: 'Nowa oferta',
+        grossAmount: 1_990,
+        durationBillingCycles: 1,
+      },
+    ]);
+
+    const { manager, createdReservations } = buildManager({ campaign });
+    await service.reserveDiscountsForQuote(
+      manager as never,
+      quote,
+      new Date(now.getTime() + 60_000),
+    );
+
+    expect(quote).toMatchObject({
+      discountGrossAmount: 9_950,
+      totalGrossAmount: 9_950,
+      pricingSnapshot: {
+        discounts: [
+          {
+            label: 'Start dla agentów',
+            grossAmount: 9_950,
+            durationBillingCycles: 3,
+          },
+        ],
+      },
+    });
+    expect(createdReservations[0]).toMatchObject({
+      campaignId: campaign.id,
+      discountGrossAmount: 9_950,
+      durationBillingCycles: 3,
+      metadata: { label: 'Start dla agentów' },
+    });
+  });
+
   it('keeps reservation creation idempotent for the same quote', async () => {
     const quote = buildQuote();
     const existingReservation = buildReservation(quote);

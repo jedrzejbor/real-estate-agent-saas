@@ -2937,7 +2937,23 @@ Zrealizowane:
 - testy działają na fake’u repozytorium; zachowanie HTTP/UI i transakcji z
   prawdziwą bazą nadal wymaga weryfikacji integracyjnej.
 
-### 18.27 Otwarte decyzje przed kodowaniem
+### 18.27 Log iteracji — zmiana warunków aktywnej kampanii po wycenie
+
+Zrealizowane:
+
+- test obejmuje zmianę etykiety, procentu rabatu i liczby okresów promocji po
+  utworzeniu wyceny planu;
+- nowa wycena korzysta ze zmienionych warunków kampanii;
+- rezerwacja dla wcześniejszego quote zachowuje pierwotną kwotę rabatu,
+  etykietę i liczbę okresów z jego snapshotu.
+
+Świadome ograniczenie tej iteracji:
+
+- test dotyczy nadal aktywnej kampanii i rezerwacji w fake’u repozytorium;
+  pełny checkout Stripe oraz wyłączenie kampanii po wycenie wymagają osobnych
+  scenariuszy QA. Punkt 18.7 o całym snapshotcie checkoutu pozostaje otwarty.
+
+### 18.28 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko
