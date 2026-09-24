@@ -2919,7 +2919,25 @@ Zrealizowane:
 - fake repozytorium nie dowodzi zachowania przy równoległych transakcjach w
   PostgreSQL. Punkt o współbieżności w krytycznych testach pozostaje otwarty.
 
-### 18.26 Otwarte decyzje przed kodowaniem
+### 18.26 Log iteracji — wygasły kod promocji planu
+
+Zrealizowane:
+
+- wycena z wpisanym kodem, który nie daje rabatu dla wybranego planu i okresu,
+  zwraca czytelny błąd zamiast po cichu tworzyć quote w pełnej cenie;
+- wspólna reguła dostępności kodu uwzględnia status, archiwizację oraz granice
+  `startsAt` i `endsAt` zarówno przy wycenie, jak i przy rezerwacji rabatu;
+- jeśli kod wygaśnie po utworzeniu quote, rezerwacja zostaje odrzucona bez
+  zmiany liczników i statusu quote;
+- test potwierdza, że `endsAt` jest granicą wyłączną: kod działa tuż przed nią,
+  a w tej chwili jest już niedostępny.
+
+Świadome ograniczenie tej iteracji:
+
+- testy działają na fake’u repozytorium; zachowanie HTTP/UI i transakcji z
+  prawdziwą bazą nadal wymaga weryfikacji integracyjnej.
+
+### 18.27 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko

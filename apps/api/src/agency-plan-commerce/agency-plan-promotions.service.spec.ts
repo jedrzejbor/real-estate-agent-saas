@@ -461,7 +461,28 @@ describe('AgencyPlanPromotionsService', () => {
         promotionCode: 'AGENT50',
         now,
       }),
-    ).resolves.toEqual([]);
+    ).rejects.toThrow('Kod promocyjny jest nieprawidłowy lub niedostępny');
+  });
+
+  it('rejects an entered code at its exclusive expiration boundary instead of returning a full-price quote', async () => {
+    const campaign = buildCampaign({ isAutomatic: false });
+    const code = buildCode(campaign, { endsAt: now });
+    const { service } = buildService([], code);
+    const input = {
+      plan: buildPlan(),
+      billingInterval: AgencyPlanBillingInterval.MONTHLY,
+      promotionCode: 'AGENT50',
+    };
+
+    await expect(
+      service.resolveQuoteDiscounts({
+        ...input,
+        now: new Date(now.getTime() - 1),
+      }),
+    ).resolves.toMatchObject([{ sourceType: 'promotion_code' }]);
+    await expect(
+      service.resolveQuoteDiscounts({ ...input, now }),
+    ).rejects.toThrow('Kod promocyjny jest nieprawidłowy lub niedostępny');
   });
 
   it('reserves quote discounts and increments campaign usage once', async () => {
@@ -558,6 +579,29 @@ describe('AgencyPlanPromotionsService', () => {
     );
     expect(campaign.usageCount).toBe(1);
     expect(code.usageCount).toBe(1);
+    expect(quote.status).toBe(AgencyPlanQuoteStatus.QUOTED);
+    expect(manager.create).not.toHaveBeenCalled();
+    expect(manager.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects a quoted code that expires before its discount is reserved', async () => {
+    const campaign = buildCampaign({ isAutomatic: false });
+    const code = buildCode(campaign, { endsAt: now });
+    const quote = buildQuote();
+    quote.pricingSnapshot.discounts[0] = {
+      ...quote.pricingSnapshot.discounts[0],
+      sourceType: 'promotion_code',
+      sourceReference: code.id,
+    };
+    const { service } = buildService([]);
+    const { manager } = buildManager({ campaign, code });
+
+    await expect(
+      service.reserveDiscountsForQuote(manager as never, quote, now),
+    ).rejects.toThrow('Kod promocyjny nie jest już dostępny');
+
+    expect(campaign.usageCount).toBe(0);
+    expect(code.usageCount).toBe(0);
     expect(quote.status).toBe(AgencyPlanQuoteStatus.QUOTED);
     expect(manager.create).not.toHaveBeenCalled();
     expect(manager.save).not.toHaveBeenCalled();

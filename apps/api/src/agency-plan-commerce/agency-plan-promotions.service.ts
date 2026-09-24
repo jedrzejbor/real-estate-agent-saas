@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   EntityManager,
@@ -157,6 +157,15 @@ export class AgencyPlanPromotionsService {
         ): discount is CalculatedAgencyPlanPromotionDiscount =>
           discount !== null,
       );
+
+    if (
+      input.promotionCode?.trim() &&
+      !discounts.some((discount) => discount.sourceType === 'promotion_code')
+    ) {
+      throw new BadRequestException(
+        'Kod promocyjny jest nieprawidłowy lub niedostępny dla tego planu',
+      );
+    }
 
     if (!discounts.length) return [];
     if (discounts.every((discount) => discount.isCombinable)) {
@@ -433,7 +442,7 @@ export class AgencyPlanPromotionsService {
         where: { id: discount.sourceReference },
         lock: { mode: 'pessimistic_write' },
       });
-      if (!code || code.status !== AgencyPlanPromotionStatus.ACTIVE) {
+      if (!isCodeAvailable(code, now)) {
         throw new ConflictException('Kod promocyjny nie jest już dostępny');
       }
       const campaign = await manager.findOne(AgencyPlanPromotionCampaign, {
@@ -683,11 +692,7 @@ function isCandidateAvailableForInitialCheckout(
   if (!isUsageAvailable(candidate.campaign, candidate.code)) return false;
 
   if (!candidate.code) return true;
-  if (candidate.code.status !== AgencyPlanPromotionStatus.ACTIVE) return false;
-  if (candidate.code.archivedAt) return false;
-  if (candidate.code.startsAt && candidate.code.startsAt > now) return false;
-  if (candidate.code.endsAt && candidate.code.endsAt <= now) return false;
-  return true;
+  return isCodeAvailable(candidate.code, now);
 }
 
 function isCampaignAvailable(
@@ -699,6 +704,18 @@ function isCampaignAvailable(
   if (campaign.archivedAt) return false;
   if (campaign.startsAt && campaign.startsAt > now) return false;
   if (campaign.endsAt && campaign.endsAt <= now) return false;
+  return true;
+}
+
+function isCodeAvailable(
+  code: AgencyPlanPromotionCode | null | undefined,
+  now: Date,
+): code is AgencyPlanPromotionCode {
+  if (!code) return false;
+  if (code.status !== AgencyPlanPromotionStatus.ACTIVE) return false;
+  if (code.archivedAt) return false;
+  if (code.startsAt && code.startsAt > now) return false;
+  if (code.endsAt && code.endsAt <= now) return false;
   return true;
 }
 
