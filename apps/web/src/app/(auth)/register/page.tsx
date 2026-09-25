@@ -51,6 +51,7 @@ import { AuthFormField } from '@/components/auth/auth-form-field';
 import { AuthRedirectLoading } from '@/components/auth/auth-redirect-loading';
 import { APP_NAME } from '@/lib/brand';
 import { cn } from '@/lib/utils';
+import { assertStripeCheckoutUrl } from '@/lib/stripe-checkout-url';
 
 type RegisterPlan = PublicPlan & {
   code: Exclude<AgencyPlanCode, 'custom'>;
@@ -228,7 +229,7 @@ function RegisterForm() {
         await register(data, { skipRedirect: true });
         try {
           const attempt = await createAgencyPlanCheckoutAttempt(quote.quoteId);
-          window.location.assign(attempt.checkoutUrl);
+          window.location.assign(assertStripeCheckoutUrl(attempt.checkoutUrl));
         } catch {
           const params = new URLSearchParams({
             plan: data.selectedPlan,

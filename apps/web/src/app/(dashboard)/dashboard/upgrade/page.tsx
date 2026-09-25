@@ -43,6 +43,7 @@ import {
 } from '@/lib/public-pricing';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
+import { assertStripeCheckoutUrl } from '@/lib/stripe-checkout-url';
 
 const resourceLabels: Record<string, string> = {
   listings: 'limit ofert',
@@ -207,7 +208,7 @@ export default function UpgradePage() {
       setIsStartingCheckout(true);
       try {
         const attempt = await createAgencyPlanCheckoutAttempt(quote.quoteId);
-        window.location.assign(attempt.checkoutUrl);
+        window.location.assign(assertStripeCheckoutUrl(attempt.checkoutUrl));
       } catch (error) {
         setCheckoutError(error instanceof Error ? error.message : 'Nie udało się uruchomić płatności');
         setIsStartingCheckout(false);

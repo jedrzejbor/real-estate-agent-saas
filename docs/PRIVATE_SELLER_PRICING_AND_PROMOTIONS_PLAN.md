@@ -3165,3 +3165,16 @@ płatności. Ręczne wywołanie endpointu poniżej pozostaje narzędziem diagnos
 - Czy admin może ręcznie przypisać promocję do istniejącej agencji?
 - Czy ceny promocyjne w publicznym cenniku mają być widoczne zawsze, czy tylko
   przy kampanii automatycznej?
+
+### 18.30 Wspólna walidacja przekierowania do Stripe Checkout
+
+- Walidacja adresu Stripe Checkout jest wydzielona do współdzielonego modułu
+  `apps/web/src/lib/stripe-checkout-url.ts`; checkout ogłoszeń zachowuje
+  dotychczasowy kontrakt przez re-eksport.
+- Rejestracja agenta i ekran upgrade sprawdzają adres zwrócony przez API przed
+  przekierowaniem przeglądarki. Nieprawidłowy adres nie jest otwierany;
+  użytkownik może ponowić próbę z bezpiecznego ekranu.
+- Testy obejmują poprawny adres HTTPS Stripe oraz odrzucenie HTTP, obcej
+  domeny, względnej ścieżki i schematu `javascript:`.
+- Nadal otwarte: manualne E2E w Stripe Sandbox po skonfigurowaniu produktów,
+  Price ID, webhooka i lokalnego środowiska.

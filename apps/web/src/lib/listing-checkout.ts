@@ -1,5 +1,6 @@
 import { apiFetch } from './api-client';
 import type { ListingProductType } from './listing-products';
+export { isStripeCheckoutUrl } from './stripe-checkout-url';
 
 export type ListingEntitlementType = 'publication' | 'featured';
 export type ListingEntitlementStatus = 'scheduled' | 'active';
@@ -204,18 +205,6 @@ export function createListingCheckoutSession(
   );
 }
 
-export function isStripeCheckoutUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return (
-      url.protocol === 'https:' &&
-      (url.hostname === 'checkout.stripe.com' ||
-        url.hostname.endsWith('.stripe.com'))
-    );
-  } catch {
-    return false;
-  }
-}
 
 export function findCurrentPayableOrder(
   orders: ListingOrder[],
