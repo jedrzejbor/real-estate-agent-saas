@@ -76,7 +76,7 @@ describe('AgencyPlanQuotesService', () => {
       billingInterval: AgencyPlanBillingInterval.MONTHLY,
       currency: 'PLN',
       quotedAt: '2026-09-16T10:15:00.000Z',
-      expiresAt: '2026-09-16T10:30:00.000Z',
+      expiresAt: '2026-09-16T11:15:00.000Z',
       subtotalGrossAmount: 24_900,
       discountGrossAmount: 0,
       totalGrossAmount: 24_900,

@@ -1,7 +1,7 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { APP_NAME } from '../common/brand';
-import { UserRole } from '../common/enums';
+import { AgencyPlan, UserRole } from '../common/enums';
 import { User } from '../users/entities';
 import { AuthService } from './auth.service';
 
@@ -48,6 +48,7 @@ function buildService(userOverrides: Partial<User> = {}) {
     },
   };
   const usersService = {
+    create: jest.fn().mockResolvedValue(user),
     updateProfile: jest.fn().mockResolvedValue(user),
     findById: jest.fn().mockResolvedValue(user),
     updatePasswordHash: jest.fn().mockResolvedValue(undefined),
@@ -278,5 +279,23 @@ describe('AuthService account settings', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(usersService.deactivate).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService registration', () => {
+  it('does not activate a selected paid plan before checkout payment', async () => {
+    const { service, usersService } = buildService();
+    await service.register({
+      accountType: 'agent',
+      selectedPlan: AgencyPlan.PROFESSIONAL,
+      email: 'agent@example.com',
+      password: 'StrongPass123',
+      firstName: 'Jan',
+      lastName: 'Kowalski',
+    });
+
+    expect(usersService.create).toHaveBeenCalledWith(expect.objectContaining({
+      initialPlan: AgencyPlan.FREE,
+    }));
   });
 });

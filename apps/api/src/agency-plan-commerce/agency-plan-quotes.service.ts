@@ -29,7 +29,9 @@ export interface PrepareAgencyPlanQuoteInput {
   now?: Date;
 }
 
-const AGENCY_PLAN_QUOTE_TTL_MS = 15 * 60 * 1000;
+// Stripe Checkout requires expires_at at least 30 minutes after session creation.
+// The extra time lets a customer review the quote before starting checkout.
+const AGENCY_PLAN_QUOTE_TTL_MS = 60 * 60 * 1000;
 const AGENCY_PLAN_CURRENCY = 'PLN' as const;
 const MAX_PERSISTED_GROSS_AMOUNT = 2_147_483_647;
 

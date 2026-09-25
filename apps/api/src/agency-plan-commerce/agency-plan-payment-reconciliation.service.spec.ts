@@ -8,7 +8,7 @@ import {
 import { AgencyPlanPromotionsService } from './agency-plan-promotions.service';
 import { AgencyPlanCheckoutAttempt, AgencyPlanQuote } from './entities';
 
-const NOW = new Date('2026-09-21T12:00:00.000Z');
+const NOW = new Date('2026-09-21T12:15:00.000Z');
 
 function buildQuote(overrides: Partial<AgencyPlanQuote> = {}): AgencyPlanQuote {
   return {
@@ -121,6 +121,19 @@ function buildService(input?: {
 }
 
 describe('AgencyPlanPaymentReconciliationService', () => {
+  it('keeps a newly expired checkout open for a delayed payment webhook', async () => {
+    const { service, attempt, promotionsService } = buildService({
+      candidates: [{ id: 'attempt-1', quoteId: 'quote-1' }],
+      attempt: buildAttempt({ expiresAt: new Date('2026-09-21T12:10:00.000Z') }),
+    });
+
+    const result = await service.reconcile(NOW);
+
+    expect(result.skippedAttemptIds).toEqual(['attempt-1']);
+    expect(attempt?.status).toBe(AgencyPlanCheckoutAttemptStatus.PENDING);
+    expect(promotionsService.releaseReservationsForQuotes).not.toHaveBeenCalled();
+  });
+
   it('expires an abandoned current attempt and releases quote reservations atomically', async () => {
     const candidate = { id: 'attempt-1', quoteId: 'quote-1' };
     const { service, manager, quote, attempt, promotionsService } =

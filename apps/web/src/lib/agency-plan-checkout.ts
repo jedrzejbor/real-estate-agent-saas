@@ -36,6 +36,33 @@ export interface CreateAgencyPlanQuoteInput {
   promotionCode?: string;
 }
 
+export interface AgencyPlanCheckoutAttempt {
+  quoteId: string;
+  checkoutAttemptId: string;
+  status: string;
+  checkoutUrl: string;
+  amountGross: number;
+  currency: 'PLN';
+  expiresAt: string;
+}
+
+/** Mirrors the server's 35-minute guard; the API remains authoritative. */
+export function canStartAgencyPlanCheckout(
+  quote: AgencyPlanQuote,
+  now = new Date(),
+): boolean {
+  return new Date(quote.expiresAt).getTime() - now.getTime() >= 35 * 60 * 1000;
+}
+
+export function createAgencyPlanCheckoutAttempt(
+  quoteId: string,
+): Promise<AgencyPlanCheckoutAttempt> {
+  return apiFetch<AgencyPlanCheckoutAttempt>('/agency-plan-checkout/attempts', {
+    method: 'POST',
+    body: { quoteId },
+  });
+}
+
 export function createAgencyPlanQuote(
   input: CreateAgencyPlanQuoteInput,
 ): Promise<AgencyPlanQuote> {

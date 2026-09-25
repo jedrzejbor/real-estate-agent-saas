@@ -21,6 +21,8 @@ import {
 } from '@/lib/auth';
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
+  canStartAgencyPlanCheckout,
+  createAgencyPlanCheckoutAttempt,
   createAgencyPlanQuote,
   type AgencyPlanQuote,
 } from '@/lib/agency-plan-checkout';
@@ -74,6 +76,7 @@ function RegisterForm() {
   const initialBillingInterval = getBillingInterval(searchParams.get('billing'));
   const initialAccountType = claimToken ? 'private_seller' : 'agent';
   const hasClaimedAuthenticatedTokenRef = useRef(false);
+  const isStartingCheckoutRef = useRef(false);
   const [accountType, setAccountType] = useState<'agent' | 'private_seller'>(
     initialAccountType,
   );
@@ -185,7 +188,9 @@ function RegisterForm() {
       return;
     }
 
-    router.replace(getAuthenticatedRedirectPath(user, returnToPath));
+    if (!isStartingCheckoutRef.current) {
+      router.replace(getAuthenticatedRedirectPath(user, returnToPath));
+    }
   }, [claimToken, isAuthLoading, returnToPath, router, user]);
 
   const {
@@ -208,6 +213,29 @@ function RegisterForm() {
         } catch (error) {
           setAuthenticatedClaimError(getApiErrorMessage(error));
           return;
+        }
+        return;
+      }
+
+      if (data.accountType === 'agent' && (data.selectedPlan === 'starter' || data.selectedPlan === 'professional')) {
+        if (!quote || isLoadingQuote || quoteError || quote.planCode !== data.selectedPlan || quote.billingInterval !== billingInterval) {
+          throw new Error('Poczekaj na aktualną wycenę przed utworzeniem konta');
+        }
+        if (!canStartAgencyPlanCheckout(quote)) {
+          throw new Error('Wycena jest zbyt stara. Odśwież stronę i sprawdź aktualną cenę.');
+        }
+        isStartingCheckoutRef.current = true;
+        await register(data, { skipRedirect: true });
+        try {
+          const attempt = await createAgencyPlanCheckoutAttempt(quote.quoteId);
+          window.location.assign(attempt.checkoutUrl);
+        } catch {
+          const params = new URLSearchParams({
+            plan: data.selectedPlan,
+            billing: billingInterval,
+            checkoutError: '1',
+          });
+          router.replace(`/dashboard/upgrade?${params.toString()}`);
         }
         return;
       }
@@ -348,7 +376,7 @@ function RegisterForm() {
                 <div className="mb-3 inline-flex rounded-xl border border-border bg-muted/30 p-1">
                   <button
                     type="button"
-                    onClick={() => setBillingInterval('monthly')}
+                    onClick={() => { setQuote(null); setBillingInterval('monthly'); }}
                     className={cn(
                       'rounded-lg px-3 py-2 text-xs font-medium transition-colors',
                       billingInterval === 'monthly'
@@ -360,7 +388,7 @@ function RegisterForm() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setBillingInterval('yearly')}
+                    onClick={() => { setQuote(null); setBillingInterval('yearly'); }}
                     className={cn(
                       'rounded-lg px-3 py-2 text-xs font-medium transition-colors',
                       billingInterval === 'yearly'
@@ -390,7 +418,7 @@ function RegisterForm() {
                       <button
                         key={plan.code}
                         type="button"
-                        onClick={() => setSelectedPlan(plan.code)}
+                        onClick={() => { setQuote(null); setSelectedPlan(plan.code); }}
                         className={cn(
                           'flex min-h-[220px] flex-col rounded-xl border p-4 text-left transition-colors',
                           selectedPlan === plan.code
@@ -442,7 +470,7 @@ function RegisterForm() {
                       value={promotionCode}
                       placeholder="Opcjonalnie"
                       autoComplete="off"
-                      onChange={(event) => setPromotionCode(event.target.value)}
+                      onChange={(event) => { setQuote(null); setPromotionCode(event.target.value); }}
                     />
                   </label>
                   <div className="mt-3">
@@ -486,8 +514,8 @@ function RegisterForm() {
                 </div>
 
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  To jest backendowo potwierdzona wycena. Płatność i aktywację
-                  subskrypcji wdrożymy w kolejnym kroku checkoutu.
+                  Po utworzeniu konta przejdziesz do Stripe Checkout. Plan
+                  zostanie aktywowany dopiero po potwierdzeniu płatności.
                 </p>
                 {getFieldError('selectedPlan') ? (
                   <p className="mt-2 text-xs text-destructive">
@@ -547,10 +575,10 @@ function RegisterForm() {
 
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || (accountType === 'agent' && (selectedPlan === 'starter' || selectedPlan === 'professional') && (!quote || isLoadingQuote || Boolean(quoteError)))}
               className="h-10 w-full rounded-xl text-sm font-semibold"
             >
-              {isSubmitting ? 'Tworzenie konta…' : 'Zarejestruj się'}
+              {isSubmitting ? 'Przygotowujemy konto i płatność…' : accountType === 'agent' && (selectedPlan === 'starter' || selectedPlan === 'professional') ? 'Zarejestruj się i przejdź do płatności' : 'Zarejestruj się'}
             </Button>
           </div>
         </form>

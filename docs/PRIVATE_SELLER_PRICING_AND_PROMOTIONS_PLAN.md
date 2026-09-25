@@ -2639,7 +2639,7 @@ Zrealizowane:
 - sesja checkout zawiera metadane quote, attempt, agencji, planu i kwot, które
   będą potrzebne przy webhookach;
 - redirect URLs są konfigurowalne przez `STRIPE_AGENCY_PLAN_SUCCESS_URL` i
-  `STRIPE_AGENCY_PLAN_CANCEL_URL`, z fallbackiem do dashboardu billingowego;
+  `STRIPE_AGENCY_PLAN_CANCEL_URL`, z fallbackiem do `/dashboard/upgrade`;
 - testy adaptera pokrywają checkout z rabatem, checkout bez rabatu, użycie
   istniejącego klienta Stripe oraz stabilne idempotency keys.
 
@@ -2953,7 +2953,211 @@ Zrealizowane:
   pełny checkout Stripe oraz wyłączenie kampanii po wycenie wymagają osobnych
   scenariuszy QA. Punkt 18.7 o całym snapshotcie checkoutu pozostaje otwarty.
 
-### 18.28 Otwarte decyzje przed kodowaniem
+### 18.28 Instrukcja — Stripe Sandbox i lokalny test abonamentu agenta
+
+Zakres: abonamenty agentów z tego sprintu. Płatności za ogłoszenia prywatne mają
+osobny webhook i sekret (`STRIPE_LISTING_WEBHOOK_SECRET`). Stripe Sandbox nie
+pobiera prawdziwych pieniędzy; używamy wyłącznie klucza `sk_test_...` i kart
+testowych. Źródła: [testowanie Stripe](https://docs.stripe.com/testing),
+[produkty i ceny](https://docs.stripe.com/products-prices/manage-prices),
+[lokalne webhooki](https://docs.stripe.com/webhooks#local-listener).
+
+#### A. Dwie poprawki w projekcie przed pierwszym rzeczywistym checkoutem
+
+1. [x] **Naprawić czas wygaśnięcia sesji Stripe.** Quote jest ważny 60 minut,
+   a checkout można rozpocząć tylko przy co najmniej 35 minutach pozostałego
+   czasu. Adapter ponownie sprawdza minimum 31 minut (30 minut Stripe plus
+   bufor na zaokrąglenie i czas sieciowy) tuż przed wywołaniem
+   Stripe. Sesja i rezerwacja rabatu wygasają razem z quote; job zwalniający
+   rezerwacje czeka dodatkowo 10 minut na opóźniony webhook. Testy sprawdzają
+   obie granice. Webhook `checkout.session.expired` nadal może zamknąć próbę
+   wcześniej. Przy awarii dostarczania webhooków dłuższej niż 10 minut trzeba
+   zweryfikować zdarzenie w Stripe przed ręcznym rozliczeniem rabatu.
+   Źródło: [Stripe `expires_at`](https://docs.stripe.com/api/checkout/sessions/create#checkout_session_create-expires_at).
+2. [x] **Podpiąć start checkoutu w UI.** Rejestracja z płatnym planem oraz
+   `/dashboard/upgrade` wywołują `POST /api/agency-plan-checkout/attempts` i
+   przekierowują do Stripe. Rejestracja zawsze tworzy najpierw agencję na
+   `free`; webhook aktywuje kupiony plan. Zmiana istniejącego płatnego planu
+   pozostaje manualna, aby nie tworzyć drugiej subskrypcji. W razie błędu
+   po rejestracji użytkownik trafia na ekran upgrade i może ponowić próbę.
+
+#### B. Przygotować konto i ceny w Stripe
+
+1. Zalogować się do Stripe Dashboard i przełączyć na **Sandbox / dane testowe**.
+   Nie mieszać obiektów testowych z produkcyjnymi.
+2. W **Product catalog** utworzyć produkt dla każdego testowanego płatnego
+   planu. Dodać dwie ceny typu **Recurring, flat rate, PLN**: `month` i `year`.
+   Na pierwszy test wystarczy jeden plan i cena miesięczna. Nie włączać w tym
+   teście automatycznego doliczania podatku w Stripe Checkout; backend
+   porównuje kwotę płatności z własną wyceną brutto.
+3. W `/dashboard/admin/plans` odczytać cenę planu w groszach: np. `19900`
+   oznacza `199,00 PLN`. Kwota bazowa każdej ceny Stripe musi być taka sama jak
+   odpowiednie `priceMonthlyPln` / `priceYearlyPln` w katalogu aplikacji.
+   Promocji z naszego panelu nie tworzyć drugi raz w Stripe: backend tworzy
+   kupon dla konkretnego checkoutu. Na pierwszy test wybrać rabat mniejszy niż
+   100%, aby płatność miała dodatnią kwotę.
+4. Skopiować **Price ID** (`price_...`, nie `prod_...`) z Sandbox i wpisać je w
+   polach `Stripe monthly` / `Stripe yearly` odpowiedniego planu w
+   `/dashboard/admin/plans`. Nie wpisywać tam sekretu `sk_test_...`.
+
+#### C. Skonfigurować sekrety lokalnie
+
+1. W Stripe Dashboard odczytać **Secret key** trybu testowego (`sk_test_...`).
+   Zapisać go wyłącznie w ignorowanym przez Git `apps/api/.env.local` jako
+   `STRIPE_SECRET_KEY=sk_test_...`. `.env.example` ma zawierać wyłącznie
+   `STRIPE_SECRET_KEY=sk_test_replace_me`. Nigdy nie wklejać klucza do czatu,
+   commita, zrzutu ekranu ani kodu frontendu. Jeśli klucz trafił już do
+   commita lub został udostępniony, wygenerować nowy w Stripe Dashboard.
+2. Po uruchomieniu Stripe CLI z punktu E dopisać do `apps/api/.env.local`
+   `STRIPE_AGENCY_PLAN_WEBHOOK_SECRET=whsec_...` — dokładnie sekret wypisany
+   przez lokalne `stripe listen`. Nie używać tutaj sekretu webhooka ogłoszeń
+   ani sekretu endpointu produkcyjnego.
+3. Opcjonalnie ustawić własne URL-e powrotu przez
+   `STRIPE_AGENCY_PLAN_SUCCESS_URL` i `STRIPE_AGENCY_PLAN_CANCEL_URL`.
+   Domyślnie aplikacja wraca do `/dashboard/upgrade` z informacją o wyniku.
+   Sam powrót z Checkout nie potwierdza płatności — plan aktywuje dopiero
+   podpisany webhook.
+4. `STRIPE_SECRET_KEY` służy także checkoutowi ogłoszeń prywatnych, ale ich
+   `STRIPE_LISTING_WEBHOOK_SECRET` konfiguruje się osobno.
+
+#### D. Przygotować uruchomienie projektu z sekretami API
+
+Wariant używany z obecnym `docker-compose.yml`: plik Compose **nie przekazuje**
+teraz żadnej zmiennej Stripe do kontenera API. Dodać ignorowany przez Git
+`docker-compose.override.yml` z zawartością:
+
+```yaml
+services:
+  api:
+    environment:
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:?Ustaw testowy klucz Stripe}
+      STRIPE_AGENCY_PLAN_WEBHOOK_SECRET: ${STRIPE_AGENCY_PLAN_WEBHOOK_SECRET:?Ustaw sekret lokalnego webhooka}
+      STRIPE_AGENCY_PLAN_SUCCESS_URL: http://localhost:3000/dashboard/upgrade
+      STRIPE_AGENCY_PLAN_CANCEL_URL: http://localhost:3000/dashboard/upgrade
+```
+
+Po wykonaniu punktu E i wpisaniu obu sekretów w `apps/api/.env.local`
+uruchomić z katalogu repo:
+
+```bash
+docker compose --env-file apps/api/.env.local up -d --build
+```
+
+Po każdej zmianie sekretu CLI odtworzyć proces API:
+
+```bash
+docker compose --env-file apps/api/.env.local up -d --force-recreate api
+```
+
+`--env-file` dostarcza wartości do interpolacji Compose; sam plik
+`apps/api/.env.local` nie jest automatycznie wczytywany przez kontener. Bez
+Dockera można uruchomić API przez `pnpm --filter api dev` (czyta
+`apps/api/.env.local`), po ustawieniu w nim `DB_HOST=localhost` i
+`DB_PORT=5433` dla bazy z tego Compose. Web musi wskazywać
+`http://localhost:4000/api`.
+
+Sprawdzić `http://localhost:4000/api/plans`. Jeśli brakuje tabel, najpierw
+zastosować migracje projektu; dla tego modułu szczególnie
+`20260916_agency_plan_promotions_foundation.sql` i
+`20260917_agency_plan_checkout_attempts.sql` (w tej kolejności). Nie resetować
+bazy przez `docker compose down -v` tylko po to, żeby uruchomić test.
+
+Sprawdzenie i ewentualne zastosowanie **brakujących** migracji w bazie z Compose:
+
+```bash
+docker compose --env-file apps/api/.env.local exec -T db psql -U postgres -d real_estate_saas -c "SELECT to_regclass('public.agency_plan_quotes') AS quotes, to_regclass('public.agency_plan_checkout_attempts') AS attempts;"
+docker compose --env-file apps/api/.env.local exec -T db psql -U postgres -d real_estate_saas -v ON_ERROR_STOP=1 < apps/api/migrations/20260916_agency_plan_promotions_foundation.sql
+docker compose --env-file apps/api/.env.local exec -T db psql -U postgres -d real_estate_saas -v ON_ERROR_STOP=1 < apps/api/migrations/20260917_agency_plan_checkout_attempts.sql
+```
+
+Dwa ostatnie polecenia wykonywać tylko, gdy odpowiadające tabele są
+nieobecne; jeśli `agency_plan_quotes` już istnieje, a brak jedynie
+`agency_plan_checkout_attempts`, uruchomić tylko drugie z nich.
+
+#### E. Uruchomić lokalne webhooki Stripe
+
+1. Zainstalować [Stripe CLI](https://docs.stripe.com/cli/install) na komputerze
+   (na macOS np. `brew install stripe/stripe-cli/stripe`) i wykonać
+   `stripe login` na tym samym koncie/sandboxie, którego klucz `sk_test_...`
+   znajduje się w API.
+2. Uruchomić na **hoście**, w osobnym terminalu, i pozostawić proces włączony:
+
+   ```bash
+   stripe listen --forward-to http://localhost:4000/api/agency-plan-payments/webhooks/stripe
+   ```
+
+3. Skopiować wypisany przez CLI `whsec_...` do
+   `STRIPE_AGENCY_PLAN_WEBHOOK_SECRET`, a następnie uruchomić API (punkt D).
+   Jeśli API już działało, trzeba je odtworzyć po zmianie sekretu.
+   Podpis jest sprawdzany na surowym body requestu, więc nie wysyłać webhooka
+   ręcznie bez podpisu.
+4. Dla testu całej ścieżki wykonać rzeczywisty **testowy Checkout**.
+   `stripe trigger checkout.session.completed` tworzy sztuczny event bez
+   naszych identyfikatorów quote/attempt i nie zastępuje tego scenariusza.
+
+#### F. Pierwszy test end-to-end
+
+Najprościej: utworzyć nowe konto agenta z płatnym planem lub zalogować się na
+agenta z planem `free`, wybrać plan w `/dashboard/upgrade` i kliknąć przycisk
+płatności. Ręczne wywołanie endpointu poniżej pozostaje narzędziem diagnostycznym.
+
+1. Zalogować się w aplikacji na konto agenta z agencją. Wejść w
+   `http://localhost:3000/dashboard/upgrade`, wybrać płatny plan i okres.
+   W panelu Network przeglądarki znaleźć odpowiedź
+   `POST /api/agency-plan-checkout/quote` i skopiować `quoteId`.
+2. Przed upływem 25 minut od wyceny (później zostaje mniej niż 35 minut na
+   checkout) wkleić w konsoli tej **samej zalogowanej karty** kod niżej,
+   podmieniając tylko identyfikator. Nie
+   publikować `quoteId` ani ciasteczek sesji:
+
+   ```js
+   const quoteId = 'WKLEJ_QUOTE_ID';
+   const cookie = document.cookie.split('; ').find((part) =>
+     part.startsWith('podadresem.csrf-token='),
+   );
+   const csrfToken = cookie
+     ? decodeURIComponent(cookie.slice('podadresem.csrf-token='.length))
+     : '';
+   const response = await fetch('http://localhost:4000/api/agency-plan-checkout/attempts', {
+     method: 'POST',
+     credentials: 'include',
+     headers: {
+       'Content-Type': 'application/json',
+       'x-csrf-token': csrfToken,
+     },
+     body: JSON.stringify({ quoteId }),
+   });
+   const result = await response.json();
+   console.log(response.status, result);
+   if (response.ok) window.location.assign(result.checkoutUrl);
+   ```
+
+3. Na stronie Stripe użyć karty testowej `4242 4242 4242 4242`, dowolnego
+   przyszłego terminu i dowolnego trzycyfrowego CVC. Nie wpisywać prawdziwej
+   karty. Po opłaceniu sprawdzić w terminalu CLI dostarczenie
+   `checkout.session.completed` oraz odpowiedź `200` lokalnego API.
+4. Sprawdzić w aplikacji zmianę planu agencji, w Stripe Sandbox nową
+   subskrypcję, a dla rabatu także wykorzystanie w
+   `/dashboard/admin/agency-plan-promotions` → „Wyniki promocji”. Powtórzyć
+   dla zakupu bez rabatu, kampanii automatycznej i kodu. Sukces przekierowania
+   nie wystarcza: decydują webhook i zapis stanu w bazie.
+
+#### G. Najczęstsze błędy przy pierwszym uruchomieniu
+
+- `Stripe secret key is not configured` / `503`: klucz jest tylko w pliku, ale
+  nie w procesie API; sprawdzić punkt D i restart kontenera.
+- `Invalid Stripe webhook signature` / `400`: użyto innego `whsec_...` niż
+  wypisany przez aktualny `stripe listen` albo nie zrestartowano API.
+- Błąd `expires_at` przy tworzeniu sesji: sprawdzić czas serwera API i użyć
+  świeżej wyceny; backend nie przyjmie quote z mniej niż 35 minutami ważności.
+- Brak Stripe Price ID: uzupełnić właściwy miesięczny/roczny `price_...` w
+  adminie planów; upewnić się, że cena jest w PLN i zgodna z ceną bazową.
+- `401` / `403` przy `/attempts`: zalogować się ponownie, użyć świeżego
+  `quoteId`, przesłać cookies oraz nagłówek `x-csrf-token`.
+- Poprawna płatność bez aktywacji planu: sprawdzić terminal CLI, status webhooka
+  i czy `STRIPE_AGENCY_PLAN_WEBHOOK_SECRET` należy do tego listenera.
+
+### 18.29 Otwarte decyzje przed kodowaniem
 
 - Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
 - Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko

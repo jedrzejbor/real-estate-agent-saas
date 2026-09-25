@@ -17,6 +17,15 @@ import type {
 } from './agency-plan-payment-gateway.port';
 
 const STRIPE_PROVIDER = 'stripe';
+// Stripe's actual minimum is 30 minutes; keep one minute for clock skew and
+// second-level truncation of expires_at.
+const MIN_STRIPE_SESSION_LIFETIME_MS = 31 * 60 * 1000;
+
+function assertStripeSessionExpiration(expiresAt: Date): void {
+  if (expiresAt.getTime() - Date.now() < MIN_STRIPE_SESSION_LIFETIME_MS) {
+    throw new BadRequestException('Wycena jest zbyt stara, przelicz cenę ponownie');
+  }
+}
 
 @Injectable()
 export class StripeAgencyPlanPaymentAdapter
@@ -31,7 +40,9 @@ export class StripeAgencyPlanPaymentAdapter
   async createSubscriptionCheckoutSession(
     input: CreateAgencyPlanSubscriptionCheckoutInput,
   ): Promise<CreatedAgencyPlanSubscriptionCheckout> {
+    assertStripeSessionExpiration(input.expiresAt);
     const couponId = await this.createDiscountCoupon(input);
+    assertStripeSessionExpiration(input.expiresAt);
     const session = await this.getClient().checkout.sessions.create(
       {
         mode: 'subscription',
@@ -165,7 +176,7 @@ export class StripeAgencyPlanPaymentAdapter
     let url: URL;
     try {
       url = new URL(
-        configured || `/dashboard/billing/${outcome}`,
+        configured || `/dashboard/upgrade?checkout=${outcome}`,
         frontendUrl,
       );
     } catch {

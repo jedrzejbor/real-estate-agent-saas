@@ -154,6 +154,31 @@ describe('StripeAgencyPlanPaymentAdapter signature verification', () => {
 });
 
 describe('StripeAgencyPlanPaymentAdapter checkout creation', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-17T10:00:00.000Z'));
+  });
+
+  afterEach(() => jest.useRealTimers());
+
+  it('rejects an expiration below the Stripe minimum before creating a coupon or session', async () => {
+    const couponsCreate = jest.fn();
+    const sessionsCreate = jest.fn();
+    const adapter = new StripeAgencyPlanPaymentAdapter({
+      get: jest.fn(),
+    } as unknown as ConfigService);
+    (adapter as unknown as { client: Stripe }).client = {
+      coupons: { create: couponsCreate },
+      checkout: { sessions: { create: sessionsCreate } },
+    } as unknown as Stripe;
+
+    await expect(adapter.createSubscriptionCheckoutSession({
+      expiresAt: new Date('2026-09-17T10:29:59.000Z'),
+    } as never)).rejects.toThrow(BadRequestException);
+    expect(couponsCreate).not.toHaveBeenCalled();
+    expect(sessionsCreate).not.toHaveBeenCalled();
+  });
+
   it('creates a subscription checkout with a durable per-attempt coupon discount', async () => {
     const couponsCreate = jest.fn().mockResolvedValue({ id: 'coupon_attempt_1' });
     const sessionsCreate = jest.fn().mockResolvedValue({
@@ -233,9 +258,9 @@ describe('StripeAgencyPlanPaymentAdapter checkout creation', () => {
         customer_email: 'owner@example.com',
         expires_at: 1_789_641_900,
         success_url:
-          'https://podadresem.test/dashboard/billing/success?quoteId=quote-1&session_id={CHECKOUT_SESSION_ID}',
+          'https://podadresem.test/dashboard/upgrade?checkout=success&quoteId=quote-1&session_id={CHECKOUT_SESSION_ID}',
         cancel_url:
-          'https://podadresem.test/dashboard/billing/cancel?quoteId=quote-1',
+          'https://podadresem.test/dashboard/upgrade?checkout=cancel&quoteId=quote-1',
         line_items: [
           {
             quantity: 1,

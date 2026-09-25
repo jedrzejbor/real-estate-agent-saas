@@ -23,6 +23,8 @@ const OPEN_ATTEMPT_STATUSES = new Set([
   AgencyPlanCheckoutAttemptStatus.CREATING,
   AgencyPlanCheckoutAttemptStatus.PENDING,
 ]);
+// Leave room for database and Stripe latency beyond Stripe's 30-minute minimum.
+const MIN_CHECKOUT_REMAINING_MS = 35 * 60 * 1000;
 
 @Injectable()
 export class AgencyPlanCheckoutAttemptsService {
@@ -40,6 +42,11 @@ export class AgencyPlanCheckoutAttemptsService {
     now = new Date(),
   ): Promise<AgencyPlanCheckoutAttemptContract> {
     const access = await this.usersService.getAgencyAccessContext(userId);
+    if (access.agency.billingSubscriptionId) {
+      throw new ConflictException(
+        'Zmiana aktywnego abonamentu wymaga obsługi istniejącej subskrypcji',
+      );
+    }
 
     const prepared = await this.dataSource.transaction(async (manager) => {
       const quote = await this.findQuoteForUpdate(manager, quoteId);
@@ -243,8 +250,8 @@ function assertQuoteBelongsToRequester(
 }
 
 function assertQuoteCanStartCheckout(quote: AgencyPlanQuote, now: Date): void {
-  if (quote.expiresAt.getTime() <= now.getTime()) {
-    throw new ConflictException('Wycena planu wygasła');
+  if (quote.expiresAt.getTime() - now.getTime() < MIN_CHECKOUT_REMAINING_MS) {
+    throw new ConflictException('Wycena jest zbyt stara, przelicz cenę ponownie');
   }
   if (quote.totalGrossAmount <= 0) {
     throw new ConflictException('Plan nie wymaga płatności');

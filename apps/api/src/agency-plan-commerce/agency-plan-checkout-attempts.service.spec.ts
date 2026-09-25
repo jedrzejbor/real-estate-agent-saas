@@ -11,7 +11,7 @@ import {
 import { AgencyPlanCheckoutAttempt, AgencyPlanQuote } from './entities';
 
 const NOW = new Date('2026-09-17T10:00:00.000Z');
-const EXPIRES_AT = new Date('2026-09-17T10:15:00.000Z');
+const EXPIRES_AT = new Date('2026-09-17T11:00:00.000Z');
 
 function buildPlan(overrides: Partial<PlanCatalog> = {}): PlanCatalog {
   return {
@@ -145,6 +145,7 @@ function buildService(input: {
         id: 'agency-1',
         name: 'Example Agency',
         billingCustomerId: null,
+        billingSubscriptionId: null,
       },
     }),
   };
@@ -304,6 +305,17 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('does not create a second subscription for an agency with active billing', async () => {
+    const { service, usersService, paymentGateway } = buildService();
+    usersService.getAgencyAccessContext.mockResolvedValueOnce({
+      user: { id: 'user-1', email: 'owner@example.com' },
+      agency: { id: 'agency-1', name: 'Example Agency', billingSubscriptionId: 'sub_existing' },
+    });
+
+    await expect(service.createCheckoutAttempt('user-1', 'quote-1', NOW)).rejects.toBeInstanceOf(ConflictException);
+    expect(paymentGateway.createSubscriptionCheckoutSession).not.toHaveBeenCalled();
+  });
+
   it('rejects expired quotes before reserving discounts', async () => {
     const { service, promotionsService, paymentGateway } = buildService({
       quote: buildQuote({
@@ -314,6 +326,16 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
     await expect(
       service.createCheckoutAttempt('user-1', 'quote-1', NOW),
     ).rejects.toBeInstanceOf(ConflictException);
+    expect(promotionsService.reserveDiscountsForQuote).not.toHaveBeenCalled();
+    expect(paymentGateway.createSubscriptionCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it('rejects quotes with less than 35 minutes remaining before reserving discounts', async () => {
+    const { service, promotionsService, paymentGateway } = buildService({
+      quote: buildQuote({ expiresAt: new Date('2026-09-17T10:34:59.000Z') }),
+    });
+
+    await expect(service.createCheckoutAttempt('user-1', 'quote-1', NOW)).rejects.toBeInstanceOf(ConflictException);
     expect(promotionsService.reserveDiscountsForQuote).not.toHaveBeenCalled();
     expect(paymentGateway.createSubscriptionCheckoutSession).not.toHaveBeenCalled();
   });

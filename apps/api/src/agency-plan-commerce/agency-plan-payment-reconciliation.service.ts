@@ -10,6 +10,9 @@ const OPEN_ATTEMPT_STATUSES = new Set<AgencyPlanCheckoutAttemptStatus>([
 ]);
 const DEFAULT_BATCH_SIZE = 100;
 const MAX_BATCH_SIZE = 500;
+// Stripe may deliver a successful-payment webhook shortly after session expiry.
+// Keep reservations briefly so reconciliation does not release a paid discount first.
+const PAYMENT_WEBHOOK_GRACE_MS = 10 * 60 * 1000;
 
 export interface AgencyPlanPaymentReconciliationFailure {
   id: string;
@@ -35,13 +38,14 @@ export class AgencyPlanPaymentReconciliationService {
     options?: { batchSize?: number },
   ): Promise<AgencyPlanPaymentReconciliationResult> {
     const batchSize = normalizeBatchSize(options?.batchSize);
+    const reconciliationCutoff = new Date(now.getTime() - PAYMENT_WEBHOOK_GRACE_MS);
     const candidates = await this.dataSource
       .getRepository(AgencyPlanCheckoutAttempt)
       .find({
         select: { id: true, quoteId: true },
         where: {
           status: In(Array.from(OPEN_ATTEMPT_STATUSES)),
-          expiresAt: LessThanOrEqual(now),
+          expiresAt: LessThanOrEqual(reconciliationCutoff),
         },
         order: { expiresAt: 'ASC', id: 'ASC' },
         take: batchSize,
@@ -91,7 +95,7 @@ export class AgencyPlanPaymentReconciliationService {
       if (
         !attempt ||
         !OPEN_ATTEMPT_STATUSES.has(attempt.status) ||
-        attempt.expiresAt.getTime() > now.getTime()
+        attempt.expiresAt.getTime() > now.getTime() - PAYMENT_WEBHOOK_GRACE_MS
       ) {
         return { attemptExpired: false, quoteReleased: false };
       }
