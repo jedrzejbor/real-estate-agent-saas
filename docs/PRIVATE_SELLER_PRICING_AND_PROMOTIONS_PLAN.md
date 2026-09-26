@@ -3198,18 +3198,24 @@ płatności. Ręczne wywołanie endpointu poniżej pozostaje narzędziem diagnos
 
 ## 19. Kolejne kroki — domknięcie V1 i kontrolowany rollout
 
-Poniższa lista zbiera otwarte prace z Etapu 0, Etapu 9 i sprintu 18. Najpierw
-usuwamy ryzyko przypadkowego włączenia funkcji, potem domykamy warunki
-uruchomienia i sprawdzamy rzeczywiste płatności. Promocje planów agentów są
+Poniższa lista zbiera otwarte prace z Etapu 0, Etapu 9 i sprintu 18. Lokalnie
+testujemy nową płatną ścieżkę, potem domykamy warunki publicznego uruchomienia
+i sprawdzamy rzeczywiste płatności. Promocje planów agentów są
 osobnym strumieniem i nie blokują testów ogłoszeń prywatnych.
 
 ### 19.1 Domyślne flagi prywatnej sprzedaży w lokalnym Compose
 
-- [x] Ustawić domyślnie `false` dla flag prywatnego cennika, checkoutu,
-  wyróżnień i promocji w `docker-compose.yml`, zgodnie z wartościami
-  `ReleaseFlagsService`.
-- [x] Zweryfikować wynik `docker compose config`: bez nadpisania wszystkie
-  cztery flagi są wyłączone, a jawna wartość `true` włącza wybraną flagę.
+- [x] Ustawić domyślnie `true` dla flag prywatnego cennika, checkoutu,
+  wyróżnień i promocji w lokalnym `docker-compose.yml`, aby testy korzystały
+  z aktualnej płatnej ścieżki zamiast starej darmowej publikacji.
+- [x] Zweryfikować po zmianie wynik `docker compose config`: bez nadpisania
+  wszystkie cztery flagi są włączone, a jawna wartość `false` wyłącza wybraną
+  flagę.
+- [x] Odtworzyć lokalny kontener API i potwierdzić w jego środowisku cztery
+  wartości `true`.
+- [x] Po odtworzeniu usunąć cykliczny import `PlanCatalog` przez barrel
+  `../plans` w `UsersModule` i `AgencyPlanService`; API uruchamia się i
+  `GET /api/listing-products` odpowiada `200`.
 - [x] Sprawdzić konfigurację rolloutową w repo i możliwość kierowania funkcji
   do kont testowych. Wynik audytu poniżej; stan zmiennych ustawionych w panelu
   dostawcy wymaga osobnej weryfikacji przed uruchomieniem.
@@ -3233,24 +3239,28 @@ Jeśli wymagany będzie test tylko na wybranych kontach we wspólnej instancji,
 potrzebny jest osobny mechanizm kohortowy po stronie backendu i odpowiednie
 filtrowanie odczytu flag na froncie; obecny kod tego nie zapewnia.
 
-**Znaczenie flag `false`:** lokalny start nie udostępnia nowego katalogu
-produktów prywatnych ani płatnego checkoutu. Nie oznacza to wyłączenia
+**Znaczenie flag `false`:** wyłączenie flag cennika i checkoutu usuwa nowy
+katalog produktów prywatnych oraz płatną wycenę. Nie oznacza to wyłączenia
 istniejącego dodawania ogłoszeń. Gdy `PRIVATE_LISTING_CHECKOUT_ENABLED=false`,
 `PublicListingSubmissionsService` zachowuje starszą ścieżkę: automatycznie
 zaakceptowane zgłoszenie może zostać opublikowane po przejęciu, akceptacja
 admina może opublikować ofertę, a właściciel może użyć starego odnowienia bez
 zakupu. Po włączeniu checkoutu te ścieżki kierują do płatnej publikacji i
 blokują stare odnowienie. Jest to więc przełącznik między dwoma modelami
-sprzedaży, a nie blokada całego procesu publikacji. Przed publicznym rolloutem
-trzeba świadomie zdecydować, czy starszy darmowy model ma nadal działać.
+sprzedaży, a nie blokada całego procesu publikacji. Decyzja produktowa:
+nowe prywatne ogłoszenia mają być publikowane wyłącznie po zakupie albo
+jawnym grancie administratora; stara darmowa ścieżka nie jest docelowym
+zachowaniem.
 
-- [ ] Przed publicznym wdrożeniem ustalić politykę dla starszej darmowej
-  ścieżki. Jeśli ma zostać zamknięta, oddzielić bramkę płatnej publikacji od
-  flagi dostępności checkoutu i dodać test, że wyłączenie checkoutu nie
-  publikuje nowej prywatnej oferty za darmo.
+- [ ] Przed publicznym wdrożeniem oddzielić wymóg płatnej publikacji od flagi
+  dostępności checkoutu i zamknąć starszą darmową ścieżkę. Dodać test, że
+  wyłączenie checkoutu nie publikuje nowej prywatnej oferty za darmo.
 
-**Odbiór:** świeży start lokalnego Compose nie udostępnia prywatnego checkoutu
-ani promocji. Świadome ustawienie zmiennej środowiskowej nadal działa.
+**Odbiór:** świeży start lokalnego Compose udostępnia płatny checkout oraz
+pozostałe funkcje V1. Świadome ustawienie zmiennej środowiskowej nadal działa.
+`.env.example` pozostaje wzorcem dla konfiguracji dostawcy z flagami `false`;
+nie opisuje lokalnych wartości Compose. Włączenie płatności poza lokalnym
+środowiskiem wymaga osobnej konfiguracji Stripe i zamknięcia punktu 19.2.
 
 ### 19.2 Decyzje księgowo-prawne przed publiczną płatnością
 

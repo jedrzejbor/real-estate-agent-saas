@@ -6,7 +6,7 @@ import { Listing } from '../listings/entities/listing.entity';
 import { Client } from '../clients/entities/client.entity';
 import { Appointment } from '../appointments/entities/appointment.entity';
 import { MonitoringModule } from '../monitoring';
-import { PlanCatalog } from '../plans';
+import { PlanCatalog } from '../plans/entities/plan-catalog.entity';
 import { AgencyLimitDowngradeEnforcementService } from './agency-limit-downgrade-enforcement.service';
 import { AgencyLimitDowngradeEnforcementScheduler } from './agency-limit-downgrade-enforcement.scheduler';
 import { AgencyLimitEnforcementService } from './agency-limit-enforcement.service';
