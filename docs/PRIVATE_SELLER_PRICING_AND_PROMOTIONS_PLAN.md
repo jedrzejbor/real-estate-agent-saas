@@ -3203,7 +3203,7 @@ usuwamy ryzyko przypadkowego włączenia funkcji, potem domykamy warunki
 uruchomienia i sprawdzamy rzeczywiste płatności. Promocje planów agentów są
 osobnym strumieniem i nie blokują testów ogłoszeń prywatnych.
 
-### 19.1 Bezpieczne domyślne flagi w lokalnym Compose
+### 19.1 Domyślne flagi prywatnej sprzedaży w lokalnym Compose
 
 - [x] Ustawić domyślnie `false` dla flag prywatnego cennika, checkoutu,
   wyróżnień i promocji w `docker-compose.yml`, zgodnie z wartościami
@@ -3233,16 +3233,95 @@ Jeśli wymagany będzie test tylko na wybranych kontach we wspólnej instancji,
 potrzebny jest osobny mechanizm kohortowy po stronie backendu i odpowiednie
 filtrowanie odczytu flag na froncie; obecny kod tego nie zapewnia.
 
+**Znaczenie flag `false`:** lokalny start nie udostępnia nowego katalogu
+produktów prywatnych ani płatnego checkoutu. Nie oznacza to wyłączenia
+istniejącego dodawania ogłoszeń. Gdy `PRIVATE_LISTING_CHECKOUT_ENABLED=false`,
+`PublicListingSubmissionsService` zachowuje starszą ścieżkę: automatycznie
+zaakceptowane zgłoszenie może zostać opublikowane po przejęciu, akceptacja
+admina może opublikować ofertę, a właściciel może użyć starego odnowienia bez
+zakupu. Po włączeniu checkoutu te ścieżki kierują do płatnej publikacji i
+blokują stare odnowienie. Jest to więc przełącznik między dwoma modelami
+sprzedaży, a nie blokada całego procesu publikacji. Przed publicznym rolloutem
+trzeba świadomie zdecydować, czy starszy darmowy model ma nadal działać.
+
+- [ ] Przed publicznym wdrożeniem ustalić politykę dla starszej darmowej
+  ścieżki. Jeśli ma zostać zamknięta, oddzielić bramkę płatnej publikacji od
+  flagi dostępności checkoutu i dodać test, że wyłączenie checkoutu nie
+  publikuje nowej prywatnej oferty za darmo.
+
 **Odbiór:** świeży start lokalnego Compose nie udostępnia prywatnego checkoutu
 ani promocji. Świadome ustawienie zmiennej środowiskowej nadal działa.
 
 ### 19.2 Decyzje księgowo-prawne przed publiczną płatnością
 
-- [ ] Przekazać do księgowości i prawnika pytania z punktu 14.0.7.
+- [x] Przygotować poniższy pakiet pytań i luk implementacyjnych do weryfikacji.
+- [ ] Przekazać pakiet do księgowości i prawnika oraz zapisać ich odpowiedzi z
+  datą i osobą zatwierdzającą. Pakiet nie został jeszcze wysłany.
 - [ ] Zatwierdzić stawkę VAT, dane nabywcy, sposób wystawiania dokumentów,
   regulamin, zgody, odstąpienie i pełne/częściowe zwroty.
 - [ ] Przełożyć decyzje na finalne teksty checkoutu i dokumenty oraz ustalić
   wpływ refundu na trwającą publikację i wyróżnienie; dodać testy tej reguły.
+
+#### Pakiet do opinii księgowo-prawnej
+
+**Model usługi do oceny:** jednorazowa publikacja zaakceptowanego ogłoszenia na
+60 dni, odnowienie o 60 dni i wyróżnienie na 7 dni. Cena jest pokazywana jako
+brutto; płatność następuje po moderacji, a publikacja lub dodatek aktywuje się
+po potwierdzonej płatności. Zamówienie o wartości 0 zł aktywuje usługę bez
+operatora płatności. Dane cenowe i VAT są zapisywane w snapshotcie zamówienia.
+
+**Stan kodu istotny dla opinii:**
+
+- `listing_product_catalog.vat_rate_basis_points` i snapshot VAT w zamówieniu
+  dopuszczają `null`; system nie ma zatwierdzonej stawki dla tych usług.
+- DTO zamówienia przyjmuje kraj, typ nabywcy, opcjonalne imię i nazwisko oraz
+  dane firmy; obecny ekran sprzedającego wysyła zawsze `countryCode: PL` i
+  `buyerType: consumer`, bez formularza zakupu na firmę lub adresu rozliczenia.
+- `seller-listing-checkout-panel.tsx` tworzy zamówienie po kliknięciu
+  `Zamawiam i płacę`; nie pokazuje osobnych zgód ani nie zapisuje wersji
+  zaakceptowanego regulaminu w zamówieniu.
+- `/regulamin` sam określa się jako wersja robocza MVP; nie zawiera pełnych
+  zasad odpłatnej publikacji, odstąpienia i zwrotów.
+- Statusy `partially_refunded` / `refunded` i `refunded_at` istnieją w modelu,
+  ale w module `listing-commerce` nie ma procesu inicjowania refundu,
+  rozliczenia jego kwoty ani reguły cofnięcia lub skrócenia entitlementu.
+- Stripe Checkout przyjmuje jedną kwotę brutto zamówienia. W tym module nie
+  ma wystawiania dokumentu sprzedaży ani jego udostępnienia sprzedającemu;
+  moduł `listing-documents` dotyczy dokumentów nieruchomości.
+
+**Pytania do księgowości:**
+
+1. Jaka stawka VAT i sposób wykazania kwoty netto/VAT dotyczą każdego z
+   produktów: publikacji, odnowienia i wyróżnienia? Jak traktować zamówienie
+   za 0 zł wynikające z promocji lub grantu?
+2. Jakie dokumenty wystawiać konsumentowi i firmie, przez jaki system i w
+   jakim momencie? Czy operator płatności dostarcza tylko potwierdzenie
+   płatności, czy także dokument spełniający przyjęty proces księgowy?
+3. Jakie pola nabywcy są obowiązkowe dla obu typów zakupu, jak walidować NIP
+   i adres oraz jak długo przechowywać snapshot zamówienia i dokumenty?
+4. Jak dokumentować pełny i częściowy zwrot oraz korekty po rozpoczęciu
+   świadczenia? Jak powiązać kwotę zwrotu z pozycjami zamówienia i VAT?
+
+**Pytania do prawnika:**
+
+1. Jak opisać zawarcie umowy, początek i koniec świadczenia dla publikacji,
+   odnowienia i wyróżnienia, w tym publikacji po moderacji i nadania gratis?
+2. Jaka treść regulaminu, informacji przed zakupem oraz zgód lub oświadczeń
+   jest wymagana przed utworzeniem zamówienia i przed natychmiastowym
+   rozpoczęciem świadczenia? Które oświadczenia trzeba zapisać z wersją
+   dokumentu, czasem i identyfikatorem użytkownika?
+3. Jakie scenariusze odstąpienia, reklamacji i zwrotu należy obsłużyć przed
+   aktywacją, podczas trwania usługi i po jej zakończeniu? Jaki powinien być
+   wpływ pełnego lub częściowego zwrotu na aktywną publikację/wyróżnienie?
+4. Jakie są zasady postępowania po odrzuceniu oferty, usunięciu jej przez
+   serwis, wycofaniu przez właściciela oraz technicznym braku publikacji po
+   pobraniu płatności? Jakie terminy i komunikaty pokazać użytkownikowi?
+
+**Wynik oczekiwany od opinii:** zatwierdzona tabela decyzji dla każdego
+produktu i typu nabywcy, teksty dokumentów i zgód z numerem wersji, proces
+wystawiania oraz korekty dokumentów, macierz zwrotów z wpływem na entitlement
+oraz lista danych do przechowywania. Dopiero na tej podstawie należy zamknąć
+DTO, formularz B2B, zapis zgód, dokumenty i refundy w kodzie.
 
 **Odbiór:** decyzje są zapisane, teksty i konfiguracja są z nimi zgodne, a
 scenariusze zwrotów mają jednoznaczny wynik. Do tego czasu publiczny checkout
