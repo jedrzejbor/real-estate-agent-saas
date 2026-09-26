@@ -1,6 +1,7 @@
 import { PlanCatalog } from './entities';
 import { PlansService } from './plans.service';
 import { AgencyPlanBillingInterval } from '../agency-plan-commerce';
+import { AgencyPlan } from '../common/enums';
 
 function buildPlan(overrides: Partial<PlanCatalog> = {}): PlanCatalog {
   return {
@@ -111,5 +112,64 @@ describe('PlansService', () => {
       },
       yearly: null,
     });
+  });
+
+  it('shows a targeted promotion only on the matching plan and billing interval', async () => {
+    const repo = {
+      find: jest.fn().mockResolvedValue([
+        buildPlan({
+          code: AgencyPlan.FREE,
+          label: 'Free',
+          priceMonthlyPln: 0,
+          priceYearlyPln: 0,
+        }),
+        buildPlan({ code: AgencyPlan.STARTER }),
+        buildPlan({
+          code: AgencyPlan.PROFESSIONAL,
+          label: 'Professional',
+          priceMonthlyPln: 24_900,
+        }),
+      ]),
+    };
+    const promotionsService = {
+      resolveAutomaticPreview: jest.fn(
+        ({ plan, billingInterval }: {
+          plan: PlanCatalog;
+          billingInterval: AgencyPlanBillingInterval;
+        }) => Promise.resolve(
+          plan.code === AgencyPlan.STARTER &&
+            billingInterval === AgencyPlanBillingInterval.MONTHLY
+            ? {
+                label: 'Starter na start',
+                discountGrossAmount: 4_950,
+                priceGrossAmount: 4_950,
+                durationBillingCycles: 2,
+                campaignId: 'campaign-starter-only',
+              }
+            : null,
+        ),
+      ),
+    };
+    const service = new PlansService(repo as never, promotionsService as never);
+
+    const plans = await service.findPublicPlans();
+
+    expect(plans.map((plan) => [plan.code, plan.promotionPreview])).toEqual([
+      [AgencyPlan.FREE, null],
+      [
+        AgencyPlan.STARTER,
+        {
+          monthly: {
+            label: 'Starter na start',
+            discountGrossAmount: 4_950,
+            priceGrossAmount: 4_950,
+            durationBillingCycles: 2,
+          },
+          yearly: null,
+        },
+      ],
+      [AgencyPlan.PROFESSIONAL, null],
+    ]);
+    expect(JSON.stringify(plans)).not.toContain('campaign-starter-only');
   });
 });

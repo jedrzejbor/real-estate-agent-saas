@@ -2380,12 +2380,12 @@ Proponowane encje:
   - etykietę promocji;
   - informację, czy promocja dotyczy miesięcznie/rocznie;
   - informację, ile okresów rozliczeniowych obejmuje promocja.
-- [ ] Rejestracja agenta i checkout planu korzystają z backendowej wyceny planu,
+- [x] Rejestracja agenta i checkout planu korzystają z backendowej wyceny planu,
   a nie z ceny policzonej na froncie.
-- [ ] Backend zapisuje snapshot ceny planu i rabatu użyty do checkoutu.
+- [x] Backend zapisuje snapshot ceny planu i rabatu użyty do checkoutu.
 - [ ] Quote rozróżnia promocję startową, kod na pierwszy okres i benefit dla
   istniejącej agencji.
-- [ ] Webhook subskrypcji potwierdza status billingowy, ale nie przelicza
+- [x] Webhook subskrypcji potwierdza status billingowy, ale nie przelicza
   rabatu od nowa.
 - [ ] Analityka rozróżnia promocje planów agentów od promocji ogłoszeń
   prywatnych.
@@ -3178,3 +3178,20 @@ płatności. Ręczne wywołanie endpointu poniżej pozostaje narzędziem diagnos
   domeny, względnej ścieżki i schematu `javascript:`.
 - Nadal otwarte: manualne E2E w Stripe Sandbox po skonfigurowaniu produktów,
   Price ID, webhooka i lokalnego środowiska.
+
+### 18.31 Status prac nad planami przed testem Stripe
+
+- Rdzeń V1 jest zaimplementowany: katalog planów, promocje i kody agentów,
+  quote snapshot, checkout attempt, webhook, rezerwacje i raport admina.
+- Dodano regresję `PlansService.findPublicPlans` dla trzech planów: promocja
+  przypisana do Starter monthly nie przenika do Free, Professional ani Starter
+  yearly. Testy domenowe osobno sprawdzają reguły docelowego planu i okresu.
+- Nadal do wykonania bez Stripe: analityka rozróżniająca promocje planów od
+  promocji ogłoszeń oraz dalsze testy graniczne z punktu 18.7, zwłaszcza
+  izolacja kodów między modułami i współbieżne limity w prawdziwej bazie.
+- Do wykonania po konfiguracji Stripe: pełne HTTP/UI E2E z opłaceniem,
+  anulowaniem i opóźnionym webhookiem. Testy jednostkowe nie zastępują tego
+  przebiegu.
+- Benefity dla istniejących klientów (`next_invoice` / `future_invoices`)
+  mają model danych, ale nie aktywny flow billingowy. Wdrożenie wymaga osobnej
+  decyzji o zakresie V1 i sposobie przypisania benefitu do agencji.
