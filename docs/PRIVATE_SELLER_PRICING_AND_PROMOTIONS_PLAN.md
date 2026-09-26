@@ -3195,3 +3195,96 @@ płatności. Ręczne wywołanie endpointu poniżej pozostaje narzędziem diagnos
 - Benefity dla istniejących klientów (`next_invoice` / `future_invoices`)
   mają model danych, ale nie aktywny flow billingowy. Wdrożenie wymaga osobnej
   decyzji o zakresie V1 i sposobie przypisania benefitu do agencji.
+
+## 19. Kolejne kroki — domknięcie V1 i kontrolowany rollout
+
+Poniższa lista zbiera otwarte prace z Etapu 0, Etapu 9 i sprintu 18. Najpierw
+usuwamy ryzyko przypadkowego włączenia funkcji, potem domykamy warunki
+uruchomienia i sprawdzamy rzeczywiste płatności. Promocje planów agentów są
+osobnym strumieniem i nie blokują testów ogłoszeń prywatnych.
+
+### 19.1 Bezpieczne domyślne flagi w lokalnym Compose
+
+- [x] Ustawić domyślnie `false` dla flag prywatnego cennika, checkoutu,
+  wyróżnień i promocji w `docker-compose.yml`, zgodnie z wartościami
+  `ReleaseFlagsService`.
+- [x] Zweryfikować wynik `docker compose config`: bez nadpisania wszystkie
+  cztery flagi są wyłączone, a jawna wartość `true` włącza wybraną flagę.
+- [x] Sprawdzić konfigurację rolloutową w repo i możliwość kierowania funkcji
+  do kont testowych. Wynik audytu poniżej; stan zmiennych ustawionych w panelu
+  dostawcy wymaga osobnej weryfikacji przed uruchomieniem.
+- [x] Ujednolicić `.env.example` z bezpiecznymi wartościami domyślnymi:
+  wszystkie cztery flagi prywatnej sprzedaży są wyłączone.
+
+**Wynik audytu:** `ReleaseFlagsService` czyta flagi z konfiguracji procesu API,
+bez identyfikatora użytkownika. `docker-compose.yml` dotyczy lokalnego
+uruchomienia; staging używa zmiennych ustawianych w panelu dostawcy backendu,
+a workflow `.github/workflows/deploy.yml` wyzwala deploy bez zarządzania tymi
+flagami. Repo nie zawiera osobnej konfiguracji flag dla kont testowych. Opis
+wdrożenia w `DEPLOYMENT.md` zakłada środowisko staging/test i późniejszą
+produkcję z osobnymi zasobami, ale konfiguracji działającego dostawcy nie da
+się potwierdzić z samego repo. Workflow Vercel używa `--prod`, więc adres i
+projekt frontendowy trzeba zweryfikować przed testem rolloutowym.
+
+**Sposób testowania V1:** włączyć funkcje wyłącznie na osobnej instancji API,
+bazie i froncie staging/test, dostępnych dla zespołu testowego. Nie włączać
+globalnej flagi checkoutu na instancji obsługującej użytkowników produkcyjnych.
+Jeśli wymagany będzie test tylko na wybranych kontach we wspólnej instancji,
+potrzebny jest osobny mechanizm kohortowy po stronie backendu i odpowiednie
+filtrowanie odczytu flag na froncie; obecny kod tego nie zapewnia.
+
+**Odbiór:** świeży start lokalnego Compose nie udostępnia prywatnego checkoutu
+ani promocji. Świadome ustawienie zmiennej środowiskowej nadal działa.
+
+### 19.2 Decyzje księgowo-prawne przed publiczną płatnością
+
+- [ ] Przekazać do księgowości i prawnika pytania z punktu 14.0.7.
+- [ ] Zatwierdzić stawkę VAT, dane nabywcy, sposób wystawiania dokumentów,
+  regulamin, zgody, odstąpienie i pełne/częściowe zwroty.
+- [ ] Przełożyć decyzje na finalne teksty checkoutu i dokumenty oraz ustalić
+  wpływ refundu na trwającą publikację i wyróżnienie; dodać testy tej reguły.
+
+**Odbiór:** decyzje są zapisane, teksty i konfiguracja są z nimi zgodne, a
+scenariusze zwrotów mają jednoznaczny wynik. Do tego czasu publiczny checkout
+pozostaje wyłączony.
+
+### 19.3 QA płatności prywatnych w Stripe Sandbox
+
+- [ ] Przejść od quote i order przez Stripe Checkout, podpisany webhook,
+  entitlement do publikacji; sprawdzić stan w bazie i panelu sprzedającego.
+- [ ] Sprawdzić anulowanie, błąd, porzucenie sesji, ponowienie i opóźniony lub
+  powtórzony webhook: bez przedwczesnej publikacji i podwójnego przedłużenia.
+- [ ] Sprawdzić kod aktywny, wygasły, ponad limit i poza zakresem produktu oraz
+  zachowanie snapshotu po zmianie ceny lub kampanii.
+- [ ] Sprawdzić wygaśnięcie produktów i joby na granicach UTC/Europe/Warsaw.
+
+**Odbiór:** wszystkie ścieżki z punktu 9.6 mają zapisany wynik i dowód stanu
+zamówienia, entitlementu oraz webhooka; krytyczne błędy są widoczne w
+monitoringu.
+
+### 19.4 Testy i analityka promocji planów agentów
+
+- [ ] Dodać rozróżnienie promocji abonamentów i ogłoszeń w analityce, bez
+  zapisywania treści kodów.
+- [ ] Domknąć testy z punktu 18.7: izolacja kodów między modułami, snapshot,
+  granice czasu i równoległe limity na prawdziwym PostgreSQL.
+- [ ] Wykonać HTTP/UI E2E planu agenta w Stripe Sandbox: sukces, anulowanie,
+  opóźniony webhook oraz promocja automatyczna, kod i brak rabatu.
+- [ ] Osobno zdecydować, czy V1 obejmuje `next_invoice` / `future_invoices`
+  dla istniejących agencji; dopiero potem implementować ten flow i jego testy.
+
+**Odbiór:** raporty oddzielają oba rodzaje promocji, a testy potwierdzają
+izolację i limity również poza fake repozytorium.
+
+### 19.5 Rollout i ocena oferty
+
+- [ ] Wybrać sposób ograniczenia dostępu do kont testowych lub osobnego
+  środowiska; nie traktować globalnej flagi jako mechanizmu wyboru kont.
+- [ ] Włączać kolejno: cennik → płatna publikacja → odnowienia → wyróżnienia →
+  promocje i kody. Po każdym kroku sprawdzić monitoring, konwersję i
+  reconciliation przed następnym.
+- [ ] Po 30 dniach ocenić ceny, wykorzystanie wyróżnienia i potrzebę drugiego
+  poziomu wyróżnienia.
+
+**Odbiór:** każda funkcja ma odwracalny przełącznik, wyniki testów i
+monitoringu są zaakceptowane, a decyzja o cenach wynika z danych.
