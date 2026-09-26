@@ -4,6 +4,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "db:migrate:local": "for migration_file in apps/api/migrations/*.sql; do echo Applying $migration_file; docker compose exec -T db psql -U postgres -d real_estate_saas -v ON_ERROR_STOP=1 < $migration_file; done",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""

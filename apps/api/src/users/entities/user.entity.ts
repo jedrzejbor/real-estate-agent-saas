@@ -8,7 +8,7 @@ import {
   Index,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
-import { UserRole } from '../../common/enums';
+import { AdminPermission, UserRole } from '../../common/enums';
 import { Agent } from './agent.entity';
 
 @Entity('users')
@@ -44,6 +44,14 @@ export class User {
 
   @Column({ type: 'enum', enum: UserRole, default: UserRole.AGENT })
   role: UserRole;
+
+  @Column({
+    type: 'text',
+    array: true,
+    name: 'admin_permissions',
+    nullable: true,
+  })
+  adminPermissions?: AdminPermission[] | null;
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;

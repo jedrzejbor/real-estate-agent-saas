@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AgencyPlan, SubscriptionStatus } from '../common/enums';
-import { PlanCatalog } from '../plans';
+import { PlanCatalog } from '../plans/entities/plan-catalog.entity';
 import { Agency } from './entities';
 import {
   AgencyEntitlements,

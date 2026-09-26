@@ -1,0 +1,3379 @@
+# Cennik klientów indywidualnych, wyróżnienia i promocje
+
+> Status: decyzje produktowe Etapu 0 zaakceptowane; kwestie księgowo-prawne
+> pozostają warunkiem publicznego uruchomienia
+> Data utworzenia: 2026-09-04
+> Ostatnia aktualizacja: 2026-09-15
+> Zakres: strona główna, pełny cennik, ścieżka prywatnego sprzedającego,
+> płatności oraz zarządzanie ofertą handlową w panelu administratora
+
+## 1. Cel
+
+Rozbudować obecny cennik abonamentów dla agentów i biur o osobną ofertę dla
+osób prywatnych, które chcą opublikować i promować pojedyncze ogłoszenie.
+
+Rozwiązanie powinno:
+
+- jasno rozdzielać abonament dla profesjonalistów od jednorazowej płatności za
+  ogłoszenie prywatne;
+- pozwalać użytkownikowi szybko poznać cenę całkowitą i czas publikacji;
+- prowadzić bezpośrednio do dodania ogłoszenia albo rejestracji agenta;
+- pozwalać administratorowi zmieniać ceny i widoczność produktów bez deployu;
+- obsługiwać płatne wyróżnienia, odnowienia, promocje automatyczne, ręczne
+  rabaty na konkretne ogłoszenie i kody promocyjne;
+- zachowywać historię ceny, rabatów, płatności i ręcznych działań admina.
+
+## 2. Stan obecny i punkty integracji
+
+W projekcie istnieją już elementy, które należy rozszerzyć:
+
+- sekcja cennika na stronie głównej:
+  `apps/web/src/components/marketing/home-pricing-section.tsx`;
+- pełna strona `/cennik`:
+  `apps/web/src/app/(marketing)/cennik/page.tsx`;
+- publiczny katalog abonamentów `GET /api/plans` oparty o `plan_catalog`;
+- edycja planów agentów w `/dashboard/admin/plans`;
+- publiczny wizard `/dodaj-oferte`, moderacja zgłoszeń i panel `/seller`;
+- pola `publishedAt`, `expiresAt` i `isPremium` w encji `Listing`;
+- istniejąca obsługa zdarzeń subskrypcji w module `billing`.
+
+`plan_catalog` pozostaje źródłem prawdy wyłącznie dla abonamentów agentów i
+biur. Produkty dla sprzedających prywatnie są jednorazowe i wymagają osobnego
+katalogu, zamówień oraz uprawnień przypisanych do ogłoszenia.
+
+## 3. Proponowana oferta startowa
+
+Na start rekomendowany jest jeden prosty wariant publikacji oraz dodatki. Nie
+tworzymy trzech sztucznie różniących się pakietów ogłoszenia, dopóki dane nie
+potwierdzą takiej potrzeby.
+
+| Produkt | Cena startowa brutto | Okres | Zastosowanie |
+|---|---:|---:|---|
+| Publikacja ogłoszenia | 49 zł | 60 dni | pierwsza publikacja zaakceptowanej oferty |
+| Odnowienie | 39 zł | +60 dni | przedłużenie tej samej oferty |
+| Wyróżnienie | 19 zł | 7 dni | mocniejsze oznaczenie i wyższa pozycja w katalogu |
+| Wyróżnienie Plus | 29 zł | 14 dni | dłuższe wyróżnienie i wyższy priorytet niż wariant 7-dniowy |
+
+Ceny są hipotezą produktową, nie wartościami zaszytymi w kodzie. Administrator
+może je zmienić, ukryć produkt albo zaplanować cenę promocyjną. Wszystkie ceny
+dla konsumenta pokazujemy jako brutto z dopiskiem „z VAT”.
+
+### Zasada zarządzania cenami
+
+Ceny publikacji, odnowień i wyróżnień muszą być zarządzane przez administratora
+z panelu, analogicznie do istniejącego zarządzania cenami pakietów agentów.
+
+- frontend nie zawiera cen awaryjnych ani hardcodowanych wartości handlowych;
+- strona główna, `/cennik`, panel sprzedającego i checkout czytają ten sam
+  katalog produktów z backendu;
+- administrator może zmienić cenę, okres działania, widoczność i kolejność
+  produktu bez deployu;
+- zmiana ceny dotyczy wyłącznie nowych wycen i zamówień;
+- rozpoczęte zamówienie zachowuje snapshot ceny przez czas ważności wyceny;
+- historyczne zamówienia i dokumenty nigdy nie są przeliczane po zmianie ceny;
+- brak lub błąd katalogu blokuje zakup zamiast podstawiać wartość z frontendu.
+
+### Poza pierwszym wydaniem
+
+- pakiety 3 lub więcej ogłoszeń dla inwestorów;
+- automatyczne podbijanie co kilka dni;
+- promocja zależna od miasta lub kategorii;
+- dodatkowy limit zdjęć;
+- reklama na portalach zewnętrznych;
+- abonament dla prywatnego inwestora.
+
+## 4. Prezentacja cennika na stronie głównej
+
+### 4.1 Przełącznik odbiorcy
+
+Nad kartami cenowymi dodajemy główny przełącznik:
+
+`Sprzedaję prywatnie` | `Jestem agentem lub prowadzę biuro`
+
+Domyślnie pokazujemy `Sprzedaję prywatnie`, ponieważ wejście ze strony głównej
+ma odpowiadać na najprostszy zamiar konsumencki. Wybór można zapamiętać w URL:
+
+- `/?dla=prywatnych#pricing`;
+- `/?dla=agentow#pricing`;
+- `/cennik?dla=prywatnych`;
+- `/cennik?dla=agentow`.
+
+Parametr URL pozwala prowadzić kampanie do właściwego wariantu i nie wymaga
+local storage. Link „Cennik” w nawigacji może domyślnie prowadzić do wariantu
+prywatnego, a CTA kierowane do agentów powinny dodawać `dla=agentow`.
+
+Nie łączymy przełącznika odbiorcy z obecnym przełącznikiem miesięcznie/rocznie.
+Po wybraniu osoby prywatnej kontrolka okresu abonamentu znika. Po wybraniu
+agenta pojawia się obecny wybór `Miesięcznie | Rocznie`.
+
+### 4.2 Widok dla osoby prywatnej
+
+Na stronie głównej pokazujemy:
+
+1. Jedną główną kartę „Opublikuj ogłoszenie na 60 dni” z ceną 49 zł brutto.
+2. Krótką listę korzyści: publiczna strona oferty, galeria zdjęć, zapytania od
+   zainteresowanych, panel do zarządzania oraz możliwość współpracy z agentem.
+3. CTA `Dodaj ogłoszenie`, prowadzące do `/dodaj-oferte`.
+4. Obok lub poniżej kompaktowy blok „Zwiększ widoczność” z cenami wyróżnień i
+   informacją, że dodatki można wybrać po zaakceptowaniu ogłoszenia.
+5. Link `Zobacz pełny cennik i zasady` do `/cennik?dla=prywatnych`.
+
+Nie pokazujemy kodu promocyjnego na stronie głównej. Pole na kod pojawia się w
+podsumowaniu zamówienia, gdzie użytkownik natychmiast widzi wynik przeliczenia.
+
+### 4.3 Widok dla agenta
+
+Zachowujemy obecne karty planów pobierane z `GET /api/plans`, wybór okresu
+rozliczenia oraz CTA do rejestracji. Zmieniamy tylko nagłówek sekcji tak, aby
+pasował do obu grup, np.:
+
+- tytuł: `Prosty cennik, niezależnie jak sprzedajesz`;
+- opis: `Opublikuj pojedyncze ogłoszenie lub wybierz narzędzia dla agenta i biura.`
+
+### 4.4 Mobile i dostępność
+
+- przełącznik ma być dwoma prawdziwymi przyciskami z `aria-pressed` albo
+  kontrolką zgodną z patternem tabs;
+- aktywny wybór nie może być komunikowany wyłącznie kolorem;
+- na mobile najpierw cena i CTA, potem korzyści i dodatki;
+- zmiana wariantu nie może przesuwać użytkownika na początek strony;
+- ładowanie i błąd katalogu prywatnego obsługujemy niezależnie od katalogu
+  agentów;
+- treść cennika musi być czytelna bez logowania.
+
+## 5. Pełna strona `/cennik`
+
+Pełny cennik używa tego samego przełącznika odbiorcy i tego samego źródła
+danych co sekcja na stronie głównej.
+
+Dla osób prywatnych strona zawiera:
+
+- cenę publikacji i okres ważności;
+- porównanie publikacji podstawowej oraz dodatków;
+- kolejność procesu: dodanie → weryfikacja → akceptacja → płatność → publikacja;
+- informację, kiedy naliczana jest opłata i co dzieje się po wygaśnięciu;
+- zasady łączenia promocji i użycia kodów;
+- FAQ dotyczące moderacji, faktury/paragonu, zwrotu, odnowienia oraz odrzucenia
+  ogłoszenia;
+- CTA `Dodaj ogłoszenie`.
+
+Cena na stronie marketingowej nigdy nie jest przekazywana jako cena wiążąca do
+checkoutu. Checkout pobiera aktualną ofertę z backendu i tworzy niezmienny
+snapshot zamówienia.
+
+## 6. Moment wyboru produktu i płatności
+
+Rekomendowany przepływ:
+
+1. Użytkownik tworzy ogłoszenie bez płatności.
+2. Potwierdza e-mail lub loguje się do konta sprzedającego.
+3. Ogłoszenie przechodzi walidację i moderację.
+4. Po akceptacji system ustawia status `awaiting_payment` i wysyła link.
+5. Użytkownik widzi podsumowanie publikacji, może dodać wyróżnienie i kod.
+6. Backend przelicza cenę oraz pokazuje cenę bazową, każdy rabat i kwotę do
+   zapłaty.
+7. Użytkownik płaci przez zewnętrznego operatora.
+8. Dopiero potwierdzony webhook aktywuje publikację i zakupione wyróżnienia.
+9. Użytkownik widzi potwierdzenie, dokument sprzedaży i daty wygaśnięcia.
+
+Nie pobieramy płatności przed moderacją. Ogranicza to liczbę refundów za oferty,
+których nie można opublikować.
+
+### Odnowienie i wyróżnienie istniejącej oferty
+
+- odnowienie można kupić z poziomu `/seller/listings/:id`;
+- wyróżnienie można kupić dla aktywnej oferty;
+- okres wyróżnienia zaczyna się dopiero po potwierdzeniu płatności;
+- ponowny zakup wyróżnienia przed końcem powinien przedłużać okres zgodnie z
+  regułą produktu, a nie skracać istniejącego okresu;
+- wygasłej oferty nie wyróżniamy bez jednoczesnego odnowienia;
+- administrator może przyznać publikację lub wyróżnienie bez płatności, ale
+  system zapisuje powód i autora operacji.
+
+## 7. Model domenowy i baza danych
+
+Nazwy są robocze, ale rozdział odpowiedzialności powinien zostać zachowany.
+
+### 7.1 `listing_product_catalog`
+
+Katalog jednorazowych produktów dla osób prywatnych:
+
+- `id`, `code`, `name`, `description`;
+- `type`: `publication`, `renewal`, `featured`;
+- `price_gross_amount` w groszach i `currency` (`PLN`);
+- `vat_rate`;
+- `publication_days` lub `benefit_days`;
+- `featured_tier` / `priority_weight` dla wyróżnień;
+- `is_public`, `is_active`, `sort_order`;
+- identyfikator ceny u operatora płatności, jeśli będzie wymagany;
+- `created_at`, `updated_at`, opcjonalnie `archived_at`.
+
+Kod produktu po pierwszym użyciu jest stabilny. Produkt wykorzystany w
+zamówieniu można archiwizować, ale nie usuwać.
+
+### 7.2 `listing_orders` i `listing_order_items`
+
+Zamówienie przypisane do użytkownika i konkretnego ogłoszenia:
+
+- numer zamówienia, `listing_id`, `buyer_user_id`;
+- status: `draft`, `pending_payment`, `paid`, `failed`, `cancelled`, `refunded`;
+- wartości brutto: bazowa, rabat, końcowa;
+- waluta, dane nabywcy oraz wymagane zgody;
+- identyfikatory sesji i płatności operatora;
+- czas utworzenia, opłacenia, anulowania i zwrotu;
+- pozycje ze snapshotem: kod, nazwa, cena, VAT, okres i parametry produktu;
+- osobne pozycje rabatowe lub czytelne rozbicie użytych rabatów.
+
+Zamówienie musi być idempotentne: wielokrotny webhook nie może drugi raz
+opublikować ani przedłużyć ogłoszenia.
+
+### 7.3 `listing_entitlements`
+
+Uprawnienia wynikające z płatności albo nadania administracyjnego:
+
+- `listing_id`, `type`, `tier`;
+- `starts_at`, `ends_at`, `status`;
+- `order_item_id` lub `admin_grant_id` jako źródło;
+- parametry/snapshot działania dodatku;
+- `created_at`, `revoked_at`.
+
+To jest źródło prawdy dla wyróżnienia. Obecne `Listing.isPremium` może w okresie
+migracji być polem kompatybilności, ale docelowo widoczność należy wyliczać z
+aktywnego entitlementu. Indeks katalogu powinien uwzględniać aktywny tier,
+priorytet i datę, z uczciwą rotacją ofert w tym samym poziomie.
+
+### 7.4 `promotion_campaigns`
+
+Automatyczne promocje zarządzane przez administratora:
+
+- nazwa wewnętrzna i opcjonalna etykieta publiczna;
+- typ rabatu: procent, stała kwota albo produkt gratis;
+- wartość i maksymalny rabat dla promocji procentowej;
+- produkty objęte promocją;
+- zakres czasu i strefa `Europe/Warsaw` dla prezentacji, zapis czasu w UTC;
+- warunki, np. pierwszy zakup, nowe ogłoszenie, wybrana kategoria;
+- limit globalny i limit na użytkownika;
+- priorytet oraz `is_active`;
+- reguła łączenia: domyślnie brak łączenia z kodem.
+
+### 7.5 `promotion_codes` i `promotion_code_redemptions`
+
+Kod promocyjny zawiera:
+
+- znormalizowany unikalny kod, przechowywany bez rozróżniania wielkości liter;
+- typ i wartość rabatu;
+- datę aktywacji i wygaśnięcia;
+- produkty objęte kodem;
+- limit wszystkich użyć i limit użyć na użytkownika/e-mail;
+- opcjonalną minimalną wartość zamówienia;
+- status aktywny/wyłączony;
+- opcjonalne przypisanie do kampanii;
+- notatkę wewnętrzną i autora.
+
+Każde użycie zapisuje `code_id`, `order_id`, `user_id`, kwotę rabatu i czas.
+Limit jest rezerwowany atomowo podczas tworzenia płatności, a zwalniany po
+wygaśnięciu nieopłaconej sesji. Nigdy nie opieramy limitu na liczniku wysłanym
+przez frontend.
+
+### 7.6 `listing_admin_adjustments`
+
+Ręczna promocja na dane ogłoszenie:
+
+- `listing_id`, rodzaj: rabat, publikacja gratis, wyróżnienie gratis,
+  przedłużenie;
+- wartość lub liczba dni;
+- status i okres ważności;
+- obowiązkowy powód;
+- administrator, który utworzył/anulował zmianę;
+- powiązane zamówienie lub entitlement;
+- pełne timestampy.
+
+Ręczna zniżka musi być widoczna w checkout jako osobna pozycja. Nadanie gratis
+aktywuje entitlement przez dedykowaną akcję z potwierdzeniem, a nie przez
+ustawienie `isPremium = true`.
+
+## 8. Reguły naliczania ceny
+
+Backend jest jedynym źródłem wyniku kalkulacji. Zalecana kolejność:
+
+1. Pobierz aktywne produkty i ich aktualne ceny.
+2. Zweryfikuj, czy produkt pasuje do stanu oraz właściciela ogłoszenia.
+3. Zastosuj jedną najlepszą automatyczną kampanię, jeśli spełnia warunki.
+4. Jeżeli podano kod, domyślnie wybierz korzystniejszy z: kampania lub kod.
+5. Zastosuj ręczny rabat przypisany do ogłoszenia zgodnie z jego regułą.
+6. Ogranicz cenę końcową do minimum 0 zł.
+7. Utwórz snapshot kalkulacji i rezerwację kodu w transakcji bazodanowej.
+
+W V1 promocje nie sumują się, z wyjątkiem jawnie oznaczonej ręcznej korekty
+administratora. Interfejs ma wyjaśnić, dlaczego dany kod nie został połączony z
+inną promocją.
+
+Zmiana ceny katalogowej nie wpływa na opłacone zamówienia ani aktywne
+uprawnienia. Dla rozpoczętego checkoutu cena obowiązuje przez ograniczony czas,
+np. 30 minut; potem wymagane jest ponowne przeliczenie.
+
+## 9. API
+
+### Publiczne
+
+- `GET /api/listing-products` — aktywne produkty i aktualne publiczne promocje;
+- `POST /api/listing-checkout/quote` — serwerowa wycena koszyka i kodu;
+- `POST /api/listing-checkout/sessions` — utworzenie zamówienia i sesji płatności;
+- `GET /api/listing-orders/:id` — stan zamówienia dla właściciela;
+- webhook operatora płatności w istniejącym module `billing` lub wydzielonym
+  podmodule płatności jednorazowych.
+
+### Panel sprzedającego
+
+- lista dostępnych działań i aktywnych wyróżnień dla ogłoszenia;
+- historia zamówień i dokumentów;
+- ponowienie nieudanej płatności;
+- odnowienie i zakup dodatku.
+
+### Panel administratora
+
+- CRUD/archiwizacja produktów ogłoszeniowych;
+- CRUD kampanii i kodów;
+- lista użyć kodów;
+- podgląd i ewentualne anulowanie ręcznych korekt;
+- nadanie rabatu, darmowej publikacji, wyróżnienia lub dodatkowych dni dla
+  konkretnego ogłoszenia;
+- podgląd zamówień, płatności i zwrotów.
+
+Każdy endpoint admina wymaga roli `ADMIN`, walidacji DTO oraz wpisu do logu
+aktywności.
+
+## 10. Panel administratora
+
+W nawigacji admina dodajemy grupę `Sprzedaż`:
+
+### 10.1 `Produkty i ceny`
+
+- lista produktów z ceną brutto, czasem działania, statusem i kolejnością;
+- formularz edycji z podglądem karty takiej jak w publicznym cenniku;
+- publikuj/ukryj oraz archiwizuj;
+- ostrzeżenie, że zmiana nie wpływa na istniejące zamówienia;
+- historia zmian ceny i autora zmiany.
+
+Obecny ekran `/dashboard/admin/plans` może dostać zakładki:
+`Plany agentów | Produkty ogłoszeniowe`, ale backend i modele pozostają osobne.
+Jeśli ekran stanie się zbyt rozbudowany, lepsze będą osobne adresy pod wspólną
+grupą nawigacji.
+
+### 10.2 `Promocje`
+
+- lista aktywnych, zaplanowanych, zakończonych i wyłączonych kampanii;
+- kreator zakresu produktów, czasu, limitów i reguł odbiorców;
+- podgląd ceny przed i po promocji;
+- wyłączanie kampanii bez usuwania historii;
+- walidacja kolizji terminów oraz priorytetów.
+
+### 10.3 `Kody promocyjne`
+
+- tworzenie pojedynczego kodu lub bezpiecznej partii losowych kodów;
+- kod własny, typ rabatu, produkty, okres i limity;
+- wyszukiwarka oraz filtry po statusie/kampanii;
+- liczba rezerwacji, użyć i przychód/rabat przypisany do kodu;
+- wyłączenie kodu, bez edycji warunków kodu już użytego;
+- eksport CSV dopiero po potwierdzeniu potrzeby operacyjnej.
+
+### 10.4 `Zamówienia`
+
+- numer, kupujący, ogłoszenie, produkty, kwoty, kod, status i daty;
+- szczegóły zdarzeń płatności i webhooków;
+- link do ogłoszenia oraz profilu sprzedającego;
+- akcje refund/anulowanie dopiero po zdefiniowaniu integracji i uprawnień;
+- brak ręcznej zmiany statusu `paid` bez kontrolowanej operacji i audytu.
+
+### 10.5 Promocja konkretnego ogłoszenia
+
+Na stronie zgłoszenia w `/dashboard/admin/submissions` i na szczegółach
+opublikowanej oferty administrator widzi panel `Cena i promocja`:
+
+- aktualny produkt publikacji, płatność i data wygaśnięcia;
+- aktywne oraz przyszłe wyróżnienia;
+- przyznaj rabat do najbliższego zamówienia;
+- przyznaj publikację/wyróżnienie/dodatkowe dni bez opłaty;
+- ustaw termin ważności korekty;
+- obowiązkowe pole `Powód` i dialog potwierdzenia;
+- historia wszystkich działań.
+
+## 11. Statusy i spójność publikacji
+
+Nie należy przeciążać statusu moderacji stanem płatności. W zgłoszeniu lub
+powiązanym procesie potrzebne są osobne informacje:
+
+- wynik moderacji;
+- stan płatności;
+- stan publikacji;
+- aktywne uprawnienia promocyjne.
+
+Przykładowa sekwencja:
+
+`draft → email_verified → in_review → approved/awaiting_payment → paid → published`
+
+Odrzucenie po moderacji kończy proces bez zamówienia. Wygaśnięcie płatności nie
+cofa akceptacji; użytkownik może utworzyć nową sesję według aktualnej ceny.
+
+## 12. Bezpieczeństwo, finanse i prawo
+
+- kwot, rabatów i czasu wyróżnienia nie przyjmujemy z frontendu;
+- webhook ma weryfikowany podpis, idempotency key i trwały log zdarzeń;
+- limity kodów i finalizacja zamówienia używają transakcji oraz blokady w bazie;
+- kod nie ujawnia danych o kampanii ani o innych użytkownikach;
+- stosujemy rate limiting dla sprawdzania kodów;
+- odpowiedź dla błędnego i niedostępnego kodu nie powinna ułatwiać masowego
+  zgadywania kodów;
+- wszystkie zmiany admina zapisujemy z `admin_user_id`, powodem, stanem przed i
+  po zmianie;
+- przed uruchomieniem trzeba ustalić regulamin publikacji, politykę zwrotów,
+  moment zawarcia umowy, sposób dokumentowania sprzedaży i treść zgód;
+- faktura/paragon i stawka VAT wymagają potwierdzenia z księgowością;
+- obsługa refundu musi określić wpływ na już rozpoczęte wyróżnienie lub okres
+  publikacji.
+
+## 13. Analityka produktowa
+
+Minimalne zdarzenia:
+
+- `pricing_audience_selected`;
+- `private_pricing_viewed`;
+- `listing_product_selected`;
+- `promo_code_applied` / `promo_code_rejected` z kategorią przyczyny, bez kodu
+  w danych analitycznych;
+- `checkout_started`, `payment_succeeded`, `payment_failed`;
+- `listing_published_after_payment`;
+- `listing_featured_started`, `listing_featured_expired`;
+- `listing_renewal_purchased`.
+
+Raport admina powinien pokazywać:
+
+- przejścia cennik → dodanie oferty → akceptacja → checkout → płatność;
+- przychód brutto i liczbę zamówień per produkt;
+- średni rabat i wykorzystanie kodów;
+- konwersję płatności po akceptacji;
+- udział ofert z wyróżnieniem;
+- wpływ wyróżnienia na wyświetlenia i zapytania, z zastrzeżeniem korelacji;
+- refundy i nieudane płatności.
+
+## 14. Etapy realizacji
+
+Etapy są ułożone według zależności technicznych. Każdy etap powinien zostać
+zamknięty jego kryterium odbioru przed rozpoczęciem elementów zależnych. Można
+równolegle realizować tylko zadania, które korzystają z już zatwierdzonego
+kontraktu API i modelu danych.
+
+Docelowa kolejność zależności:
+
+`decyzje → fundament domenowy → panel produktów → publiczny cennik → kalkulator i zamówienia → płatność i publikacja → wyróżnienia i odnowienia → promocje → ręczne granty → rollout`
+
+### 14.0 Pierwsza iteracja — karta decyzji Etapu 0
+
+Ta iteracja nie wprowadza jeszcze zmian w kodzie produkcyjnym. Jej wynikiem ma
+być zamrożony zestaw reguł, na podstawie którego w Etapie 1 powstaną migracje,
+encje, kontrakty API oraz testy. Rozpoczęcie modelowania bazy przed zamknięciem
+decyzji oznaczonych jako blokujące grozi kosztowną zmianą zamówień i historii
+finansowej.
+
+#### 14.0.1 Wynik audytu istniejącego systemu
+
+- `plan_catalog` i publiczny cennik agentów już działają i pozostają osobnym
+  kontekstem od jednorazowych produktów ogłoszeniowych.
+- Repozytorium jest przygotowywane pod Stripe (`stripe_price_id_*` i plan
+  Stripe Checkout), ale Stripe SDK oraz rzeczywisty checkout nie są jeszcze
+  wdrożone.
+- Istniejący webhook subskrypcji jest provider-agnostic, podpisany HMAC i
+  idempotentny po parze `provider + eventId`, ale obsługuje wyłącznie
+  subskrypcje agencji. Płatności jednorazowe potrzebują osobnego procesora
+  zdarzeń, współdzielącego tylko ogólne wzorce bezpieczeństwa.
+- Obecny `PublicListingSubmissionStatus` nie ma stanów moderacji
+  `in_review/approved/awaiting_payment`; zawiera m.in. `verified`, `published`,
+  `claimed`, `rejected` i `expired`.
+- Obecna akcja zatwierdzenia przez administratora od razu ustawia ofertę jako
+  opublikowaną i nadaje jej datę wygaśnięcia. Przed uruchomieniem płatności
+  trzeba rozdzielić akceptację moderacji od aktywacji publikacji.
+- `ListingPublicationStatus` opisuje tylko `draft/published/unpublished`, więc
+  nie powinien przejmować statusów zamówienia ani moderacji.
+- `Listing.isPremium` jest flagą bez okresu obowiązywania i źródła nadania;
+  nie nadaje się jako docelowe źródło prawdy dla płatnego wyróżnienia.
+- Aktualny regulamin jest dokumentem MVP i nie opisuje płatnej publikacji,
+  prawa odstąpienia, rozpoczęcia świadczenia przed upływem terminu odstąpienia,
+  zwrotów ani dokumentów sprzedaży.
+
+#### 14.0.2 Rekomendowany zakres pierwszego wydania handlowego
+
+| Obszar | Rekomendowana decyzja | Uzasadnienie | Status |
+|---|---|---|---|
+| Publikacja | 49 zł brutto za 60 dni | Prosta oferta i zgodność z wcześniejszą hipotezą produktu | Zatwierdzone 2026-09-06 |
+| Odnowienie | 39 zł brutto za kolejne 60 dni | Czytelny bodziec do odnowienia bez tworzenia abonamentu | Zatwierdzone 2026-09-06 |
+| Wyróżnienie V1 | Jeden wariant: 19 zł brutto za 7 dni | Mniejszy zakres implementacji i łatwiejsza ocena popytu | Zatwierdzone 2026-09-06 |
+| Drugi tier wyróżnienia | Poza V1 | Najpierw zbieramy dane o konwersji pierwszego produktu | Zatwierdzone 2026-09-06 |
+| Płatność | Po pozytywnej moderacji, przed publikacją | Brak pobierania pieniędzy za ofertę, której nie zaakceptujemy | Zatwierdzone 2026-09-06 |
+| Operator | Stripe jako pierwszy adapter | Jest zgodny z kierunkiem obecnego modelu planów; nie oznacza sprzężenia domeny ze Stripe | Zatwierdzone 2026-09-06 |
+| Czas wyceny | 30 minut | Ogranicza długie rezerwacje kodów i nieaktualne ceny | Zatwierdzone 2026-09-06 |
+| Waluta V1 | Wyłącznie PLN | Upraszcza ceny, dokumenty i raportowanie | Zatwierdzone 2026-09-06 |
+| Łączenie rabatów | Jedna najkorzystniejsza kampania albo kod | Proste i przewidywalne naliczanie | Zatwierdzone 2026-09-06 |
+| Ręczna korekta admina | Może łączyć się tylko po jawnym zezwoleniu | Pozwala obsłużyć wyjątek bez ukrytych reguł | Zatwierdzone 2026-09-06 |
+| Zakup bez logowania | Nie; checkout wymaga konta właściciela | Bezpieczne powiązanie zamówienia z użytkownikiem i ogłoszeniem | Zatwierdzone 2026-09-06 |
+| Cena 0 zł | Wewnętrzna finalizacja bez operatora | Brak sztucznej transakcji płatniczej | Zatwierdzone 2026-09-06 |
+| Dane analityczne | Brak treści kodu promocyjnego w eventach | Ogranicza wyciek aktywnych kodów | Zatwierdzone 2026-09-06 |
+
+#### 14.0.3 Rekomendowany przebieg publikacji V1
+
+1. Użytkownik tworzy zgłoszenie i potwierdza adres e-mail.
+2. Zalogowany właściciel przejmuje zgłoszenie; jeśli nie ma konta, zakłada je
+   przed checkoutem.
+3. Administrator rozpoczyna i kończy moderację.
+4. Po pozytywnej moderacji zgłoszenie otrzymuje decyzję `approved`, ale oferta
+   pozostaje niepubliczna.
+5. System tworzy możliwość zakupu publikacji według aktualnego katalogu.
+6. Użytkownik akceptuje podsumowanie, wymagane zgody i przechodzi do płatności.
+7. Powrót z checkoutu pokazuje tylko stan oczekiwania; nie publikuje oferty.
+8. Potwierdzony webhook finalizuje zamówienie i zleca serwisowi entitlementów
+   nadanie publikacji na 60 dni.
+9. Serwis publikacji ustawia publiczny stan i datę wygaśnięcia dokładnie raz.
+10. Nieudana lub wygasła płatność pozostawia zgłoszenie zaakceptowane i pozwala
+    utworzyć nową wycenę według aktualnej ceny.
+
+#### 14.0.4 Słownik statusów rekomendowany do projektu Etapu 1
+
+Statusy pozostają rozdzielone według odpowiedzialności. Nie tworzymy jednego
+statusu obejmującego cały proces.
+
+**Moderacja zgłoszenia:**
+
+- `draft` — formularz niezakończony;
+- `pending_email_verification` — oczekiwanie na potwierdzenie e-mail;
+- `verified` — potwierdzony, oczekuje na obsługę;
+- `in_review` — moderator rozpoczął sprawdzanie;
+- `approved` — zaakceptowany, może przejść do płatności;
+- `rejected` — odrzucony z powodem;
+- `expired` — zgłoszenie wygasło przed zakończeniem procesu.
+
+`claimed` nie powinien docelowo być statusem moderacji. Przejęcie przez konto
+jest osobną cechą wynikającą z `owner_user_id/claimed_at`. W Etapie 1 trzeba
+przygotować migrację kompatybilną z istniejącymi rekordami, bez natychmiastowego
+usuwania wartości `claimed` przed sprawdzeniem wszystkich zależności.
+
+**Zamówienie:**
+
+- `draft` — utworzone, jeszcze bez sesji płatności;
+- `pending_payment` — oczekuje na wynik operatora;
+- `paid` — płatność potwierdzona lub zamówienie 0 zł poprawnie sfinalizowane;
+- `payment_failed` — operator zgłosił niepowodzenie;
+- `expired` — minął czas wyceny/sesji;
+- `cancelled` — anulowane przed realizacją;
+- `partially_refunded` — zwrot częściowy, jeśli zostanie dopuszczony;
+- `refunded` — pełny zwrot.
+
+**Publikacja oferty:**
+
+- zachowujemy `draft`, `published`, `unpublished`;
+- stan `awaiting_payment` nie trafia do `ListingPublicationStatus`, tylko wynika
+  z zaakceptowanej moderacji i braku opłaconego entitlementu publikacji;
+- wygaśnięcie jest określane przez brak aktywnego entitlementu i `expiresAt`,
+  a nie przez status płatności.
+
+**Entitlement:**
+
+- `scheduled` — korzyść rozpocznie się w przyszłości;
+- `active` — korzyść obowiązuje;
+- `expired` — okres minął;
+- `revoked` — cofnięta kontrolowaną operacją;
+- `cancelled` — anulowana przed rozpoczęciem.
+
+#### 14.0.5 Dane nabywcy — rekomendowany minimalny model
+
+Checkout wymaga zalogowanego właściciela ogłoszenia. W V1 rekomendujemy:
+
+- zawsze: e-mail konta i kraj nabywcy;
+- osoba fizyczna: imię i nazwisko oraz adres rozliczeniowy tylko w zakresie
+  potwierdzonym przez księgowość/operatora;
+- zakup na firmę: nazwa firmy, NIP, kraj i adres rozliczeniowy;
+- osobny checkbox „Kupuję jako firma” sterujący polami B2B;
+- snapshot danych nabywcy na zamówieniu — późniejsza zmiana profilu nie zmienia
+  historycznego dokumentu;
+- brak przechowywania danych karty i szczegółów rachunku bankowego w aplikacji.
+
+Ostateczny minimalny zestaw pól oraz walidacja NIP wymagają potwierdzenia ze
+specjalistą księgowym/prawnym i wybranym operatorem.
+
+#### 14.0.6 Zasady wyróżnienia i rankingu V1
+
+- wyróżnić można wyłącznie aktywną, publiczną ofertę;
+- okres zaczyna się po potwierdzeniu płatności;
+- ponowny zakup podczas aktywnego wyróżnienia dopisuje 7 dni od obecnego końca,
+  zamiast rozpoczynać okres od nowa;
+- wycofanie oferty przez właściciela nie zatrzymuje automatycznie zegara
+  wyróżnienia;
+- ręczne cofnięcie oferty przez administratora z winy serwisu wymaga procedury
+  zwrotu lub rekompensaty;
+- wyróżnione oferty są przed niewyróżnionymi, ale oferty o tym samym poziomie
+  rotują deterministycznie w przedziałach czasu, aby jedna oferta nie zajmowała
+  stale pierwszej pozycji;
+- dokładny algorytm rankingu zostanie opisany i przetestowany w Etapie 6;
+- nie obiecujemy konkretnej liczby wyświetleń ani pozycji w wynikach.
+
+#### 14.0.7 Decyzje wymagające potwierdzenia zewnętrznego
+
+Te punkty nie powinny zostać arbitralnie rozstrzygnięte w kodzie:
+
+- właściwa stawka VAT i sposób prezentacji ceny na dokumencie;
+- paragon, faktura imienna, faktura VAT oraz system ich wystawiania;
+- treść regulaminu płatnej publikacji i polityki zwrotów;
+- prawo odstąpienia konsumenta oraz zgoda na rozpoczęcie świadczenia przed
+  upływem ustawowego terminu;
+- moment uznania usługi publikacji i wyróżnienia za rozpoczętą/wykonaną;
+- zasady pełnego i częściowego zwrotu po rozpoczęciu publikacji;
+- wymagane dane nabywcy oraz retencja dokumentów finansowych.
+
+Do czasu potwierdzenia model danych powinien obsługiwać snapshot stawki i kwot
+VAT oraz zwrot częściowy, ale publiczne płatności pozostają za feature flagą.
+
+#### 14.0.8 Kolejność pracy w pierwszej iteracji
+
+- [x] Przeprowadzić audyt obecnego cennika, billingu, statusów i moderacji.
+- [x] Zaproponować ofertę V1 i rekomendowany przebieg publikacji.
+- [x] Zaproponować rozdzielony słownik statusów.
+- [x] Określić minimalny model danych nabywcy do potwierdzenia.
+- [x] Zaproponować zasady wyróżnienia i rabatów.
+- [x] Zatwierdzić decyzje biznesowe wskazane w tabeli 14.0.2.
+- [x] Potwierdzić Stripe jako pierwszy adapter płatności.
+- [x] Potwierdzić zarządzanie wszystkimi cenami produktów ogłoszeniowych z
+  panelu administratora, bez hardcodowania cen w kodzie.
+- [ ] Przekazać punkty z 14.0.7 do weryfikacji księgowo-prawnej.
+- [x] Uzupełnić finalny ADR decyzji produktowych Etapu 0.
+
+Decyzje produktowe pozwalają rozpocząć Etap 1 od kontraktów domenowych i
+migracji. Publiczny checkout pozostaje wyłączony do czasu zamknięcia punktów
+księgowo-prawnych z 14.0.7.
+
+#### 14.0.9 ADR-001 — zaakceptowany kierunek architektury
+
+**Status:** zaakceptowany 2026-09-06.
+
+**Decyzja:** produkty dla klientów indywidualnych powstają w osobnym kontekście
+domenowym od abonamentów agencji. Ich ceny i parametry są przechowywane w
+`listing_product_catalog` oraz zarządzane z panelu administratora. Stripe jest
+pierwszym adapterem płatności, ale domena zamówień, kalkulacji i entitlementów
+nie zależy od typów ani statusów Stripe.
+
+**Konsekwencje:**
+
+- `plan_catalog` nadal obsługuje wyłącznie plany agentów i biur;
+- wszystkie kanały prezentacji korzystają z jednego API katalogu produktów;
+- checkout przyjmuje identyfikatory produktów, nigdy kwoty obliczone przez
+  frontend;
+- zamówienie przechowuje niezmienny snapshot ceny i parametrów;
+- finalizacja płatności przyznaje entitlement przez warstwę domenową;
+- ręczne granty administratora korzystają z tej samej warstwy entitlementów;
+- adapter Stripe można wymienić lub uzupełnić bez przebudowy katalogu,
+  zamówień i reguł publikacji;
+- kwestie prawno-księgowe blokują publiczne włączenie płatności, ale model od
+  początku przechowuje snapshot VAT, nabywcy i informacje potrzebne do zwrotu.
+
+### Etap 0 — decyzje produktowe i prawne
+
+- [x] Zatwierdzić ceny, okres publikacji i długość wyróżnień.
+- [x] Zdecydować o jednym poziomie wyróżnienia w V1.
+- [x] Potwierdzić Stripe jako pierwszy adapter płatności jednorazowych.
+- [ ] Potwierdzić VAT, dokument sprzedaży, regulamin i zwroty.
+- [x] Przyjąć minimalny model danych nabywcy z późniejszym doprecyzowaniem po
+  konsultacji księgowo-prawnej.
+- [x] Ustalić 30 minut ważności wyceny i nieopłaconego zamówienia.
+- [x] Zdefiniować zasady rankingu i uczciwej rotacji dla V1.
+- [x] Zdecydować, że rabat ręczny łączy się z kodem tylko po jawnym zezwoleniu
+  administratora.
+- [x] Spisać słownik statusów moderacji, płatności, publikacji i entitlementów.
+- [x] Zdecydować, że ceny produktów ogłoszeniowych są w pełni zarządzane z
+  panelu administratora.
+
+**Kryterium zakończenia:** istnieje zatwierdzona karta decyzji, na podstawie
+której można zaprojektować migracje i kontrakty bez zgadywania reguł
+finansowych.
+
+**Stan:** decyzje produktowe zamknięte. Można rozpocząć Etap 1. Otwarta
+weryfikacja księgowo-prawna blokuje publiczny rollout płatności, nie prace nad
+fundamentem domenowym.
+
+### Etap 1 — fundament domenowy, migracje i kontrakty
+
+- [x] Dodać `listing_product_catalog`, encję, migrację i seed startowy.
+- [x] Dodać `listing_orders` i `listing_order_items` ze snapshotem ceny, VAT,
+  nazwy i parametrów produktu.
+- [x] Dodać `listing_entitlements` od razu dla publikacji, odnowienia i
+  wyróżnienia.
+- [x] Zdefiniować relacje zamówienie → pozycje → entitlement → ogłoszenie.
+- [x] Rozdzielić domenowe statusy moderacji, płatności, publikacji i
+  entitlementów; zmiana zachowania publikacji nastąpi dopiero w Etapie 5.
+- [x] Zaplanować przejście od `Listing.isPremium` do aktywnego entitlementu;
+  pole może tymczasowo pozostać cache'em kompatybilności.
+- [x] Przygotować kanoniczne, serializowalne kontrakty produktu i wyceny,
+  niezależne od encji TypeORM; klient frontendowy zostanie podłączony do tych
+  kontraktów razem z endpointami Etapu 2.
+- [x] W odpowiedzi wyceny od początku przewidzieć listę rabatów, nawet jeśli w
+  pierwszej wersji będzie pusta.
+- [x] Zdefiniować idempotency key dla zamówień i aktywacji entitlementów.
+- [x] Dodać feature flagi osobno dla publicznego cennika, checkoutu,
+  wyróżnień i promocji.
+- [x] Dodać testy regresyjne migracji, ograniczeń, relacji, seedów i flag.
+
+#### Iteracja 1.1 — wykonany fundament persystencji
+
+Data zakończenia: 2026-09-06.
+
+Wykonano:
+
+- utworzono osobny moduł domenowy `apps/api/src/listing-commerce`;
+- dodano provider-agnostic typy produktów, zamówień, entitlementów i ich
+  statusów;
+- dodano encje `ListingProductCatalog`, `ListingOrder`, `ListingOrderItem` i
+  `ListingEntitlement`;
+- wszystkie kwoty są przechowywane jako całkowite jednostki najmniejszej
+  waluty, czyli grosze dla PLN;
+- VAT jest nullable do czasu decyzji księgowo-prawnej, a zamówienie i pozycja
+  mają miejsce na jego niezmienny snapshot;
+- zamówienie ma unikalny `idempotency_key`, numer zamówienia oraz opcjonalne,
+  unikalne w obrębie providera identyfikatory sesji i płatności;
+- produkt pozostaje wymaganym rekordem dla pozycji zamówienia i nie może być
+  usunięty, jeśli został użyty; panel będzie stosował archiwizację;
+- entitlement zakupiony z pozycji zamówienia jest unikalny dla tej pozycji,
+  co stanowi bazową ochronę przed podwójną realizacją webhooka;
+- migracja dodaje statusy moderacji `in_review` i `approved`, ale nie zmienia
+  jeszcze istniejącego zachowania zatwierdzania i publikacji;
+- dodano seedy `publication_60_days`, `renewal_60_days` i
+  `featured_7_days`; `ON CONFLICT DO NOTHING` gwarantuje, że migracja nie
+  nadpisze ceny zmienionej przez administratora;
+- dodano osobne, domyślnie wyłączone flagi dla cennika, checkoutu, wyróżnień i
+  promocji.
+
+Po Iteracji 1.1 świadomie pozostawiono do Iteracji 1.2:
+
+- kanoniczne kontrakty publicznego produktu i wyceny; administracyjne DTO
+  katalogu należy już do Etapu 2;
+- kontrakt endpointu quote z pustą listą rabatów;
+- serwis polityk domenowych walidujący przejścia statusów;
+- test integracyjny migracji na rzeczywistej bazie PostgreSQL.
+
+Weryfikacja Iteracji 1.1:
+
+- [x] `pnpm --filter api type-check`;
+- [x] `pnpm --filter api lint`;
+- [x] testy celowane modułu i release flags — 9/9;
+- [x] pełny zestaw testów API — 401/401, 68/68 suites;
+- [x] `git diff --check`.
+
+#### Iteracja 1.2 — kontrakty i polityki domenowe
+
+Data zakończenia: 2026-09-07.
+
+Wykonano:
+
+- dodano kanoniczny publiczny kontrakt produktu, który nie ujawnia
+  wewnętrznego UUID, stanu administracyjnego ani identyfikatorów operatora;
+- dodano kontrakt żądania i odpowiedzi quote z pozycjami, VAT, terminem
+  ważności oraz jawną listą rabatów;
+- snapshot wyceny w `ListingOrder` używa bezpośrednio kanonicznego kontraktu,
+  dzięki czemu nie powstaje drugi, rozbieżny model danych;
+- dodano provider-agnostic źródła rabatu: kampania, kod promocyjny i ręczna
+  korekta administratora;
+- dodano czystą politykę przejść statusów zamówień, w tym retry nieudanej
+  płatności, bez możliwości ponownego otwierania stanów końcowych;
+- dodano czystą politykę przejść entitlementów z kontrolowanym aktywowaniem,
+  wygasaniem, anulowaniem i cofnięciem;
+- zapisano mapowanie publikacja/odnowienie → entitlement publikacji oraz
+  wyróżnienie → entitlement wyróżnienia;
+- dodano wspólną stałą 30-minutowej ważności wyceny i funkcję, która nie
+  mutuje wejściowej daty;
+- dodano kalkulację kwot brutto wyłącznie na bezpiecznych liczbach całkowitych
+  z odrzucaniem ujemnych wartości, ułamkowych groszy, niepoprawnej ilości,
+  rabatu większego niż cena oraz przekroczenia zakresu bezpiecznego integera;
+- wykonano migrację dwukrotnie na izolowanej kopii schematu PostgreSQL 16;
+  drugi przebieg nie dodał duplikatów ani nie nadpisał seedów;
+- potwierdzono obecność czterech tabel, trzech produktów V1 i nowych statusów
+  moderacji; testowa baza została następnie usunięta, a główna baza pozostała
+  bez zmian.
+
+Decyzja architektoniczna dotycząca kontraktów:
+
+- nie dodajemy obecnie osobnego pakietu workspace tylko dla kilku interfejsów;
+- kanoniczne kontrakty pozostają czystymi typami bez zależności od NestJS i
+  TypeORM;
+- w Etapie 2 frontend otrzyma typed client zgodny z publicznym DTO endpointu;
+- jeśli liczba konsumentów kontraktów wzrośnie, można wydzielić istniejące typy
+  do `packages/contracts` bez zmiany ich kształtu.
+
+Weryfikacja Iteracji 1.2:
+
+- [x] `pnpm --filter api type-check`;
+- [x] `pnpm --filter api lint`;
+- [x] testy modułu `listing-commerce` — 22/22;
+- [x] pełny zestaw testów API — 417/417, 70/70 suites;
+- [x] `pnpm --filter api build`;
+- [x] migracja PostgreSQL — pierwszy i drugi przebieg;
+- [x] `git diff --check`.
+
+**Stan Etapu 1:** fundament backendowy jest zakończony. Publiczne i
+administracyjne endpointy, typed client frontendu oraz ekran zarządzania
+produktami należą do Etapu 2. Obecny proces zatwierdzania nadal publikuje
+ofertę bez płatności i pozostaje bez zmian do Etapu 5.
+
+**Kryterium zakończenia:** baza potrafi bez utraty historii zapisać produkt,
+zamówienie, jego pozycje i przyznaną korzyść, a kontrakty nie wymagają zmiany po
+dodaniu wyróżnień i rabatów.
+
+**Odblokowuje:** panel produktów, publiczny cennik i kalkulator zamówienia.
+
+### Etap 2 — katalog produktów i panel administratora
+
+- [x] Dodać publiczny endpoint produktów.
+- [x] Dodać endpointy admina, DTO, autoryzację i log aktywności.
+- [x] Dodać ekran listy, edycji, widoczności, kolejności i archiwizacji
+  produktów; backend tych operacji jest gotowy.
+- [x] Dodać publiczny podgląd karty produktu.
+- [x] Zabezpieczyć archiwizację produktów użytych w zamówieniach.
+- [x] Zapisywać historię zmian ceny, widoczności i parametrów produktu.
+- [x] Dodać testy serwisu, walidacji DTO, kontroli roli i logu audytowego.
+
+#### Iteracja 2.1 — publiczny katalog i administracyjne API
+
+Data zakończenia: 2026-09-07.
+
+Wykonano:
+
+- dodano publiczny `GET /api/listing-products`, kontrolowany osobną flagą
+  `RELEASE_FLAG_PRIVATE_LISTING_PRICING_ENABLED`;
+- przy wyłączonej fladze endpoint zwraca pusty katalog bez wykonywania zapytania
+  do bazy;
+- publiczny DTO nie ujawnia UUID produktu, flag administracyjnych, archiwizacji,
+  referencji operatora, wagi rankingu ani wewnętrznych parametrów realizacji;
+- dodano chronione rolą `ADMIN` endpointy listy, szczegółu, tworzenia, edycji,
+  archiwizacji, przywracania i historii zmian;
+- kod i typ produktu są niezmienne po utworzeniu, ponieważ ich zmiana mogłaby
+  zmienić znaczenie historycznych zamówień;
+- cena, VAT, długość działania, opis, tier wyróżnienia, kolejność, aktywność i
+  widoczność mogą być zarządzane bez deployu;
+- znane parametry fulfillmentu są wyliczane na backendzie z pól produktu, a nie
+  przyjmowane jako zduplikowany JSON od administratora;
+- produkt publiczny musi być aktywny i niezarchiwizowany;
+- wyłączenie produktu automatycznie usuwa jego publiczną widoczność, jeśli
+  żądanie nie próbuje jawnie zachować niespójnego stanu;
+- przywrócony produkt wraca jako aktywny, ale niepubliczny, aby publikacja była
+  świadomą, oddzielną decyzją administratora;
+- nie dodano endpointu trwałego usuwania; rekord wykorzystany w zamówieniu jest
+  chroniony relacją `ON DELETE RESTRICT` i może zostać tylko zarchiwizowany;
+- dodano osobną tabelę `listing_product_changes`, ponieważ istniejący
+  `ActivityLog` jest kontekstem aktywności agenta, a nie globalnym audytem
+  finansowym administratora;
+- zmiana produktu i wpis audytowy są zapisywane w jednej transakcji z blokadą
+  `pessimistic_write` na edytowanym rekordzie;
+- historia przechowuje administratora, akcję, powód oraz wartości przed i po
+  zmianie;
+- dodano ochronę przed kolizją kodu produktu oraz kontrolowane odpowiedzi dla
+  brakujących rekordów i niespójnej konfiguracji.
+
+Endpointy Iteracji 2.1:
+
+- `GET /api/listing-products`;
+- `GET /api/admin/listing-products`;
+- `POST /api/admin/listing-products`;
+- `GET /api/admin/listing-products/:code`;
+- `PATCH /api/admin/listing-products/:code`;
+- `GET /api/admin/listing-products/:code/history`;
+- `POST /api/admin/listing-products/:code/archive`;
+- `POST /api/admin/listing-products/:code/restore`.
+
+Weryfikacja Iteracji 2.1:
+
+- [x] testy `listing-commerce` — 38/38 przed końcowym przebiegiem;
+- [x] pełny zestaw testów API — 433/433, 75/75 suites;
+- [x] `pnpm --filter api type-check`;
+- [x] `pnpm --filter api lint`;
+- [x] `pnpm --filter api build`;
+- [x] obie migracje wykonane na izolowanym PostgreSQL 16;
+- [x] migracja audytu wykonana ponownie bez duplikatów;
+- [x] testowa baza usunięta, główna baza bez zmian;
+- [x] `git diff --check`.
+
+#### Iteracja 2.2 — panel katalogu i podgląd publicznej karty
+
+Data zakończenia: 2026-09-07.
+
+Wykonano:
+
+- dodano typed client dla publicznego i administracyjnego API produktów;
+- typy transportowe rozdzielają kontrakt publiczny od kontraktu administratora,
+  dzięki czemu UUID, referencja operatora, parametry realizacji i dane audytowe
+  nie są potrzebne komponentom publicznym;
+- dodano formularz tworzenia i edycji produktu z walidacją zgodną z backendem;
+- kod i typ można ustawić tylko podczas tworzenia, a podczas edycji pozostają
+  niezmienne;
+- administrator wpisuje cenę brutto w PLN, natomiast granica domenowa zamienia
+  ją na całkowitą liczbę groszy bez używania arytmetyki zmiennoprzecinkowej;
+- stawka VAT pozostaje opcjonalna (`null`) do czasu zamknięcia decyzji
+  księgowo-prawnych;
+- nowy produkt jest domyślnie aktywny, ale jawnie niepubliczny i nie otrzymuje
+  domyślnej ceny biznesowej;
+- wyłączenie aktywności w formularzu automatycznie wyłącza widoczność publiczną;
+- przed zapisem administrator widzi podsumowanie skutków zmiany ceny,
+  aktywności i widoczności;
+- dodano responsywną listę ze statusami `publiczny`, `ukryty`, `nieaktywny` i
+  `archiwum` oraz nawigację w sekcji administracyjnej;
+- dodano archiwizację i przywracanie z obowiązkowym powodem oraz potwierdzeniem;
+- archiwalny produkt jest tylko do odczytu, a przywrócony pozostaje niepubliczny
+  do czasu świadomej decyzji administratora;
+- dodano historię zmian z akcją, datą, administratorem, powodem i wartościami
+  przed/po;
+- dodano współdzielony `ListingProductPreviewCard`, używany w panelu jako
+  podgląd i gotowy do ponownego użycia na homepage oraz `/cennik` w Etapie 3;
+- publiczna karta nie zawiera przycisku wykonującego pozorny zakup — CTA jest
+  wyłączone i opisane jako podgląd do czasu wdrożenia checkoutu.
+
+Weryfikacja Iteracji 2.2:
+
+- [x] testy granic formularza, kwot i klienta HTTP — 11/11;
+- [x] pełny zestaw testów web — 95/95, 14/14 suites;
+- [x] `pnpm --filter web type-check`;
+- [x] `pnpm --filter web lint` — bez nowych ostrzeżeń w plikach Iteracji 2.2;
+- [x] `pnpm --filter web build` — 50/50 stron, w tym
+  `/dashboard/admin/listing-products`;
+- [x] `git diff --check`.
+
+Etap 2 jest zakończony. Włączenie karty do publicznego cennika pozostaje celowo
+w Etapie 3; dane i komponent prezentacyjny są już gotowe, ale flaga
+`RELEASE_FLAG_PRIVATE_LISTING_PRICING_ENABLED` pozostaje domyślnie wyłączona.
+
+**Kryterium zakończenia:** produkt można bezpiecznie edytować i ukryć, a historia
+zmian pozostaje dostępna. Publiczne API zwraca tylko produkty aktywne i publiczne.
+
+**Odblokowuje:** właściwe podłączenie cennika strony głównej i `/cennik` bez
+hardcodowania danych.
+
+### Etap 3 — publiczny cennik i przełącznik odbiorcy
+
+- [x] Zbudować wspólny adapter i komponenty prezentacji cennika prywatnego dla
+  homepage oraz `/cennik`.
+- [x] Dodać przełącznik `Sprzedaję prywatnie | Jestem agentem lub prowadzę biuro`.
+- [x] Dodać obsługę parametru `dla` oraz linków kierujących do właściwego
+  wariantu.
+- [x] Dla wariantu prywatnego ukrywać przełącznik miesięcznie/rocznie.
+- [x] Zachować obecny cennik agentów pobierany z `GET /api/plans` bez regresji.
+- [x] Dodać CTA do `/dodaj-oferte` i informację, że płatność następuje po
+  akceptacji ogłoszenia.
+- [x] Dodać FAQ i zasady publikacji na pełnej stronie cennika.
+- [x] Dodać niezależne stany loading/error/empty dla obu katalogów.
+- [x] Dodać testy responsywności, dostępności i obsługi parametru URL.
+- [x] Dodać zdarzenia `pricing_audience_selected`, `private_pricing_viewed` i
+  `listing_product_selected`.
+
+#### Iteracja 3.1 — wspólny cennik i routing odbiorcy
+
+Data zakończenia: 2026-09-07.
+
+Wykonano:
+
+- zastąpiono dwie niezależne implementacje kart jednym komponentem
+  `PublicPricingCatalog`, używanym na homepage i pełnej stronie `/cennik`;
+- oba katalogi zachowują osobne dane, loading, error, empty i retry, dlatego
+  awaria produktów prywatnych nie ukrywa planów agentów ani odwrotnie;
+- domyślnym wariantem jest `Sprzedaję prywatnie`, zgodnie z ADR produktu;
+- dodano dostępny klawiaturą przełącznik oparty na prawdziwych przyciskach z
+  `aria-pressed`;
+- parametr `dla=prywatnych|agentow` jest synchronizowany z historią przeglądarki
+  bez przewijania strony do początku;
+- poprawiono zapis linków homepage na `/?dla=...#pricing`; wcześniejsza postać
+  `/#pricing?dla=...` umieszczała parametr po `#`, więc nie był on query stringiem;
+- kontrolka `Miesięcznie | Rocznie` jest renderowana tylko dla odbiorcy
+  agencyjnego;
+- cennik agentów nadal używa `GET /api/plans`, dotychczasowych reguł limitów,
+  wyróżnienia planu Professional i ścieżek rejestracji;
+- wariant prywatny używa wyłącznie `GET /api/listing-products`; cena nie jest
+  hardcodowana ani przekazywana do formularza/checkoutu;
+- homepage pokazuje główną publikację, korzyści i osobny blok dodatków, a pełny
+  cennik wszystkie aktywne produkty;
+- CTA prowadzi do `/dodaj-oferte`, a treść jasno komunikuje kolejność:
+  bezpłatne dodanie → potwierdzenie → moderacja → wybór produktów → płatność;
+- dodano FAQ dotyczące moderacji, odnowienia, kodów, dokumentu sprzedaży i
+  zwrotów; kwestie oczekujące na opinię prawną są opisane bez deklarowania
+  niezatwierdzonych zasad;
+- rozszerzono współdzieloną kartę produktu o tryb publicznego CTA, zachowując
+  osobny bezpieczny tryb podglądu administratora;
+- dodano anonimowy, publiczny i throttlowany endpoint analytics z zamkniętą
+  allow-listą trzech eventów; eventy nie wymagają sesji i nie zapisują danych
+  użytkownika, agenta ani agencji;
+- zdarzenia trafiają do kategorii `public_growth` i nadal respektują zgodę na
+  cookies analityczne po stronie klienta;
+- dodano metadata strony cennika oraz linki nawigacji kierujące domyślnie do
+  wariantu prywatnego.
+
+Weryfikacja Iteracji 3.1:
+
+- [x] testy modelu URL i granicy wariantu UI — 10/10;
+- [x] testy publicznych eventów analytics — 5/5;
+- [x] pełny zestaw testów web — 105/105, 16/16 suites;
+- [x] pełny zestaw testów API — 438/438;
+- [x] `pnpm --filter web type-check` i `pnpm --filter api type-check`;
+- [x] lint web bez nowych ostrzeżeń i lint API bez błędów;
+- [x] produkcyjny build API i Next.js, w tym statyczne `/` oraz `/cennik`;
+- [x] `git diff --check`.
+
+#### Iteracja 3.2 — automatyczne testy przeglądarkowe
+
+Data zakończenia: 2026-09-07.
+
+Wykonano:
+
+- dodano Playwright jako zależność deweloperską aplikacji webowej i skrypty
+  `test:e2e` oraz `test:e2e:ui`;
+- konfiguracja uruchamia testy na produkcyjnym buildzie Next.js, osobno w
+  projektach `desktop-chromium` i `mobile-chromium`;
+- testy interceptują wyłącznie publiczne endpointy cennika, nie wymagają
+  backendu i nie zapisują danych w bazie;
+- sprawdzono domyślny wariant prywatny, ceny z API, brak kontrolki abonamentu i
+  przełączenie do planów agentów;
+- sprawdzono sterowanie przełącznikiem z klawiatury oraz semantyczny stan
+  `aria-pressed`;
+- sprawdzono aktualizację URL, obsługę historii przeglądarki i powrót do
+  poprzedniego wariantu;
+- sprawdzono poprawną kolejność query stringa i kotwicy na homepage;
+- sprawdzono układ przełącznika na desktopie i mobile oraz brak poziomego
+  overflow dokumentu;
+- sprawdzono widoczność głównego CTA na mobile;
+- sprawdzono niezależność katalogów w obu kierunkach: błąd produktów prywatnych
+  nie blokuje agentów, a błąd planów agentów nie blokuje produktów prywatnych;
+- artefakty Playwright (`test-results`, raport HTML, raport blob) są ignorowane
+  przez Git, natomiast konfiguracja i scenariusze pozostają częścią repo.
+
+Weryfikacja Iteracji 3.2:
+
+- [x] Playwright E2E — 10/10 na desktop Chromium i emulowanym Pixel 7;
+- [x] produkcyjny build Next.js uruchomiony przez `webServer` Playwright;
+- [x] brak pominiętych scenariuszy;
+- [x] testy korzystają z kontrolowanych cen fixture, nie z wartości zapisanych
+  w kodzie produkcyjnym.
+
+Etap 3 jest zakończony. Publiczne dane produktów nadal pozostają kontrolowane
+flagą `RELEASE_FLAG_PRIVATE_LISTING_PRICING_ENABLED`; jej włączenie jest osobną
+decyzją rolloutową, a nie częścią testów ani implementacji widoku.
+
+**Kryterium zakończenia:** administrator zmienia cenę bez deployu, a ta sama
+wartość pojawia się na homepage i `/cennik`. Awaria katalogu prywatnego nie
+ukrywa cennika agentów i odwrotnie.
+
+**Może być realizowany równolegle z:** Etapem 4 po zamrożeniu kontraktu produktu
+z Etapu 1 i udostępnieniu publicznego endpointu z Etapu 2.
+
+### Etap 4 — serwerowy kalkulator ceny i zamówienia
+
+- [x] Dodać `POST /api/listing-checkout/quote` jako jedyne źródło kalkulacji.
+- [x] Walidować właściciela, stan ogłoszenia i możliwość zakupu produktu.
+- [x] Zwracać cenę bazową, listę rabatów, VAT, cenę końcową i termin ważności.
+- [x] Dodać `POST /api/listing-checkout/orders` jako wewnętrzny endpoint
+  tworzący zamówienie bez uruchamiania operatora płatności.
+- [x] Zapisywać snapshot całej kalkulacji w zamówieniu i pozycjach.
+- [x] Zapobiegać wielokrotnemu aktywnemu zamówieniu tego samego rodzaju dla tej
+  samej oferty, jeśli reguły produktu tego zabraniają.
+- [x] Obsłużyć finalizację zamówienia za 0 zł bez tworzenia pozorowanej
+  płatności u operatora.
+- [x] Ustawić czas wygaśnięcia wyceny i wymuszać ponowne przeliczenie po jego
+  przekroczeniu.
+- [x] Dodać testy własności ogłoszenia, zmian ceny, zaokrągleń, VAT, kwoty 0 zł
+  oraz idempotencji tworzenia zamówienia.
+
+#### Iteracja 4.1 — autorytatywny quote (zrealizowana 2026-09-07)
+
+- dodano chroniony `POST /api/listing-checkout/quote`; endpoint przyjmuje tylko
+  identyfikator ogłoszenia, kody produktów i ilość, nigdy ceny ani rabaty z
+  frontendu;
+- źródłem każdej kwoty jest aktywny, publiczny i niezarchiwizowany produkt z
+  `listing_product_catalog`; zmiana ceny wpływa na następną wycenę, ale nie
+  mutuje zwróconego wcześniej snapshotu;
+- wycena jest dostępna wyłącznie dla zalogowanego właściciela ogłoszenia
+  pochodzącego ze ścieżki klienta indywidualnego; brak własności jest zwracany
+  jak brak zasobu, aby nie ujawniać cudzych ogłoszeń;
+- wydzielono czystą politykę możliwości zakupu: pierwsza publikacja wymaga
+  pozytywnej moderacji i niepublicznego ogłoszenia, odnowienie wymaga historii
+  publikacji, a wyróżnienie aktywnej i niewygasłej publikacji;
+- polityka przejściowo rozpoznaje docelowy status `approved` oraz istniejący
+  zapis `claimed` z metadanymi `adminApproval`; sama moderacja zachowuje obecne
+  zachowanie aż do kontrolowanej zmiany w Etapie 5;
+- wykluczono duplikaty produktu i rodzaju, połączenie publikacji z odnowieniem,
+  niedostępne produkty oraz zestawy o różnych walutach;
+- wycena ma 30 minut ważności, puste `discounts` gotowe na Etap 7 oraz VAT
+  obliczany z ceny brutto wyłącznie arytmetyką całkowitą z zaokrągleniem
+  half-up; brak zatwierdzonej stawki VAT jest jawnie reprezentowany jako
+  `null`, a nie jako 0%;
+- suma jest ograniczona do zakresu kolumn `int`, aby przyszłe utworzenie
+  zamówienia nie mogło nieoczekiwanie odrzucić poprawnie zwróconego quote;
+- checkout i wyróżnienia pozostają niezależnie kontrolowane flagami rollout;
+  kod promocyjny jest jawnie odrzucany do czasu wdrożenia silnika promocji,
+  zamiast pozornie go akceptować bez wpływu na cenę;
+- testy obejmują DTO, ochronę endpointu, własność, źródło ogłoszenia, moderację,
+  flagi, dostępność produktów, zmianę ceny, snapshot, VAT, zaokrąglenia,
+  wygaśnięcie oraz granice kwot.
+
+#### Iteracja 4.2 — atomowe i idempotentne zamówienia (zrealizowana 2026-09-07)
+
+- dodano chroniony `POST /api/listing-checkout/orders`; żądanie wymaga nagłówka
+  `Idempotency-Key`, a endpoint tworzy zamówienie bez kontaktu z operatorem
+  płatności;
+- dodano `GET /api/listing-orders/:id`, który pobiera stan wyłącznie w zakresie
+  zalogowanego nabywcy i nie ujawnia istnienia cudzego zamówienia;
+- e-mail w `buyer_snapshot` pochodzi z aktywnego konta użytkownika, nie z body;
+  body zawiera jedynie minimalne dane nabywcy przygotowane do późniejszej
+  weryfikacji księgowo-prawnej;
+- kalkulacja ceny, blokada ogłoszenia, blokada produktów, kontrola kolizji oraz
+  zapis zamówienia i pozycji odbywają się w jednej transakcji;
+- zarówno publiczny quote, jak i zamówienie używają tej samej funkcji
+  kalkulującej i tej samej polityki dostępności; nie ma drugiej implementacji
+  liczenia ceny;
+- `pricing_snapshot` przechowuje pełny quote, a `listing_order_items` zapisują
+  kod, nazwę, typ, cenę, VAT, czas trwania i parametry realizacji z chwili
+  zakupu; późniejsza zmiana katalogu nie modyfikuje historii;
+- fingerprint kanonicznego żądania chroni przed ponownym użyciem klucza
+  idempotencji dla innych danych; kolejność pozycji nie wpływa na fingerprint;
+- obsłużono dwa wyścigi idempotencji: żądanie czekające na blokadę ogłoszenia
+  ponownie sprawdza klucz po jej uzyskaniu, a naruszenie unikalności po insercie
+  odzyskuje zamówienie zapisane przez równoległą transakcję;
+- nieaktualne otwarte zamówienia są oznaczane jako `expired` przed próbą
+  zastąpienia, natomiast aktywne zamówienie tego samego rodzaju blokuje duplikat;
+  opłacona publikacja blokuje ponowny zakup pierwszej publikacji również w
+  krótkim okresie przed utworzeniem entitlementu;
+- zamówienie o sumie 0 zł przechodzi bezpośrednio do `paid`, zapisuje moment
+  finalizacji i pozostawia wszystkie pola operatora puste; przyznanie korzyści
+  realizuje w tej samej transakcji serwis entitlementów wdrożony w Iteracji 5.1;
+- dodano testy DTO konsumenta i firmy, źródła e-maila, pełnego snapshotu,
+  wygaśnięcia, kolizji, zera, odczytu właścicielskiego oraz sekwencyjnych i
+  współbieżnych ponowień idempotentnych.
+
+Etap 4 jest zakończony. Endpoint `orders` celowo nie tworzy jeszcze sesji
+operatora. Etap 5 dołączy sesję płatniczą do istniejącego zamówienia i przed
+jej utworzeniem ponownie sprawdzi `quoteExpiresAt`; nie będzie ponownie liczył
+ani nadpisywał snapshotu ważnego zamówienia.
+
+**Kryterium zakończenia:** dla tego samego zestawu danych wycena i zamówienie
+mają identyczną kwotę, a późniejsza zmiana katalogu nie zmienia snapshotu
+utworzonego zamówienia.
+
+**Odblokowuje:** integrację operatora płatności oraz późniejsze promocje.
+
+### Etap 5 — płatność i publikacja
+
+- [x] Dodać stan `awaiting_payment` po akceptacji moderacji jako stan pochodny:
+  `submission.status = approved`, niepubliczne ogłoszenie i brak aktywnego
+  entitlementu publikacji.
+- [x] Zbudować podsumowanie zamówienia wykorzystujące serwerowy quote.
+- [x] Zintegrować tworzenie sesji płatności z operatorem.
+- [x] Obsłużyć podpisane, idempotentne webhooki.
+- [x] Po webhooku finalizować zamówienie, a publikację aktywować wyłącznie przez
+  serwis `listing_entitlements`.
+- [x] Zapewnić, że przekierowanie użytkownika z checkoutu nigdy samo nie
+  aktywuje publikacji.
+- [x] Dodać ponowienie płatności, potwierdzenie i historię w panelu sprzedającego.
+- [x] Dodać zadanie wykrywające porzucone/wygasłe sesje.
+- [x] Dodać trwały log zdarzeń webhooków i alert dla opłaconego zamówienia bez
+  przyznanego entitlementu.
+- [x] Dodać testy webhooków zduplikowanych, dostarczonych w złej kolejności i
+  ponowionych po błędzie.
+
+#### Iteracja 5.1 — moderacja oddzielona od publikacji i realizacja entitlementów (zrealizowana 2026-09-07)
+
+- zachowanie moderacji jest kontrolowane flagą
+  `RELEASE_FLAG_PRIVATE_LISTING_CHECKOUT_ENABLED`: przy wyłączonej fladze działa
+  dotychczasowa publikacja, a po jej włączeniu zatwierdzenie nadaje status
+  `approved`, pozostawia `Listing` w stanie niepublicznym i nie ustawia dat
+  publikacji ani wygaśnięcia;
+- zaakceptowana oferta otrzymuje docelowy, unikalny slug, ale sam slug nie czyni
+  jej publiczną; właściciel dostaje wiadomość o akceptacji i konieczności
+  przejścia do podsumowania zamiast nieprawdziwej informacji o publikacji;
+- zaakceptowanej oferty oczekującej na płatność nie można edytować bez ponownej
+  moderacji; chroni to zgodność opłacanej treści z treścią zaakceptowaną;
+- dodano `ListingEntitlementsService` jako jedyne miejsce realizujące korzyści z
+  opłaconego zamówienia; wejście standalone blokuje rekord zamówienia, a wariant
+  transakcyjny może być użyty bezpośrednio przez przyszły webhook;
+- realizacja wymaga statusu `paid` oraz `paidAt`, tworzy najwyżej jeden
+  entitlement na pozycję dzięki `order_item_id` i w ponowieniu zwraca istniejące
+  entitlementy bez zmiany ich dat;
+- entitlement pierwszej publikacji aktywuje `Listing` i powiązane zgłoszenie,
+  ustawia wspólne daty publikacji i wygaśnięcia; odnowienie rozpoczyna się po
+  końcu bieżącego okresu, a kolejne wyróżnienie po końcu poprzedniego
+  wyróżnienia tego samego poziomu;
+- zamówienie 0 zł wywołuje realizację entitlementów w tej samej transakcji co
+  zapis zamówienia, więc nie istnieje stan `paid` bez przyznanej darmowej
+  publikacji po poprawnym commicie;
+- testy obejmują kompatybilny rollout moderacji, brak publikacji przed opłatą,
+  treść wiadomości, aktywację publikacji, daty odnowienia, blokadę nieopłaconego
+  zamówienia, ponowienie realizacji oraz blokady transakcyjne.
+
+#### Iteracja 5.2 — niezależny od operatora rdzeń webhooków (zrealizowana 2026-09-07)
+
+- dodano kanoniczny kontrakt zweryfikowanego zdarzenia płatniczego; może go
+  utworzyć wyłącznie adapter, który wcześniej sprawdził podpis operatora;
+- dodano `listing_payment_events` z unikalnością `(provider, event_id)`,
+  powiązaniem z zamówieniem, statusem przetwarzania, bezpiecznym payloadem,
+  błędem oraz czasami wystąpienia i obsługi zdarzenia;
+- `ListingPaymentEventsService` nie jest publicznym kontrolerem i nie przyjmuje
+  surowych webhooków; atomowo blokuje zamówienie, sprawdza powiązanie operatora
+  oraz sesji, porównuje kwotę i walutę, aktualizuje zamówienie, wywołuje
+  entitlementy i zapisuje audyt;
+- sukces płatności jest honorowany również po wcześniejszym `payment_failed`,
+  `expired` lub `cancelled`, jeśli pochodzi z dokładnie tej samej zapisanej
+  sesji i ma poprawną kwotę; zapobiega to sytuacji, w której pobrano pieniądze,
+  ale system nie wykonał usługi;
+- spóźnione zdarzenie błędu lub wygaśnięcia nie cofa zamówienia `paid`;
+- przetworzone duplikaty nie dotykają zamówienia ani entitlementów; uwzględniono
+  również wyścig podczas oczekiwania na blokadę oraz konflikt unikalnego
+  inserta;
+- zdarzenie zakończone błędem pozostaje audytowalne i może zostać bezpiecznie
+  ponowione; poprawne ponowienie aktualizuje ten sam rekord na `processed`;
+- migracja tworzy osobny indeks błędów, aby późniejszy monitoring i alerty nie
+  wymagały skanowania całej tabeli;
+- testy obejmują sukces, dokładność kwoty, powiązanie sesji, błąd, wygaśnięcie,
+  spóźniony sukces, spóźniony błąd, ponowienie po błędzie oraz trzy warianty
+  idempotencji współbieżnej.
+
+#### Iteracja 5.3 — Stripe Checkout i podpisany webhook (zrealizowana 2026-09-07)
+
+- dodano oficjalne Stripe SDK oraz port `ListingPaymentGateway`; domena zamówień
+  zależy od portu, a nie od typów i nazw zdarzeń Stripe;
+- endpoint właściciela `POST /api/listing-orders/:id/checkout-session` sprawdza
+  feature flagę, własność, ważność wyceny, dodatnią kwotę i dozwolony status,
+  po czym tworzy sesję z kwotą pochodzącą wyłącznie ze snapshotu zamówienia;
+- wywołanie Stripe odbywa się poza transakcją bazy, natomiast przygotowanie i
+  powiązanie sesji blokują rekord zamówienia; klucz idempotencji jest oparty na
+  trwałym ID próby płatności, więc można wznowić przerwane wywołanie operatora;
+- Stripe otrzymuje wyłącznie jedną dokładną kwotę końcową zamówienia, walutę,
+  email nabywcy i identyfikatory w metadata; ceny ani adresy powrotu nie są
+  przyjmowane od frontendu;
+- dodano publiczny `POST /api/listing-payments/webhooks/stripe`, który wymaga
+  surowego body i nagłówka `Stripe-Signature`; konfiguracja Nest zachowuje raw
+  body, a oficjalne SDK weryfikuje podpis osobnym sekretem tego endpointu;
+- adapter mapuje `checkout.session.completed`, sukces i błąd płatności
+  asynchronicznej oraz wygaśnięcie sesji do kanonicznego kontraktu domenowego;
+  ukończona, ale jeszcze nieopłacona sesja nie aktywuje zamówienia;
+- przekierowanie sukcesu zawiera wyłącznie dane do prezentacji wyniku i nie ma
+  żadnej ścieżki aktywującej publikację; jedyną ścieżką pozostaje zweryfikowany
+  webhook i transakcyjny `ListingEntitlementsService`;
+- webhook pozostaje aktywny po wyłączeniu feature flagi, aby platforma mogła
+  zrealizować płatności rozpoczęte przed awaryjnym zatrzymaniem nowych sesji;
+- podpisany sukces z dokładną kwotą i walutą może atomowo uzupełnić brakujące
+  powiązanie sesji, jeśli Stripe utworzył ją tuż przed awarią zapisu bazy;
+  zdarzenia błędu ani wygaśnięcia nie mają prawa wykonać takiego powiązania;
+- sekrety `STRIPE_SECRET_KEY` i `STRIPE_LISTING_WEBHOOK_SECRET` są wymagane
+  dopiero przy użyciu integracji, dzięki czemu brak konfiguracji nie blokuje
+  startu pozostałej części aplikacji, ale każda próba płatności kończy się
+  kontrolowanym błędem zamiast trybem niezabezpieczonym.
+
+#### Iteracja 5.4 — trwałe próby płatności i bezpieczne retry (zrealizowana 2026-09-07)
+
+- dodano `listing_payment_attempts` jako historię wszystkich prób jednego
+  zamówienia; każda próba ma kolejny numer, własny status, snapshot kwoty i
+  waluty, operatora, czas ważności oraz bezpieczne dane błędu;
+- unikalność sesji i płatności operatora obowiązuje globalnie, natomiast
+  blokada zamówienia serializuje przydzielanie numerów prób i zabezpiecza przed
+  utworzeniem dwóch prób o tym samym numerze;
+- migracja odtwarza próbę numer 1 dla istniejących zamówień powiązanych już z
+  sesją operatora i używa `ON CONFLICT DO NOTHING`, więc nie nadpisuje historii
+  utworzonej wcześniej przez runtime;
+- pierwsze wywołanie checkoutu zapisuje próbę `creating` przed kontaktem ze
+  Stripe; awaria sieci pozostawia ją do wznowienia z tym samym kluczem
+  idempotencji, bez utrzymywania transakcji bazy podczas wywołania sieciowego;
+- otwarta próba jest wznawiana, a po potwierdzonym `payment_failed` tworzona
+  jest nowa próba i nowa sesja Stripe; nie nadpisujemy identyfikatora starej
+  sesji, więc jej spóźniony sukces nadal może zostać poprawnie rozliczony;
+- nową próbę można przydzielić tylko przed upływem pierwotnej ważności snapshotu
+  wyceny; kolejne próby nie pozwalają bezterminowo zachować ceny zmienionej
+  później przez administratora;
+- metadata Stripe zawiera ID próby oraz ID zamówienia; webhook najpierw wiąże
+  zdarzenie z konkretną próbą, a dopiero potem aktualizuje status zamówienia;
+- błąd lub wygaśnięcie starej próby nie może cofnąć ani zmienić nowszej próby;
+  dokładny, podpisany sukces starej próby nadal finalizuje zamówienie i
+  realizuje entitlementy;
+- jeśli wyjątkowo dwie różne próby zakończą się sukcesem, publikacja pozostaje
+  idempotentna, druga płatność jest zapisana, a zamówienie otrzymuje
+  `paymentReviewRequired` oraz listę dodatkowych płatności do zwrotu lub ręcznej
+  weryfikacji;
+- `GET /api/listing-orders/:id` zwraca właścicielowi historię prób od najnowszej
+  i flagę `canRetryPayment`, ale nie ujawnia identyfikatorów sesji ani płatności
+  operatora;
+- dodano testy pierwszej próby, wznowienia po awarii, nowej próby po błędzie,
+  współbieżnego modelu blokad, starego błędu po nowszej próbie, spóźnionego
+  sukcesu, podwójnej płatności, prywatności kontraktu i migracji legacy.
+
+#### Iteracja 5.5 — checkout i historia w panelu sprzedającego (zrealizowana 2026-09-07)
+
+- panel zaakceptowanego ogłoszenia pobiera publiczne warianty publikacji i
+  wyświetla podsumowanie z serwerowego quote; frontend przesyła wyłącznie kod
+  produktu i nigdy nie jest źródłem ceny, rabatu, VAT ani czasu trwania;
+- utworzenie zamówienia używa jawnego klucza idempotencji zachowanego przez
+  cały cykl próby w widoku; po błędzie odczytywany jest trwały stan zamówienia,
+  dzięki czemu nie powstaje duplikat po niejednoznacznej odpowiedzi sieciowej;
+- istniejące zamówienie `draft` lub `pending_payment` wznawia checkout, a
+  `payment_failed` pozwala na nową próbę tylko wtedy, gdy serwer zwraca
+  `canRetryPayment`; podsumowanie takiego zamówienia pochodzi z niezmiennego
+  `pricingSnapshot`, a nie z aktualnego katalogu;
+- dodano właścicielski `GET /api/listing-orders/by-listing/:listingId`, który
+  filtruje równocześnie po użytkowniku i ogłoszeniu oraz zwraca najwyżej 20
+  najnowszych zamówień z próbami bez identyfikatorów Stripe;
+- historia w panelu pokazuje statusy zamówień i wszystkich prób płatności;
+  interfejs obsługuje też zamówienie 0 zł bez przekierowania do operatora;
+- adres checkoutu jest walidowany jako HTTPS w domenie Stripe przed
+  przekierowaniem, a błędny adres kończy się kontrolowanym komunikatem;
+- strony `success` i `cancel` odczytują wyłącznie właścicielskie zamówienie z
+  API; parametr `session_id` z przeglądarki nie jest źródłem prawdy i nie jest
+  wysyłany do API;
+- ekran sukcesu odpytuje API przez ograniczony czas i pokazuje potwierdzenie
+  dopiero dla stanu opłaconego; przy opóźnieniu webhooka zaleca nie ponawiać
+  wpłaty i pozwala ręcznie odświeżyć status;
+- powrót z anulowania również sprawdza zamówienie, więc spóźniony webhook
+  sukcesu ma pierwszeństwo przed informacją wynikającą z samego redirectu;
+- typy statusów sprzedającego oraz flagi wydania zostały zsynchronizowane z
+  backendem; edycja zaakceptowanej oferty jest ukryta w czasie oczekiwania na
+  płatność zgodnie z niezmiennikiem moderacji.
+
+#### Iteracja 5.6 — rekoncyliacja płatności i samonaprawa realizacji (zrealizowana 2026-09-07)
+
+- dodano okresowy, konfigurowalny scheduler przetwarzający ograniczone partie;
+  blokada doradcza PostgreSQL zapewnia pojedyncze wykonanie w całym klastrze, a
+  lokalna blokada chroni przed nakładaniem uruchomień tej samej instancji;
+- próby `creating` i `pending`, których `expiresAt` minął, są ponownie
+  sprawdzane i blokowane w transakcji przed przejściem do `expired`; zamówienie
+  wygasa tylko wtedy, gdy jest to nadal jego najnowsza próba;
+- kolejność blokad zamówienie → próba jest identyczna jak w obsłudze webhooka,
+  dzięki czemu równoległy sukces płatności nie jest nadpisywany i nie powstaje
+  zakleszczenie; podpisany, spóźniony sukces nadal może przeprowadzić
+  `expired` → `paid` i wykonać usługę;
+- scheduler wykrywa zamówienia `paid`, dla których choć jedna pozycja nie ma
+  entitlementu, po krótkim konfigurowalnym okresie ochronnym; każde wykrycie
+  zapisuje strukturalne ostrzeżenie monitoringu i uruchamia idempotentną
+  realizację przez istniejący `ListingEntitlementsService`;
+- błędy pojedynczych prób i zamówień są izolowane, raportowane osobno oraz nie
+  zatrzymują reszty partii; podsumowanie zawiera liczbę wygaśnięć, wykrytych
+  niespójności, napraw i błędów;
+- dodano częściowy indeks dla starych zamówień `paid`, konfigurację środowiska
+  oraz testy wyścigu z webhookiem, starszej próby, samonaprawy, izolacji błędów,
+  blokady klastra i wyłączania schedulera w testach;
+- trwały log webhooków pozostaje w `listing_payment_events` wdrożonym w
+  Iteracji 5.2; Iteracja 5.6 wykorzystuje go razem z monitoringiem do
+  diagnozowania sytuacji, których automatyczna naprawa nie zakończyła.
+
+Etap 5 jest zakończony. Następna iteracja rozpoczyna Etap 6 od podłączenia
+wyróżnień i odnowień do istniejącej domeny produktów, entitlementów i checkoutu.
+
+**Kryterium zakończenia:** zaakceptowana oferta jest publikowana dokładnie raz
+po potwierdzonej płatności, również gdy webhook zostanie dostarczony
+wielokrotnie. Nie istnieje ścieżka publikacji oparta wyłącznie o dane frontendu.
+
+**Odblokowuje:** sprzedaż wyróżnień i odnowień przez ten sam checkout.
+
+### Etap 6 — wyróżnienia i odnowienia
+
+- [x] Rozszerzyć serwis entitlementów o wyróżnienie i przedłużenie publikacji.
+- [x] Dodać właściwe produkty wyróżnienia i odnowienia do katalogu.
+- [x] Podłączyć wyróżnienie do katalogu, mapy i strony oferty.
+- [x] Ustalić sortowanie i rotację w tym samym tierze.
+- [x] Dodać zakup wyróżnienia i odnowienia z panelu sprzedającego.
+- [x] Uniemożliwić zakup wyróżnienia dla cudzej, odrzuconej lub wygasłej oferty
+  bez jednoczesnego odnowienia.
+- [x] Określić zachowanie ponownego zakupu przed zakończeniem aktywnego okresu.
+- [x] Dodać automatyczne wygasanie oraz przypomnienia (wygasanie, komunikaty w
+  panelu oraz automatyczne emaile dla wyróżnienia i publikacji zrealizowane
+  cyklicznym jobem).
+- [x] Zmigrować użycie `isPremium` albo jasno ograniczyć je do
+  cache/kompatybilności.
+- [x] Dodać testy nakładających się okresów, ponowionych webhooków oraz
+  wygasania entitlementów.
+
+**Kryterium zakończenia:** wyróżnienie działa tylko w opłaconym/przyznanym
+okresie, a jego start i koniec są audytowalne. Odnowienie i wyróżnienie używają
+tego samego kalkulatora, zamówienia i finalizacji płatności co publikacja.
+
+#### Iteracja 6.1 — cykl życia entitlementów (w toku, 2026-09-07)
+
+- istniejący serwis realizacji zamówień obsługuje publikację, odnowienie oraz
+  wyróżnienie z tym samym snapshotem produktu i idempotencją pozycji;
+- dodano `processDueEntitlements`, który w jednej transakcji aktywuje
+  zaplanowane entitlementy i wygasza zakończone okresy;
+- po wygaśnięciu ostatniego entitlementu publikacji oferta jest automatycznie
+  oznaczana jako nieopublikowana; aktywne odnowienie chroni ją przed cofnięciem;
+- dodano `ListingEntitlementsScheduler` z konfigurowalnym interwałem, limitem
+  partii, monitoringiem i postgres advisory lockiem dla wielu instancji API;
+- dodano testy aktywacji, wygasania i automatycznego odpublikowania.
+
+Zakres odczytu entitlementów i akcji zakupu w panelu został zrealizowany.
+
+#### Iteracja 6.2 — panel usług i odczyt entitlementów (w toku, 2026-09-08)
+
+- dodano właścicielski `GET /api/listing-entitlements/by-listing/:listingId`,
+  który najpierw sprawdza własność ogłoszenia i zwraca wyłącznie aktywne lub
+  zaplanowane entitlementy;
+- panel sprzedającego pobiera katalog, historię zamówień i stan entitlementów
+  równolegle, a następnie udostępnia produkty publikacji, odnowienia i
+  wyróżnienia zgodnie ze stanem oferty;
+- ponowne zakupy nie są blokowane przez wcześniejsze opłacone zamówienie;
+  ograniczenia pozostają po stronie serwera w quote/purchase policy;
+- publiczny katalog ukrywa produkty wyróżnienia, gdy niezależna feature flaga
+  wyróżnień jest wyłączona.
+
+#### Iteracja 6.3 — sortowanie wyróżnień w katalogu publicznym (2026-09-09)
+
+- publiczny katalog i markery mapy używają aktywnych entitlementów
+  `featured` jako pierwszego kryterium sortowania;
+- priorytet pochodzi z `parameters.priorityWeight`, czyli z migawki produktu lub
+  grantu admina, a nie z legacy `Listing.isPremium`;
+- oferty z tym samym priorytetem wyróżnienia rotują deterministycznie raz
+  dziennie po `listing.id` i bieżącej dacie, dzięki czemu paginacja oraz mapa
+  pozostają stabilne w trakcie dnia;
+- jawne sorty użytkownika, np. cena i metraż, nadal działają po priorytecie
+  wyróżnienia i dziennej rotacji.
+
+Pozostają testy pełnego przepływu UI z przekierowaniem do checkoutu.
+
+#### Iteracja 6.4 — legacy `isPremium` jako cache (2026-09-09)
+
+- `listing_entitlements` pozostaje źródłem prawdy dla płatnego wyróżnienia,
+  okresu obowiązywania i priorytetu;
+- `Listing.isPremium` jest utrzymywane wyłącznie jako cache kompatybilności dla
+  starszych widoków, list CRM i mechanizmów retencji limitów agencji;
+- aktywne entitlementy `featured` ustawiają cache na `true`, a wygaśnięcie
+  ostatniego aktywnego wyróżnienia czyści cache do `false`;
+- publiczny katalog nie używa `isPremium` do rankingu, tylko aktywnych
+  entitlementów i ich `priorityWeight`.
+
+#### Iteracja 6.5 — komunikaty końca publikacji i wyróżnienia (2026-09-09)
+
+- dodano czysty helper frontendowy budujący stan lifecycle z aktywnych i
+  zaplanowanych entitlementów;
+- panel usług sprzedającego pokazuje datę końca aktywnej publikacji,
+  ostrzeżenie na 7 dni przed końcem publikacji oraz informację o zaplanowanym
+  odnowieniu;
+- panel pokazuje aktywne wyróżnienie, ostrzeżenie na 2 dni przed końcem oraz
+  zaplanowany kolejny okres wyróżnienia;
+- progi i wybór najbliższego zaplanowanego okresu są pokryte testami
+  jednostkowymi bez zależności od DOM.
+
+#### Iteracja 6.6 — automatyczny email końca wyróżnienia (2026-09-09)
+
+- `ListingEntitlementsService` wysyła email do właściciela oferty, gdy aktywne
+  wyróżnienie kończy się w oknie 2 dni;
+- wysyłka jest idempotentna per entitlement i data końca dzięki zapisowi
+  `parameters.featuredExpiryReminder2Days`;
+- lifecycle scheduler po aktywacji/wygaszaniu entitlementów wywołuje także
+  przypomnienia wyróżnień w tej samej blokadzie advisory lock;
+- monitoring przebiegu schedulera raportuje liczbę wysłanych i pominiętych
+  przypomnień;
+- istniejący email 7 dni przed końcem publikacji nadal działa przez obecny
+  admin endpoint `POST /api/admin/listing-submissions/expiring-reminders`.
+
+#### Iteracja 6.7 — cykliczny job przypomnień publikacji (2026-09-10)
+
+- 7-dniowe przypomnienie końca publikacji zostało wpięte do
+  `ListingEntitlementsScheduler`, czyli działa cyklicznie razem z lifecycle
+  entitlementów i przypomnieniami wyróżnień;
+- ręczny admin endpoint `POST /api/admin/listing-submissions/expiring-reminders`
+  pozostaje jako operacyjny backfill/manual retry, ale nie jest głównym
+  mechanizmem produkcyjnym;
+- scheduler raportuje osobne liczniki dla przypomnień wyróżnień i publikacji:
+  `featuredRemindersSent`, `featuredRemindersSkipped`,
+  `publicationRemindersSent`, `publicationRemindersSkipped`;
+- wywołanie jest objęte tym samym advisory lockiem, więc przy wielu instancjach
+  API nie powstaną równoległe wysyłki;
+- dodano test jednostkowy schedulera potwierdzający cykliczne wywołanie
+  lifecycle, przypomnień wyróżnienia i przypomnień publikacji w jednym batchu.
+
+#### Iteracja 6.8 — reguły zakupu wyróżnienia i ponownych okresów (2026-09-10)
+
+- backend nie ujawnia i nie wycenia cudzej oferty, bo quote najpierw pobiera
+  ogłoszenie po `listingId` i `ownerUserId`;
+- backend blokuje checkout dla zgłoszeń prywatnych bez zatwierdzonej moderacji,
+  więc odrzucone lub oczekujące oferty nie mogą kupić publikacji, odnowienia ani
+  wyróżnienia;
+- samo wyróżnienie jest dostępne tylko dla aktywnej, publicznej i niewygasłej
+  oferty;
+- wygasła oferta może kupić wyróżnienie wyłącznie razem z odnowieniem w tej
+  samej wycenie;
+- ponowny zakup przed końcem aktywnego okresu nie skraca aktualnego okresu:
+  `fulfillPaidOrderInTransaction` szuka ostatniego aktywnego/zaplanowanego
+  entitlementu tego samego typu i planuje nowy okres od jego `endsAt`;
+- reguły są zabezpieczone testem quote dla wygasłej oferty:
+  `featured` bez `renewal` jest odrzucany, a `renewal + featured` jest
+  wyceniany poprawnie.
+
+#### Iteracja 6.9 — domknięcie testów regresyjnych etapu 6 (2026-09-10)
+
+- dodano test nakładającego się wyróżnienia: ponowny zakup tego samego tieru
+  tworzy zaplanowany entitlement startujący po aktualnym `endsAt`;
+- dodano test lifecycle chroniący aktywną ofertę przed odpublikowaniem, gdy po
+  wygasłym okresie istnieje kolejne aktywne lub zaplanowane odnowienie;
+- ponowione webhooki pozostają zabezpieczone istniejącymi testami idempotencji
+  realizacji order itemów oraz testami duplikatów eventów płatności;
+- regresyjnie uruchomiono zestaw backendowy etapu 6 obejmujący entitlementy,
+  lifecycle, scheduler, quote/purchase policy i eventy płatności.
+
+### Etap 7 — kampanie i kody promocyjne
+
+- [x] Dodać kampanie, kody, rezerwacje i wykorzystania.
+- [x] Rozszerzyć istniejący kalkulator ceny o promocje i reguły łączenia bez
+  zmiany jego publicznego kontraktu.
+- [x] Dodać pole kodu w checkout oraz czytelne rozbicie ceny.
+- [x] Dodać panel kampanii i kodów z filtrami oraz statystykami.
+- [x] Obsłużyć limity atomowo i zwalnianie rezerwacji.
+- [x] Domyślnie wybierać korzystniejszy rabat, gdy kodu nie można łączyć z
+  promocją automatyczną.
+- [x] Nie wysyłać treści kodu do analityki ani logów aplikacyjnych.
+- [x] Dodać pełny zestaw testów dat, stref czasowych, równoległych użyć i ceny
+  0 zł.
+
+**Kryterium zakończenia:** kodu ponad limit nie da się użyć nawet przy dwóch
+równoległych checkoutach, a wyliczona kwota jest taka sama w podglądzie i
+zamówieniu.
+
+#### Iteracja 7.1 — fundament danych promocji (2026-09-10)
+
+- dodano słownik domenowy promocji:
+  `ListingPromotionCampaignStatus`, `ListingPromotionDiscountType`,
+  `ListingPromotionTargetScope`, `ListingPromotionReservationStatus`;
+- dodano tabele:
+  - `listing_promotion_campaigns` — kampanie automatyczne i kampanie kodowe,
+  - `listing_promotion_codes` — kody powiązane z kampaniami,
+  - `listing_promotion_reservations` — czasowe rezerwacje rabatu pod quote/order,
+  - `listing_promotion_redemptions` — trwałe wykorzystania po finalizacji;
+- kody promocyjne nie są przechowywane jawnie: tabela kodów ma `code_hash` i
+  pomocnicze `code_last4`, bez plaintext wartości kodu;
+- migracja ma constrainty dla wartości rabatu, zakresów dat, limitów użycia,
+  nieujemnych liczników, snapshotów JSON oraz idempotencji rezerwacji i
+  wykorzystań;
+- rezerwacje i wykorzystania są osobnymi tabelami, żeby w kolejnych iteracjach
+  bezpiecznie obsłużyć równoległy checkout i zwalnianie limitów;
+- encje zostały zarejestrowane w `ListingCommerceModule`;
+- migracja została uruchomiona lokalnie w Docker DB:
+  `20260910_listing_promotions_foundation.sql`.
+
+#### Iteracja 7.2 — kalkulator promocji w quote (2026-09-10)
+
+- dodano `ListingPromotionsService`, który rozwiązuje aktywne kampanie
+  automatyczne i opcjonalny kod promocyjny bez ujawniania wartości kodu w
+  snapshotach;
+- kod promocyjny jest normalizowany i wyszukiwany po SHA-256 (`code_hash`), a
+  `sourceReference` w quote wskazuje techniczne ID kodu albo kampanii;
+- kalkulator quote przyjmuje serwerowo wyliczone rabaty i alokuje je na pozycje,
+  dzięki czemu `listing_order_items.discount_gross_amount` pozostaje spójne z
+  sumą zamówienia;
+- przy niełączących się promocjach wybierany jest najwyższy rabat spośród kodu i
+  kampanii automatycznej;
+- obsłużono targetowanie promocji po wszystkich produktach, typach produktów i
+  kodach produktów;
+- quote akceptuje `promotionCode` tylko przy włączonej fladze
+  `RELEASE_FLAG_PRIVATE_LISTING_PROMOTIONS_ENABLED`;
+- lokalny `docker-compose.yml` ma flagę promocji włączoną domyślnie dla
+  środowiska developerskiego.
+
+#### Iteracja 7.3 — atomowe rezerwacje limitów promocji (2026-09-10)
+
+- tworzenie zamówienia rezerwuje rabaty ze snapshotu quote w tej samej
+  transakcji, w której zapisywany jest order;
+- kampania i kod promocyjny są blokowane `pessimistic_write` przed inkrementacją
+  liczników, więc limit globalny i limit per użytkownik są sprawdzane pod
+  blokadą bazy;
+- przy sukcesie płatności rezerwacje przechodzą do statusu `applied`, a system
+  zapisuje trwałe rekordy `listing_promotion_redemptions`;
+- zamówienia za 0 zł finalizują rezerwacje od razu podczas tworzenia ordera;
+- wygasłe checkouty zwalniają rezerwacje i dekrementują liczniki przez trzy
+  ścieżki: webhook `checkout.session.expired`, tworzenie nowego ordera po
+  starym porzuconym orderze oraz cykliczny reconciliation job;
+- poprawiono model indeksów `order_id` w rezerwacjach i wykorzystaniach z
+  unikalnego na nieunikalny, ponieważ jedno zamówienie może mieć więcej niż
+  jeden rabat łączony;
+- dodano migrację korekcyjną
+  `20260910_listing_promotion_order_indexes.sql` i uruchomiono ją lokalnie w
+  Docker DB;
+- regresyjnie przetestowano rezerwację, przekroczenie limitu, aplikację,
+  zwolnienie rezerwacji, order creation, webhooki płatności oraz reconciliation.
+
+#### Iteracja 7.4 — kod promocyjny w checkout sprzedającego (2026-09-10)
+
+- panel checkoutu sprzedającego ma osobne pole `Kod promocyjny` z akcją
+  `Zastosuj`, bez przeliczania ceny po każdej wpisanej literze;
+- frontend wysyła przycięty `promotionCode` do quote i do tworzenia ordera,
+  dzięki czemu podgląd i zapisany snapshot zamówienia korzystają z tej samej
+  autorytatywnej kalkulacji backendu;
+- zmiana produktu, zastosowanie kodu lub usunięcie kodu resetuje lokalny
+  idempotency key, żeby nie reużyć requestu dla innej konfiguracji ceny;
+- przy błędzie przeliczenia quote jest czyszczony, więc użytkownik nie może
+  przejść do płatności ze starą ceną po nieudanej walidacji kodu;
+- podsumowanie ceny pokazuje konkretne rabaty ze snapshotu quote (`label` i
+  kwota), a generyczny wiersz `Rabat` pozostaje tylko jako defensywny fallback;
+- typy webowego klienta checkoutu rozróżniają `ListingQuoteDiscount` zamiast
+  traktować rabaty jako dowolny obiekt.
+
+#### Iteracja 7.5 — admin API kampanii i kodów promocyjnych (2026-09-10)
+
+- dodano adminowy kontrakt odpowiedzi dla kampanii i kodów promocyjnych bez
+  `code_hash` i bez jawnej wartości kodu;
+- dodano endpointy `admin/listing-promotions` do listowania, podglądu,
+  tworzenia, edycji, archiwizacji i przywracania kampanii;
+- dodano endpoint `admin/listing-promotions/:code/codes` do tworzenia kodu w
+  kampanii;
+- kod promocyjny jest normalizowany i hashowany w serwisie przed zapisem, a API
+  zwraca tylko `codeLast4`, etykietę, status, limity i liczniki;
+- walidacja serwisu obejmuje typ rabatu, limit 100% dla rabatu procentowego,
+  zakres dat, targetowanie po typach/kodach produktów oraz limity nie niższe niż
+  aktualne użycia;
+- przy edycji lub dodawaniu kodu kampania jest blokowana w transakcji, a listę
+  kodów odświeżamy osobnym zapytaniem, żeby nie zwracać nieaktualnych relacji;
+- nowy kontroler jest chroniony rolą `admin` tak jak panel produktów ogłoszeń;
+- dodano testy tworzenia kampanii, walidacji, hashowania kodu, konfliktu
+  duplikatu oraz archiwizacji/przywrócenia kampanii.
+
+#### Iteracja 7.6 — panel admina kampanii i kodów (2026-09-10)
+
+- dodano stronę `/dashboard/admin/listing-promotions` dostępną z bocznego menu
+  administracji;
+- panel pokazuje kampanie z filtrem statusu i wyszukiwaniem po nazwie/kodzie;
+- administrator może utworzyć i edytować kampanię, zmienić status, zakres
+  targetowania, typ rabatu, limity, daty obowiązywania oraz regułę łączenia;
+- administrator może archiwizować i przywracać kampanię; przywrócona kampania
+  pozostaje wstrzymana do osobnej aktywacji;
+- w szczegółach kampanii panel pokazuje statystyki użyć kampanii, użyć kodów
+  oraz liczbę kodów;
+- administrator może tworzyć kody promocyjne przypisane do kampanii, z
+  opcjonalnym nadpisaniem rabatu, limitów i reguły łączenia;
+- po utworzeniu kodu panel pokazuje tylko `codeLast4`, etykietę, status i
+  statystyki; pełny kod nie jest odczytywany z backendu;
+- dodano webowy klient `listing-promotions` z walidacją formularzy, mapowaniem
+  payloadów i testami endpointów oraz bezpiecznego payloadu kodu.
+
+#### Iteracja 7.7 — redakcja kodów w logach i analityce (2026-09-10)
+
+- rozszerzono centralną sanitizację `MonitoringService` o pola
+  `promotionCode`, `promoCode`, `couponCode`, `discountCode` i warianty
+  zawierające `coupon`;
+- redakcja działa rekurencyjnie, więc usuwa kod również wtedy, gdy ktoś przekaże
+  do monitoringu zagnieżdżony request body;
+- rozszerzono webowy helper `trackAnalyticsEvent`, żeby usuwał pola kodów
+  promocyjnych z properties przed wysłaniem zdarzenia do API;
+- testy potwierdzają, że `START10`, `SECRET20` i `COUPON30` nie trafiają do
+  logowanej linii monitoringu ani do payloadu analytics;
+- fingerprint idempotency ordera nadal uwzględnia kod w lokalnym SHA-256, ale
+  jawna wartość nie jest utrwalana ani logowana.
+
+#### Iteracja 7.8 — testy graniczne promocji (2026-09-11)
+
+- dodano regresję dla pełnego rabatu 100%, który sprowadza quote do `0 zł`,
+  zachowuje poprawne sumy pozycji i VAT `0`;
+- dodano testy okna czasowego kodów: `endsAt` jest granicą wyłączną, a kampania
+  startująca w przyszłości nie nalicza rabatu;
+- dodano test zapisu daty z offsetem strefy czasowej w admin API, żeby
+  potwierdzić przechowywanie dokładnego instantu UTC;
+- dodano test symulujący dwie próby zajęcia ostatniego limitu promocji:
+  pierwsza rezerwacja inkrementuje liczniki, druga kończy się konfliktem;
+- istniejące testy rezerwacji nadal sprawdzają użycie `pessimistic_write`, więc
+  ochrona limitów opiera się na blokadzie bazy, a nie na stanie frontendu.
+
+### Etap 8 — promocja konkretnego ogłoszenia i operacje admina
+
+- [x] Dodać ręczne korekty z obowiązkowym powodem i okresem ważności.
+- [x] Dodać panel `Cena i promocja` w szczegółach zgłoszenia/oferty.
+- [x] Dodać grant darmowej publikacji, wyróżnienia i przedłużenia.
+- [x] Realizować granty przez ten sam serwis entitlementów co opłacone
+  zamówienia, bez bezpośredniego ustawiania `isPremium` lub dat publikacji.
+- [x] Pokazywać ręczny rabat jako osobną pozycję w quote i zamówieniu.
+- [x] Dodać anulowanie/revocation z pełnym audytem.
+- [x] Dodać uprawnienia bardziej szczegółowe niż ogólna rola admina, jeśli
+  operacje finansowe będą obsługiwać różne osoby.
+- [x] Dodać testy uprawnień, audytu i wpływu cofnięcia grantu na aktywną usługę.
+
+**Kryterium zakończenia:** administrator może pomóc konkretnemu użytkownikowi
+bez ręcznej zmiany danych w bazie i bez utraty śladu audytowego.
+
+#### Iteracja 8.1 — fundament domenowy grantów admina
+
+- [x] Dodano transakcyjną metodę domenową `grantAdminEntitlement`, która
+  przyznaje darmową publikację, przedłużenie albo wyróżnienie dla konkretnego
+  ogłoszenia.
+- [x] Granty admina korzystają z tego samego modelu `ListingEntitlement`, tego
+  samego wyliczania dat i tej samej aktywacji publikacji/wyróżnienia co
+  opłacone zamówienia.
+- [x] Grant wymaga autora, powodu audytowego i okresu ważności, a źródło jest
+  zapisywane jako `ADMIN_GRANT` zamiast `ORDER_ITEM`.
+- [x] Publikacja i przedłużenie są realizowane przez
+  `applyPublicationEntitlement`, bez bezpośredniego ustawiania dat poza warstwą
+  entitlementów.
+- [x] Wyróżnienie odświeża cache `Listing.isPremium` przez istniejący mechanizm
+  synchronizacji premium, aby zachować kompatybilność z legacy katalogiem.
+- [x] Dodano testy jednostkowe dla darmowej publikacji, przedłużenia,
+  wyróżnienia oraz walidacji powodu i konfiguracji wyróżnienia.
+
+Następny krok etapu 8: wystawić bezpieczny endpoint admina i podpiąć go w
+panelu szczegółów zgłoszenia/oferty jako sekcję `Cena i promocja`.
+
+#### Iteracja 8.2 — endpoint admina dla grantów
+
+- [x] Dodano endpoint `POST /api/admin/listings/:listingId/entitlement-grants`
+  do przyznawania publikacji, przedłużenia i wyróżnienia z panelu admina.
+- [x] Endpoint jest chroniony rolą `ADMIN` i pobiera autora operacji z
+  aktualnego użytkownika, bez przyjmowania `actorUserId` z body.
+- [x] Dodano DTO `GrantListingEntitlementDto` z walidacją typu produktu,
+  okresu ważności, powodu audytowego, konfiguracji wyróżnienia i liczbowych
+  pól formularza.
+- [x] Kontroler pozostaje cienką warstwą transportową i przekazuje żądanie do
+  `ListingEntitlementsService.grantAdminEntitlement`.
+- [x] Dodano testy kontrolera, ochrony admin-only i walidacji DTO.
+
+Następny krok etapu 8: przygotować dane pod panel `Cena i promocja` w
+szczegółach zgłoszenia/oferty, aby admin przed wykonaniem grantu widział
+aktywną publikację, wyróżnienia, zaplanowane okresy i historię grantów.
+
+#### Iteracja 8.3 — read-model pod panel `Cena i promocja`
+
+- [x] Dodano endpoint `GET /api/admin/listings/:listingId/commerce-summary`,
+  który zwraca snapshot publikacji ogłoszenia oraz listę wszystkich
+  entitlementów.
+- [x] Summary pokazuje status ogłoszenia, status publikacji, daty publikacji,
+  wygaśnięcia, `publicSlug` i aktualny stan legacy `isPremium`.
+- [x] Entitlementy w summary zawierają typ, status, poziom wyróżnienia,
+  źródło, powiązany `orderItemId`, daty oraz bezpieczny audyt grantu/admin
+  revoke bez wystawiania surowego JSON `parameters`.
+- [x] Dodano test serwisu sprawdzający kształt danych i mapowanie audytu
+  `ADMIN_GRANT`.
+- [x] Dodano test kontrolera dla odczytu summary.
+
+Następny krok etapu 8: zbudować frontendową sekcję `Cena i promocja` w panelu
+admina i podpiąć akcję przyznawania grantu do nowego endpointu.
+
+#### Iteracja 8.4 — frontowy boundary dla panelu admina
+
+- [x] Dodano moduł `listing-entitlements` po stronie web z typami dla
+  adminowego summary i entitlementów.
+- [x] Dodano funkcję `fetchAdminListingCommerceSummary` dla endpointu
+  `GET /api/admin/listings/:listingId/commerce-summary`.
+- [x] Dodano funkcję `grantAdminListingEntitlement` dla endpointu
+  `POST /api/admin/listings/:listingId/entitlement-grants`.
+- [x] Dodano formularzowy boundary dla ręcznego grantu:
+  `createEmptyAdminEntitlementGrantForm`,
+  `validateAdminEntitlementGrantForm` i `toGrantListingEntitlementInput`.
+- [x] Walidacja frontowa wymusza powód, okres ważności i `featuredTier` tylko
+  dla wyróżnień, a liczby konwertuje dopiero przy budowie payloadu API.
+- [x] Dodano testy modułu web dla walidacji, konwersji i wywołań HTTP.
+
+Następny krok etapu 8: użyć tego modułu w widocznej sekcji UI na stronie
+adminowej szczegółów zgłoszenia/oferty.
+
+#### Iteracja 8.5 — UI panelu `Cena i promocja`
+
+- [x] Dodano sekcję `Cena i promocja` w modalnym podglądzie adminowej
+  moderacji zgłoszenia.
+- [x] Panel pobiera `commerce-summary` dla powiązanego `publishedListingId` i
+  pokazuje status publikacji, daty publikacji/wygaśnięcia, stan wyróżnienia
+  oraz historię entitlementów.
+- [x] Entitlementy są prezentowane z czytelnymi etykietami statusu, typu,
+  okresem działania i źródłem (`zamówienie` albo `grant admina`).
+- [x] Dodano formularz ręcznego grantu administratora dla publikacji,
+  przedłużenia i wyróżnienia.
+- [x] Formularz korzysta z frontowego boundary `listing-entitlements`, więc UI
+  nie parsuje samodzielnie payloadu i nie powiela reguł walidacji.
+- [x] Przed wykonaniem grantu administrator dostaje dialog potwierdzający typ,
+  okres i powód audytowy.
+- [x] Po udanym grancie panel odświeża summary, aby administrator widział
+  efekt operacji bez ręcznego przeładowania strony.
+
+Następny krok etapu 8: dodać cofanie/revocation grantu z pełnym audytem i
+wpływem na aktywną publikację lub wyróżnienie.
+
+#### Iteracja 8.6 — cofanie grantów admina
+
+- [x] Dodano domenową metodę `revokeAdminEntitlement`, która cofa wyłącznie
+  entitlementy ze źródłem `ADMIN_GRANT`.
+- [x] Cofnięcie wymaga autora i powodu audytowego, zapisuje `revokedAt`,
+  `revokedByUserId` oraz `revokedReason`.
+- [x] Cofnięcie aktywnej publikacji przelicza stan ogłoszenia na podstawie
+  pozostałych aktywnych/zaplanowanych entitlementów i zdejmuje ofertę z
+  katalogu, jeśli nie ma już aktywnej publikacji.
+- [x] Cofnięcie wyróżnienia odświeża legacy cache `Listing.isPremium` przez
+  istniejącą synchronizację entitlementów.
+- [x] Dodano endpoint
+  `POST /api/admin/listings/:listingId/entitlements/:entitlementId/revoke`.
+- [x] Dodano DTO `RevokeListingEntitlementDto` z obowiązkowym powodem
+  audytowym.
+- [x] Frontowy moduł `listing-entitlements` obsługuje `revokeAdminListingEntitlement`
+  i walidację powodu cofnięcia.
+- [x] Panel `Cena i promocja` pokazuje przy aktywnych/zaplanowanych grantach
+  pole powodu i akcję `Cofnij grant`, z dialogiem potwierdzenia i odświeżeniem
+  summary po sukcesie.
+- [x] Dodano testy domeny, kontrolera, DTO i frontowego boundary dla cofania
+  grantów.
+
+#### Iteracja 8.7 — ręczne korekty ceny dla konkretnego ogłoszenia
+
+- [x] Dodano encję `ListingManualAdjustment` i migrację
+  `listing_manual_adjustments` dla ręcznych korekt ceny przypisanych do
+  konkretnego ogłoszenia.
+- [x] Korekta wymaga etykiety, powodu audytowego, autora, typu/wartości rabatu,
+  okresu ważności oraz może zawężać działanie przez te same reguły targetowania
+  produktów co promocje.
+- [x] Dodano serwis `ListingManualAdjustmentsService`, który tworzy korekty,
+  archiwizuje je z powodem i przelicza aktywne korekty do listy rabatów quote
+  jako osobne źródło `admin_adjustment`.
+- [x] Quote łączy rabaty promocyjne z aktywnymi korektami admina bez przyjmowania
+  ceny ani rabatu z frontendu.
+- [x] Zamówienie zapisuje ręczną korektę w `pricingSnapshot`, dzięki czemu
+  rabat pozostaje widoczny jako osobna pozycja także po zakupie.
+- [x] Rezerwacja promocji ignoruje źródło `admin_adjustment`, więc ręczna korekta
+  nie zużywa limitów kampanii ani kodów promocyjnych.
+- [x] Dodano endpointy:
+  `POST /api/admin/listings/:listingId/manual-adjustments` oraz
+  `POST /api/admin/listings/:listingId/manual-adjustments/:adjustmentId/archive`.
+- [x] `commerce-summary` zwraca listę ręcznych korekt obok entitlementów, dzięki
+  czemu panel admina ma jeden read-model dla sekcji `Cena i promocja`.
+- [x] Frontowy moduł `listing-entitlements` ma typy oraz funkcje HTTP do
+  tworzenia i archiwizacji ręcznych korekt.
+- [x] Dodano testy migracji, serwisu, kontrolera, DTO, quote, rezerwacji promocji
+  i frontowego boundary.
+
+#### Iteracja 8.8 — UI ręcznych korekt w panelu `Cena i promocja`
+
+- [x] Rozszerzono frontowy boundary `listing-entitlements` o formularzowe typy,
+  walidację i konwersję ręcznej korekty ceny.
+- [x] Formularz przyjmuje kwoty w złotych i procenty w naturalnej postaci dla
+  administratora, a payload API buduje w groszach/basis points.
+- [x] Panel `Cena i promocja` pokazuje historię ręcznych korekt z czytelnym
+  statusem: aktywna, zaplanowana, wygasła albo archiwum.
+- [x] Dodano formularz tworzenia korekty z etykietą, typem rabatu, wartością,
+  opcjonalnym limitem maksymalnym, datami i obowiązkowym powodem audytowym.
+- [x] Dodano archiwizację korekty z osobnym powodem i dialogiem potwierdzenia.
+- [x] Po utworzeniu lub archiwizacji panel odświeża `commerce-summary`, aby
+  administrator od razu widział aktualny stan bez przeładowania strony.
+- [x] Dodano testy frontowego boundary dla walidacji, konwersji i endpointów
+  ręcznych korekt.
+
+#### Iteracja 8.9 — granularne permissiony dla operacji commerce admina
+
+- [x] Dodano enum `AdminPermission` z capability dla odczytu commerce,
+  zarządzania produktami/cenami, promocjami/kodami, grantami oraz ręcznymi
+  korektami.
+- [x] Dodano pole `users.admin_permissions`, aby można było ograniczać konkretne
+  konta administratorów bez mnożenia globalnych ról.
+- [x] Migracja wymusza, że jawne `admin_permissions` można przypisać tylko
+  użytkownikowi z rolą `admin`.
+- [x] Dodano dekorator `@Permissions(...)` i rozszerzono globalny `RolesGuard`
+  o sprawdzanie wymaganych capability po przejściu kontroli roli.
+- [x] Zachowano kompatybilność wdrożeniową: admin z `adminPermissions = null`
+  ma pełny dotychczasowy dostęp, a dopiero jawnie ustawiona lista zaczyna
+  ograniczać operacje.
+- [x] Strategia JWT ładuje permissiony z bazy przy każdym żądaniu i dokłada je
+  do `request.user`, więc zmiana uprawnień nie zależy od danych zapisanych w
+  tokenie.
+- [x] Endpointy produktów/cen, promocji/kodów, grantów i korekt w module
+  listing-commerce mają osobne wymagania permissionów dla odczytu i mutacji.
+- [x] Dodano testy guarda, migracji i metadanych kontrolerów.
+
+Etap 8 jest funkcjonalnie domknięty. Następny krok: przejść do etapu 9
+— analityki, QA i rollout.
+
+### Etap 9 — analityka zbiorcza, QA i rollout
+
+- [x] Instrumentować podstawowe zdarzenia w każdym wcześniejszym etapie zamiast
+  odkładać całą analitykę na koniec.
+- [x] Dodać lejek i raporty sprzedażowe.
+- [ ] Wykonać testy E2E wszystkich ścieżek płatności i promocji.
+- [ ] Przetestować wygasanie produktów i harmonogramy w UTC/Europe/Warsaw.
+- [x] Włączyć monitoring błędów webhooków, różnic kwot i nieudanych aktywacji.
+- [x] Przygotować procedurę ręcznego pogodzenia opłaconego zamówienia z brakiem
+  entitlementu.
+- [x] Pokazać aktywne promocje automatyczne w publicznym cenniku, aby użytkownik
+  widział cenę promocyjną przed rozpoczęciem dodawania ogłoszenia.
+- [ ] Uruchomić za feature flagą najpierw dla kont testowych.
+- [ ] Uruchomić kolejno: publiczny cennik → płatną publikację → odnowienia →
+  wyróżnienia → promocje i kody.
+- [ ] Po 30 dniach ocenić ceny i sens drugiego poziomu wyróżnienia.
+
+**Kryterium zakończenia:** wszystkie scenariusze krytyczne przechodzą w E2E,
+monitoring wykrywa rozbieżności, procedura operacyjna jest udokumentowana, a
+każdą funkcję można niezależnie wyłączyć feature flagą.
+
+#### Iteracja 9.1 — telemetry fundament dla lejka commerce
+
+- [x] Dodano `ListingCommerceTelemetryService` jako cienką warstwę domenową nad
+  `AnalyticsService.trackSystemEvent`.
+- [x] Telemetry jest best-effort: błąd zapisu analytics generuje warning, ale
+  nie przerywa wyceny, zamówienia, checkoutu ani webhooka płatności.
+- [x] Dodano systemowe zdarzenia:
+  `listing_quote_created`, `listing_order_created`,
+  `listing_checkout_session_created`, `listing_payment_event_processed` oraz
+  `listing_payment_event_failed`.
+- [x] Zdarzenia są tworzone po głównej operacji domenowej i nie uczestniczą w
+  transakcyjnych decyzjach biznesowych.
+- [x] Payload telemetry nie zapisuje jawnego kodu promocyjnego, URL checkoutu
+  ani danych kupującego; zachowuje tylko bezpieczne metryki: kwoty, walutę,
+  typy produktów, źródła rabatów, statusy i identyfikatory operacyjne.
+- [x] Idempotentne ponowienie utworzenia zamówienia nie emituje ponownie
+  `listing_order_created`, aby retry klienta nie zawyżały lejka sprzedażowego.
+- [x] Moduł admin analytics ma nową kategorię `commerce`, aby zdarzenia lejka
+  sprzedażowego nie trafiały do grupy `other`.
+- [x] Dodano testy serwisu telemetrycznego, kategorii raportowej i regresyjny
+  przebieg testów dotkniętych serwisów commerce.
+
+#### Iteracja 9.2 — agregowany lejek sprzedażowy admina
+
+- [x] Rozszerzono `AnalyticsService.getAdminUsageSummary` o sekcję `commerce`.
+- [x] Lejek łączy eventy telemetryczne (`quote`, `order`, `checkout`, webhooki)
+  z trwałymi tabelami `listing_orders` i `listing_payment_attempts`.
+- [x] Raport zwraca liczbę wycen, zamówień, checkoutów, opłaconych zamówień,
+  błędów płatności, zamówień z rabatem, zamówień zero-value oraz statusy
+  zamówień i prób płatności.
+- [x] Raport liczy przychód brutto, sumę rabatów, średnią wartość zamówienia
+  oraz rate’y: quote→order, order→checkout, checkout→paid i failure rate
+  webhooków płatności.
+- [x] `AnalyticsModule` korzysta bezpośrednio z repozytoriów zamówień i prób
+  płatności, aby kwoty i statusy nie zależały wyłącznie od eventów trackingowych.
+- [x] Frontowy kontrakt `admin-analytics` obsługuje nową sekcję `commerce`.
+- [x] Panel admin analytics pokazuje osobny blok `Sprzedaż ogłoszeń
+  indywidualnych` z lejkiem, metrykami finansowymi oraz breakdownem statusów.
+- [x] Dodano test agregatu commerce i zachowano type-check/lint API oraz web.
+
+Następny krok etapu 9: włączyć monitoring rozbieżności — błędy webhooków,
+różnice kwot i opłacone zamówienia bez aktywowanych entitlementów.
+
+#### Iteracja 9.3 — uszczelnienie flow publikacji i bramka płatności
+
+> Powód dodania: test manualny wykazał, że użytkownik niezalogowany może
+> rozpocząć dodawanie ogłoszenia, utworzyć konto, przejąć zgłoszenie i dostać
+> już opublikowane ogłoszenie bez prezentacji ceny oraz bez procesu płatności.
+> Jest to luka w integracji starego flow automatycznej publikacji z nowym
+> modelem płatnej publikacji dla klientów indywidualnych.
+
+Cel sprintu: zagwarantować, że ogłoszenie klienta indywidualnego nie może
+pojawić się w publicznym katalogu bez aktywnego uprawnienia publikacji
+wynikającego z opłaconego zamówienia, zamówienia zero-value albo jawnego grantu
+administratora.
+
+Zakres sprintu:
+
+- [x] Rozdzielić w kodzie pojęcia `zatwierdzone do publikacji` i
+  `opublikowane publicznie`.
+- [x] Zmienić flow `claim` anonimowego zgłoszenia tak, aby po przejęciu przez
+  konto prywatnego sprzedającego nie publikował automatycznie ogłoszenia nawet
+  wtedy, gdy automatyczna moderacja nie wymaga ręcznego review.
+- [x] Po claimie tworzyć powiązane `Listing` jako `DRAFT` /
+  `publicationStatus = DRAFT`, z przypisanym właścicielem i wygenerowanym albo
+  gotowym do wygenerowania slugiem, ale bez `publishedAt` i bez `expiresAt`.
+- [x] Jeżeli automatyczna moderacja przechodzi bez zastrzeżeń, ustawić
+  zgłoszenie w stanie umożliwiającym zakup publikacji, a nie w stanie publicznej
+  publikacji.
+- [x] Jeżeli moderacja wymaga ręcznego sprawdzenia, zachować obecny etap review:
+  admin zatwierdza treść, ale nadal nie publikuje oferty bez płatności albo
+  grantu.
+- [x] Zweryfikować `approveByAdmin`, aby przy włączonym checkout kończył się
+  stanem `APPROVED` + prywatny draft, a nie publikacją.
+- [x] Dodać domenowy invariant: dla prywatnego ogłoszenia powiązanego z
+  `PublicListingSubmission` przejście do `PUBLISHED` może nastąpić wyłącznie
+  przez aktywację entitlementu publikacji albo kontrolowaną ścieżkę legacy
+  wyraźnie oznaczoną w metadanych.
+- [x] Zachować możliwość ręcznego grantu admina jako legalnej ścieżki publikacji
+  bez płatności, ale tylko z autorem, powodem i audytem.
+- [x] Upewnić się, że zamówienie zero-value po kodzie promocyjnym lub korekcie
+  admina aktywuje publikację tą samą ścieżką entitlementów co płatne
+  zamówienie.
+- [x] Poprawić komunikaty po potwierdzeniu e-maila i po rejestracji: nie
+  obiecywać automatycznej publikacji po przejęciu, tylko jasno pokazać kolejność
+  `weryfikacja → wybór pakietu → płatność → publikacja`.
+- [x] Po rejestracji z `claimToken` kierować użytkownika bezpośrednio do
+  szczegółów przejętego ogłoszenia albo do panelu z jednoznacznym CTA
+  `Wybierz pakiet publikacji`, zamiast tylko na ogólny panel właściciela.
+- [x] Pokazywać panel checkoutu dla stanu `APPROVED` i nieopublikowanego
+  `publishedListingId`, a dla stanów wcześniejszych pokazywać blok
+  informacyjny z oczekiwaniem na weryfikację.
+- [x] Upewnić się, że publiczny katalog i publiczna strona oferty filtrują tylko
+  ogłoszenia z `publicationStatus = PUBLISHED`, aktywnym statusem i niewygasłą
+  publikacją.
+- [x] Przejrzeć stare akcje `renewForOwner`, `unpublishForOwner` i podobne, aby
+  nie obchodziły modelu entitlementów w nowym płatnym flow.
+- [x] Przygotować decyzję migracyjną dla już opublikowanych ogłoszeń prywatnych
+  bez entitlementów: w środowisku lokalnym nie migrujemy ich automatycznie, bo
+  obecne dane są testowe; w razie potrzeby środowisko można wyczyścić i zacząć
+  od nowej bazy po odpaleniu migracji.
+
+Krytyczne testy regresyjne sprintu:
+
+- [x] Niezalogowany użytkownik dodaje ogłoszenie, potwierdza e-mail, tworzy
+  konto i przejmuje zgłoszenie — ogłoszenie nie jest publiczne i nie ma
+  `publishedAt`.
+- [x] Automatycznie zaakceptowane zgłoszenie po claimie trafia do stanu
+  oczekującego na wybór pakietu / płatność.
+- [x] Zgłoszenie wymagające ręcznego review po akceptacji admina jest
+  `APPROVED`, ale nadal nie jest publiczne.
+- [x] Próba ręcznego wywołania endpointu quote przed akceptacją moderacji jest
+  odrzucana.
+- [x] Opłacone zamówienie publikacji tworzy entitlement i dopiero wtedy ustawia
+  listing jako `PUBLISHED`.
+- [x] Ponowiony webhook nie wydłuża drugi raz publikacji.
+- [x] Grant admina publikuje ofertę bez płatności, ale zapisuje autora, powód i
+  źródło entitlementu.
+- [x] Cofnięcie jedynego aktywnego grantu publikacji zdejmuje ofertę z katalogu.
+- [x] Katalog publiczny nie zwraca prywatnych draftów, zgłoszeń `CLAIMED` ani
+  zaakceptowanych, ale nieopłaconych ofert.
+- [x] Front po rejestracji z `claimToken` prowadzi użytkownika do miejsca, w
+  którym widzi następny płatny krok.
+
+Kolejność implementacji:
+
+1. [x] Backend invariant i zmiana `claimCore`, bo to jest główne miejsce obejścia
+   płatności.
+2. [x] Testy jednostkowe serwisu zgłoszeń dla anonymous submit → register → claim.
+3. [x] Weryfikacja i dopięcie `approveByAdmin` pod model `APPROVED` bez publikacji.
+4. [x] Frontowe przekierowanie po claimie oraz komunikaty w ekranach
+   `/dodaj-oferte/potwierdzono`, `/register?claimToken=...` i `/seller`.
+5. [x] Widoczność panelu checkoutu i stany informacyjne na szczegółach ogłoszenia
+   właściciela.
+6. [x] Testy katalogu publicznego oraz ścieżki opłaconego zamówienia.
+7. [x] Decyzja migracyjna dla ofert już opublikowanych bez entitlementów przed
+   włączeniem flagi produkcyjnej.
+
+**Kryterium zakończenia:** żadna nowa oferta prywatnego sprzedającego nie może
+zostać publicznie opublikowana bez aktywnego entitlementu publikacji albo
+jawnego legacy/grantu admina; użytkownik zawsze widzi cenę i krok płatności
+przed publiczną publikacją.
+
+#### Iteracja 9.4 — monitoring i procedura reconciliation płatności
+
+Cel sprintu: mieć automatyczny bezpiecznik dla sytuacji, w której płatność
+została zaksięgowana, ale zamówienie nie dostało entitlementu albo checkout
+utknął w stanie pośrednim.
+
+Zakres sprintu:
+
+- [x] Wykorzystać cykliczny `ListingPaymentReconciliationScheduler` jako
+  watchdog dla checkoutu prywatnych ogłoszeń.
+- [x] Wygaszać porzucone próby płatności i powiązane zamówienia w sposób
+  transakcyjny, z blokadą rekordu zamówienia i ostatniej próby płatności.
+- [x] Wykrywać opłacone zamówienia bez entitlementu po okresie ochronnym
+  `LISTING_PAYMENT_RECONCILIATION_FULFILLMENT_GRACE_MS`.
+- [x] Naprawiać brakujący entitlement przez tę samą domenową ścieżkę
+  `fulfillPaidOrder`, aby ręczne/automatyczne pogodzenie nie omijało reguł
+  publikacji, odnowienia i wyróżnienia.
+- [x] Raportować do `MonitoringService`:
+  `paid_order_missing_entitlement`,
+  `paid_order_entitlement_recovery_failed`,
+  `payment_attempt_expiration_failed`,
+  `scheduler_run_failed`,
+  `scheduler_run_skipped_lock_busy` oraz zbiorczy
+  `scheduler_run_completed`.
+- [x] Błędy różnicy kwoty albo waluty w webhooku płatności są audytowane jako
+  `failed` payment event i nie aktywują fulfillmentu.
+- [x] Scheduler używa advisory locka, więc wiele instancji API nie powinno
+  przetwarzać tego samego batcha równolegle.
+
+Procedura operacyjna dla opłaconego zamówienia bez entitlementu:
+
+1. Sprawdzić logi monitoringu dla `listing_payment_reconciliation` i eventu
+   `paid_order_missing_entitlement`.
+2. Zweryfikować w bazie, czy `listing_orders.status = 'paid'`,
+   `paid_at IS NOT NULL` oraz czy istnieją `listing_order_items` bez wierszy w
+   `listing_entitlements.order_item_id`.
+3. Poczekać na najbliższy przebieg scheduler'a albo lokalnie wymusić restart
+   API, jeżeli środowisko developerskie nie uruchomiło jeszcze timera.
+4. Jeżeli `recoveredOrderIds` zawiera zamówienie, uznać sprawę za naprawioną:
+   publikacja/wyróżnienie powinny być zsynchronizowane przez lifecycle
+   entitlementów.
+5. Jeżeli pojawia się `paid_order_entitlement_recovery_failed`, nie zmieniać
+   ręcznie statusu ogłoszenia w tabeli `listings`; najpierw naprawić przyczynę
+   domenową, a dopiero potem ponowić reconciliation. Ręczny grant admina jest
+   dopuszczalny tylko jako świadoma decyzja operacyjna z autorem i powodem.
+
+Krytyczne testy regresyjne sprintu:
+
+- [x] Scheduler raportuje brakujące entitlementy i wynik batcha do monitoringu.
+- [x] Per-record failure nie zatrzymuje całego batcha.
+- [x] Advisory lock blokuje równoległy przebieg.
+- [x] Nieoczekiwany błąd batcha jest raportowany jako failure i nie crashuje
+  procesu.
+- [x] Mismatch kwoty/waluty z webhooka jest audytowany i nie aktywuje
+  entitlementu.
+
+#### Iteracja 9.5 — czytelność promocji dla admina i publicznego cennika
+
+Cel sprintu: promocja startowa ma być zrozumiała dla administratora i widoczna
+dla użytkownika przed rozpoczęciem dodawania ogłoszenia.
+
+Zakres sprintu:
+
+- [x] Publiczny endpoint produktów zwraca opcjonalny `promotionPreview`
+  obliczony po stronie backendu na podstawie aktywnych kampanii
+  automatycznych.
+- [x] Publiczny cennik pokazuje cenę bazową przekreśloną, cenę promocyjną,
+  etykietę promocji i kwotę oszczędności.
+- [x] Checkout nadal tworzy finalną wycenę przez endpoint quote; publiczny
+  `promotionPreview` jest tylko marketingowym podglądem aktualnej promocji.
+- [x] Kampanie kodowe nie obniżają publicznego cennika automatycznie — rabat
+  pojawia się dopiero po wpisaniu kodu w checkoutcie.
+- [x] Panel admina wyjaśnia różnicę między kampanią automatyczną i kodową.
+- [x] Admin widzi ostrzeżenie, gdy aktywna kampania nie jest automatyczna i nie
+  ma kodów, czyli realnie nie zostanie zastosowana.
+- [x] Lista kampanii pokazuje szybki status zastosowania: automatycznie w
+  cenniku, działa po kodzie, nie wpływa na ceny albo brak automatyzacji i kodów.
+
+#### Iteracja 9.6 — QA closure przed rolloutem
+
+Cel sprintu: zamknąć regresje, które wyszły podczas testów manualnych Etapu 9,
+oraz mieć powtarzalny minimalny zestaw testów przed włączeniem funkcji dla
+kont testowych.
+
+Zakres wykonany:
+
+- [x] Naprawiono błąd 500 przy tworzeniu kodu promocyjnego. Przyczyną było
+  zapisywanie kampanii z załadowaną relacją `codes`, przez co TypeORM próbował
+  odpiąć nowo utworzony kod przez `campaign_id = null`. Serwis aktualizuje teraz
+  tylko metadane kampanii przez celowane `update`.
+- [x] Dodano regresję jednostkową dla tworzenia kodu promocyjnego, która
+  pilnuje, że serwis nie zapisuje ponownie całej kampanii z relacjami.
+- [x] Dodano Playwright E2E dla publicznego cennika prywatnych ogłoszeń:
+  automatyczna promocja pokazuje etykietę, cenę bazową, cenę promocyjną i
+  oszczędność.
+- [x] Dodano Playwright E2E dla homepage: promocyjna cena publikacji jest
+  widoczna w sekcji cennika, a dodatek bez promocji pozostaje w cenie bazowej.
+- [x] Zweryfikowano E2E cennika na desktop i mobile:
+  `pnpm --filter web test:e2e -- pricing.spec.ts` — 14/14 testów.
+- [x] Zweryfikowano krytyczne testy backendowe commerce:
+  quote, orders, promotions, checkout sessions, reconciliation scheduler,
+  reconciliation service, produkty i adminowe promocje — 9 suite’ów / 80
+  testów.
+- [x] Zweryfikowano web unit testy dla pricing audience, produktów, HTTP
+  produktów, checkoutu i promocji — 5 suite’ów / 43 testy.
+- [x] Zweryfikowano `type-check` dla API i web.
+
+Pozostaje przed oznaczeniem całego Etapu 9 jako produkcyjnie zamkniętego:
+
+- [ ] Manualny przebieg pełnej płatności z operatorem albo sandboxem operatora:
+  utworzenie quote → order → checkout session → webhook sukcesu → entitlement
+  → publikacja.
+- [ ] Manualny przebieg błędnej/porzuconej płatności:
+  checkout expired/payment failed → brak entitlementu → status użytkownika i
+  monitoring.
+- [ ] Manualny przebieg kodu promocyjnego w checkoutcie na działającym
+  środowisku: kod aktywny, kod wygasły, limit użyć, kod spoza zakresu produktu.
+- [ ] Kontrolowany rollout przez feature flagi na kontach testowych.
+
+### 14.1 Zasady implementacji między etapami
+
+- Backend pozostaje źródłem prawdy dla ceny, rabatu, statusu płatności i czasu
+  działania korzyści.
+- Frontend nie powiela reguł biznesowych; jedynie prezentuje wynik endpointu
+  quote.
+- Webhook finalizuje zamówienie, a osobny serwis entitlementów przyznaje
+  korzyść. Dzięki temu grant administratora i zakup korzystają z tej samej
+  ścieżki aktywacji.
+- Publiczny katalog, panel administratora i checkout używają tego samego modelu
+  produktu, ale zwracają różne DTO odpowiednie do poziomu uprawnień.
+- Schemat zamówienia i snapshotu nie może zależeć od późniejszej dostępności
+  produktu w katalogu.
+- Analitykę, log audytowy i testy jednostkowe dodajemy razem z funkcją, a w
+  Etapie 9 jedynie składamy raporty oraz wykonujemy pełną walidację E2E.
+- Każda migracja ma bezpieczną ścieżkę wdrożenia przed kodem, który zacznie
+  korzystać z nowych kolumn lub tabel.
+- Nie rozpoczynamy integracji płatności przed zamknięciem kontraktu quote i
+  snapshotu zamówienia.
+
+## 15. Testy krytyczne
+
+- cena na homepage, `/cennik`, wycenie i checkout jest spójna;
+- ukryty/nieaktywny produkt nie może zostać kupiony przez ręczne wywołanie API;
+- użytkownik nie może kupić dodatku dla cudzego ogłoszenia;
+- wyróżnienie nie aktywuje się po przekierowaniu z checkoutu bez webhooka;
+- ponowiony webhook nie wydłuża drugi raz publikacji ani wyróżnienia;
+- kod wygasły, wyłączony, poza zakresem lub ponad limit jest odrzucany;
+- dwa równoległe użycia ostatniego dostępnego kodu nie przekraczają limitu;
+- rabat nie tworzy kwoty ujemnej;
+- zamówienie za 0 zł finalizuje się bez pozorowanej płatności u operatora;
+- zmiana ceny nie modyfikuje istniejącego zamówienia;
+- cofnięcie ręcznego grantu zapisuje autora i powód;
+- refund ma jednoznaczny, przetestowany wpływ na aktywną usługę;
+- przełącznik cennika działa z klawiatury i czytnikiem ekranu;
+- awaria jednego katalogu nie ukrywa drugiego wariantu cennika.
+
+## 16. Definicja gotowości całości
+
+Funkcja jest gotowa, gdy:
+
+- użytkownik prywatny rozumie cenę, okres i rezultat zakupu przed rozpoczęciem
+  formularza;
+- homepage i `/cennik` korzystają z jednego katalogu backendowego;
+- zaakceptowane ogłoszenie można opłacić, opublikować, odnowić i wyróżnić;
+- administrator zarządza cenami, promocjami i kodami bez zmian w kodzie;
+- administrator może przyznać korzyść konkretnemu ogłoszeniu z pełnym audytem;
+- wynik płatności jest idempotentny, a historyczne ceny pozostają niezmienne;
+- monitoring i raporty pozwalają znaleźć różnice kwot oraz nieaktywowane zakupy;
+- dokumenty prawne, zwroty i dokumentowanie sprzedaży są zatwierdzone.
+
+## 17. Decyzje rekomendowane do zatwierdzenia
+
+1. Osobny katalog jednorazowych produktów zamiast rozbudowy `plan_catalog`.
+2. Domyślny wariant homepage: `Sprzedaję prywatnie`.
+3. Jeden pakiet publikacji: 49 zł brutto / 60 dni.
+4. W pierwszym wydaniu jedno wyróżnienie 19 zł / 7 dni; drugi wariant dopiero po
+   danych, mimo że model od początku może obsługiwać wiele tierów.
+5. Płatność dopiero po akceptacji moderacji.
+6. Brak automatycznego sumowania promocji i kodów.
+7. Ręczny grant admina wyłącznie przez kontrolowaną akcję z powodem i audytem.
+8. Aktywacja publikacji i dodatków wyłącznie po webhooku albo jawnym grancie
+   administratora.
+
+## 18. Nowy sprint — promocje dla planów agentów i biur
+
+> Zakres poza modułem prywatnych ogłoszeń. Promocje produktów ogłoszeniowych
+> pozostają w `listing-commerce`, a promocje abonamentów agentów powinny mieć
+> osobny model domenowy, ponieważ dotyczą subskrypcji, okresów rozliczeniowych,
+> triali, checkoutu planów i lifecycle agencji.
+
+### 18.1 Cel sprintu
+
+Umożliwić administratorowi tworzenie promocji dla planów agentów i biur bez
+zmiany kodu, tak aby:
+
+- publiczny cennik agentów pokazywał cenę promocyjną i cenę bazową;
+- rejestracja/agencja widziała tę samą cenę, którą potem potwierdza backend;
+- kod promocyjny albo automatyczna kampania mogły działać na wybrane plany;
+- promocja była bezpieczna dla subskrypcji i nie zmieniała historycznych
+  billing snapshots;
+- billing/webhook nie musiał interpretować promocji z modułu ogłoszeń
+  prywatnych.
+
+### 18.2 Decyzja architektoniczna
+
+Nie rozszerzamy `listing_promotion_campaigns`, bo są zoptymalizowane pod
+jednorazowe produkty ogłoszeniowe i fulfillment entitlementów listingowych.
+
+Tworzymy osobny bounded context, roboczo:
+
+- backend: `agency-plan-promotions` albo `plan-commerce`;
+- tabele: osobne od `listing_*`;
+- publiczne preview promocji: przez endpoint planów;
+- finalna wycena: przez osobny quote dla planu/agencji;
+- billing: integracja z checkoutem/subskrypcją agentów, a nie z
+  `listing_orders`.
+
+### 18.2.1 Audyt obecnego flow planów agentów
+
+Stan na start sprintu:
+
+- `GET /api/plans` zwraca publiczny katalog z `plan_catalog` przez
+  `PlansService.findPublicPlans`.
+- Publiczny cennik agentów i ekran rejestracji pobierają ten sam katalog planów
+  z backendu.
+- Link z cennika prowadzi do `/register?plan=<code>&billing=<interval>`, ale
+  rejestracja obecnie wykorzystuje tylko `plan`; parametr `billing` nie jest
+  jeszcze częścią backendowego kontraktu rejestracji.
+- `POST /api/auth/register` przy koncie agenta ustawia `initialPlan` na wybrany
+  plan albo `free`. To jest konfiguracja startowa agencji, a nie finalny,
+  opłacony checkout abonamentu.
+- `/dashboard/upgrade` pokazuje katalog planów i pozwala wybrać plan oraz okres
+  rozliczenia, ale obecnie zapisuje intencję upgrade w analityce zamiast tworzyć
+  checkout subskrypcji.
+- `/dashboard/admin/plans` zarządza bazowym katalogiem planów: cenami,
+  limitami, widocznością i provider price id.
+- `BillingSubscriptionEventsService` obsługuje webhooki subskrypcji i aktualizuje
+  `Agency.plan`, `subscription`, `billingInterval`, `currentPeriodEnd`,
+  `billingCustomerId` oraz `billingSubscriptionId`.
+- Brakuje jeszcze osobnego quote/snapshotu dla abonamentu agenta. To jest
+  krytyczny fundament przed promocjami, bo bez snapshotu webhook albo późniejsza
+  zmiana kampanii mogłyby nieświadomie przeliczać rabat od nowa.
+
+Wniosek architektoniczny: promocje planów agentów muszą wejść razem z
+`AgencyPlanQuotesService` i snapshotem warunków subskrypcji. Publiczny cennik
+może pokazywać `promotionPreview`, ale finalna decyzja billingowa musi być
+potwierdzona przez backendowy quote dla konkretnego planu, okresu rozliczenia,
+kodu promocyjnego i konta/agencji.
+
+### 18.2.2 Notatka produktowa — okres działania promocji
+
+Promocja planów agentów ma być komunikowana użytkownikowi wprost w cenniku:
+użytkownik powinien widzieć nie tylko obniżoną cenę, ale też okres obowiązywania
+rabatu, np. `pierwszy miesiąc`, `pierwsze 3 miesiące`, `pierwsze 6 miesięcy`
+albo inny limit okresów rozliczeniowych.
+
+Założenia produktowe:
+
+- Kampania automatyczna widoczna w publicznym cenniku może obniżać cenę przez
+  jeden albo kilka pierwszych okresów rozliczeniowych.
+- Promocja startowa jest przypisywana do konta/agencji w momencie założenia
+  konta i opłacenia planu, a nie dynamicznie przeliczana później na podstawie
+  aktualnego cennika.
+- Kod promocyjny użyty przy zakupie planu powinien w podstawowym wariancie
+  obniżać pierwszy okres rozliczeniowy, czyli okres, w którym użytkownik kupuje
+  subskrypcję.
+- System powinien jednak od początku mieć model pozwalający na kody dla
+  istniejących klientów, które obniżają kolejną płatność albo kilka kolejnych
+  płatności.
+- Benefity dla stałych klientów będą osobnym zastosowaniem tego samego silnika:
+  użytkownik może otrzymać kod/promocję za działania korzystne dla firmy, np.
+  aktywność produktową, polecenia, udział w testach, materiały marketingowe albo
+  inne akcje growth.
+
+Rekomendacja implementacyjna:
+
+- V1 powinien wspierać `duration_billing_cycles`, czyli liczbę okresów
+  rozliczeniowych objętych rabatem.
+- Dla promocji automatycznej w cenniku dopuszczamy `duration_billing_cycles >= 1`
+  i pokazujemy opis okresu użytkownikowi.
+- Dla kodów używanych przy zakupie planu domyślnie ustawiamy
+  `duration_billing_cycles = 1`.
+- Dla benefitów dla istniejących klientów model powinien mieć osobny
+  `application_timing`: `initial_checkout`, `next_invoice` albo
+  `future_invoices`.
+- W V1 UI może eksponować głównie `initial_checkout`, ale model bazy i serwis
+  quote nie powinny blokować późniejszego `next_invoice`.
+
+### 18.3 Model domenowy V1
+
+Proponowane encje:
+
+- `agency_plan_promotion_campaigns`
+  - `code`, `name`, `description`;
+  - `status`: `draft`, `active`, `paused`, `archived`;
+  - `discount_type`: `percentage` albo `fixed_gross`;
+  - `discount_value`;
+  - `max_discount_gross_amount`;
+  - `target_scope`: `all_plans`, `plan_codes`, `billing_intervals`;
+  - `target_rules`: np. `planCodes`, `billingIntervals`;
+  - `duration_billing_cycles`: liczba pierwszych/kolejnych okresów
+    rozliczeniowych objętych rabatem;
+  - `application_timing`: `initial_checkout`, `next_invoice`,
+    `future_invoices`;
+  - `is_automatic`;
+  - `is_combinable` — w V1 domyślnie `false`;
+  - `usage_limit_total`, `usage_limit_per_account`, `usage_count`;
+  - `starts_at`, `ends_at`;
+  - `created_by_user_id`, `updated_by_user_id`, `archived_at`.
+- `agency_plan_promotion_codes`
+  - kod przechowywany jako hash, nie plaintext;
+  - `code_last4`, `label`;
+  - opcjonalne override’y rabatu i limitów;
+  - opcjonalne override’y `duration_billing_cycles` i `application_timing`;
+  - `usage_count`, zakres dat.
+- `agency_plan_quotes`
+  - tymczasowy snapshot wyboru planu, okresu rozliczenia, ceny bazowej,
+    promocji, kodu i ceny po rabacie;
+  - ważność quote, np. kilkanaście minut;
+  - powiązanie z użytkownikiem/agencją albo anonymous registration attempt,
+    jeśli checkout będzie możliwy przed pełnym utworzeniem workspace.
+- `agency_plan_promotion_reservations`
+  - rezerwacja rabatu na czas checkoutu;
+  - powiązanie z agency/subscription checkout attempt;
+  - status `reserved`, `applied`, `released`, `expired`.
+- `agency_plan_promotion_redemptions`
+  - trwały zapis faktycznie użytego rabatu;
+  - snapshot kwoty i źródła rabatu;
+  - liczba okresów objętych rabatem;
+  - powiązanie z agencją, planem i billing eventem.
+
+### 18.4 Zakres funkcjonalny V1
+
+- [x] Admin może tworzyć kampanię promocyjną dla planów agentów.
+- [x] Admin może ograniczyć promocję do konkretnych planów, np. tylko
+  `professional`.
+- [x] Admin może ograniczyć promocję do okresu rozliczenia: monthly/yearly.
+- [x] Admin może ustawić kampanię automatyczną widoczną w publicznym cenniku
+  agentów.
+- [x] Admin może tworzyć kody promocyjne dla planów agentów.
+- [x] Publiczny cennik agentów pokazuje:
+  - cenę bazową;
+  - cenę promocyjną;
+  - etykietę promocji;
+  - informację, czy promocja dotyczy miesięcznie/rocznie;
+  - informację, ile okresów rozliczeniowych obejmuje promocja.
+- [x] Rejestracja agenta i checkout planu korzystają z backendowej wyceny planu,
+  a nie z ceny policzonej na froncie.
+- [x] Backend zapisuje snapshot ceny planu i rabatu użyty do checkoutu.
+- [ ] Quote rozróżnia promocję startową, kod na pierwszy okres i benefit dla
+  istniejącej agencji.
+- [x] Webhook subskrypcji potwierdza status billingowy, ale nie przelicza
+  rabatu od nowa.
+- [ ] Analityka rozróżnia promocje planów agentów od promocji ogłoszeń
+  prywatnych.
+
+### 18.5 Czego nie robić w V1
+
+- Nie mieszać promocji agentów z `listing_promotion_campaigns`.
+- Nie stosować promocji planów agentów do produktów prywatnych.
+- Nie stosować promocji prywatnych ogłoszeń do planów agentów.
+- Nie trzymać plaintextu kodów promocyjnych.
+- Nie aktualizować historycznych checkoutów po zmianie promocji.
+- Nie obniżać aktywnej subskrypcji retroaktywnie bez osobnej decyzji
+  billingowej i bez modelu `next_invoice` / `future_invoices`.
+
+### 18.6 Kolejność implementacji
+
+1. [x] Audyt obecnego flow rejestracji agenta, `GET /api/plans`,
+   `/dashboard/admin/plans` i webhooków subskrypcji.
+2. [x] Decyzja produktowo-billingowa: model wspiera promocje na 1 albo kilka
+   okresów rozliczeniowych; kod przy zakupie domyślnie działa na pierwszy okres;
+   benefity dla istniejących klientów projektujemy przez `next_invoice` /
+   `future_invoices`, ale UI może wejść później.
+3. [x] Migracje i encje `agency_plan_promotion_*` oraz `agency_plan_quotes`.
+4. [x] Bazowy serwis quote dla planów: `AgencyPlanQuotesService` tworzy
+   snapshot ceny planu i ma kontrakt przygotowany pod rabaty wielookresowe.
+5. [x] Publiczny preview promocji w `GET /api/plans`.
+6. [x] Admin API kampanii i kodów dla planów.
+7. [x] UI admina jako osobna zakładka: `Promocje planów agentów`.
+8. [x] UI publicznego cennika agentów z ceną bazową/przekreśloną, promocyjną i
+   opisem okresu obowiązywania rabatu.
+9. [x] Rejestracja/upgrade agenta pokazuje backendowy quote snapshot.
+10. [x] Domenowe rezerwacje, redemptions i limity użyć dla quote planu agenta.
+11. [x] Trwały `agency_plan_checkout_attempt` i idempotentne przygotowanie
+    checkoutu planu agenta, które korzysta z quote i rezerwacji.
+12. [x] Port płatności i adapter Stripe dla subskrypcyjnego checkoutu planu
+    agenta z kuponem rabatowym na bazie quote.
+13. [x] Podpięcie adaptera płatności do `AgencyPlanCheckoutAttemptsService` i
+    zapis provider session id w attempt.
+14. [x] Weryfikacja i mapowanie webhooków Stripe checkoutu planów agentów do
+    provider-agnostic eventu.
+15. [x] Procesor webhooka: domknięcie attemptu, aktywacja planu i redemptions.
+16. [x] Publiczny kontroler webhooka Stripe dla planów agentów.
+17. [x] Bazowy reconciliation service wygaszający przeterminowane attempty i
+    zwalniający rezerwacje promocji.
+18. [x] Scheduler/monitoring reconciliation dla płatności planów agentów.
+19. [x] Backendowy raport sprzedażowy dla promocji planów agentów.
+20. [x] UI raportu sprzedażowego w panelu admina promocji planów.
+21. [x] Backendowe flow specy: opłacony plan z kodem promocyjnym, z kampanią
+    automatyczną i bez promocji; redemptions są widoczne w raporcie admina
+    tylko dla zakupów z rabatem.
+22. [ ] Pełne testy E2E/manual QA: limit, wygasły kod, zmiana promocji po
+    utworzeniu quote oraz ścieżki HTTP/UI.
+
+### 18.7 Krytyczne testy sprintu
+
+- [ ] Publiczny cennik agentów pokazuje promocyjną cenę tylko dla planów
+  objętych kampanią.
+- [ ] Kod promocyjny dla agentów nie działa na checkout ogłoszenia prywatnego.
+- [ ] Kod promocyjny ogłoszenia prywatnego nie działa na plan agenta.
+- [ ] Wycena planu i snapshot checkoutu pozostają niezmienne po zmianie kampanii.
+- [ ] Limit użyć globalny i per-agencja nie jest przekraczany przy równoległych
+  próbach.
+- [ ] Wyłączona, przyszła, wygasła albo zarchiwizowana kampania nie nalicza
+  rabatu.
+
+### 18.8 Log iteracji — publiczny preview promocji planów
+
+Zrealizowane w pierwszej iteracji modułu promocji planów agentów:
+
+- backendowy `AgencyPlanPromotionsService` wybiera najlepszą aktywną kampanię
+  automatyczną dla pary `plan + billingInterval`;
+- `GET /api/plans` zwraca `promotionPreview.monthly/yearly` bez ujawniania
+  wewnętrznego `campaignId`;
+- publiczny cennik agentów pokazuje promocyjną cenę, przekreśloną cenę bazową,
+  etykietę promocji, kwotę oszczędności i okres obowiązywania rabatu;
+- formatowanie kwot w cenniku planów agentów ma stały separator tysięcy, np.
+  `1 990 zł`, niezależnie od domyślnych niuansów `Intl` w przeglądarce;
+- testy pokrywają wybór promocji automatycznej, targetowanie planu/okresu,
+  ignorowanie niekwalifikujących się kampanii oraz E2E widoku cennika
+  desktop/mobile.
+
+Status:
+
+- Admin API kampanii i kodów dla planów agentów zostało wdrożone jako osobny
+  kontroler w `agency-plan-commerce`, analogiczny do administracji promocjami
+  ogłoszeń, ale bez współdzielenia tabel ani kodów.
+
+### 18.9 Log iteracji — Admin API promocji planów agentów
+
+Zrealizowane:
+
+- osobne endpointy adminowe pod `admin/agency-plan-promotions`;
+- lista, szczegół, tworzenie, aktualizacja, archiwizacja i przywracanie
+  kampanii;
+- tworzenie kodów promocyjnych dla kampanii planów agentów;
+- walidacja rabatu procentowego/fixed gross, dat, liczby okresów
+  rozliczeniowych, limitów użyć oraz reguł targetowania;
+- obsługa targetowania po planach i okresach rozliczenia przez `targetRules`;
+- bezpieczeństwo kodów promocyjnych: backend zapisuje hash, a API zwraca tylko
+  `codeLast4`, bez plaintextu i bez `codeHash`;
+- testy jednostkowe serwisu adminowego dla tworzenia kampanii, błędnych reguł,
+  dat, kodów, duplikatów oraz archive/restore.
+
+Status:
+
+- UI admina jako osobna zakładka `Promocje planów agentów`, korzystająca z
+  nowego API, został wdrożony.
+
+### 18.10 Log iteracji — UI admina promocji planów agentów
+
+Zrealizowane:
+
+- nowy ekran `/dashboard/admin/agency-plan-promotions`;
+- link w bocznym menu admina jako `Promocje planów`;
+- lista kampanii z filtrem statusu i wyszukiwaniem po nazwie/kodzie;
+- edytor kampanii z polami: status, rabat, targetowanie, liczba okresów
+  rozliczeniowych, moment zastosowania, automatyzacja, łączenie rabatów, limity
+  użyć oraz daty;
+- targetowanie po planach (`free`, `starter`, `professional`, `enterprise`) i
+  okresach rozliczeniowych (`monthly`, `yearly`);
+- panel kodów promocyjnych z tworzeniem kodu, nadpisaniem rabatu,
+  opcjonalnym nadpisaniem liczby okresów i momentu zastosowania;
+- bezpieczny UX kodów: informacja, że pełny kod jest widoczny tylko przed
+  zapisem, potem panel pokazuje końcówkę;
+- helper `agency-plan-promotions.ts` z typami, walidacją formularzy i funkcjami
+  API;
+- testy jednostkowe helpera dla endpointów, payloadów, targetowania i kodów.
+
+Decyzja V1:
+
+- `durationBillingCycles` w UI admina jest dowolną liczbą z zakresu 1–120,
+  zamiast presetów. Dzięki temu obsłużymy zarówno promocje 1-miesięczne, jak i
+  dłuższe kampanie oraz benefity dla stałych klientów.
+
+Status:
+
+- Rejestracja i ekran upgrade pokazują backendowy quote snapshot dla wyboru
+  planu, okresu rozliczenia i kodu promocyjnego.
+
+### 18.11 Log iteracji — quote snapshot w rejestracji i upgrade
+
+Zrealizowane:
+
+- publiczny endpoint `POST /api/agency-plan-checkout/quote`;
+- endpoint korzysta z backendowego katalogu planów i zapisuje snapshot w
+  `agency_plan_quotes`;
+- quote obsługuje automatyczne kampanie startowe oraz kod promocyjny;
+- resolver promocji dla quote stosuje tylko rabaty `initial_checkout`, więc kod
+  zaprojektowany na `next_invoice` nie obniży zakupu startowego;
+- jeżeli rabaty nie są łączone, backend wybiera najlepszy rabat;
+- rejestracja agenta respektuje parametr `?billing=monthly/yearly`, pozwala
+  wpisać kod promocyjny i pokazuje cenę bazową, rabat oraz finalną cenę z
+  backendu;
+- `/dashboard/upgrade` pokazuje analogiczny quote dla wybranego planu, okresu i
+  kodu;
+- helper webowy `agency-plan-checkout.ts` izoluje kontrakt quote od katalogu
+  planów;
+- testy jednostkowe pokrywają endpoint helpera, automatyczne promocje,
+  kody promocyjne oraz brak zastosowania kodów `next_invoice` w checkoutcie
+  startowym.
+
+Świadome ograniczenie tej iteracji:
+
+- quote snapshot nie aktywuje jeszcze subskrypcji i nie oznacza opłacenia planu.
+  Rejestracja nadal tworzy workspace zgodnie z dotychczasowym flow. Płatność,
+  rezerwacje użyć, redemptions i aktywacja planu zostają w kolejnym kroku.
+
+Następny krok:
+
+- Rezerwacje promocji, redemptions i idempotentny start checkoutu płatności dla
+  planu agenta.
+
+Checklisty testowe do domknięcia przy checkout/quote:
+
+- [ ] Promocja monthly nie obniża planu yearly, jeżeli reguły na to nie
+  pozwalają.
+- [ ] Promocja na kilka okresów zapisuje liczbę okresów w snapshotcie i nie
+  zależy od późniejszej zmiany kampanii.
+- [ ] Kod dla istniejącej agencji może zostać ograniczony do kolejnej faktury i
+  nie działa w checkoutcie startowym, jeżeli `application_timing` tak stanowi.
+- [ ] Publiczny cennik nie pokazuje danych wrażliwych: provider price id,
+  plaintext kodu, wewnętrzne identyfikatory kampanii.
+
+### 18.12 Log iteracji — domenowe rezerwacje i redemptions promocji planów
+
+Zrealizowane:
+
+- `AgencyPlanPromotionsService` potrafi zarezerwować rabaty ze snapshotu quote
+  planu agenta;
+- rezerwacja jest idempotentna dla tego samego quote, więc ponowienie requestu
+  nie dubluje użyć promocji;
+- przy rezerwacji blokowany jest aktualny rekord kampanii albo kodu
+  promocyjnego i ponownie sprawdzana jest dostępność promocji;
+- limity globalne oraz per-agencja są sprawdzane na podstawie aktywnych
+  rezerwacji i trwałych wykorzystań;
+- licznik użyć kampanii i kodu jest zwiększany przy rezerwacji;
+- opłacenie quote może zmienić rezerwacje w trwałe redemptions z kopią
+  snapshotu ceny, planu, okresu rozliczenia i źródła rabatu;
+- anulowanie/wygaszenie quote zwalnia rezerwacje i zmniejsza liczniki użyć;
+- testy jednostkowe pokrywają rezerwację, idempotencję, trwałe redemptions i
+  zwolnienie rezerwacji.
+
+Świadome ograniczenie tej iteracji:
+
+- mechanizm jest gotowy domenowo, ale nie jest jeszcze podpięty do publicznego
+  startu checkoutu płatności. Następny mały krok to endpoint/serwis tworzący
+  idempotentną próbę checkoutu dla planu agenta na bazie quote.
+
+### 18.13 Log iteracji — trwały checkout attempt planu agenta
+
+Zrealizowane:
+
+- dodana tabela i encja `agency_plan_checkout_attempts`;
+- attempt jest powiązany z `agency_plan_quotes` i ma unikalny numer próby per
+  quote;
+- provider session id i provider subscription id są unikalne, jeśli zostaną
+  zapisane;
+- otwarte próby (`creating`, `pending`) mają indeks po czasie wygaśnięcia pod
+  przyszły reconciliation job;
+- `POST /api/agency-plan-checkout/attempts` jest endpointem autoryzowanym i
+  startuje od `quoteId`;
+- serwis przypina publiczny quote do aktualnego użytkownika i jego agencji, ale
+  ukrywa quote należące do innego użytkownika/agencji;
+- serwis rezerwuje rabaty ze snapshotu quote przed utworzeniem/reużyciem
+  próby;
+- ponowienie requestu dla otwartej próby zwraca istniejący attempt zamiast
+  tworzyć duplikat;
+- wygasły, darmowy albo już opłacony checkout jest blokowany;
+- testy jednostkowe pokrywają nowy attempt, idempotencję, ochronę obcych quote,
+  wygasły quote i zakończony attempt.
+
+Świadome ograniczenie tej iteracji:
+
+- attempt nie tworzy jeszcze zewnętrznej sesji płatności ani subskrypcji u
+  operatora. Następny mały krok to port/adapter płatności dla planów agentów,
+  analogicznie do `ListingPaymentGateway`, ale dla subskrypcji.
+
+### 18.14 Log iteracji — port płatności i adapter Stripe dla planów agentów
+
+Zrealizowane:
+
+- dodany provider-agnostic port `AgencyPlanPaymentGateway`;
+- dodany adapter `StripeAgencyPlanPaymentAdapter` dla checkoutu
+  subskrypcyjnego;
+- adapter używa `providerPriceReference` z katalogu planów, więc frontend nie
+  zna i nie przekazuje Stripe price id;
+- rabat ze snapshotu quote jest mapowany na kupon Stripe tworzony per checkout
+  attempt ze stabilnym idempotency key;
+- kupon obsługuje rabat jednorazowy oraz rabat na kilka cykli rozliczeniowych;
+- dla planów rocznych liczba cykli jest mapowana na miesiące kuponu operatora;
+- sesja checkout zawiera metadane quote, attempt, agencji, planu i kwot, które
+  będą potrzebne przy webhookach;
+- redirect URLs są konfigurowalne przez `STRIPE_AGENCY_PLAN_SUCCESS_URL` i
+  `STRIPE_AGENCY_PLAN_CANCEL_URL`, z fallbackiem do `/dashboard/upgrade`;
+- testy adaptera pokrywają checkout z rabatem, checkout bez rabatu, użycie
+  istniejącego klienta Stripe oraz stabilne idempotency keys.
+
+Świadome ograniczenie tej iteracji:
+
+- adapter jest gotowy i w kolejnym kroku został podpięty do
+  `AgencyPlanCheckoutAttemptsService`.
+
+### 18.15 Log iteracji — provider session w checkout attempt planu agenta
+
+Zrealizowane:
+
+- `AgencyPlanCheckoutAttemptsService` przygotowuje attempt i rezerwacje w
+  transakcji DB;
+- sesja operatora płatności jest tworzona poza transakcją, zgodnie ze wzorcem z
+  checkoutu ogłoszeń prywatnych;
+- po odpowiedzi operatora osobna transakcja zapisuje `providerCheckoutSessionId`,
+  opcjonalny `providerSubscriptionId`, status `pending` i aktualne wygaśnięcie
+  attemptu;
+- attempt używa `paymentGateway.provider`, a nie zahardkodowanej nazwy
+  operatora;
+- provider price id jest pobierany z backendowego katalogu planów dla wybranego
+  okresu rozliczenia;
+- brak skonfigurowanej ceny operatora dla danego okresu blokuje checkout przed
+  requestem do operatora;
+- endpoint `POST /api/agency-plan-checkout/attempts` zwraca `checkoutUrl`,
+  `sessionId` i `subscriptionId` z operatora;
+- ponowienie requestu dla otwartego attemptu nadal nie tworzy duplikatu w DB,
+  a operator dostaje ten sam checkout attempt id i stabilny idempotency key;
+- testy jednostkowe pokrywają utworzenie i powiązanie sesji, reuse attemptu,
+  ochronę obcych quote, wygasły quote, zakończony attempt oraz brak provider
+  price id.
+
+Świadome ograniczenie tej iteracji:
+
+- webhook/finalizacja płatności nie aktywuje jeszcze planu i nie tworzy
+  redemptions po stronie subskrypcji. Następny mały krok to obsługa zdarzenia
+  `checkout.session.completed` / subscription webhook i domknięcie attemptu.
+
+### 18.16 Log iteracji — weryfikacja i mapowanie webhooków planów agentów
+
+Zrealizowane:
+
+- dodany provider-agnostic kontrakt
+  `VerifiedAgencyPlanPaymentEventContract`;
+- dodany enum `AgencyPlanPaymentEventType` dla `checkout_completed`,
+  `checkout_failed` i `checkout_expired`;
+- `StripeAgencyPlanPaymentAdapter` weryfikuje podpis Stripe na raw body przy
+  użyciu `STRIPE_AGENCY_PLAN_WEBHOOK_SECRET`;
+- adapter mapuje `checkout.session.completed`,
+  `checkout.session.async_payment_failed` i `checkout.session.expired`;
+- ukończony checkout bez `payment_status=paid` jest ignorowany, żeby nie
+  aktywować planu przed potwierdzeniem płatności;
+- event bez zaufanego `agencyPlanQuoteId` w metadanych jest odrzucany;
+- z eventu pobieramy quote, attempt, agency, session, subscription, customer,
+  kwotę, walutę i bezpieczne metadane diagnostyczne;
+- testy pokrywają mapowanie eventów, ignorowanie unsupported/unpaid,
+  odrzucenie brakujących metadanych oraz weryfikację podpisu.
+
+Świadome ograniczenie tej iteracji:
+
+- event jest już zweryfikowany i znormalizowany, ale nie jest jeszcze
+  przetwarzany w DB. Następny krok to `AgencyPlanPaymentEventsService`, który
+  zamknie attempt, aktywuje plan/agencję i zapisze redemptions promocji.
+
+### 18.17 Log iteracji — procesor eventów płatności planów agentów
+
+Zrealizowane:
+
+- dodany `AgencyPlanPaymentEventsService`;
+- procesor przyjmuje wyłącznie zweryfikowany, provider-agnostic event;
+- sukces checkoutu zamyka attempt statusem `succeeded`, zapisuje subscription
+  id, aktywuje plan agencji i czyści grace period limitów;
+- sukces checkoutu wywołuje `applyReservedDiscountsForQuote`, więc zarezerwowane
+  promocje przechodzą w trwałe redemptions;
+- ponowny sukces dla już zakończonego attemptu jest ignorowany jako duplikat i
+  nie tworzy ponownych redemptions;
+- event `checkout_failed` oznacza attempt jako `failed`, o ile nie był już
+  zakończony sukcesem;
+- event `checkout_expired` oznacza attempt jako `expired` i zwalnia rezerwacje
+  promocji;
+- procesor waliduje kwotę i walutę eventu względem quote oraz attemptu;
+- procesor odrzuca sukces bez subscription id;
+- testy jednostkowe pokrywają sukces, duplikat sukcesu, wygaśnięcie oraz
+  mismatch kwoty.
+
+Świadome ograniczenie tej iteracji:
+
+- serwis nie jest jeszcze wystawiony przez publiczny kontroler webhooka Stripe.
+  Następny mały krok to endpoint raw-body, który połączy
+  `StripeAgencyPlanPaymentAdapter.verifyAndMapWebhook` z
+  `AgencyPlanPaymentEventsService.processVerifiedEvent`.
+
+### 18.18 Log iteracji — publiczny webhook Stripe dla planów agentów
+
+Zrealizowane:
+
+- dodany `StripeAgencyPlanWebhooksController`;
+- endpoint `POST /api/agency-plan-payments/webhooks/stripe` działa publicznie,
+  ale wymaga raw body i podpisu `stripe-signature`;
+- kontroler nie przetwarza niezaufanego payloadu bezpośrednio — najpierw
+  wywołuje `StripeAgencyPlanPaymentAdapter.verifyAndMapWebhook`;
+- unsupported eventy Stripe są potwierdzane odpowiedzią `{ received: true,
+  processed: false }` bez dotykania domeny;
+- zweryfikowane eventy trafiają do
+  `AgencyPlanPaymentEventsService.processVerifiedEvent`;
+- kontroler został podpięty w `AgencyPlanCommerceModule`;
+- testy pokrywają happy path, unsupported event oraz brak raw body/podpisu.
+
+Świadome ograniczenie tej iteracji:
+
+- flow webhooka jest podpięty, ale nadal brakuje monitoringu/reconciliation dla
+  sytuacji takich jak provider session utworzona tuż przed awarią DB albo
+  zalegające attempty `creating/pending`.
+
+### 18.19 Log iteracji — bazowy reconciliation service planów agentów
+
+Zrealizowane:
+
+- dodany `AgencyPlanPaymentReconciliationService`;
+- serwis wyszukuje przeterminowane attempty w statusach `creating` i `pending`;
+- każdy attempt jest wygaszany w osobnej transakcji, żeby awaria jednego
+  rekordu nie blokowała reszty batcha;
+- locki są pobierane w tej samej kolejności co w procesorze webhooków:
+  najpierw quote, potem attempt;
+- webhook sukcesu jest nadrzędny wobec reconciliation — jeżeli attempt po locku
+  jest już `succeeded`, reconciliation go pomija;
+- stary attempt jest wygaszany bez zwalniania rezerwacji, jeżeli istnieje nowsza
+  próba dla tego samego quote;
+- aktualny przeterminowany attempt jest oznaczany jako `expired`, a rezerwacje
+  promocji quote są zwalniane przez `releaseReservationsForQuotes`;
+- wynik reconciliation zwraca expired attempts, released quotes, skipped
+  attempts oraz per-attempt failures;
+- testy jednostkowe pokrywają wygaszenie aktualnej próby, ochronę sukcesu
+  webhooka, starą próbę z nowszym attemptem oraz izolację błędów.
+
+Świadome ograniczenie tej iteracji:
+
+- na tym etapie serwis nie był jeszcze uruchamiany cyklicznie. Ten brak został
+  domknięty w iteracji 18.20 przez scheduler z advisory lockiem i monitoringiem.
+
+### 18.20 Log iteracji — scheduler reconciliation planów agentów
+
+Zrealizowane:
+
+- dodany `AgencyPlanPaymentReconciliationScheduler`;
+- scheduler uruchamia `AgencyPlanPaymentReconciliationService.reconcile` w
+  cyklicznym jobie;
+- wiele instancji API jest zabezpieczone osobnym advisory lockiem
+  `agency_plan_payment_reconciliation_scheduler`;
+- konfiguracja jest niezależna od checkoutu ogłoszeń prywatnych:
+  `AGENCY_PLAN_PAYMENT_RECONCILIATION_ENABLED`,
+  `AGENCY_PLAN_PAYMENT_RECONCILIATION_INTERVAL_MS` i
+  `AGENCY_PLAN_PAYMENT_RECONCILIATION_BATCH_SIZE`;
+- scheduler jest domyślnie wyłączony w testach i domyślnie aktywny poza
+  `NODE_ENV=test`;
+- monitoring dostał osobny flow `agency_plan_payment_reconciliation`;
+- sukces batcha raportuje liczbę wygaszonych prób, zwolnionych quote,
+  pominiętych prób, błędów oraz czas wykonania;
+- błędy pojedynczych attemptów są raportowane jako
+  `checkout_attempt_expiration_failed`, ale nie blokują raportu całego batcha;
+- brak locka jest raportowany jako `scheduler_run_skipped_lock_busy`, a
+  równoległe odpalenie w tej samej instancji jako
+  `scheduler_run_skipped_already_running`;
+- scheduler został zarejestrowany w `AgencyPlanCommerceModule`;
+- testy jednostkowe pokrywają batch z limitem, per-attempt failure, lock busy,
+  awarię całego batcha i brak autostartu w środowisku testowym.
+
+Świadome ograniczenie tej iteracji:
+
+- raport sprzedażowy nie był jeszcze wdrożony w tej iteracji schedulera. Backend
+  raportu został domknięty w 18.21, a UI pozostaje osobnym krokiem.
+
+### 18.21 Log iteracji — backendowy raport sprzedażowy promocji planów
+
+Zrealizowane:
+
+- dodany read-only endpoint adminowy
+  `GET /admin/agency-plan-promotions/:code/sales-report`;
+- raport bazuje na trwałych rekordach `agency_plan_promotion_redemptions`, a nie
+  na technicznych rezerwacjach, więc pokazuje faktycznie wykorzystane promocje;
+- endpoint zwraca podsumowanie kampanii: liczba trwałych użyć, suma rabatów,
+  suma wartości koszyka przed rabatem, suma finalnej wartości po rabacie oraz
+  zakres dat pierwszego i ostatniego użycia;
+- raport zawiera breakdown po planie i okresie rozliczeniowym;
+- raport zawiera breakdown po kodach promocyjnych, ale nadal pokazuje tylko
+  `codeLast4` i etykietę — bez plaintextu kodu i bez hasha;
+- kontrakt API został dodany do `agency-plan-commerce/contracts`;
+- test jednostkowy pokrywa normalizację liczb z SQL, daty, breakdowny oraz brak
+  wycieku plaintextu/hashu kodu.
+
+Świadome ograniczenie tej iteracji:
+
+- na tym etapie raport był dostępny tylko przez backend. Panel admina został
+  podpięty w iteracji 18.22.
+
+### 18.22 Log iteracji — UI raportu sprzedażowego promocji planów
+
+Zrealizowane:
+
+- `apps/web` dostał typy i klienta
+  `fetchAdminAgencyPlanPromotionSalesReport`;
+- ekran `/dashboard/admin/agency-plan-promotions` pobiera raport dla aktualnie
+  wybranej kampanii niezależnie od formularza edycji;
+- dodany panel “Wyniki promocji” pokazuje opłacone użycia, sumę rabatów,
+  wartość przed rabatem i wartość po rabacie;
+- panel rozróżnia brak danych od błędu ładowania i ma ręczne odświeżenie
+  raportu bez przeładowywania całej listy kampanii;
+- breakdown po planie/okresie pokazuje, które abonamenty realnie korzystają z
+  promocji;
+- breakdown po kodach pokazuje etykietę i końcówkę kodu, bez plaintextu i bez
+  hasha;
+- test helpera webowego potwierdza endpoint
+  `/admin/agency-plan-promotions/:code/sales-report`.
+
+Świadome ograniczenie tej iteracji:
+
+- nie dodaliśmy jeszcze testu E2E pełnego flow promocji planu. To następny
+  etap: utworzenie kampanii/kodu, quote, checkout attempt, webhook sukcesu i
+  weryfikacja raportu oraz UI.
+
+### 18.23 Log iteracji — pierwszy krytyczny flow QA promocji planu
+
+Zrealizowane:
+
+- dodany test `agency-plan-promotion-checkout-flow.spec.ts`;
+- test przechodzi przez najważniejsze backendowe happy pathy po stronie domeny:
+  opłacony checkout planu agenta z kodem promocyjnym oraz opłacony checkout z
+  automatyczną kampanią bez kodu;
+- flow korzysta z realnych serwisów `AgencyPlanPaymentEventsService` oraz
+  `AdminAgencyPlanPromotionsService`, a fake’i zastępują wyłącznie repozytoria i
+  zewnętrzną infrastrukturę;
+- test potwierdza, że webhook sukcesu oznacza attempt jako `succeeded`,
+  aktywuje plan agencji, zapisuje dane subskrypcji i czyści grace period
+  limitów;
+- test potwierdza, że zarezerwowany rabat przechodzi w trwały redemption;
+- raport sprzedażowy kampanii pokazuje redemption w totals i breakdownie
+  plan/okres;
+- wariant z kodem promocyjnym pokazuje redemption również w breakdownie kodu;
+- wariant automatycznej kampanii bez kodu nie dodaje sztucznego wpisu do
+  breakdownu kodów;
+- test zabezpiecza brak wycieku plaintextu kodu i hasha kodu w raporcie.
+
+Świadome ograniczenie tej iteracji:
+
+- to nie jest jeszcze pełny test HTTP/E2E z uruchomioną aplikacją i UI. Kolejne
+  małe kroki powinny pokryć scenariusze: limity, wygasły kod i zmiana kampanii
+  po utworzeniu quote.
+
+### 18.24 Log iteracji — checkout planu bez promocji
+
+Zrealizowane:
+
+- flow spec obejmuje pełnopłatny checkout bez rabatu i bez rezerwacji promocji;
+- test korzysta z rzeczywistych `AgencyPlanPaymentEventsService` i
+  `AgencyPlanPromotionsService` oraz sprawdza aktywację planu po płatności;
+- potwierdzono, że brak rezerwacji nie tworzy redemption kampanii.
+
+Świadome ograniczenie tej iteracji:
+
+- test działa na fake’u repozytorium i nie obejmuje jeszcze prawdziwej bazy,
+  Stripe ani warstwy HTTP/UI.
+
+### 18.25 Log iteracji — granice limitów użyć promocji planów
+
+Zrealizowane:
+
+- testy rezerwacji obejmują wyczerpany limit globalny kampanii oraz kodu;
+- testy limitu na agencję obejmują zarówno wcześniejszą rezerwację, jak i
+  opłacone wykorzystanie;
+- w każdym wariancie odrzucona rezerwacja nie tworzy kolejnej rezerwacji, nie
+  zmienia liczników i nie zmienia statusu quote;
+- testy potwierdzają blokadę rekordu źródła rabatu przy sprawdzaniu limitu.
+
+Świadome ograniczenie tej iteracji:
+
+- fake repozytorium nie dowodzi zachowania przy równoległych transakcjach w
+  PostgreSQL. Punkt o współbieżności w krytycznych testach pozostaje otwarty.
+
+### 18.26 Log iteracji — wygasły kod promocji planu
+
+Zrealizowane:
+
+- wycena z wpisanym kodem, który nie daje rabatu dla wybranego planu i okresu,
+  zwraca czytelny błąd zamiast po cichu tworzyć quote w pełnej cenie;
+- wspólna reguła dostępności kodu uwzględnia status, archiwizację oraz granice
+  `startsAt` i `endsAt` zarówno przy wycenie, jak i przy rezerwacji rabatu;
+- jeśli kod wygaśnie po utworzeniu quote, rezerwacja zostaje odrzucona bez
+  zmiany liczników i statusu quote;
+- test potwierdza, że `endsAt` jest granicą wyłączną: kod działa tuż przed nią,
+  a w tej chwili jest już niedostępny.
+
+Świadome ograniczenie tej iteracji:
+
+- testy działają na fake’u repozytorium; zachowanie HTTP/UI i transakcji z
+  prawdziwą bazą nadal wymaga weryfikacji integracyjnej.
+
+### 18.27 Log iteracji — zmiana warunków aktywnej kampanii po wycenie
+
+Zrealizowane:
+
+- test obejmuje zmianę etykiety, procentu rabatu i liczby okresów promocji po
+  utworzeniu wyceny planu;
+- nowa wycena korzysta ze zmienionych warunków kampanii;
+- rezerwacja dla wcześniejszego quote zachowuje pierwotną kwotę rabatu,
+  etykietę i liczbę okresów z jego snapshotu.
+
+Świadome ograniczenie tej iteracji:
+
+- test dotyczy nadal aktywnej kampanii i rezerwacji w fake’u repozytorium;
+  pełny checkout Stripe oraz wyłączenie kampanii po wycenie wymagają osobnych
+  scenariuszy QA. Punkt 18.7 o całym snapshotcie checkoutu pozostaje otwarty.
+
+### 18.28 Instrukcja — Stripe Sandbox i lokalny test abonamentu agenta
+
+Zakres: abonamenty agentów z tego sprintu. Płatności za ogłoszenia prywatne mają
+osobny webhook i sekret (`STRIPE_LISTING_WEBHOOK_SECRET`). Stripe Sandbox nie
+pobiera prawdziwych pieniędzy; używamy wyłącznie klucza `sk_test_...` i kart
+testowych. Źródła: [testowanie Stripe](https://docs.stripe.com/testing),
+[produkty i ceny](https://docs.stripe.com/products-prices/manage-prices),
+[lokalne webhooki](https://docs.stripe.com/webhooks#local-listener).
+
+#### A. Dwie poprawki w projekcie przed pierwszym rzeczywistym checkoutem
+
+1. [x] **Naprawić czas wygaśnięcia sesji Stripe.** Quote jest ważny 60 minut,
+   a checkout można rozpocząć tylko przy co najmniej 35 minutach pozostałego
+   czasu. Adapter ponownie sprawdza minimum 31 minut (30 minut Stripe plus
+   bufor na zaokrąglenie i czas sieciowy) tuż przed wywołaniem
+   Stripe. Sesja i rezerwacja rabatu wygasają razem z quote; job zwalniający
+   rezerwacje czeka dodatkowo 10 minut na opóźniony webhook. Testy sprawdzają
+   obie granice. Webhook `checkout.session.expired` nadal może zamknąć próbę
+   wcześniej. Przy awarii dostarczania webhooków dłuższej niż 10 minut trzeba
+   zweryfikować zdarzenie w Stripe przed ręcznym rozliczeniem rabatu.
+   Źródło: [Stripe `expires_at`](https://docs.stripe.com/api/checkout/sessions/create#checkout_session_create-expires_at).
+2. [x] **Podpiąć start checkoutu w UI.** Rejestracja z płatnym planem oraz
+   `/dashboard/upgrade` wywołują `POST /api/agency-plan-checkout/attempts` i
+   przekierowują do Stripe. Rejestracja zawsze tworzy najpierw agencję na
+   `free`; webhook aktywuje kupiony plan. Zmiana istniejącego płatnego planu
+   pozostaje manualna, aby nie tworzyć drugiej subskrypcji. W razie błędu
+   po rejestracji użytkownik trafia na ekran upgrade i może ponowić próbę.
+
+#### B. Przygotować konto i ceny w Stripe
+
+1. Zalogować się do Stripe Dashboard i przełączyć na **Sandbox / dane testowe**.
+   Nie mieszać obiektów testowych z produkcyjnymi.
+2. W **Product catalog** utworzyć produkt dla każdego testowanego płatnego
+   planu. Dodać dwie ceny typu **Recurring, flat rate, PLN**: `month` i `year`.
+   Na pierwszy test wystarczy jeden plan i cena miesięczna. Nie włączać w tym
+   teście automatycznego doliczania podatku w Stripe Checkout; backend
+   porównuje kwotę płatności z własną wyceną brutto.
+3. W `/dashboard/admin/plans` odczytać cenę planu w groszach: np. `19900`
+   oznacza `199,00 PLN`. Kwota bazowa każdej ceny Stripe musi być taka sama jak
+   odpowiednie `priceMonthlyPln` / `priceYearlyPln` w katalogu aplikacji.
+   Promocji z naszego panelu nie tworzyć drugi raz w Stripe: backend tworzy
+   kupon dla konkretnego checkoutu. Na pierwszy test wybrać rabat mniejszy niż
+   100%, aby płatność miała dodatnią kwotę.
+4. Skopiować **Price ID** (`price_...`, nie `prod_...`) z Sandbox i wpisać je w
+   polach `Stripe monthly` / `Stripe yearly` odpowiedniego planu w
+   `/dashboard/admin/plans`. Nie wpisywać tam sekretu `sk_test_...`.
+
+#### C. Skonfigurować sekrety lokalnie
+
+1. W Stripe Dashboard odczytać **Secret key** trybu testowego (`sk_test_...`).
+   Zapisać go wyłącznie w ignorowanym przez Git `apps/api/.env.local` jako
+   `STRIPE_SECRET_KEY=sk_test_...`. `.env.example` ma zawierać wyłącznie
+   `STRIPE_SECRET_KEY=sk_test_replace_me`. Nigdy nie wklejać klucza do czatu,
+   commita, zrzutu ekranu ani kodu frontendu. Jeśli klucz trafił już do
+   commita lub został udostępniony, wygenerować nowy w Stripe Dashboard.
+2. Po uruchomieniu Stripe CLI z punktu E dopisać do `apps/api/.env.local`
+   `STRIPE_AGENCY_PLAN_WEBHOOK_SECRET=whsec_...` — dokładnie sekret wypisany
+   przez lokalne `stripe listen`. Nie używać tutaj sekretu webhooka ogłoszeń
+   ani sekretu endpointu produkcyjnego.
+3. Opcjonalnie ustawić własne URL-e powrotu przez
+   `STRIPE_AGENCY_PLAN_SUCCESS_URL` i `STRIPE_AGENCY_PLAN_CANCEL_URL`.
+   Domyślnie aplikacja wraca do `/dashboard/upgrade` z informacją o wyniku.
+   Sam powrót z Checkout nie potwierdza płatności — plan aktywuje dopiero
+   podpisany webhook.
+4. `STRIPE_SECRET_KEY` służy także checkoutowi ogłoszeń prywatnych, ale ich
+   `STRIPE_LISTING_WEBHOOK_SECRET` konfiguruje się osobno.
+
+#### D. Przygotować uruchomienie projektu z sekretami API
+
+Wariant używany z obecnym `docker-compose.yml`: plik Compose **nie przekazuje**
+teraz żadnej zmiennej Stripe do kontenera API. Dodać ignorowany przez Git
+`docker-compose.override.yml` z zawartością:
+
+```yaml
+services:
+  api:
+    environment:
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:?Ustaw testowy klucz Stripe}
+      STRIPE_AGENCY_PLAN_WEBHOOK_SECRET: ${STRIPE_AGENCY_PLAN_WEBHOOK_SECRET:?Ustaw sekret lokalnego webhooka}
+      STRIPE_AGENCY_PLAN_SUCCESS_URL: http://localhost:3000/dashboard/upgrade
+      STRIPE_AGENCY_PLAN_CANCEL_URL: http://localhost:3000/dashboard/upgrade
+```
+
+Po wykonaniu punktu E i wpisaniu obu sekretów w `apps/api/.env.local`
+uruchomić z katalogu repo:
+
+```bash
+docker compose --env-file apps/api/.env.local up -d --build
+```
+
+Po każdej zmianie sekretu CLI odtworzyć proces API:
+
+```bash
+docker compose --env-file apps/api/.env.local up -d --force-recreate api
+```
+
+`--env-file` dostarcza wartości do interpolacji Compose; sam plik
+`apps/api/.env.local` nie jest automatycznie wczytywany przez kontener. Bez
+Dockera można uruchomić API przez `pnpm --filter api dev` (czyta
+`apps/api/.env.local`), po ustawieniu w nim `DB_HOST=localhost` i
+`DB_PORT=5433` dla bazy z tego Compose. Web musi wskazywać
+`http://localhost:4000/api`.
+
+Sprawdzić `http://localhost:4000/api/plans`. Jeśli brakuje tabel, najpierw
+zastosować migracje projektu; dla tego modułu szczególnie
+`20260916_agency_plan_promotions_foundation.sql` i
+`20260917_agency_plan_checkout_attempts.sql` (w tej kolejności). Nie resetować
+bazy przez `docker compose down -v` tylko po to, żeby uruchomić test.
+
+Sprawdzenie i ewentualne zastosowanie **brakujących** migracji w bazie z Compose:
+
+```bash
+docker compose --env-file apps/api/.env.local exec -T db psql -U postgres -d real_estate_saas -c "SELECT to_regclass('public.agency_plan_quotes') AS quotes, to_regclass('public.agency_plan_checkout_attempts') AS attempts;"
+docker compose --env-file apps/api/.env.local exec -T db psql -U postgres -d real_estate_saas -v ON_ERROR_STOP=1 < apps/api/migrations/20260916_agency_plan_promotions_foundation.sql
+docker compose --env-file apps/api/.env.local exec -T db psql -U postgres -d real_estate_saas -v ON_ERROR_STOP=1 < apps/api/migrations/20260917_agency_plan_checkout_attempts.sql
+```
+
+Dwa ostatnie polecenia wykonywać tylko, gdy odpowiadające tabele są
+nieobecne; jeśli `agency_plan_quotes` już istnieje, a brak jedynie
+`agency_plan_checkout_attempts`, uruchomić tylko drugie z nich.
+
+#### E. Uruchomić lokalne webhooki Stripe
+
+1. Zainstalować [Stripe CLI](https://docs.stripe.com/cli/install) na komputerze
+   (na macOS np. `brew install stripe/stripe-cli/stripe`) i wykonać
+   `stripe login` na tym samym koncie/sandboxie, którego klucz `sk_test_...`
+   znajduje się w API.
+2. Uruchomić na **hoście**, w osobnym terminalu, i pozostawić proces włączony:
+
+   ```bash
+   stripe listen --forward-to http://localhost:4000/api/agency-plan-payments/webhooks/stripe
+   ```
+
+3. Skopiować wypisany przez CLI `whsec_...` do
+   `STRIPE_AGENCY_PLAN_WEBHOOK_SECRET`, a następnie uruchomić API (punkt D).
+   Jeśli API już działało, trzeba je odtworzyć po zmianie sekretu.
+   Podpis jest sprawdzany na surowym body requestu, więc nie wysyłać webhooka
+   ręcznie bez podpisu.
+4. Dla testu całej ścieżki wykonać rzeczywisty **testowy Checkout**.
+   `stripe trigger checkout.session.completed` tworzy sztuczny event bez
+   naszych identyfikatorów quote/attempt i nie zastępuje tego scenariusza.
+
+#### F. Pierwszy test end-to-end
+
+Najprościej: utworzyć nowe konto agenta z płatnym planem lub zalogować się na
+agenta z planem `free`, wybrać plan w `/dashboard/upgrade` i kliknąć przycisk
+płatności. Ręczne wywołanie endpointu poniżej pozostaje narzędziem diagnostycznym.
+
+1. Zalogować się w aplikacji na konto agenta z agencją. Wejść w
+   `http://localhost:3000/dashboard/upgrade`, wybrać płatny plan i okres.
+   W panelu Network przeglądarki znaleźć odpowiedź
+   `POST /api/agency-plan-checkout/quote` i skopiować `quoteId`.
+2. Przed upływem 25 minut od wyceny (później zostaje mniej niż 35 minut na
+   checkout) wkleić w konsoli tej **samej zalogowanej karty** kod niżej,
+   podmieniając tylko identyfikator. Nie
+   publikować `quoteId` ani ciasteczek sesji:
+
+   ```js
+   const quoteId = 'WKLEJ_QUOTE_ID';
+   const cookie = document.cookie.split('; ').find((part) =>
+     part.startsWith('podadresem.csrf-token='),
+   );
+   const csrfToken = cookie
+     ? decodeURIComponent(cookie.slice('podadresem.csrf-token='.length))
+     : '';
+   const response = await fetch('http://localhost:4000/api/agency-plan-checkout/attempts', {
+     method: 'POST',
+     credentials: 'include',
+     headers: {
+       'Content-Type': 'application/json',
+       'x-csrf-token': csrfToken,
+     },
+     body: JSON.stringify({ quoteId }),
+   });
+   const result = await response.json();
+   console.log(response.status, result);
+   if (response.ok) window.location.assign(result.checkoutUrl);
+   ```
+
+3. Na stronie Stripe użyć karty testowej `4242 4242 4242 4242`, dowolnego
+   przyszłego terminu i dowolnego trzycyfrowego CVC. Nie wpisywać prawdziwej
+   karty. Po opłaceniu sprawdzić w terminalu CLI dostarczenie
+   `checkout.session.completed` oraz odpowiedź `200` lokalnego API.
+4. Sprawdzić w aplikacji zmianę planu agencji, w Stripe Sandbox nową
+   subskrypcję, a dla rabatu także wykorzystanie w
+   `/dashboard/admin/agency-plan-promotions` → „Wyniki promocji”. Powtórzyć
+   dla zakupu bez rabatu, kampanii automatycznej i kodu. Sukces przekierowania
+   nie wystarcza: decydują webhook i zapis stanu w bazie.
+
+#### G. Najczęstsze błędy przy pierwszym uruchomieniu
+
+- `Stripe secret key is not configured` / `503`: klucz jest tylko w pliku, ale
+  nie w procesie API; sprawdzić punkt D i restart kontenera.
+- `Invalid Stripe webhook signature` / `400`: użyto innego `whsec_...` niż
+  wypisany przez aktualny `stripe listen` albo nie zrestartowano API.
+- Błąd `expires_at` przy tworzeniu sesji: sprawdzić czas serwera API i użyć
+  świeżej wyceny; backend nie przyjmie quote z mniej niż 35 minutami ważności.
+- Brak Stripe Price ID: uzupełnić właściwy miesięczny/roczny `price_...` w
+  adminie planów; upewnić się, że cena jest w PLN i zgodna z ceną bazową.
+- `401` / `403` przy `/attempts`: zalogować się ponownie, użyć świeżego
+  `quoteId`, przesłać cookies oraz nagłówek `x-csrf-token`.
+- Poprawna płatność bez aktywacji planu: sprawdzić terminal CLI, status webhooka
+  i czy `STRIPE_AGENCY_PLAN_WEBHOOK_SECRET` należy do tego listenera.
+
+### 18.29 Otwarte decyzje przed kodowaniem
+
+- Czy kod promocyjny może dawać trial zamiast rabatu kwotowego/procentowego?
+- Czy benefity dla istniejących klientów mają w pierwszym wydaniu działać tylko
+  na `next_invoice`, czy od razu na kilka kolejnych faktur?
+- Czy admin może ręcznie przypisać promocję do istniejącej agencji?
+- Czy ceny promocyjne w publicznym cenniku mają być widoczne zawsze, czy tylko
+  przy kampanii automatycznej?
+
+### 18.30 Wspólna walidacja przekierowania do Stripe Checkout
+
+- Walidacja adresu Stripe Checkout jest wydzielona do współdzielonego modułu
+  `apps/web/src/lib/stripe-checkout-url.ts`; checkout ogłoszeń zachowuje
+  dotychczasowy kontrakt przez re-eksport.
+- Rejestracja agenta i ekran upgrade sprawdzają adres zwrócony przez API przed
+  przekierowaniem przeglądarki. Nieprawidłowy adres nie jest otwierany;
+  użytkownik może ponowić próbę z bezpiecznego ekranu.
+- Testy obejmują poprawny adres HTTPS Stripe oraz odrzucenie HTTP, obcej
+  domeny, względnej ścieżki i schematu `javascript:`.
+- Nadal otwarte: manualne E2E w Stripe Sandbox po skonfigurowaniu produktów,
+  Price ID, webhooka i lokalnego środowiska.
+
+### 18.31 Status prac nad planami przed testem Stripe
+
+- Rdzeń V1 jest zaimplementowany: katalog planów, promocje i kody agentów,
+  quote snapshot, checkout attempt, webhook, rezerwacje i raport admina.
+- Dodano regresję `PlansService.findPublicPlans` dla trzech planów: promocja
+  przypisana do Starter monthly nie przenika do Free, Professional ani Starter
+  yearly. Testy domenowe osobno sprawdzają reguły docelowego planu i okresu.
+- Nadal do wykonania bez Stripe: analityka rozróżniająca promocje planów od
+  promocji ogłoszeń oraz dalsze testy graniczne z punktu 18.7, zwłaszcza
+  izolacja kodów między modułami i współbieżne limity w prawdziwej bazie.
+- Do wykonania po konfiguracji Stripe: pełne HTTP/UI E2E z opłaceniem,
+  anulowaniem i opóźnionym webhookiem. Testy jednostkowe nie zastępują tego
+  przebiegu.
+- Benefity dla istniejących klientów (`next_invoice` / `future_invoices`)
+  mają model danych, ale nie aktywny flow billingowy. Wdrożenie wymaga osobnej
+  decyzji o zakresie V1 i sposobie przypisania benefitu do agencji.
+
+## 19. Kolejne kroki — domknięcie V1 i kontrolowany rollout
+
+Poniższa lista zbiera otwarte prace z Etapu 0, Etapu 9 i sprintu 18. Lokalnie
+testujemy nową płatną ścieżkę, potem domykamy warunki publicznego uruchomienia
+i sprawdzamy rzeczywiste płatności. Promocje planów agentów są
+osobnym strumieniem i nie blokują testów ogłoszeń prywatnych.
+
+### 19.1 Domyślne flagi prywatnej sprzedaży w lokalnym Compose
+
+- [x] Ustawić domyślnie `true` dla flag prywatnego cennika, checkoutu,
+  wyróżnień i promocji w lokalnym `docker-compose.yml`, aby testy korzystały
+  z aktualnej płatnej ścieżki zamiast starej darmowej publikacji.
+- [x] Zweryfikować po zmianie wynik `docker compose config`: bez nadpisania
+  wszystkie cztery flagi są włączone, a jawna wartość `false` wyłącza wybraną
+  flagę.
+- [x] Odtworzyć lokalny kontener API i potwierdzić w jego środowisku cztery
+  wartości `true`.
+- [x] Po odtworzeniu usunąć cykliczny import `PlanCatalog` przez barrel
+  `../plans` w `UsersModule` i `AgencyPlanService`; API uruchamia się i
+  `GET /api/listing-products` odpowiada `200`.
+- [x] Sprawdzić konfigurację rolloutową w repo i możliwość kierowania funkcji
+  do kont testowych. Wynik audytu poniżej; stan zmiennych ustawionych w panelu
+  dostawcy wymaga osobnej weryfikacji przed uruchomieniem.
+- [x] Ujednolicić `.env.example` z bezpiecznymi wartościami domyślnymi:
+  wszystkie cztery flagi prywatnej sprzedaży są wyłączone.
+
+**Wynik audytu:** `ReleaseFlagsService` czyta flagi z konfiguracji procesu API,
+bez identyfikatora użytkownika. `docker-compose.yml` dotyczy lokalnego
+uruchomienia; staging używa zmiennych ustawianych w panelu dostawcy backendu,
+a workflow `.github/workflows/deploy.yml` wyzwala deploy bez zarządzania tymi
+flagami. Repo nie zawiera osobnej konfiguracji flag dla kont testowych. Opis
+wdrożenia w `DEPLOYMENT.md` zakłada środowisko staging/test i późniejszą
+produkcję z osobnymi zasobami, ale konfiguracji działającego dostawcy nie da
+się potwierdzić z samego repo. Workflow Vercel używa `--prod`, więc adres i
+projekt frontendowy trzeba zweryfikować przed testem rolloutowym.
+
+**Sposób testowania V1:** włączyć funkcje wyłącznie na osobnej instancji API,
+bazie i froncie staging/test, dostępnych dla zespołu testowego. Nie włączać
+globalnej flagi checkoutu na instancji obsługującej użytkowników produkcyjnych.
+Jeśli wymagany będzie test tylko na wybranych kontach we wspólnej instancji,
+potrzebny jest osobny mechanizm kohortowy po stronie backendu i odpowiednie
+filtrowanie odczytu flag na froncie; obecny kod tego nie zapewnia.
+
+**Znaczenie flag `false`:** wyłączenie flag cennika i checkoutu usuwa nowy
+katalog produktów prywatnych oraz płatną wycenę. Nie oznacza to wyłączenia
+istniejącego dodawania ogłoszeń. Gdy `PRIVATE_LISTING_CHECKOUT_ENABLED=false`,
+`PublicListingSubmissionsService` zachowuje starszą ścieżkę: automatycznie
+zaakceptowane zgłoszenie może zostać opublikowane po przejęciu, akceptacja
+admina może opublikować ofertę, a właściciel może użyć starego odnowienia bez
+zakupu. Po włączeniu checkoutu te ścieżki kierują do płatnej publikacji i
+blokują stare odnowienie. Jest to więc przełącznik między dwoma modelami
+sprzedaży, a nie blokada całego procesu publikacji. Decyzja produktowa:
+nowe prywatne ogłoszenia mają być publikowane wyłącznie po zakupie albo
+jawnym grancie administratora; stara darmowa ścieżka nie jest docelowym
+zachowaniem.
+
+- [ ] Przed publicznym wdrożeniem oddzielić wymóg płatnej publikacji od flagi
+  dostępności checkoutu i zamknąć starszą darmową ścieżkę. Dodać test, że
+  wyłączenie checkoutu nie publikuje nowej prywatnej oferty za darmo.
+
+**Odbiór:** świeży start lokalnego Compose udostępnia płatny checkout oraz
+pozostałe funkcje V1. Świadome ustawienie zmiennej środowiskowej nadal działa.
+`.env.example` pozostaje wzorcem dla konfiguracji dostawcy z flagami `false`;
+nie opisuje lokalnych wartości Compose. Włączenie płatności poza lokalnym
+środowiskiem wymaga osobnej konfiguracji Stripe i zamknięcia punktu 19.2.
+
+### 19.2 Decyzje księgowo-prawne przed publiczną płatnością
+
+- [x] Przygotować poniższy pakiet pytań i luk implementacyjnych do weryfikacji.
+- [ ] Przekazać pakiet do księgowości i prawnika oraz zapisać ich odpowiedzi z
+  datą i osobą zatwierdzającą. Pakiet nie został jeszcze wysłany.
+- [ ] Zatwierdzić stawkę VAT, dane nabywcy, sposób wystawiania dokumentów,
+  regulamin, zgody, odstąpienie i pełne/częściowe zwroty.
+- [ ] Przełożyć decyzje na finalne teksty checkoutu i dokumenty oraz ustalić
+  wpływ refundu na trwającą publikację i wyróżnienie; dodać testy tej reguły.
+
+#### Pakiet do opinii księgowo-prawnej
+
+**Model usługi do oceny:** jednorazowa publikacja zaakceptowanego ogłoszenia na
+60 dni, odnowienie o 60 dni i wyróżnienie na 7 dni. Cena jest pokazywana jako
+brutto; płatność następuje po moderacji, a publikacja lub dodatek aktywuje się
+po potwierdzonej płatności. Zamówienie o wartości 0 zł aktywuje usługę bez
+operatora płatności. Dane cenowe i VAT są zapisywane w snapshotcie zamówienia.
+
+**Stan kodu istotny dla opinii:**
+
+- `listing_product_catalog.vat_rate_basis_points` i snapshot VAT w zamówieniu
+  dopuszczają `null`; system nie ma zatwierdzonej stawki dla tych usług.
+- DTO zamówienia przyjmuje kraj, typ nabywcy, opcjonalne imię i nazwisko oraz
+  dane firmy; obecny ekran sprzedającego wysyła zawsze `countryCode: PL` i
+  `buyerType: consumer`, bez formularza zakupu na firmę lub adresu rozliczenia.
+- `seller-listing-checkout-panel.tsx` tworzy zamówienie po kliknięciu
+  `Zamawiam i płacę`; nie pokazuje osobnych zgód ani nie zapisuje wersji
+  zaakceptowanego regulaminu w zamówieniu.
+- `/regulamin` sam określa się jako wersja robocza MVP; nie zawiera pełnych
+  zasad odpłatnej publikacji, odstąpienia i zwrotów.
+- Statusy `partially_refunded` / `refunded` i `refunded_at` istnieją w modelu,
+  ale w module `listing-commerce` nie ma procesu inicjowania refundu,
+  rozliczenia jego kwoty ani reguły cofnięcia lub skrócenia entitlementu.
+- Stripe Checkout przyjmuje jedną kwotę brutto zamówienia. W tym module nie
+  ma wystawiania dokumentu sprzedaży ani jego udostępnienia sprzedającemu;
+  moduł `listing-documents` dotyczy dokumentów nieruchomości.
+
+**Pytania do księgowości:**
+
+1. Jaka stawka VAT i sposób wykazania kwoty netto/VAT dotyczą każdego z
+   produktów: publikacji, odnowienia i wyróżnienia? Jak traktować zamówienie
+   za 0 zł wynikające z promocji lub grantu?
+2. Jakie dokumenty wystawiać konsumentowi i firmie, przez jaki system i w
+   jakim momencie? Czy operator płatności dostarcza tylko potwierdzenie
+   płatności, czy także dokument spełniający przyjęty proces księgowy?
+3. Jakie pola nabywcy są obowiązkowe dla obu typów zakupu, jak walidować NIP
+   i adres oraz jak długo przechowywać snapshot zamówienia i dokumenty?
+4. Jak dokumentować pełny i częściowy zwrot oraz korekty po rozpoczęciu
+   świadczenia? Jak powiązać kwotę zwrotu z pozycjami zamówienia i VAT?
+
+**Pytania do prawnika:**
+
+1. Jak opisać zawarcie umowy, początek i koniec świadczenia dla publikacji,
+   odnowienia i wyróżnienia, w tym publikacji po moderacji i nadania gratis?
+2. Jaka treść regulaminu, informacji przed zakupem oraz zgód lub oświadczeń
+   jest wymagana przed utworzeniem zamówienia i przed natychmiastowym
+   rozpoczęciem świadczenia? Które oświadczenia trzeba zapisać z wersją
+   dokumentu, czasem i identyfikatorem użytkownika?
+3. Jakie scenariusze odstąpienia, reklamacji i zwrotu należy obsłużyć przed
+   aktywacją, podczas trwania usługi i po jej zakończeniu? Jaki powinien być
+   wpływ pełnego lub częściowego zwrotu na aktywną publikację/wyróżnienie?
+4. Jakie są zasady postępowania po odrzuceniu oferty, usunięciu jej przez
+   serwis, wycofaniu przez właściciela oraz technicznym braku publikacji po
+   pobraniu płatności? Jakie terminy i komunikaty pokazać użytkownikowi?
+
+**Wynik oczekiwany od opinii:** zatwierdzona tabela decyzji dla każdego
+produktu i typu nabywcy, teksty dokumentów i zgód z numerem wersji, proces
+wystawiania oraz korekty dokumentów, macierz zwrotów z wpływem na entitlement
+oraz lista danych do przechowywania. Dopiero na tej podstawie należy zamknąć
+DTO, formularz B2B, zapis zgód, dokumenty i refundy w kodzie.
+
+**Odbiór:** decyzje są zapisane, teksty i konfiguracja są z nimi zgodne, a
+scenariusze zwrotów mają jednoznaczny wynik. Do tego czasu publiczny checkout
+pozostaje wyłączony.
+
+### 19.3 QA płatności prywatnych w Stripe Sandbox
+
+- [ ] Przejść od quote i order przez Stripe Checkout, podpisany webhook,
+  entitlement do publikacji; sprawdzić stan w bazie i panelu sprzedającego.
+- [ ] Sprawdzić anulowanie, błąd, porzucenie sesji, ponowienie i opóźniony lub
+  powtórzony webhook: bez przedwczesnej publikacji i podwójnego przedłużenia.
+- [ ] Sprawdzić kod aktywny, wygasły, ponad limit i poza zakresem produktu oraz
+  zachowanie snapshotu po zmianie ceny lub kampanii.
+- [ ] Sprawdzić wygaśnięcie produktów i joby na granicach UTC/Europe/Warsaw.
+
+**Odbiór:** wszystkie ścieżki z punktu 9.6 mają zapisany wynik i dowód stanu
+zamówienia, entitlementu oraz webhooka; krytyczne błędy są widoczne w
+monitoringu.
+
+### 19.4 Testy i analityka promocji planów agentów
+
+- [ ] Dodać rozróżnienie promocji abonamentów i ogłoszeń w analityce, bez
+  zapisywania treści kodów.
+- [ ] Domknąć testy z punktu 18.7: izolacja kodów między modułami, snapshot,
+  granice czasu i równoległe limity na prawdziwym PostgreSQL.
+- [ ] Wykonać HTTP/UI E2E planu agenta w Stripe Sandbox: sukces, anulowanie,
+  opóźniony webhook oraz promocja automatyczna, kod i brak rabatu.
+- [ ] Osobno zdecydować, czy V1 obejmuje `next_invoice` / `future_invoices`
+  dla istniejących agencji; dopiero potem implementować ten flow i jego testy.
+
+**Odbiór:** raporty oddzielają oba rodzaje promocji, a testy potwierdzają
+izolację i limity również poza fake repozytorium.
+
+### 19.5 Rollout i ocena oferty
+
+- [ ] Wybrać sposób ograniczenia dostępu do kont testowych lub osobnego
+  środowiska; nie traktować globalnej flagi jako mechanizmu wyboru kont.
+- [ ] Włączać kolejno: cennik → płatna publikacja → odnowienia → wyróżnienia →
+  promocje i kody. Po każdym kroku sprawdzić monitoring, konwersję i
+  reconciliation przed następnym.
+- [ ] Po 30 dniach ocenić ceny, wykorzystanie wyróżnienia i potrzebę drugiego
+  poziomu wyróżnienia.
+
+**Odbiór:** każda funkcja ma odwracalny przełącznik, wyniki testów i
+monitoringu są zaakceptowane, a decyzja o cenach wynika z danych.

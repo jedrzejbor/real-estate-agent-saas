@@ -59,10 +59,8 @@ export class AuthService {
         dto.accountType === RegisterAccountType.PRIVATE_SELLER
           ? UserRole.VIEWER
           : UserRole.AGENT,
-      initialPlan:
-        dto.accountType === RegisterAccountType.PRIVATE_SELLER
-          ? AgencyPlan.FREE
-          : (dto.selectedPlan ?? AgencyPlan.FREE),
+      // Selected paid plan is only an intent; webhook activates it after payment.
+      initialPlan: AgencyPlan.FREE,
     });
 
     const user = await this.usersService.ensureAgencyForUser(createdUser.id);
@@ -296,6 +294,8 @@ export class AuthService {
       id: user.id,
       email: user.email,
       role: user.role,
+      adminPermissions:
+        user.role === UserRole.ADMIN ? (user.adminPermissions ?? null) : null,
       agent: access.agent
         ? {
             id: access.agent.id,

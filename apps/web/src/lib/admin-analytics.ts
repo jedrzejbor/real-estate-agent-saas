@@ -23,6 +23,7 @@ export interface AdminAnalyticsUsageSummary {
       | 'matching'
       | 'retention'
       | 'public_growth'
+      | 'commerce'
       | 'limits'
       | 'other';
     count: number;
@@ -53,6 +54,39 @@ export interface AdminAnalyticsUsageSummary {
     sellerOpenRate: number;
     acceptanceRate: number;
     copyCreationRate: number;
+    events: Array<{
+      name: string;
+      count: number;
+    }>;
+  };
+  commerce: {
+    quotesCreated: number;
+    ordersCreated: number;
+    checkoutSessionsCreated: number;
+    paymentEventsProcessed: number;
+    paymentEventsFailed: number;
+    paidOrders: number;
+    failedOrders: number;
+    expiredOrders: number;
+    zeroValueOrders: number;
+    discountedOrders: number;
+    grossRevenueAmount: number;
+    discountGrossAmount: number;
+    averageOrderGrossAmount: number;
+    quoteToOrderRate: number;
+    orderToCheckoutRate: number;
+    checkoutToPaidRate: number;
+    paymentFailureRate: number;
+    statuses: Array<{
+      status: string;
+      count: number;
+      totalGrossAmount: number;
+      discountGrossAmount: number;
+    }>;
+    attempts: Array<{
+      status: string;
+      count: number;
+    }>;
     events: Array<{
       name: string;
       count: number;

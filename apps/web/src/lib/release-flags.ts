@@ -5,6 +5,10 @@ export interface ReleaseFlags {
   freemiumUpsellEnabled: boolean;
   premiumReportsEnabled: boolean;
   agentListingMarketplaceEnabled: boolean;
+  privateListingPricingEnabled: boolean;
+  privateListingCheckoutEnabled: boolean;
+  privateListingFeaturedEnabled: boolean;
+  privateListingPromotionsEnabled: boolean;
 }
 
 export const DEFAULT_RELEASE_FLAGS: ReleaseFlags = {
@@ -14,6 +18,10 @@ export const DEFAULT_RELEASE_FLAGS: ReleaseFlags = {
   freemiumUpsellEnabled: true,
   premiumReportsEnabled: true,
   agentListingMarketplaceEnabled: false,
+  privateListingPricingEnabled: false,
+  privateListingCheckoutEnabled: false,
+  privateListingFeaturedEnabled: false,
+  privateListingPromotionsEnabled: false,
 };
 
 export function getResolvedReleaseFlags(
