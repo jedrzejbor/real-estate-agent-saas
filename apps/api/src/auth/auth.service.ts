@@ -293,6 +293,7 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
+      emailVerified: user.emailVerifiedAt != null,
       role: user.role,
       adminPermissions:
         user.role === UserRole.ADMIN ? (user.adminPermissions ?? null) : null,

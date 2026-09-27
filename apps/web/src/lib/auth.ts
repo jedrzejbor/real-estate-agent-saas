@@ -10,6 +10,7 @@ const API_BASE_URL =
 export interface AuthUser {
   id: string;
   email: string;
+  emailVerified: boolean;
   role: string;
   adminPermissions?: string[] | null;
   isActive?: boolean;

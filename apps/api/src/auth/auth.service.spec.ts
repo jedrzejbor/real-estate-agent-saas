@@ -12,6 +12,8 @@ function buildUser(overrides: Partial<User> = {}): User {
     passwordHash: '$2b$12$existing-hash',
     passwordResetTokenHash: null,
     passwordResetExpiresAt: null,
+    emailVerifiedAt: null,
+    emailVerificationSendCount: 0,
     role: UserRole.AGENT,
     isActive: true,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -117,6 +119,19 @@ describe('AuthService account settings', () => {
       firstName: 'Anna',
       lastName: 'Nowak',
     });
+    expect(result.emailVerified).toBe(false);
+  });
+
+  it('reports verified mailbox ownership without exposing verification secrets', async () => {
+    const { service } = buildService({
+      emailVerifiedAt: new Date('2026-09-27T10:00:00.000Z'),
+      emailVerificationTokenHash: 'a'.repeat(64),
+    });
+
+    const profile = await service.getProfile('user-1');
+
+    expect(profile.emailVerified).toBe(true);
+    expect(profile).not.toHaveProperty('emailVerificationTokenHash');
   });
 
   it('changes password after validating current password', async () => {

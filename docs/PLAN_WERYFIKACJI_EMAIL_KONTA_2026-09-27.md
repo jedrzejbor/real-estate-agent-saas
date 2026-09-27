@@ -116,3 +116,15 @@ Rollout: migracja → kod w trybie obserwacji → kontrola SMTP i metryk → wł
 | F. Odbiór | Test E2E z PostgreSQL + SMTP + przeglądarka, przegląd logów i rollout z metrykami. |
 
 **Definicja ukończenia:** nie istnieje ścieżka API, w której świeżo założone, niezweryfikowane konto otrzyma pełną sesję, opłaci produkt lub przejmie ofertę; prawidłowy właściciel skrzynki może dokończyć proces także na innym urządzeniu; istniejący użytkownicy mają bezpieczną ścieżkę migracji.
+
+## 11. Dziennik wdrożenia — etap A (27.09.2026)
+
+**Zrobione w kodzie:**
+
+- Dodano addytywną, powtarzalną migrację [`20260927_account_email_verification_foundation.sql`](../apps/api/migrations/20260927_account_email_verification_foundation.sql): znacznik potwierdzenia, hash i termin tokena, czas wysyłki, trwałe okno licznika, unikalny indeks częściowy oraz ograniczenia spójności. Migracja celowo nie ustawia `email_verified_at` dla istniejących kont.
+- Rozszerzono encję [`User`](../apps/api/src/users/entities/user.entity.ts). Pola tokena i liczników mają `select: false` oraz `@Exclude`; kod etapu B będzie musiał pobierać je jawnie w kontrolowanych zapytaniach. Publiczny profil auth ma `emailVerified: boolean`; typ po stronie web jest zgodny. To pole jest wyłącznie informacyjne do chwili wdrożenia egzekwowania w etapie C.
+- Kontrakt kolejnych etapów: rejestracja `202` bez JWT, confirm `204` bez JWT, resend `202` neutralny, login z poprawnym hasłem dla pending zwraca `EMAIL_VERIFICATION_REQUIRED`; opis w sekcji 3. **Endpointy i zmiana zachowania rejestracji nie są jeszcze wdrożone.**
+
+**Sprawdzenie migracji:** uruchomiona dwa razy na izolowanej tabeli tymczasowej PostgreSQL; oba przebiegi zakończyły się poprawnie, a istniejący wiersz pozostał niezweryfikowany. Następnie zastosowana w lokalnej bazie deweloperskiej: przed i po było 9 kont; po migracji `email_verified_at` ma 0 wartości, hash tokena ma 0 wartości. Kontrola typów API/web i 17 testów auth/users przeszły; lokalne API odpowiada `200` na `/api`.
+
+**Decyzja o starych kontach:** lokalnych 9 kont nie oznaczono automatycznie jako zweryfikowanych. Dla środowiska publicznego decyzja z sekcji 8 wymaga odczytu liczby i rodzaju realnych kont przed włączeniem etapu C; brak dostępu do takiego środowiska w tym zadaniu. Żaden kod w etapie A nie blokuje jeszcze istniejących użytkowników ani nie wydaje im nowych uprawnień na podstawie pola `emailVerified`.
