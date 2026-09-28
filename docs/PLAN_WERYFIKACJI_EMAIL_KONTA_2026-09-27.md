@@ -128,3 +128,16 @@ Rollout: migracja → kod w trybie obserwacji → kontrola SMTP i metryk → wł
 **Sprawdzenie migracji:** uruchomiona dwa razy na izolowanej tabeli tymczasowej PostgreSQL; oba przebiegi zakończyły się poprawnie, a istniejący wiersz pozostał niezweryfikowany. Następnie zastosowana w lokalnej bazie deweloperskiej: przed i po było 9 kont; po migracji `email_verified_at` ma 0 wartości, hash tokena ma 0 wartości. Kontrola typów API/web i 17 testów auth/users przeszły; lokalne API odpowiada `200` na `/api`.
 
 **Decyzja o starych kontach:** lokalnych 9 kont nie oznaczono automatycznie jako zweryfikowanych. Dla środowiska publicznego decyzja z sekcji 8 wymaga odczytu liczby i rodzaju realnych kont przed włączeniem etapu C; brak dostępu do takiego środowiska w tym zadaniu. Żaden kod w etapie A nie blokuje jeszcze istniejących użytkowników ani nie wydaje im nowych uprawnień na podstawie pola `emailVerified`.
+
+## 12. Dziennik wdrożenia — etap B (28.09.2026)
+
+**Zrobione:**
+
+- Dodano [`AccountEmailVerificationService`](../apps/api/src/auth/account-email-verification.service.ts): 32-bajtowy losowy token, SHA-256 w bazie, 24-godzinny termin ważności, atomowe potwierdzenie konta, cooldown 60 s i limit 5 wysyłek na konto w 24 h. Rezerwacja tokena i licznika działa w transakcji z blokadą wiersza. Błąd SMTP przywraca poprzedni działający token oraz limit, jeśli nowy token nie został już zużyty.
+- Dodano publiczne `POST /api/auth/email-verification/request` (`202`, neutralny wynik) i `POST /api/auth/email-verification/confirm` (`204`, bez utworzenia sesji), DTO oraz ograniczenia częstości żądań. Endpointy są dostępne, ale rejestracja **nie wywołuje jeszcze** wysyłki; to należy do etapu C.
+- Link w wiadomości prowadzi do `/verify-email#token=...`; produkcja wymaga HTTPS w `FRONTEND_URL`. Dodano zdarzenia monitoringu bez tokenów i pełnych adresów e-mail oraz wspólną normalizację adresu dla rejestracji, logowania, resetu i resendu.
+- [`EmailService`](../apps/api/src/email/email.service.ts) nie loguje treści ani pełnego adresu odbiorcy; w `NODE_ENV=production` odrzuca provider `log`, aby nie potwierdzać pozornego wysłania wiadomości.
+
+**Weryfikacja:** 19 testów jednostkowych auth/e-mail OK, type-check API OK, lint API OK. Na lokalnym PostgreSQL + Mailpit: resend `202`, wiadomość dostarczona, pierwsze potwierdzenie `204`, ponowne użycie tokena `400`. Dwie równoczesne prośby o link dały dwie neutralne odpowiedzi `202`, ale tylko jedną wiadomość. Tymczasowe konta testowe zostały usunięte.
+
+**Granica etapu:** nadal nie ma ekranu `/verify-email`, automatycznej wysyłki po rejestracji ani blokady sesji dla pending. To jest zakres etapów C i E. Ograniczenie endpointu po IP korzysta na razie z `@nestjs/throttler` w pamięci procesu; przed wdrożeniem wielu instancji trzeba podłączyć współdzielony storage limitera i poprawnie skonfigurować zaufane proxy. Neutralny status i treść odpowiedzi resend nie gwarantują identycznego czasu odpowiedzi przy synchronicznym SMTP; przed publicznym startem warto sprawdzić ten kanał enumeracji i w razie potrzeby wysyłać wiadomości przez trwałą kolejkę.

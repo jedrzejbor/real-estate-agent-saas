@@ -11,3 +11,7 @@ export {
   RequestPasswordResetDto,
   ResetPasswordDto,
 } from './password-reset.dto';
+export {
+  RequestAccountEmailVerificationDto,
+  ConfirmAccountEmailVerificationDto,
+} from './email-verification.dto';

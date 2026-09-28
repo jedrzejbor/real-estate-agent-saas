@@ -19,7 +19,8 @@ export type MonitoredFlow =
   | 'plan_limit_enforcement'
   | 'listing_payment_reconciliation'
   | 'agency_plan_payment_reconciliation'
-  | 'listing_entitlements';
+  | 'listing_entitlements'
+  | 'account_email_verification';
 
 type MonitoringStatus = 'success' | 'failure' | 'warning';
 

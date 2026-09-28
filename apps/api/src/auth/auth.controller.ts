@@ -14,11 +14,14 @@ import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
+import { AccountEmailVerificationService } from './account-email-verification.service';
 import {
   ChangePasswordDto,
+  ConfirmAccountEmailVerificationDto,
   DeactivateMyAccountDto,
   LoginDto,
   RegisterDto,
+  RequestAccountEmailVerificationDto,
   RequestPasswordResetDto,
   ResetPasswordDto,
   UpdateMyProfileDto,
@@ -37,6 +40,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
+    private readonly accountEmailVerificationService: AccountEmailVerificationService,
   ) {}
 
   /** POST /api/auth/register — public */
@@ -80,6 +84,26 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto);
+  }
+
+  /** POST /api/auth/email-verification/request — neutral resend response. */
+  @Public()
+  @Post('email-verification/request')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.ACCEPTED)
+  requestEmailVerification(@Body() dto: RequestAccountEmailVerificationDto) {
+    return this.accountEmailVerificationService.requestResend(dto.email);
+  }
+
+  /** POST /api/auth/email-verification/confirm — single-use mailbox proof. */
+  @Public()
+  @Post('email-verification/confirm')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async confirmEmailVerification(
+    @Body() dto: ConfirmAccountEmailVerificationDto,
+  ) {
+    await this.accountEmailVerificationService.confirm(dto.token);
   }
 
   /** POST /api/auth/refresh — requires valid refresh token cookie or legacy header. */
