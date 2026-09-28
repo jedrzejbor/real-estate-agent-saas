@@ -28,6 +28,7 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../common/enums';
 import { AgencyPlan } from '../common/enums';
+import { normalizeAccountEmail } from './account-email';
 
 const BCRYPT_ROUNDS = 12;
 const PASSWORD_RESET_TOKEN_BYTES = 32;
@@ -51,7 +52,7 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
 
     const createdUser = await this.usersService.create({
-      email: dto.email.toLowerCase().trim(),
+      email: normalizeAccountEmail(dto.email),
       passwordHash,
       firstName: dto.firstName,
       lastName: dto.lastName,
@@ -59,15 +60,13 @@ export class AuthService {
         dto.accountType === RegisterAccountType.PRIVATE_SELLER
           ? UserRole.VIEWER
           : UserRole.AGENT,
-      initialPlan:
-        dto.accountType === RegisterAccountType.PRIVATE_SELLER
-          ? AgencyPlan.FREE
-          : (dto.selectedPlan ?? AgencyPlan.FREE),
+      // Selected paid plan is only an intent; webhook activates it after payment.
+      initialPlan: AgencyPlan.FREE,
     });
 
     const user = await this.usersService.ensureAgencyForUser(createdUser.id);
 
-    this.logger.log(`User registered: ${user.email}`);
+    this.logger.log(`User registered: ${user.id}`);
 
     return {
       user: await this.serializeUser(user),
@@ -78,7 +77,7 @@ export class AuthService {
   /** Authenticate user and return tokens. */
   async login(dto: LoginDto) {
     const user = await this.usersService.findByEmail(
-      dto.email.toLowerCase().trim(),
+      normalizeAccountEmail(dto.email),
     );
 
     if (!user) {
@@ -98,7 +97,7 @@ export class AuthService {
       throw new UnauthorizedException('Nieprawidłowy email lub hasło');
     }
 
-    this.logger.log(`User logged in: ${user.email}`);
+    this.logger.log(`User logged in: ${user.id}`);
 
     // Re-fetch with agent relation
     const fullUser = await this.usersService.ensureAgencyForUser(user.id);
@@ -111,7 +110,7 @@ export class AuthService {
 
   /** Refresh tokens — issues a new access + refresh token pair. */
   async refresh(userId: string, email: string, role: string) {
-    this.logger.log(`Token refreshed for user: ${email}`);
+    this.logger.log(`Token refreshed for user: ${userId}`);
     return this.generateTokens(userId, email, role);
   }
 
@@ -160,7 +159,7 @@ export class AuthService {
   async requestPasswordReset(
     dto: RequestPasswordResetDto,
   ): Promise<{ success: true }> {
-    const email = dto.email.toLowerCase().trim();
+    const email = normalizeAccountEmail(dto.email);
     const user = await this.usersService.findByEmail(email);
 
     if (!user || !user.isActive) {
@@ -295,7 +294,10 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
+      emailVerified: user.emailVerifiedAt != null,
       role: user.role,
+      adminPermissions:
+        user.role === UserRole.ADMIN ? (user.adminPermissions ?? null) : null,
       agent: access.agent
         ? {
             id: access.agent.id,

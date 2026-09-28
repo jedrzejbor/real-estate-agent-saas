@@ -8,7 +8,7 @@ import {
   Index,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
-import { UserRole } from '../../common/enums';
+import { AdminPermission, UserRole } from '../../common/enums';
 import { Agent } from './agent.entity';
 
 @Entity('users')
@@ -42,8 +42,74 @@ export class User {
   @Exclude()
   passwordResetExpiresAt?: Date | null;
 
+  /** Null until the mailbox owner completes account verification. */
+  @Column({
+    type: 'timestamptz',
+    name: 'email_verified_at',
+    nullable: true,
+  })
+  emailVerifiedAt?: Date | null;
+
+  @Index('uq_users_email_verification_token_hash', {
+    unique: true,
+    where: 'email_verification_token_hash IS NOT NULL',
+  })
+  @Column({
+    type: 'varchar',
+    length: 64,
+    name: 'email_verification_token_hash',
+    nullable: true,
+    select: false,
+  })
+  @Exclude()
+  emailVerificationTokenHash?: string | null;
+
+  @Column({
+    type: 'timestamptz',
+    name: 'email_verification_expires_at',
+    nullable: true,
+    select: false,
+  })
+  @Exclude()
+  emailVerificationExpiresAt?: Date | null;
+
+  @Column({
+    type: 'timestamptz',
+    name: 'email_verification_sent_at',
+    nullable: true,
+    select: false,
+  })
+  @Exclude()
+  emailVerificationSentAt?: Date | null;
+
+  @Column({
+    type: 'timestamptz',
+    name: 'email_verification_window_started_at',
+    nullable: true,
+    select: false,
+  })
+  @Exclude()
+  emailVerificationWindowStartedAt?: Date | null;
+
+  @Column({
+    type: 'integer',
+    name: 'email_verification_send_count',
+    default: 0,
+    select: false,
+  })
+  @Exclude()
+  emailVerificationSendCount: number;
+
   @Column({ type: 'enum', enum: UserRole, default: UserRole.AGENT })
   role: UserRole;
+
+  @Column({
+    type: 'text',
+    array: true,
+    name: 'admin_permissions',
+    nullable: true,
+  })
+  adminPermissions?: AdminPermission[] | null;
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;

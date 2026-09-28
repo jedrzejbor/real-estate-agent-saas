@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { type Transporter } from 'nodemailer';
 import { APP_NAME } from '../common/brand';
@@ -22,6 +22,12 @@ export class EmailService {
   async send(input: SendEmailInput): Promise<void> {
     const provider = this.configService.get<EmailProvider>('EMAIL_PROVIDER', 'log');
 
+    if (this.configService.get('NODE_ENV') === 'production' && provider !== 'smtp') {
+      throw new ServiceUnavailableException(
+        'Production email provider is not configured',
+      );
+    }
+
     if (provider === 'smtp') {
       await this.sendViaSmtp(input);
       return;
@@ -33,10 +39,8 @@ export class EmailService {
       );
     }
 
-    this.logger.log(
-      `Email queued via log provider: to=${input.to}, subject="${input.subject}"`,
-    );
-    this.logger.debug(input.text);
+    this.logger.log('Email queued via log provider');
+    // Message bodies can contain one-time authentication links. Never log them.
   }
 
   private async sendViaSmtp(input: SendEmailInput): Promise<void> {
@@ -53,9 +57,7 @@ export class EmailService {
       html: input.html,
     });
 
-    this.logger.log(
-      `Email sent via SMTP provider: to=${input.to}, subject="${input.subject}"`,
-    );
+    this.logger.log('Email sent via SMTP provider');
   }
 
   private getSmtpTransporter(): Transporter {

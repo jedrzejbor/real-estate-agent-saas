@@ -14,8 +14,11 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
+import { isPrivateSellerUser } from '@/lib/auth';
 import {
+  buildSellerListingPath,
   claimPublicListingSubmission,
   type PublicListingSubmissionClaimResult,
 } from '@/lib/public-listing-submissions';
@@ -63,8 +66,8 @@ function ClaimListingContent() {
             ? 'Oferta przejęta jako szkic'
             : 'Oferta przejęta',
           description: result.reviewRequired
-            ? 'Dodaliśmy ją do CRM. Wymaga sprawdzenia przed publikacją.'
-            : 'Dodaliśmy ją do Twojego CRM i opublikowaliśmy stronę.',
+            ? 'Dodaliśmy ją do panelu. Wymaga sprawdzenia przed wyborem publikacji.'
+            : 'Dodaliśmy ją do panelu. Wybierz pakiet publikacji, aby pokazać ją w katalogu.',
           duration: 6000,
         });
       })
@@ -87,6 +90,15 @@ function ClaimListingContent() {
 }
 
 function ClaimListingShell({ state }: { state: ClaimState }) {
+  const { user } = useAuth();
+  const isPrivateSeller = user ? isPrivateSellerUser(user) : false;
+  const claimedListingHref =
+    state.status === 'success'
+      ? isPrivateSeller
+        ? buildSellerListingPath(state.result.id)
+        : `/dashboard/listings/${state.result.listingId}`
+      : null;
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <div>
@@ -95,8 +107,8 @@ function ClaimListingShell({ state }: { state: ClaimState }) {
           Przejmij ofertę i zacznij używać CRM
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Połączymy zweryfikowane zgłoszenie z Twoim workspace, a potem
-          przejdziesz prosto do szczegółów oferty.
+          Połączymy zweryfikowane zgłoszenie z Twoim kontem, a potem pokażemy
+          następny krok: weryfikację, wybór pakietu albo obsługę oferty.
         </p>
       </div>
 
@@ -110,8 +122,8 @@ function ClaimListingShell({ state }: { state: ClaimState }) {
               Przejmujemy ofertę
             </h2>
             <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-              Tworzymy ofertę w CRM, podpinamy ją do Twojego konta i
-              przygotowujemy publiczny link.
+              Tworzymy ofertę, podpinamy ją do Twojego konta i sprawdzamy, czy
+              może przejść do wyboru pakietu publikacji.
             </p>
           </div>
         ) : null}
@@ -165,21 +177,23 @@ function ClaimListingShell({ state }: { state: ClaimState }) {
             <h2 className="mt-5 font-heading text-xl font-semibold">
               {state.result.reviewRequired
                 ? 'Oferta czeka na sprawdzenie'
-                : 'Oferta jest w Twoim CRM'}
+                : 'Oferta jest gotowa do kolejnego kroku'}
             </h2>
             <p className="mt-2 max-w-xl text-sm text-muted-foreground">
               {state.result.reviewRequired
-                ? 'Dodaliśmy ją jako szkic. Uzupełnij opis, zdjęcia albo cenę, a potem opublikuj ją z panelu oferty.'
-                : 'Możesz uzupełnić dane, dodać zdjęcia, obsługiwać leady i wrócić do publicznego linku w panelu publikacji.'}
+                ? 'Dodaliśmy ją jako szkic. Po sprawdzeniu zobaczysz w panelu kolejny krok publikacji.'
+                : 'Możesz sprawdzić dane i przejść do wyboru pakietu publikacji. Oferta nie jest publiczna przed opłaceniem albo grantem administratora.'}
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link href={`/dashboard/listings/${state.result.listingId}`}>
+              <Link href={claimedListingHref ?? '/seller'}>
                 <Button className="h-10 gap-2 rounded-xl">
-                  Otwórz ofertę w CRM
+                  {isPrivateSeller
+                    ? 'Otwórz ofertę w panelu'
+                    : 'Otwórz ofertę w CRM'}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
-              {state.result.publicSlug ? (
+              {state.result.publicSlug && !isPrivateSeller ? (
                 <Link href={`/oferty/${state.result.publicSlug}`}>
                   <Button variant="outline" className="h-10 gap-2 rounded-xl">
                     Publiczna strona

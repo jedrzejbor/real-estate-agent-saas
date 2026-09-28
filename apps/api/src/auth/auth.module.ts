@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
+import { AccountEmailVerificationService } from './account-email-verification.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
@@ -13,12 +14,14 @@ import { CsrfGuard } from './guards/csrf.guard';
 import { UsersModule } from '../users/users.module';
 import { ReleaseFlagsModule } from '../release-flags';
 import { EmailModule } from '../email';
+import { MonitoringModule } from '../monitoring';
 
 @Module({
   imports: [
     UsersModule,
     ReleaseFlagsModule,
     EmailModule,
+    MonitoringModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -34,6 +37,7 @@ import { EmailModule } from '../email';
   controllers: [AuthController],
   providers: [
     AuthService,
+    AccountEmailVerificationService,
     JwtStrategy,
     JwtRefreshStrategy,
     JwtAuthGuard,

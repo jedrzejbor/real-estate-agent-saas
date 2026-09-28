@@ -164,6 +164,7 @@ function buildService(submission: PublicListingSubmission) {
     createQueryBuilder: jest.fn(),
   };
   const listingRepo = {
+    count: jest.fn().mockResolvedValue(0),
     findOne: jest.fn().mockResolvedValue(null),
   };
   const analyticsEventRepo = {
@@ -186,7 +187,16 @@ function buildService(submission: PublicListingSubmission) {
     createQueryBuilder: jest.fn().mockReturnValue(transactionQueryBuilder),
     delete: jest.fn().mockResolvedValue(undefined),
     findOne: jest.fn().mockResolvedValue(null),
-    save: jest.fn(async (_entity: unknown, value: unknown) => value),
+    save: jest.fn(async (entity: unknown, value: unknown) => {
+      if (Array.isArray(value)) return value;
+      if (entity === Listing) {
+        return {
+          ...(value as object),
+          id: (value as { id?: string }).id ?? 'claimed-listing-1',
+        };
+      }
+      return value;
+    }),
   };
   const dataSource = {
     transaction: jest.fn(async (callback: (manager: unknown) => unknown) =>
@@ -205,12 +215,38 @@ function buildService(submission: PublicListingSubmission) {
         agency: null,
       },
     }),
+    getAgencyAccessContext: jest.fn().mockResolvedValue({
+      user: {
+        id: 'owner-1',
+        role: UserRole.VIEWER,
+      },
+      agent: {
+        id: 'agent-1',
+      },
+      agency: {
+        id: 'agency-1',
+      },
+      agencyAgentIds: ['agent-1'],
+      entitlements: {
+        plan: {
+          code: 'private-seller',
+        },
+        limits: {
+          activeListings: null,
+        },
+      },
+    }),
   };
   const monitoringService = {
     monitor: jest.fn(
       async (_options: unknown, callback: () => Promise<unknown>) =>
         callback(),
     ),
+  };
+  const releaseFlagsService = {
+    getFlags: jest.fn().mockReturnValue({
+      privateListingCheckoutEnabled: false,
+    }),
   };
 
   return {
@@ -225,6 +261,7 @@ function buildService(submission: PublicListingSubmission) {
       configService as never,
       usersService as never,
       monitoringService as never,
+      releaseFlagsService as never,
     ),
     submissionRepo,
     analyticsEventRepo,
@@ -237,6 +274,7 @@ function buildService(submission: PublicListingSubmission) {
     transactionQueryBuilder,
     usersService,
     monitoringService,
+    releaseFlagsService,
   };
 }
 
@@ -370,6 +408,72 @@ describe('PublicListingSubmissionsService authenticated seller create', () => {
   });
 });
 
+describe('PublicListingSubmissionsService claim flow', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('keeps an automatically approved claimed listing private until payment when checkout is enabled', async () => {
+    const submission = buildSubmission({
+      status: PublicListingSubmissionStatus.VERIFIED,
+      claimTokenHash: 'hashed-claim-token',
+      claimedAt: null,
+      ownerUserId: null,
+      publishedListing: undefined,
+      publishedListingId: null,
+      claimedAgentId: null,
+      claimedAgencyId: null,
+    });
+    const {
+      service,
+      emailService,
+      releaseFlagsService,
+      transactionManager,
+    } = buildService(submission);
+    releaseFlagsService.getFlags.mockReturnValue({
+      privateListingCheckoutEnabled: true,
+    });
+
+    const result = await service.claim('owner-1', {
+      claimToken: 'claim-token',
+    });
+
+    const savedListing = transactionManager.save.mock.calls.find(
+      ([entity]) => entity === Listing,
+    )?.[1] as Listing | undefined;
+
+    expect(savedListing).toMatchObject({
+      ownerUserId: 'owner-1',
+      agentId: 'agent-1',
+      status: ListingStatus.DRAFT,
+      publicationStatus: ListingPublicationStatus.DRAFT,
+      publicSlug: 'mieszkanie-testowe-warszawa',
+      publishedAt: undefined,
+      expiresAt: null,
+    });
+    expect(submission.status).toBe(PublicListingSubmissionStatus.APPROVED);
+    expect(submission.publishedAt).toBeNull();
+    expect(submission.expiresAt).toBeNull();
+    expect(submission.publishedListingId).toBe('claimed-listing-1');
+    expect(submission.metadata.paidPublicationRequired).toMatchObject({
+      reason: 'automatic_moderation_passed',
+    });
+    expect(result).toMatchObject({
+      status: PublicListingSubmissionStatus.APPROVED,
+      listingId: 'claimed-listing-1',
+      publicSlug: 'mieszkanie-testowe-warszawa',
+      reviewRequired: false,
+    });
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: submission.email,
+        subject: 'Twoje ogłoszenie zostało zaakceptowane',
+        text: expect.stringContaining('Nie jest jeszcze widoczne'),
+      }),
+    );
+  });
+});
+
 describe('PublicListingSubmissionsService admin moderation', () => {
   afterEach(() => {
     jest.restoreAllMocks();
@@ -409,6 +513,44 @@ describe('PublicListingSubmissionsService admin moderation', () => {
       }),
     );
     expect(result.publishedListingId).toBe(listing.id);
+  });
+
+  it('keeps an approved listing private until payment when checkout is enabled', async () => {
+    const submission = buildSubmission();
+    const {
+      service,
+      activityService,
+      emailService,
+      listing,
+      releaseFlagsService,
+    } = buildService(submission);
+    releaseFlagsService.getFlags.mockReturnValue({
+      privateListingCheckoutEnabled: true,
+    });
+
+    const result = await service.approveByAdmin('admin-1', submission.id);
+
+    expect(submission.status).toBe(PublicListingSubmissionStatus.APPROVED);
+    expect(listing.status).toBe(ListingStatus.DRAFT);
+    expect(listing.publicationStatus).toBe(ListingPublicationStatus.DRAFT);
+    expect(listing.publicSlug).toBe('mieszkanie-testowe-warszawa');
+    expect(listing.publishedAt).toBeNull();
+    expect(listing.expiresAt).toBeNull();
+    expect(submission.publishedAt).toBeNull();
+    expect(submission.expiresAt).toBeNull();
+    expect(result.status).toBe(PublicListingSubmissionStatus.APPROVED);
+    expect(activityService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: ActivityAction.STATUS_CHANGED,
+        description: 'Zatwierdzono zgłoszenie do płatnej publikacji',
+      }),
+    );
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: 'Twoje ogłoszenie zostało zaakceptowane',
+        text: expect.stringContaining('Nie jest jeszcze widoczne'),
+      }),
+    );
   });
 
   it('rejects approval when the claimed listing has no owner', async () => {
@@ -487,6 +629,36 @@ describe('PublicListingSubmissionsService admin moderation', () => {
 
     expect(activityService.log).not.toHaveBeenCalled();
     expect(emailService.send).not.toHaveBeenCalled();
+  });
+
+  it('blocks the legacy free renewal endpoint when checkout is enabled', async () => {
+    const listing = buildListing({
+      publicSlug: 'mieszkanie-testowe-warszawa',
+      status: ListingStatus.ACTIVE,
+      publicationStatus: ListingPublicationStatus.PUBLISHED,
+      publishedAt: new Date('2026-01-01T00:10:00.000Z'),
+      expiresAt: new Date('2026-03-01T00:00:00.000Z'),
+    });
+    const submission = buildSubmission({
+      publishedListing: listing,
+      publishedListingId: listing.id,
+      expiresAt: listing.expiresAt,
+    });
+    const {
+      service,
+      releaseFlagsService,
+      transactionManager,
+    } = buildService(submission);
+    releaseFlagsService.getFlags.mockReturnValue({
+      privateListingCheckoutEnabled: true,
+    });
+
+    await expect(
+      service.renewForOwner('owner-1', submission.id),
+    ).rejects.toThrow('Odnowienie ogłoszenia wymaga przejścia przez checkout');
+
+    expect(transactionManager.save).not.toHaveBeenCalled();
+    expect(listing.expiresAt?.toISOString()).toBe('2026-03-01T00:00:00.000Z');
   });
 
   it('adds public stats to seller submission list items', async () => {
@@ -892,6 +1064,29 @@ describe('PublicListingSubmissionsService admin moderation', () => {
         },
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(submissionRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('blocks owner edits after approval while the listing awaits payment', async () => {
+    const submission = buildSubmission({
+      status: PublicListingSubmissionStatus.APPROVED,
+    });
+    const { service, submissionRepo } = buildService(submission);
+
+    await expect(
+      service.updateForOwner('owner-1', submission.id, {
+        listing: {
+          title: 'Zmiana po zatwierdzeniu',
+          description: 'Treść nie może ominąć ponownej moderacji.',
+          propertyType: PropertyType.APARTMENT,
+          transactionType: TransactionType.SALE,
+          price: 525000,
+          currency: 'PLN',
+          areaM2: 50,
+        },
+      }),
+    ).rejects.toThrow('oczekuje na publikację');
 
     expect(submissionRepo.save).not.toHaveBeenCalled();
   });

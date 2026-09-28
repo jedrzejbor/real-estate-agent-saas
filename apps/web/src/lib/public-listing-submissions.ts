@@ -105,7 +105,7 @@ export interface PublicListingSubmissionVerificationResult {
 
 export interface PublicListingSubmissionClaimResult {
   id: string;
-  status: 'claimed';
+  status: 'claimed' | 'approved';
   listingId: string;
   publicSlug: string | null;
   claimedAt: string;
@@ -117,6 +117,8 @@ export type SellerPublicListingSubmissionStatus =
   | 'draft'
   | 'pending_email_verification'
   | 'verified'
+  | 'in_review'
+  | 'approved'
   | 'published'
   | 'claimed'
   | 'rejected'
@@ -389,6 +391,10 @@ export async function claimPublicListingSubmission(
 export function buildClaimRedirectPath(claimToken: string): string {
   const params = new URLSearchParams({ claimToken });
   return `/dashboard/claim-listing?${params.toString()}`;
+}
+
+export function buildSellerListingPath(submissionId: string): string {
+  return `/seller/listings/${encodeURIComponent(submissionId)}`;
 }
 
 export function buildClaimAuthPath(

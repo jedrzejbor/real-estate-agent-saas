@@ -74,6 +74,8 @@ function buildUser(overrides: Partial<User> = {}): User {
     id: 'user-1',
     email: 'agent@example.com',
     passwordHash: 'existing-hash',
+    emailVerifiedAt: null,
+    emailVerificationSendCount: 0,
     role: UserRole.AGENT,
     isActive: true,
     agent,

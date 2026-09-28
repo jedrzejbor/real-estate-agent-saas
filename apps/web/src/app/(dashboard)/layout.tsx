@@ -28,6 +28,7 @@ export default function DashboardLayout({
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const isPrivateSeller = user ? isPrivateSellerUser(user) : false;
   const canPrivateSellerUseDashboardRoute =
+    pathname === '/dashboard/claim-listing' ||
     pathname === '/dashboard/upgrade' ||
     pathname === '/dashboard/profile/favorites';
   const shouldShowGlobalLimitBanner = !hasContextualLimitBanner(pathname);

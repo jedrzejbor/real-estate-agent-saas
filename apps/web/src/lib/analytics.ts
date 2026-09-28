@@ -63,6 +63,9 @@ export const AnalyticsEventName = {
   LIMIT_WARNING_SHOWN: 'limit_warning_shown',
   LIMIT_REACHED: 'limit_reached',
   UPGRADE_CTA_CLICKED: 'upgrade_cta_clicked',
+  PRICING_AUDIENCE_SELECTED: 'pricing_audience_selected',
+  PRIVATE_PRICING_VIEWED: 'private_pricing_viewed',
+  LISTING_PRODUCT_SELECTED: 'listing_product_selected',
 } as const;
 
 export type AnalyticsEventName =
@@ -164,12 +167,50 @@ export function trackPublicBlogEvent({
   });
 }
 
+export function trackPublicPricingEvent({
+  name,
+  properties,
+  path,
+}: TrackAnalyticsEventInput): void {
+  if (typeof window === 'undefined' || !canTrackAnalyticsEvent(name)) {
+    return;
+  }
+
+  void apiFetch('/analytics/public-pricing/events', {
+    method: 'POST',
+    skipAuth: true,
+    body: {
+      name,
+      path: path ?? `${window.location.pathname}${window.location.search}`,
+      properties: compactProperties(properties ?? {}),
+    },
+  }).catch((error) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Public pricing analytics event failed', name, error);
+    }
+  });
+}
+
 function compactProperties(
   properties: AnalyticsProperties,
 ): Record<string, string | number | boolean | null> {
   return Object.fromEntries(
-    Object.entries(properties).filter(([, value]) => value !== undefined),
+    Object.entries(properties).filter(
+      ([key, value]) => value !== undefined && !isSensitiveAnalyticsKey(key),
+    ),
   ) as Record<string, string | number | boolean | null>;
+}
+
+function isSensitiveAnalyticsKey(key: string): boolean {
+  const normalized = key.toLowerCase();
+
+  return [
+    'promotioncode',
+    'promocode',
+    'coupon',
+    'couponcode',
+    'discountcode',
+  ].some((sensitive) => normalized.includes(sensitive));
 }
 
 function canTrackAnalyticsEvent(name: AnalyticsEventName): boolean {

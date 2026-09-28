@@ -10,6 +10,14 @@ export enum UserRole {
   VIEWER = 'viewer',
 }
 
+export enum AdminPermission {
+  LISTING_COMMERCE_READ = 'listing_commerce:read',
+  LISTING_COMMERCE_MANAGE_PRODUCTS = 'listing_commerce:manage_products',
+  LISTING_COMMERCE_MANAGE_PROMOTIONS = 'listing_commerce:manage_promotions',
+  LISTING_COMMERCE_MANAGE_GRANTS = 'listing_commerce:manage_grants',
+  LISTING_COMMERCE_MANAGE_ADJUSTMENTS = 'listing_commerce:manage_adjustments',
+}
+
 export enum AgencyPlan {
   FREE = 'free',
   STARTER = 'starter',
@@ -247,6 +255,8 @@ export enum PublicListingSubmissionStatus {
   DRAFT = 'draft',
   PENDING_EMAIL_VERIFICATION = 'pending_email_verification',
   VERIFIED = 'verified',
+  IN_REVIEW = 'in_review',
+  APPROVED = 'approved',
   PUBLISHED = 'published',
   CLAIMED = 'claimed',
   REJECTED = 'rejected',

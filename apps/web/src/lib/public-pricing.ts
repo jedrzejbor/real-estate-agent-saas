@@ -1,4 +1,7 @@
-import type { PublicPlan } from './billing-plans';
+import type {
+  PublicPlan,
+  PublicPlanIntervalPromotionPreview,
+} from './billing-plans';
 
 export type BillingInterval = 'monthly' | 'yearly';
 
@@ -11,9 +14,8 @@ export function formatPlanPrice(
   }
 
   const price =
-    billingInterval === 'monthly'
-      ? plan.priceMonthlyPln
-      : plan.priceYearlyPln;
+    getPlanPromotionPreview(plan, billingInterval)?.priceGrossAmount ??
+    getPlanBasePrice(plan, billingInterval);
 
   if (price <= 0) {
     return '0 zł';
@@ -31,6 +33,48 @@ export function getPriceHelper(
   }
 
   return billingInterval === 'monthly' ? 'miesięcznie' : 'rocznie';
+}
+
+export function getPlanBasePrice(
+  plan: PublicPlan,
+  billingInterval: BillingInterval,
+): number {
+  return billingInterval === 'monthly'
+    ? plan.priceMonthlyPln
+    : plan.priceYearlyPln;
+}
+
+export function formatPlanBasePrice(
+  plan: PublicPlan,
+  billingInterval: BillingInterval,
+): string {
+  return formatMoney(getPlanBasePrice(plan, billingInterval));
+}
+
+export function formatPlanMoney(value: number): string {
+  return formatMoney(value);
+}
+
+export function getPlanPromotionPreview(
+  plan: PublicPlan,
+  billingInterval: BillingInterval,
+): PublicPlanIntervalPromotionPreview | null {
+  return plan.promotionPreview?.[billingInterval] ?? null;
+}
+
+export function getPlanPromotionDurationLabel(
+  preview: PublicPlanIntervalPromotionPreview,
+  billingInterval: BillingInterval,
+): string {
+  if (preview.durationBillingCycles <= 1) {
+    return billingInterval === 'monthly'
+      ? 'przez pierwszy miesiąc'
+      : 'przez pierwszy rok';
+  }
+
+  return billingInterval === 'monthly'
+    ? `przez pierwsze ${preview.durationBillingCycles} mies.`
+    : `przez pierwsze ${preview.durationBillingCycles} lata`;
 }
 
 export function getPlanHighlights(plan: PublicPlan): string[] {
@@ -80,9 +124,15 @@ function formatLimit(value: number | null | undefined, noun: string): string {
 }
 
 function formatMoney(value: number): string {
-  return new Intl.NumberFormat('pl-PL', {
-    style: 'currency',
-    currency: 'PLN',
-    maximumFractionDigits: 0,
-  }).format(value / 100);
+  const hasFraction = value % 100 !== 0;
+  const absoluteValue = Math.abs(value);
+  const major = Math.floor(absoluteValue / 100);
+  const minor = absoluteValue % 100;
+  const groupedMajor = major
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const fraction = hasFraction ? `,${minor.toString().padStart(2, '0')}` : '';
+  const sign = value < 0 ? '-' : '';
+
+  return `${sign}${groupedMajor}${fraction} zł`;
 }

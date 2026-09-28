@@ -1,7 +1,7 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { APP_NAME } from '../common/brand';
-import { UserRole } from '../common/enums';
+import { AgencyPlan, UserRole } from '../common/enums';
 import { User } from '../users/entities';
 import { AuthService } from './auth.service';
 
@@ -12,6 +12,8 @@ function buildUser(overrides: Partial<User> = {}): User {
     passwordHash: '$2b$12$existing-hash',
     passwordResetTokenHash: null,
     passwordResetExpiresAt: null,
+    emailVerifiedAt: null,
+    emailVerificationSendCount: 0,
     role: UserRole.AGENT,
     isActive: true,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -48,6 +50,7 @@ function buildService(userOverrides: Partial<User> = {}) {
     },
   };
   const usersService = {
+    create: jest.fn().mockResolvedValue(user),
     updateProfile: jest.fn().mockResolvedValue(user),
     findById: jest.fn().mockResolvedValue(user),
     updatePasswordHash: jest.fn().mockResolvedValue(undefined),
@@ -116,6 +119,19 @@ describe('AuthService account settings', () => {
       firstName: 'Anna',
       lastName: 'Nowak',
     });
+    expect(result.emailVerified).toBe(false);
+  });
+
+  it('reports verified mailbox ownership without exposing verification secrets', async () => {
+    const { service } = buildService({
+      emailVerifiedAt: new Date('2026-09-27T10:00:00.000Z'),
+      emailVerificationTokenHash: 'a'.repeat(64),
+    });
+
+    const profile = await service.getProfile('user-1');
+
+    expect(profile.emailVerified).toBe(true);
+    expect(profile).not.toHaveProperty('emailVerificationTokenHash');
   });
 
   it('changes password after validating current password', async () => {
@@ -278,5 +294,23 @@ describe('AuthService account settings', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(usersService.deactivate).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService registration', () => {
+  it('does not activate a selected paid plan before checkout payment', async () => {
+    const { service, usersService } = buildService();
+    await service.register({
+      accountType: 'agent',
+      selectedPlan: AgencyPlan.PROFESSIONAL,
+      email: 'agent@example.com',
+      password: 'StrongPass123',
+      firstName: 'Jan',
+      lastName: 'Kowalski',
+    });
+
+    expect(usersService.create).toHaveBeenCalledWith(expect.objectContaining({
+      initialPlan: AgencyPlan.FREE,
+    }));
   });
 });

@@ -10,7 +10,9 @@ const API_BASE_URL =
 export interface AuthUser {
   id: string;
   email: string;
+  emailVerified: boolean;
   role: string;
+  adminPermissions?: string[] | null;
   isActive?: boolean;
   createdAt?: string;
   agency: {
@@ -220,7 +222,8 @@ export function getAuthenticatedRedirectPath(
 
   if (
     isPrivateSellerUser(user) &&
-    preferredPath.startsWith(AGENT_DASHBOARD_PATH)
+    preferredPath.startsWith(AGENT_DASHBOARD_PATH) &&
+    !preferredPath.startsWith('/dashboard/claim-listing')
   ) {
     return PRIVATE_SELLER_HOME_PATH;
   }

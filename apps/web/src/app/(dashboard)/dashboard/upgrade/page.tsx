@@ -17,6 +17,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import {
+  canStartAgencyPlanCheckout,
+  createAgencyPlanCheckoutAttempt,
+  createAgencyPlanQuote,
+  type AgencyPlanQuote,
+} from '@/lib/agency-plan-checkout';
+import {
   fetchPublicPlans,
   type AgencyPlanCode,
   type PublicPlan,
@@ -29,6 +35,7 @@ import {
 } from '@/lib/growth-upsells';
 import {
   formatPlanPrice,
+  formatPlanMoney,
   getPlanFallbackDescription,
   getPlanHighlights,
   getPriceHelper,
@@ -36,6 +43,7 @@ import {
 } from '@/lib/public-pricing';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
+import { assertStripeCheckoutUrl } from '@/lib/stripe-checkout-url';
 
 const resourceLabels: Record<string, string> = {
   listings: 'limit ofert',
@@ -74,13 +82,19 @@ export default function UpgradePage() {
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [plansError, setPlansError] = useState<string | null>(null);
   const [billingInterval, setBillingInterval] =
-    useState<BillingInterval>('monthly');
+    useState<BillingInterval>(searchParams.get('billing') === 'yearly' ? 'yearly' : 'monthly');
   const [selectedPlan, setSelectedPlan] = useState<UpgradePlanCode>(
     initialPlan ??
       (upsellId ? GROWTH_UPSELLS[upsellId].recommendedPlan : 'professional'),
   );
   const [priority, setPriority] = useState(priorityOptions[0].value);
+  const [promotionCode, setPromotionCode] = useState('');
+  const [quote, setQuote] = useState<AgencyPlanQuote | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [isStartingCheckout, setIsStartingCheckout] = useState(false);
 
   const selectedUpsell = upsellId ? GROWTH_UPSELLS[upsellId] : null;
   const currentPlanCode = user?.entitlements.plan.code as
@@ -124,9 +138,49 @@ export default function UpgradePage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isSelectableUpgradePlan(selectedPlan) || selectedPlan === 'enterprise') {
+      return;
+    }
+
+    let isMounted = true;
+    const debounce = window.setTimeout(() => {
+      setIsLoadingQuote(true);
+      setQuoteError(null);
+      createAgencyPlanQuote({
+        planCode: selectedPlan,
+        billingInterval,
+        promotionCode,
+      })
+        .then((response) => {
+          if (!isMounted) return;
+          setQuote(response);
+          setQuoteError(null);
+        })
+        .catch((error) => {
+          if (!isMounted) return;
+          setQuote(null);
+          setQuoteError(
+            error instanceof Error
+              ? error.message
+              : 'Nie udało się przeliczyć ceny',
+          );
+        })
+        .finally(() => {
+          if (isMounted) setIsLoadingQuote(false);
+        });
+    }, 250);
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(debounce);
+    };
+  }, [billingInterval, promotionCode, selectedPlan]);
+
   function trackPlanSelection(plan: PublicPlan) {
     if (!isSelectableUpgradePlan(plan.code)) return;
 
+    setQuote(null);
     setSelectedPlan(plan.code);
     trackAnalyticsEvent({
       name: AnalyticsEventName.UPGRADE_CTA_CLICKED,
@@ -141,8 +195,26 @@ export default function UpgradePage() {
     });
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setCheckoutError(null);
+    if (selectedPlan !== 'enterprise') {
+      if (!quote || isLoadingQuote || quoteError) return;
+      if (quote.planCode !== selectedPlan || quote.billingInterval !== billingInterval) return;
+      if (!canStartAgencyPlanCheckout(quote)) {
+        setCheckoutError('Wycena jest zbyt stara. Odśwież stronę i sprawdź aktualną cenę.');
+        return;
+      }
+      setIsStartingCheckout(true);
+      try {
+        const attempt = await createAgencyPlanCheckoutAttempt(quote.quoteId);
+        window.location.assign(assertStripeCheckoutUrl(attempt.checkoutUrl));
+      } catch (error) {
+        setCheckoutError(error instanceof Error ? error.message : 'Nie udało się uruchomić płatności');
+        setIsStartingCheckout(false);
+      }
+      return;
+    }
     trackAnalyticsEvent({
       name: AnalyticsEventName.UPGRADE_CTA_CLICKED,
       properties: {
@@ -164,6 +236,15 @@ export default function UpgradePage() {
 
   return (
     <div className="space-y-6">
+      {searchParams.get('checkout') === 'success' ? (
+        <div className="rounded-xl border border-status-success bg-status-success-bg p-4 text-sm text-status-success">
+          Checkout zakończony. Plan zostanie aktywowany po potwierdzeniu płatności przez Stripe; odśwież stronę za chwilę, aby sprawdzić status.
+        </div>
+      ) : searchParams.get('checkout') === 'cancel' ? (
+        <div className="rounded-xl border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+          Płatność została przerwana. Plan nie został zmieniony; możesz spróbować ponownie.
+        </div>
+      ) : null}
       <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -204,8 +285,8 @@ export default function UpgradePage() {
                   Kontekst: {contextLabel}
                 </p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Obecny plan: {user.entitlements.plan.label}. Zmiana planu na
-                  tym etapie zapisuje intencję dla zespołu.
+                  Obecny plan: {user.entitlements.plan.label}. Nowy płatny plan
+                  aktywujemy po potwierdzeniu płatności.
                 </p>
               </div>
             </div>
@@ -214,7 +295,7 @@ export default function UpgradePage() {
           <div className="inline-flex rounded-xl border border-border bg-muted/30 p-1">
             <button
               type="button"
-              onClick={() => setBillingInterval('monthly')}
+              onClick={() => { setQuote(null); setBillingInterval('monthly'); }}
               className={cn(
                 'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 billingInterval === 'monthly'
@@ -226,7 +307,7 @@ export default function UpgradePage() {
             </button>
             <button
               type="button"
-              onClick={() => setBillingInterval('yearly')}
+              onClick={() => { setQuote(null); setBillingInterval('yearly'); }}
               className={cn(
                 'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 billingInterval === 'yearly'
@@ -339,9 +420,8 @@ export default function UpgradePage() {
           </h2>
           <div className="mt-4 space-y-4 text-sm leading-6 text-muted-foreground">
             <p>
-              Na tym etapie zapisujemy intencję upgrade i kontekst wyboru.
-              Obecny plan pozostaje bez zmian, dopóki nie zostanie obsłużony
-              ręcznie albo przez checkout w kolejnej iteracji.
+              Płatny plan zostanie aktywowany po potwierdzeniu płatności przez Stripe.
+              W przypadku obecnego płatnego abonamentu zmianę planu obsługujemy indywidualnie.
             </p>
             <p>
               Enterprise i indywidualne warunki są obsługiwane manualnie przez
@@ -357,15 +437,15 @@ export default function UpgradePage() {
           <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
             <div>
               <h2 className="font-heading text-xl font-semibold text-foreground">
-                Zgłoś zainteresowanie upgrade
+                {selectedPlan === 'enterprise' ? 'Zgłoś zainteresowanie upgrade' : 'Przejdź do płatności'}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Zapiszemy intencję dla workspace:{' '}
+                {selectedPlan === 'enterprise' ? 'Zapiszemy intencję dla workspace:' : 'Kupujesz plan dla workspace:'}{' '}
                 {user.agency?.name ?? user.email}.
               </p>
             </div>
             <Badge variant={submitted ? 'success' : 'outline'}>
-              {submitted ? 'Wysłane' : 'MVP flow'}
+              {submitted ? 'Wysłane' : selectedPlan === 'enterprise' ? 'Kontakt' : 'Stripe Checkout'}
             </Badge>
           </div>
 
@@ -389,6 +469,53 @@ export default function UpgradePage() {
                 className="h-10 rounded-xl"
               />
             </label>
+            <label className="space-y-1.5 sm:col-span-2">
+              <span className="text-sm font-medium text-foreground">
+                Kod promocyjny
+              </span>
+              <Input
+                value={promotionCode}
+                placeholder="Opcjonalnie"
+                autoComplete="off"
+                className="h-10 rounded-xl"
+                onChange={(event) => { setQuote(null); setPromotionCode(event.target.value); }}
+              />
+            </label>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-border bg-muted/20 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-foreground">
+                Wycena z backendu
+              </p>
+              <Badge variant="outline">
+                {billingInterval === 'monthly' ? 'Miesięcznie' : 'Rocznie'}
+              </Badge>
+            </div>
+            {selectedPlan === 'enterprise' ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Enterprise wymaga indywidualnej wyceny.
+              </p>
+            ) : isLoadingQuote ? (
+              <p className="mt-2 flex items-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Przeliczamy cenę…
+              </p>
+            ) : quoteError ? (
+              <p className="mt-2 text-sm text-destructive">{quoteError}</p>
+            ) : quote ? (
+              <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+                <PriceRow label="Cena bazowa" value={quote.subtotalGrossAmount} />
+                <PriceRow label="Rabat" value={-quote.discountGrossAmount} />
+                <PriceRow label="Do zapłaty" value={quote.totalGrossAmount} strong />
+                {quote.discounts.map((discount) => (
+                  <p key={discount.sourceReference} className="pt-1 text-xs">
+                    {discount.label} · przez {discount.durationBillingCycles}{' '}
+                    okres{discount.durationBillingCycles === 1 ? '' : 'y'}
+                  </p>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-5 space-y-3">
@@ -426,12 +553,42 @@ export default function UpgradePage() {
             </div>
           ) : null}
 
-          <Button type="submit" className="mt-5 h-10 rounded-xl">
-            Zapisz intencję upgrade
+          {searchParams.get('checkoutError') === '1' ? (
+            <p className="mt-4 text-sm text-destructive">Konto zostało utworzone, ale nie udało się rozpocząć płatności. Sprawdź wycenę i spróbuj ponownie.</p>
+          ) : null}
+          {checkoutError ? <p className="mt-4 text-sm text-destructive">{checkoutError}</p> : null}
+          {selectedPlan !== 'enterprise' && currentPlanCode !== 'free' ? (
+            <p className="mt-4 text-sm text-muted-foreground">Masz już aktywny plan. Zmiana płatnego abonamentu wymaga obsługi indywidualnej, aby uniknąć drugiej subskrypcji.</p>
+          ) : null}
+
+          <Button type="submit" disabled={isStartingCheckout || (selectedPlan !== 'enterprise' && (!quote || isLoadingQuote || Boolean(quoteError) || isPrivateSeller || currentPlanCode !== 'free'))} className="mt-5 h-10 rounded-xl">
+            {isStartingCheckout ? 'Uruchamiamy płatność…' : selectedPlan === 'enterprise' ? 'Zapisz intencję upgrade' : 'Przejdź do bezpiecznej płatności'}
             <ArrowRight className="h-4 w-4" />
           </Button>
         </form>
       </section>
+    </div>
+  );
+}
+
+function PriceRow({
+  label,
+  value,
+  strong = false,
+}: {
+  label: string;
+  value: number;
+  strong?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-between gap-3',
+        strong && 'font-semibold text-foreground',
+      )}
+    >
+      <span>{label}</span>
+      <span>{formatPlanMoney(value)}</span>
     </div>
   );
 }

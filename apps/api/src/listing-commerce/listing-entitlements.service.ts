@@ -1,0 +1,922 @@
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import {
+  DataSource,
+  EntityManager,
+  In,
+  LessThanOrEqual,
+  MoreThan,
+} from 'typeorm';
+import {
+  ListingPublicationStatus,
+  ListingStatus,
+  PublicListingSubmissionStatus,
+} from '../common/enums';
+import { EmailService } from '../email';
+import { Listing } from '../listings/entities';
+import { PublicListingSubmission } from '../public-listing-submissions/entities';
+import type {
+  AdminListingCommerceSummaryContract,
+  AdminListingEntitlementAuditContract,
+  ListingEntitlementContract,
+  ListingOrderFulfillmentContract,
+} from './contracts';
+import {
+  ListingEntitlement,
+  ListingManualAdjustment,
+  ListingOrder,
+} from './entities';
+import { toListingEntitlementContract } from './listing-entitlement.presenter';
+import { getEntitlementTypeForProduct } from './listing-commerce.policy';
+import { toAdminListingManualAdjustment } from './listing-manual-adjustment.presenter';
+import {
+  ListingEntitlementSource,
+  ListingEntitlementStatus,
+  ListingEntitlementType,
+  ListingOrderStatus,
+  ListingProductType,
+  type ListingProductFulfillmentParameters,
+} from './listing-commerce.types';
+
+const ACTIVE_ENTITLEMENT_STATUSES = [
+  ListingEntitlementStatus.ACTIVE,
+  ListingEntitlementStatus.SCHEDULED,
+] as const;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const FEATURED_EXPIRY_REMINDER_DAYS = 2;
+const MIN_ADMIN_GRANT_REASON_LENGTH = 3;
+const MAX_ADMIN_GRANT_DURATION_DAYS = 3650;
+
+export interface GrantListingEntitlementInput {
+  listingId: string;
+  productType: ListingProductType;
+  durationDays: number;
+  reason: string;
+  actorUserId: string;
+  now?: Date;
+  featuredTier?: string;
+  priorityWeight?: number;
+}
+
+export interface RevokeListingEntitlementInput {
+  listingId: string;
+  entitlementId: string;
+  reason: string;
+  actorUserId: string;
+  now?: Date;
+}
+
+@Injectable()
+export class ListingEntitlementsService {
+  private readonly logger = new Logger(ListingEntitlementsService.name);
+
+  constructor(
+    private readonly dataSource: DataSource,
+    @Optional()
+    private readonly emailService?: EmailService,
+    @Optional()
+    private readonly configService?: ConfigService,
+  ) {}
+
+  async grantAdminEntitlement(
+    input: GrantListingEntitlementInput,
+  ): Promise<ListingEntitlementContract> {
+    return this.dataSource.transaction((manager) =>
+      this.grantAdminEntitlementInTransaction(manager, input),
+    );
+  }
+
+  async grantAdminEntitlementInTransaction(
+    manager: EntityManager,
+    input: GrantListingEntitlementInput,
+  ): Promise<ListingEntitlementContract> {
+    const now = input.now ?? new Date();
+    const reason = normalizeAdminGrantReason(input.reason);
+    const durationDays = normalizeAdminGrantDuration(input.durationDays);
+    const listing = await manager.findOne(Listing, {
+      where: { id: input.listingId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!listing) throw new NotFoundException('Ogłoszenie nie istnieje');
+
+    const entitlementType = getEntitlementTypeForProduct(input.productType);
+    const tier =
+      entitlementType === ListingEntitlementType.FEATURED
+        ? getRequiredFeaturedTier(input.featuredTier)
+        : undefined;
+    const previous = await this.findLatestActiveEntitlement(
+      manager,
+      listing.id,
+      entitlementType,
+      tier,
+    );
+    const startsAt = getEntitlementStart(
+      input.productType,
+      now,
+      listing.expiresAt ?? null,
+      previous?.endsAt ?? null,
+    );
+    const endsAt = new Date(startsAt.getTime() + durationDays * DAY_MS);
+    const parameters: ListingProductFulfillmentParameters = {
+      durationDays,
+      ...(tier ? { featuredTier: tier } : {}),
+      ...(input.priorityWeight !== undefined
+        ? { priorityWeight: input.priorityWeight }
+        : {}),
+      adminGrant: {
+        reason,
+        grantedByUserId: input.actorUserId,
+        grantedAt: now.toISOString(),
+        productType: input.productType,
+      },
+    };
+
+    const entitlement = manager.create(ListingEntitlement, {
+      listingId: listing.id,
+      type: entitlementType,
+      status:
+        startsAt.getTime() > now.getTime()
+          ? ListingEntitlementStatus.SCHEDULED
+          : ListingEntitlementStatus.ACTIVE,
+      tier: tier ?? null,
+      sourceType: ListingEntitlementSource.ADMIN_GRANT,
+      orderItemId: null,
+      startsAt,
+      endsAt,
+      parameters,
+      grantedByUserId: input.actorUserId,
+    });
+    const saved = await manager.save(ListingEntitlement, entitlement);
+
+    if (entitlementType === ListingEntitlementType.PUBLICATION) {
+      await this.applyPublicationEntitlement(manager, listing, endsAt, now);
+    }
+    if (entitlementType === ListingEntitlementType.FEATURED) {
+      await this.syncPremiumCacheForListings(manager, [listing.id], now);
+    }
+
+    return toListingEntitlementContract(saved);
+  }
+
+  async revokeAdminEntitlement(
+    input: RevokeListingEntitlementInput,
+  ): Promise<ListingEntitlementContract> {
+    return this.dataSource.transaction((manager) =>
+      this.revokeAdminEntitlementInTransaction(manager, input),
+    );
+  }
+
+  async revokeAdminEntitlementInTransaction(
+    manager: EntityManager,
+    input: RevokeListingEntitlementInput,
+  ): Promise<ListingEntitlementContract> {
+    const now = input.now ?? new Date();
+    const reason = normalizeAdminGrantReason(input.reason);
+    const entitlement = await manager.findOne(ListingEntitlement, {
+      where: {
+        id: input.entitlementId,
+        listingId: input.listingId,
+      },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!entitlement) throw new NotFoundException('Grant nie istnieje');
+    if (entitlement.sourceType !== ListingEntitlementSource.ADMIN_GRANT) {
+      throw new ConflictException('Można cofnąć tylko grant administratora');
+    }
+    if (!isActiveEntitlementStatus(entitlement.status)) {
+      throw new ConflictException('Grant nie jest aktywny ani zaplanowany');
+    }
+
+    entitlement.status = ListingEntitlementStatus.REVOKED;
+    entitlement.revokedAt = now;
+    entitlement.revokedByUserId = input.actorUserId;
+    entitlement.revokedReason = reason;
+    const saved = await manager.save(ListingEntitlement, entitlement);
+
+    if (entitlement.type === ListingEntitlementType.PUBLICATION) {
+      await this.reconcilePublicationAfterEntitlementChange(
+        manager,
+        entitlement.listingId,
+        now,
+      );
+    }
+    if (entitlement.type === ListingEntitlementType.FEATURED) {
+      await this.syncPremiumCacheForListings(
+        manager,
+        [entitlement.listingId],
+        now,
+      );
+    }
+
+    return toListingEntitlementContract(saved);
+  }
+
+  async findOwnedForListing(
+    buyerUserId: string,
+    listingId: string,
+  ): Promise<ListingEntitlementContract[]> {
+    const listing = await this.dataSource.getRepository(Listing).findOne({
+      where: { id: listingId, ownerUserId: buyerUserId },
+      select: { id: true },
+    });
+    if (!listing) throw new NotFoundException('Ogłoszenie nie istnieje');
+
+    const entitlements = await this.dataSource
+      .getRepository(ListingEntitlement)
+      .find({
+        where: {
+          listingId,
+          status: In([
+            ListingEntitlementStatus.SCHEDULED,
+            ListingEntitlementStatus.ACTIVE,
+          ]),
+        },
+        order: { startsAt: 'ASC' },
+      });
+    return entitlements.map(toListingEntitlementContract);
+  }
+
+  async findAdminCommerceSummary(
+    listingId: string,
+  ): Promise<AdminListingCommerceSummaryContract> {
+    const listing = await this.dataSource.getRepository(Listing).findOne({
+      where: { id: listingId },
+    });
+    if (!listing) throw new NotFoundException('Ogłoszenie nie istnieje');
+
+    const entitlements = await this.dataSource
+      .getRepository(ListingEntitlement)
+      .find({
+        where: { listingId },
+        order: { startsAt: 'DESC', createdAt: 'DESC' },
+      });
+    const manualAdjustments = await this.dataSource
+      .getRepository(ListingManualAdjustment)
+      .find({
+        where: { listingId },
+        order: { startsAt: 'DESC', createdAt: 'DESC' },
+      });
+
+    return {
+      listing: {
+        id: listing.id,
+        title: listing.publicTitle ?? listing.title,
+        publicSlug: listing.publicSlug ?? null,
+        status: listing.status,
+        publicationStatus: listing.publicationStatus,
+        publishedAt: listing.publishedAt?.toISOString() ?? null,
+        unpublishedAt: listing.unpublishedAt?.toISOString() ?? null,
+        expiresAt: listing.expiresAt?.toISOString() ?? null,
+        isPremium: listing.isPremium,
+      },
+      entitlements: entitlements.map((entitlement) => ({
+        id: entitlement.id,
+        type: entitlement.type,
+        status: entitlement.status,
+        tier: entitlement.tier ?? null,
+        sourceType: entitlement.sourceType,
+        orderItemId: entitlement.orderItemId ?? null,
+        startsAt: entitlement.startsAt.toISOString(),
+        endsAt: entitlement.endsAt.toISOString(),
+        createdAt: entitlement.createdAt?.toISOString() ?? null,
+        audit: toAdminEntitlementAudit(entitlement),
+      })),
+      manualAdjustments: manualAdjustments.map(toAdminListingManualAdjustment),
+    };
+  }
+
+  /**
+   * Advances scheduled benefits and expires benefits whose period has ended.
+   * The operation is deliberately idempotent so it can be safely retried by a
+   * scheduler or an operational command.
+   */
+  async processDueEntitlements(
+    now = new Date(),
+    batchSize = 500,
+  ): Promise<{ activated: number; expired: number }> {
+    return this.dataSource.transaction(async (manager) => {
+      const scheduled = await manager.find(ListingEntitlement, {
+        where: {
+          status: ListingEntitlementStatus.SCHEDULED,
+          startsAt: LessThanOrEqual(now),
+        },
+        order: { startsAt: 'ASC' },
+        take: batchSize,
+        lock: { mode: 'pessimistic_write' },
+      });
+      const ending = await manager.find(ListingEntitlement, {
+        where: {
+          status: In([...ACTIVE_ENTITLEMENT_STATUSES]),
+          endsAt: LessThanOrEqual(now),
+        },
+        order: { endsAt: 'ASC' },
+        take: batchSize,
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      const due = new Map<string, ListingEntitlement>();
+      [...scheduled, ...ending].forEach((entitlement) =>
+        due.set(entitlement.id, entitlement),
+      );
+
+      let activated = 0;
+      let expired = 0;
+      const changed: ListingEntitlement[] = [];
+      const featuredListingIdsToSync = new Set<string>();
+      for (const entitlement of due.values()) {
+        if (entitlement.endsAt.getTime() <= now.getTime()) {
+          if (entitlement.status !== ListingEntitlementStatus.EXPIRED) {
+            entitlement.status = ListingEntitlementStatus.EXPIRED;
+            expired += 1;
+            changed.push(entitlement);
+            if (entitlement.type === ListingEntitlementType.FEATURED) {
+              featuredListingIdsToSync.add(entitlement.listingId);
+            }
+          }
+          continue;
+        }
+        if (
+          entitlement.status === ListingEntitlementStatus.SCHEDULED &&
+          entitlement.startsAt.getTime() <= now.getTime()
+        ) {
+          entitlement.status = ListingEntitlementStatus.ACTIVE;
+          activated += 1;
+          changed.push(entitlement);
+          if (entitlement.type === ListingEntitlementType.FEATURED) {
+            featuredListingIdsToSync.add(entitlement.listingId);
+          }
+        }
+      }
+
+      if (changed.length) await manager.save(ListingEntitlement, changed);
+      await this.syncPremiumCacheForListings(
+        manager,
+        featuredListingIdsToSync,
+        now,
+      );
+      await this.unpublishListingsWithoutActivePublication(manager, now);
+      return { activated, expired };
+    });
+  }
+
+  fulfillPaidOrder(
+    orderId: string,
+    fulfilledAt = new Date(),
+  ): Promise<ListingOrderFulfillmentContract> {
+    return this.dataSource.transaction(async (manager) => {
+      const order = await manager.findOne(ListingOrder, {
+        where: { id: orderId },
+        relations: ['items'],
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!order) throw new NotFoundException('Zamówienie nie istnieje');
+      return this.fulfillPaidOrderInTransaction(manager, order, fulfilledAt);
+    });
+  }
+
+  async sendFeaturedExpiryReminders(
+    now = new Date(),
+    batchSize = 250,
+  ): Promise<{ processed: number; sent: number; skipped: number }> {
+    const windowEnd = new Date(
+      now.getTime() + FEATURED_EXPIRY_REMINDER_DAYS * DAY_MS,
+    );
+
+    return this.dataSource.transaction(async (manager) => {
+      const entitlements = await manager.find(ListingEntitlement, {
+        where: {
+          type: ListingEntitlementType.FEATURED,
+          status: ListingEntitlementStatus.ACTIVE,
+          endsAt: LessThanOrEqual(windowEnd),
+        },
+        order: { endsAt: 'ASC' },
+        take: batchSize,
+        lock: { mode: 'pessimistic_write' },
+      });
+      const candidates = entitlements.filter(
+        (entitlement) => entitlement.endsAt.getTime() > now.getTime(),
+      );
+      const remindersToSend = candidates.filter(
+        (entitlement) =>
+          !hasSentFeaturedExpiryReminder(
+            entitlement.parameters,
+            entitlement.endsAt,
+          ),
+      );
+      const listings = remindersToSend.length
+        ? await manager.find(Listing, {
+            where: {
+              id: In(
+                remindersToSend.map((entitlement) => entitlement.listingId),
+              ),
+            },
+            relations: ['ownerUser'],
+          })
+        : [];
+      const listingsById = new Map(
+        listings.map((listing) => [listing.id, listing]),
+      );
+
+      let sent = 0;
+      let skipped = 0;
+
+      for (const entitlement of candidates) {
+        if (
+          hasSentFeaturedExpiryReminder(
+            entitlement.parameters,
+            entitlement.endsAt,
+          )
+        ) {
+          skipped += 1;
+          continue;
+        }
+
+        const listing = listingsById.get(entitlement.listingId);
+        const ownerEmail = listing?.ownerUser?.email;
+        if (!listing || !ownerEmail) {
+          skipped += 1;
+          continue;
+        }
+
+        await this.sendFeaturedExpiryReminderEmail({
+          to: ownerEmail,
+          listingTitle: listing.publicTitle || listing.title,
+          endsAt: entitlement.endsAt,
+        });
+        entitlement.parameters = {
+          ...entitlement.parameters,
+          featuredExpiryReminder2Days: {
+            sentAt: now.toISOString(),
+            endsAt: entitlement.endsAt.toISOString(),
+          },
+        };
+        await manager.save(ListingEntitlement, entitlement);
+        sent += 1;
+      }
+
+      return {
+        processed: candidates.length,
+        sent,
+        skipped,
+      };
+    });
+  }
+
+  async fulfillPaidOrderInTransaction(
+    manager: EntityManager,
+    order: ListingOrder,
+    fulfilledAt: Date,
+  ): Promise<ListingOrderFulfillmentContract> {
+    if (order.status !== ListingOrderStatus.PAID || !order.paidAt) {
+      throw new ConflictException(
+        'Korzyści można przyznać wyłącznie dla opłaconego zamówienia',
+      );
+    }
+    if (!order.listingId || !order.items?.length) {
+      throw new ConflictException(
+        'Zamówienie nie ma kompletnego zakresu realizacji',
+      );
+    }
+
+    const listing = await manager.findOne(Listing, {
+      where: { id: order.listingId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!listing) throw new NotFoundException('Ogłoszenie nie istnieje');
+
+    const itemIds = order.items.map((item) => item.id);
+    const existing = await manager.find(ListingEntitlement, {
+      where: { orderItemId: In(itemIds) },
+      order: { createdAt: 'ASC' },
+    });
+    if (existing.length === itemIds.length) {
+      return {
+        orderId: order.id,
+        entitlementIds: existing.map((entitlement) => entitlement.id),
+        alreadyFulfilled: true,
+      };
+    }
+
+    const existingItemIds = new Set(
+      existing.map((entitlement) => entitlement.orderItemId),
+    );
+    const created: ListingEntitlement[] = [];
+    const featuredListingIdsToSync = new Set<string>();
+    for (const item of order.items) {
+      if (existingItemIds.has(item.id)) continue;
+
+      const entitlementType = getEntitlementTypeForProduct(
+        item.productTypeSnapshot,
+      );
+      const previous = await this.findLatestActiveEntitlement(
+        manager,
+        listing.id,
+        entitlementType,
+        item.productTypeSnapshot === ListingProductType.FEATURED
+          ? (item.fulfillmentParameters.featuredTier as string | undefined)
+          : undefined,
+      );
+      const startsAt = getEntitlementStart(
+        item.productTypeSnapshot,
+        fulfilledAt,
+        listing.expiresAt ?? null,
+        previous?.endsAt ?? null,
+      );
+      const endsAt = new Date(startsAt.getTime() + item.durationDays * DAY_MS);
+      const entitlement = manager.create(ListingEntitlement, {
+        listingId: listing.id,
+        type: entitlementType,
+        status:
+          startsAt.getTime() > fulfilledAt.getTime()
+            ? ListingEntitlementStatus.SCHEDULED
+            : ListingEntitlementStatus.ACTIVE,
+        tier:
+          entitlementType === ListingEntitlementType.FEATURED
+            ? getRequiredFeaturedTier(item.fulfillmentParameters.featuredTier)
+            : null,
+        sourceType: ListingEntitlementSource.ORDER_ITEM,
+        orderItemId: item.id,
+        startsAt,
+        endsAt,
+        parameters: item.fulfillmentParameters,
+      });
+      created.push(await manager.save(ListingEntitlement, entitlement));
+
+      if (entitlementType === ListingEntitlementType.PUBLICATION) {
+        await this.applyPublicationEntitlement(
+          manager,
+          listing,
+          endsAt,
+          fulfilledAt,
+        );
+      }
+      if (entitlementType === ListingEntitlementType.FEATURED) {
+        featuredListingIdsToSync.add(listing.id);
+      }
+    }
+
+    await this.syncPremiumCacheForListings(
+      manager,
+      featuredListingIdsToSync,
+      fulfilledAt,
+    );
+
+    order.metadata = {
+      ...order.metadata,
+      fulfilledAt: fulfilledAt.toISOString(),
+    };
+    await manager.save(ListingOrder, order);
+
+    return {
+      orderId: order.id,
+      entitlementIds: [
+        ...existing.map((entitlement) => entitlement.id),
+        ...created.map((entitlement) => entitlement.id),
+      ],
+      alreadyFulfilled: false,
+    };
+  }
+
+  private findLatestActiveEntitlement(
+    manager: EntityManager,
+    listingId: string,
+    type: ListingEntitlementType,
+    tier?: string,
+  ): Promise<ListingEntitlement | null> {
+    return manager.findOne(ListingEntitlement, {
+      where: {
+        listingId,
+        type,
+        status: In([...ACTIVE_ENTITLEMENT_STATUSES]),
+        ...(tier ? { tier } : {}),
+      },
+      order: { endsAt: 'DESC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+  }
+
+  private async applyPublicationEntitlement(
+    manager: EntityManager,
+    listing: Listing,
+    endsAt: Date,
+    fulfilledAt: Date,
+  ): Promise<void> {
+    if (!listing.publicSlug) {
+      throw new ConflictException(
+        'Ogłoszenie nie ma sluga wymaganego do publikacji',
+      );
+    }
+    listing.status = ListingStatus.ACTIVE;
+    listing.publicationStatus = ListingPublicationStatus.PUBLISHED;
+    listing.publishedAt = listing.publishedAt ?? fulfilledAt;
+    listing.unpublishedAt = null;
+    listing.expiresAt = maxDate(listing.expiresAt ?? null, endsAt);
+    await manager.save(Listing, listing);
+
+    const submission = await manager.findOne(PublicListingSubmission, {
+      where: { publishedListingId: listing.id },
+      order: { createdAt: 'DESC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!submission) {
+      throw new ConflictException(
+        'Ogłoszenie nie ma zgłoszenia wymaganego do publikacji',
+      );
+    }
+    submission.status = PublicListingSubmissionStatus.PUBLISHED;
+    submission.publishedAt = submission.publishedAt ?? fulfilledAt;
+    submission.expiresAt = listing.expiresAt;
+    await manager.save(PublicListingSubmission, submission);
+  }
+
+  private async unpublishListingsWithoutActivePublication(
+    manager: EntityManager,
+    now: Date,
+  ): Promise<void> {
+    const expiredPublicationListings = await manager.find(ListingEntitlement, {
+      where: {
+        type: ListingEntitlementType.PUBLICATION,
+        status: ListingEntitlementStatus.EXPIRED,
+        endsAt: LessThanOrEqual(now),
+      },
+      order: { endsAt: 'DESC' },
+      take: 500,
+    });
+    const listingIds = [
+      ...new Set(expiredPublicationListings.map((e) => e.listingId)),
+    ];
+    for (const listingId of listingIds) {
+      const active = await manager.findOne(ListingEntitlement, {
+        where: {
+          listingId,
+          type: ListingEntitlementType.PUBLICATION,
+          status: In([...ACTIVE_ENTITLEMENT_STATUSES]),
+          endsAt: MoreThan(now),
+        },
+      });
+      if (active) continue;
+      const listing = await manager.findOne(Listing, {
+        where: { id: listingId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (
+        !listing ||
+        listing.publicationStatus !== ListingPublicationStatus.PUBLISHED
+      ) {
+        continue;
+      }
+      listing.publicationStatus = ListingPublicationStatus.UNPUBLISHED;
+      listing.unpublishedAt = now;
+      await manager.save(Listing, listing);
+    }
+  }
+
+  private async syncPremiumCacheForListings(
+    manager: EntityManager,
+    listingIds: Iterable<string>,
+    now: Date,
+  ): Promise<void> {
+    for (const listingId of new Set(listingIds)) {
+      const activeFeatured = await manager.findOne(ListingEntitlement, {
+        where: {
+          listingId,
+          type: ListingEntitlementType.FEATURED,
+          status: ListingEntitlementStatus.ACTIVE,
+          startsAt: LessThanOrEqual(now),
+          endsAt: MoreThan(now),
+        },
+      });
+      const listing = await manager.findOne(Listing, {
+        where: { id: listingId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!listing) continue;
+
+      const shouldBePremium = Boolean(activeFeatured);
+      if (listing.isPremium === shouldBePremium) continue;
+
+      listing.isPremium = shouldBePremium;
+      await manager.save(Listing, listing);
+    }
+  }
+
+  private async reconcilePublicationAfterEntitlementChange(
+    manager: EntityManager,
+    listingId: string,
+    now: Date,
+  ): Promise<void> {
+    const active = await manager.findOne(ListingEntitlement, {
+      where: {
+        listingId,
+        type: ListingEntitlementType.PUBLICATION,
+        status: ListingEntitlementStatus.ACTIVE,
+        startsAt: LessThanOrEqual(now),
+        endsAt: MoreThan(now),
+      },
+      order: { endsAt: 'DESC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    const latestGrantedPeriod = await manager.findOne(ListingEntitlement, {
+      where: {
+        listingId,
+        type: ListingEntitlementType.PUBLICATION,
+        status: In([...ACTIVE_ENTITLEMENT_STATUSES]),
+        endsAt: MoreThan(now),
+      },
+      order: { endsAt: 'DESC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    const listing = await manager.findOne(Listing, {
+      where: { id: listingId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!listing) return;
+
+    listing.expiresAt = latestGrantedPeriod?.endsAt ?? now;
+    if (active) {
+      listing.status = ListingStatus.ACTIVE;
+      listing.publicationStatus = ListingPublicationStatus.PUBLISHED;
+      listing.unpublishedAt = null;
+    } else if (
+      listing.publicationStatus === ListingPublicationStatus.PUBLISHED
+    ) {
+      listing.publicationStatus = ListingPublicationStatus.UNPUBLISHED;
+      listing.unpublishedAt = now;
+    }
+    await manager.save(Listing, listing);
+
+    const submission = await manager.findOne(PublicListingSubmission, {
+      where: { publishedListingId: listing.id },
+      order: { createdAt: 'DESC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!submission) return;
+    submission.expiresAt = listing.expiresAt;
+    await manager.save(PublicListingSubmission, submission);
+  }
+
+  private async sendFeaturedExpiryReminderEmail(input: {
+    to: string;
+    listingTitle: string;
+    endsAt: Date;
+  }): Promise<void> {
+    if (!this.emailService) {
+      this.logger.warn(
+        `Skipping featured expiry reminder for "${input.listingTitle}": email service is unavailable`,
+      );
+      return;
+    }
+
+    const sellerUrl = this.buildFrontendUrl('/seller');
+    await this.emailService.send({
+      to: input.to,
+      subject: 'Wyróżnienie ogłoszenia kończy się za 2 dni',
+      text: [
+        `Wyróżnienie ogłoszenia "${input.listingTitle}" kończy się za 2 dni, ${formatDateForEmail(input.endsAt)}.`,
+        '',
+        'Po tym czasie oferta wróci do standardowej kolejności w katalogu.',
+        '',
+        `Możesz przedłużyć wyróżnienie w panelu właściciela: ${sellerUrl}`,
+      ].join('\n'),
+    });
+  }
+
+  private buildFrontendUrl(path: string): string {
+    const frontendUrl = this.configService?.get(
+      'FRONTEND_URL',
+      'http://localhost:3000',
+    );
+    const normalizedFrontendUrl = String(frontendUrl).replace(/\/+$/, '');
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+    return `${normalizedFrontendUrl}${normalizedPath}`;
+  }
+}
+
+function hasSentFeaturedExpiryReminder(
+  parameters: Record<string, unknown> | null | undefined,
+  endsAt: Date,
+): boolean {
+  const reminder = parameters?.featuredExpiryReminder2Days;
+  if (typeof reminder !== 'object' || reminder === null) return false;
+
+  return (reminder as { endsAt?: unknown }).endsAt === endsAt.toISOString();
+}
+
+function formatDateForEmail(value: Date): string {
+  return new Intl.DateTimeFormat('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(value);
+}
+
+function getEntitlementStart(
+  productType: ListingProductType,
+  fulfilledAt: Date,
+  listingExpiresAt: Date | null,
+  previousEndsAt: Date | null,
+): Date {
+  if (productType === ListingProductType.PUBLICATION) {
+    return fulfilledAt;
+  }
+  if (productType === ListingProductType.RENEWAL) {
+    return maxDate(fulfilledAt, listingExpiresAt, previousEndsAt);
+  }
+  return maxDate(fulfilledAt, previousEndsAt);
+}
+
+function maxDate(first: Date | null, ...rest: Array<Date | null>): Date {
+  const values = [first, ...rest].filter((date): date is Date => Boolean(date));
+  return new Date(Math.max(...values.map((date) => date.getTime())));
+}
+
+function getRequiredFeaturedTier(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new ConflictException(
+      'Pozycja wyróżnienia nie ma kompletnej konfiguracji realizacji',
+    );
+  }
+  return value.trim();
+}
+
+function normalizeAdminGrantReason(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw new ConflictException('Grant administratora wymaga powodu');
+  }
+  const reason = value.trim();
+  if (reason.length < MIN_ADMIN_GRANT_REASON_LENGTH) {
+    throw new ConflictException('Grant administratora wymaga powodu');
+  }
+  return reason;
+}
+
+function normalizeAdminGrantDuration(value: unknown): number {
+  const durationDays = Number(value);
+  if (
+    !Number.isInteger(durationDays) ||
+    durationDays < 1 ||
+    durationDays > MAX_ADMIN_GRANT_DURATION_DAYS
+  ) {
+    throw new ConflictException(
+      `Grant administratora wymaga okresu od 1 do ${MAX_ADMIN_GRANT_DURATION_DAYS} dni`,
+    );
+  }
+  return durationDays;
+}
+
+function toAdminEntitlementAudit(
+  entitlement: ListingEntitlement,
+): AdminListingEntitlementAuditContract {
+  const grantAudit = readAdminGrantAudit(entitlement.parameters);
+  return {
+    grantedByUserId:
+      entitlement.grantedByUserId ?? grantAudit.grantedByUserId ?? null,
+    grantedAt: grantAudit.grantedAt ?? null,
+    reason: grantAudit.reason ?? null,
+    productType: grantAudit.productType ?? null,
+    revokedByUserId: entitlement.revokedByUserId ?? null,
+    revokedAt: entitlement.revokedAt?.toISOString() ?? null,
+    revokedReason: entitlement.revokedReason ?? null,
+  };
+}
+
+function readAdminGrantAudit(
+  parameters: ListingProductFulfillmentParameters | null | undefined,
+): Partial<AdminListingEntitlementAuditContract> {
+  const adminGrant = parameters?.adminGrant;
+  if (typeof adminGrant !== 'object' || adminGrant === null) return {};
+
+  const audit = adminGrant as Record<string, unknown>;
+  return {
+    grantedByUserId:
+      typeof audit.grantedByUserId === 'string'
+        ? audit.grantedByUserId
+        : undefined,
+    grantedAt: typeof audit.grantedAt === 'string' ? audit.grantedAt : undefined,
+    reason: typeof audit.reason === 'string' ? audit.reason : undefined,
+    productType: isListingProductType(audit.productType)
+      ? audit.productType
+      : undefined,
+  };
+}
+
+function isListingProductType(value: unknown): value is ListingProductType {
+  return (
+    value === ListingProductType.PUBLICATION ||
+    value === ListingProductType.RENEWAL ||
+    value === ListingProductType.FEATURED
+  );
+}
+
+function isActiveEntitlementStatus(
+  status: ListingEntitlementStatus,
+): status is (typeof ACTIVE_ENTITLEMENT_STATUSES)[number] {
+  return ACTIVE_ENTITLEMENT_STATUSES.some((activeStatus) => activeStatus === status);
+}

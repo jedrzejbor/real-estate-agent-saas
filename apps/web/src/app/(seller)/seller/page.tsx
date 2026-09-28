@@ -12,6 +12,7 @@ import {
   Eye,
   CheckCircle2,
   Copy,
+  CreditCard,
   Home,
   Loader2,
   LogOut,
@@ -537,6 +538,9 @@ export default function SellerDashboardPage() {
               submissions={submissions}
               updatingSubmissionId={updatingSubmissionId}
               isAgentMarketplaceEnabled={isAgentMarketplaceEnabled}
+              isPaidListingCommerceEnabled={
+                releaseFlags.privateListingCheckoutEnabled
+              }
               onRenew={renewSubmission}
               onUnpublish={unpublishSubmission}
               onCloseRecruitment={openCloseRecruitmentModal}
@@ -1306,6 +1310,7 @@ function SellerSubmissionList({
   submissions,
   updatingSubmissionId,
   isAgentMarketplaceEnabled,
+  isPaidListingCommerceEnabled,
   onRenew,
   onUnpublish,
   onCloseRecruitment,
@@ -1314,6 +1319,7 @@ function SellerSubmissionList({
   submissions: SellerPublicListingSubmissionListItem[];
   updatingSubmissionId: string | null;
   isAgentMarketplaceEnabled: boolean;
+  isPaidListingCommerceEnabled: boolean;
   onRenew: (id: string) => void;
   onUnpublish: (id: string) => void;
   onCloseRecruitment: (submission: SellerPublicListingSubmissionListItem) => void;
@@ -1348,6 +1354,7 @@ function SellerSubmissionList({
             submission={submission}
             isUpdating={updatingSubmissionId === submission.id}
             isAgentMarketplaceEnabled={isAgentMarketplaceEnabled}
+            isPaidListingCommerceEnabled={isPaidListingCommerceEnabled}
             onRenew={onRenew}
             onUnpublish={onUnpublish}
             onCloseRecruitment={onCloseRecruitment}
@@ -1363,6 +1370,7 @@ function SellerSubmissionCard({
   submission,
   isUpdating,
   isAgentMarketplaceEnabled,
+  isPaidListingCommerceEnabled,
   onRenew,
   onUnpublish,
   onCloseRecruitment,
@@ -1371,6 +1379,7 @@ function SellerSubmissionCard({
   submission: SellerPublicListingSubmissionListItem;
   isUpdating: boolean;
   isAgentMarketplaceEnabled: boolean;
+  isPaidListingCommerceEnabled: boolean;
   onRenew: (id: string) => void;
   onUnpublish: (id: string) => void;
   onCloseRecruitment: (submission: SellerPublicListingSubmissionListItem) => void;
@@ -1386,7 +1395,14 @@ function SellerSubmissionCard({
     submission.publishedListingSlug && isPublished && !isExpired
       ? `/oferty/${submission.publishedListingSlug}`
       : null;
-  const canRenew = Boolean(submission.publishedListingId);
+  const canRenew = Boolean(
+    submission.publishedListingId && !isPaidListingCommerceEnabled,
+  );
+  const canOpenPaidCheckout = Boolean(
+    isPaidListingCommerceEnabled &&
+      submission.publishedListingId &&
+      (submission.status === 'approved' || isPublished || isExpired),
+  );
   const canUnpublish = Boolean(submission.publishedListingId && isPublished);
   const recruitmentState = getSellerRecruitmentCardState(
     submission,
@@ -1503,9 +1519,24 @@ function SellerSubmissionCard({
             <Eye className="h-4 w-4" />
             Szczegóły
           </Link>
+          {canOpenPaidCheckout ? (
+            <Link
+              href={`/seller/listings/${submission.id}`}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <CreditCard className="h-4 w-4" />
+              {submission.status === 'approved'
+                ? 'Wybierz pakiet'
+                : 'Cennik odnowień'}
+            </Link>
+          ) : null}
           <Link
             href={`/seller/listings/${submission.id}/edit`}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors ${
+              canOpenPaidCheckout
+                ? 'border border-border hover:bg-muted'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            }`}
           >
             <Edit3 className="h-4 w-4" />
             Edytuj
@@ -1741,6 +1772,16 @@ const SELLER_STATUS_COPY: Record<
     description:
       'Twoje ogłoszenie oczekuje na publikację. Zazwyczaj trwa to do 24h.',
     className: 'bg-blue-100 text-blue-900',
+  },
+  in_review: {
+    label: 'W weryfikacji',
+    description: 'Zespół sprawdza ogłoszenie przed dopuszczeniem go do publikacji.',
+    className: 'bg-blue-100 text-blue-900',
+  },
+  approved: {
+    label: 'Zaakceptowane — do opłacenia',
+    description: 'Ogłoszenie przeszło weryfikację. Opłać publikację w szczegółach oferty.',
+    className: 'bg-amber-100 text-amber-900',
   },
   published: {
     label: 'Opublikowane',

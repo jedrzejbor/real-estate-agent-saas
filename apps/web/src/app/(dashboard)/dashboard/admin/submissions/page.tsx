@@ -5,6 +5,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Eye,
+  Gift,
   Mail,
   MapPin,
   ShieldAlert,
@@ -26,6 +27,33 @@ import {
   TRANSACTION_TYPE_LABELS,
 } from '@/lib/listings';
 import {
+  createEmptyAdminEntitlementGrantForm,
+  createEmptyAdminManualAdjustmentForm,
+  createAdminListingManualAdjustment,
+  archiveAdminListingManualAdjustment,
+  fetchAdminListingCommerceSummary,
+  grantAdminListingEntitlement,
+  ListingEntitlementSource,
+  ListingEntitlementStatus,
+  ListingEntitlementType,
+  ListingProductType,
+  ListingPromotionDiscountType,
+  revokeAdminListingEntitlement,
+  toCreateListingManualAdjustmentInput,
+  toGrantListingEntitlementInput,
+  validateAdminManualAdjustmentForm,
+  validateArchiveListingManualAdjustmentReason,
+  validateRevokeListingEntitlementReason,
+  validateAdminEntitlementGrantForm,
+  type AdminEntitlementGrantFormErrors,
+  type AdminEntitlementGrantFormValues,
+  type AdminListingCommerceSummary,
+  type AdminListingEntitlement,
+  type AdminListingManualAdjustment,
+  type AdminManualAdjustmentFormErrors,
+  type AdminManualAdjustmentFormValues,
+} from '@/lib/listing-entitlements';
+import {
   approveAdminPublicListingSubmission,
   fetchAdminPublicListingSubmission,
   fetchAdminPublicListingSubmissions,
@@ -34,6 +62,30 @@ import {
   type SellerPublicListingSubmissionDetail,
 } from '@/lib/public-listing-submissions';
 import { cn } from '@/lib/utils';
+
+const LISTING_PRODUCT_TYPE_LABELS = {
+  [ListingProductType.PUBLICATION]: 'Publikacja ogłoszenia',
+  [ListingProductType.RENEWAL]: 'Przedłużenie publikacji',
+  [ListingProductType.FEATURED]: 'Wyróżnienie ogłoszenia',
+} as const;
+
+const ENTITLEMENT_TYPE_LABELS = {
+  [ListingEntitlementType.PUBLICATION]: 'Publikacja',
+  [ListingEntitlementType.FEATURED]: 'Wyróżnienie',
+} as const;
+
+const ENTITLEMENT_STATUS_LABELS = {
+  [ListingEntitlementStatus.SCHEDULED]: 'Zaplanowane',
+  [ListingEntitlementStatus.ACTIVE]: 'Aktywne',
+  [ListingEntitlementStatus.EXPIRED]: 'Wygasłe',
+  [ListingEntitlementStatus.REVOKED]: 'Cofnięte',
+  [ListingEntitlementStatus.CANCELLED]: 'Anulowane',
+} as const;
+
+const MANUAL_ADJUSTMENT_DISCOUNT_TYPE_LABELS = {
+  [ListingPromotionDiscountType.FIXED_GROSS]: 'Kwota brutto',
+  [ListingPromotionDiscountType.PERCENTAGE]: 'Procent',
+} as const;
 
 export default function AdminListingSubmissionsPage() {
   const { user } = useAuth();
@@ -582,6 +634,18 @@ function SubmissionPreviewModal({
                   />
                 </PreviewSection>
 
+                {detail.publishedListingId ? (
+                  <AdminListingCommercePanel
+                    listingId={detail.publishedListingId}
+                  />
+                ) : (
+                  <PreviewSection title="Cena i promocja">
+                    <p className="text-sm text-muted-foreground">
+                      Brak powiązanego ogłoszenia do operacji cenowych.
+                    </p>
+                  </PreviewSection>
+                )}
+
                 <ModerationChecklist items={getModerationChecklist(item)} />
               </div>
             </div>
@@ -589,6 +653,781 @@ function SubmissionPreviewModal({
         </div>
       </section>
     </div>
+  );
+}
+
+function AdminListingCommercePanel({ listingId }: { listingId: string }) {
+  const { confirm } = useConfirm();
+  const { success: showSuccessToast, error: showErrorToast } = useToast();
+  const [summary, setSummary] = useState<AdminListingCommerceSummary | null>(
+    null,
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState<AdminEntitlementGrantFormValues>(() =>
+    createEmptyAdminEntitlementGrantForm(),
+  );
+  const [errors, setErrors] = useState<AdminEntitlementGrantFormErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [adjustmentForm, setAdjustmentForm] =
+    useState<AdminManualAdjustmentFormValues>(() =>
+      createEmptyAdminManualAdjustmentForm(),
+    );
+  const [adjustmentErrors, setAdjustmentErrors] =
+    useState<AdminManualAdjustmentFormErrors>({});
+  const [isSubmittingAdjustment, setIsSubmittingAdjustment] = useState(false);
+  const [revokeReasons, setRevokeReasons] = useState<Record<string, string>>(
+    {},
+  );
+  const [revokeErrors, setRevokeErrors] = useState<Record<string, string>>({});
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [archiveAdjustmentReasons, setArchiveAdjustmentReasons] = useState<
+    Record<string, string>
+  >({});
+  const [archiveAdjustmentErrors, setArchiveAdjustmentErrors] = useState<
+    Record<string, string>
+  >({});
+  const [archivingAdjustmentId, setArchivingAdjustmentId] = useState<
+    string | null
+  >(null);
+
+  async function loadSummary() {
+    setIsLoading(true);
+    try {
+      setSummary(await fetchAdminListingCommerceSummary(listingId));
+      setError(null);
+    } catch (fetchError) {
+      setError(getApiErrorMessage(fetchError));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listingId]);
+
+  function updateForm<K extends keyof AdminEntitlementGrantFormValues>(
+    field: K,
+    value: AdminEntitlementGrantFormValues[K],
+  ) {
+    setForm((current) => ({ ...current, [field]: value }));
+    setErrors((current) => {
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
+  function updateAdjustmentForm<K extends keyof AdminManualAdjustmentFormValues>(
+    field: K,
+    value: AdminManualAdjustmentFormValues[K],
+  ) {
+    setAdjustmentForm((current) => ({ ...current, [field]: value }));
+    setAdjustmentErrors((current) => {
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
+  async function submitGrant() {
+    const validation = validateAdminEntitlementGrantForm(form);
+    if (!validation.data) {
+      setErrors(validation.errors);
+      showErrorToast({
+        title: 'Uzupełnij dane grantu',
+        description: 'Sprawdź typ, okres ważności i powód operacji.',
+      });
+      return;
+    }
+
+    const payload = toGrantListingEntitlementInput(validation.data);
+    const confirmed = await confirm({
+      title: 'Przyznać grant dla ogłoszenia?',
+      description: `Typ: ${LISTING_PRODUCT_TYPE_LABELS[payload.productType]}. Okres: ${payload.durationDays} dni. Powód: ${payload.reason}`,
+      confirmLabel: 'Przyznaj grant',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
+
+    setIsSubmitting(true);
+    try {
+      await grantAdminListingEntitlement(listingId, payload);
+      showSuccessToast({
+        title: 'Grant przyznany',
+        description: 'Uprawnienie zostało zapisane i aktywowane przez domenę.',
+      });
+      setForm(createEmptyAdminEntitlementGrantForm());
+      setErrors({});
+      await loadSummary();
+    } catch (grantError) {
+      showErrorToast({
+        title: 'Nie udało się przyznać grantu',
+        description: getApiErrorMessage(grantError),
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function submitManualAdjustment() {
+    const validation = validateAdminManualAdjustmentForm(adjustmentForm);
+    if (!validation.data) {
+      setAdjustmentErrors(validation.errors);
+      showErrorToast({
+        title: 'Uzupełnij dane korekty',
+        description: 'Sprawdź wartość rabatu, termin ważności i powód operacji.',
+      });
+      return;
+    }
+
+    const payload = toCreateListingManualAdjustmentInput(validation.data);
+    const confirmed = await confirm({
+      title: 'Dodać ręczną korektę ceny?',
+      description: `Korekta będzie naliczana w checkout dla tego ogłoszenia do ${formatDateTime(payload.endsAt)}. Powód: ${payload.reason}`,
+      confirmLabel: 'Dodaj korektę',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
+
+    setIsSubmittingAdjustment(true);
+    try {
+      await createAdminListingManualAdjustment(listingId, payload);
+      showSuccessToast({
+        title: 'Korekta dodana',
+        description: 'Rabat będzie widoczny jako osobna pozycja w wycenie.',
+      });
+      setAdjustmentForm(createEmptyAdminManualAdjustmentForm());
+      setAdjustmentErrors({});
+      await loadSummary();
+    } catch (adjustmentError) {
+      showErrorToast({
+        title: 'Nie udało się dodać korekty',
+        description: getApiErrorMessage(adjustmentError),
+      });
+    } finally {
+      setIsSubmittingAdjustment(false);
+    }
+  }
+
+  function updateRevokeReason(entitlementId: string, reason: string) {
+    setRevokeReasons((current) => ({ ...current, [entitlementId]: reason }));
+    setRevokeErrors((current) => {
+      const next = { ...current };
+      delete next[entitlementId];
+      return next;
+    });
+  }
+
+  async function revokeGrant(entitlement: AdminListingEntitlement) {
+    const reason = revokeReasons[entitlement.id] ?? '';
+    const reasonError = validateRevokeListingEntitlementReason(reason);
+    if (reasonError) {
+      setRevokeErrors((current) => ({
+        ...current,
+        [entitlement.id]: reasonError,
+      }));
+      showErrorToast({
+        title: 'Podaj powód cofnięcia',
+        description: 'Powód zostanie zapisany w audycie operacji.',
+      });
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Cofnąć grant administratora?',
+      description: `Cofnięcie może od razu wpłynąć na publikację lub wyróżnienie oferty. Powód: ${reason.trim()}`,
+      confirmLabel: 'Cofnij grant',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
+
+    setRevokingId(entitlement.id);
+    try {
+      await revokeAdminListingEntitlement(listingId, entitlement.id, {
+        reason,
+      });
+      showSuccessToast({
+        title: 'Grant cofnięty',
+        description: 'Status oferty został przeliczony na podstawie pozostałych uprawnień.',
+      });
+      setRevokeReasons((current) => {
+        const next = { ...current };
+        delete next[entitlement.id];
+        return next;
+      });
+      setRevokeErrors((current) => {
+        const next = { ...current };
+        delete next[entitlement.id];
+        return next;
+      });
+      await loadSummary();
+    } catch (revokeError) {
+      showErrorToast({
+        title: 'Nie udało się cofnąć grantu',
+        description: getApiErrorMessage(revokeError),
+      });
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
+  function updateArchiveAdjustmentReason(adjustmentId: string, reason: string) {
+    setArchiveAdjustmentReasons((current) => ({
+      ...current,
+      [adjustmentId]: reason,
+    }));
+    setArchiveAdjustmentErrors((current) => {
+      const next = { ...current };
+      delete next[adjustmentId];
+      return next;
+    });
+  }
+
+  async function archiveManualAdjustment(
+    adjustment: AdminListingManualAdjustment,
+  ) {
+    const reason = archiveAdjustmentReasons[adjustment.id] ?? '';
+    const reasonError = validateArchiveListingManualAdjustmentReason(reason);
+    if (reasonError) {
+      setArchiveAdjustmentErrors((current) => ({
+        ...current,
+        [adjustment.id]: reasonError,
+      }));
+      showErrorToast({
+        title: 'Podaj powód archiwizacji',
+        description: 'Powód zostanie zapisany w audycie korekty.',
+      });
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Zarchiwizować ręczną korektę?',
+      description: `Korekta przestanie naliczać się w nowych wycenach. Powód: ${reason.trim()}`,
+      confirmLabel: 'Zarchiwizuj korektę',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
+
+    setArchivingAdjustmentId(adjustment.id);
+    try {
+      await archiveAdminListingManualAdjustment(listingId, adjustment.id, {
+        reason,
+      });
+      showSuccessToast({
+        title: 'Korekta zarchiwizowana',
+        description: 'Nowe wyceny nie będą już naliczać tej korekty.',
+      });
+      setArchiveAdjustmentReasons((current) => {
+        const next = { ...current };
+        delete next[adjustment.id];
+        return next;
+      });
+      setArchiveAdjustmentErrors((current) => {
+        const next = { ...current };
+        delete next[adjustment.id];
+        return next;
+      });
+      await loadSummary();
+    } catch (archiveError) {
+      showErrorToast({
+        title: 'Nie udało się zarchiwizować korekty',
+        description: getApiErrorMessage(archiveError),
+      });
+    } finally {
+      setArchivingAdjustmentId(null);
+    }
+  }
+
+  return (
+    <PreviewSection title="Cena i promocja">
+      <div className="space-y-4">
+        {isLoading ? (
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            Ładowanie danych rozliczeniowych…
+          </div>
+        ) : error ? (
+          <div className="rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
+        ) : summary ? (
+          <>
+            <PreviewGrid
+              rows={[
+                ['Status publikacji', summary.listing.publicationStatus],
+                ['Opublikowano', formatDateTime(summary.listing.publishedAt)],
+                ['Wygasa', formatDateTime(summary.listing.expiresAt)],
+                ['Wyróżnienie', summary.listing.isPremium ? 'Aktywne' : 'Brak'],
+              ]}
+            />
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                Uprawnienia
+              </p>
+              {summary.entitlements.length > 0 ? (
+                <div className="space-y-2">
+                  {summary.entitlements.map((entitlement) => (
+                    <AdminEntitlementRow
+                      key={entitlement.id}
+                      entitlement={entitlement}
+                      revokeReason={revokeReasons[entitlement.id] ?? ''}
+                      revokeError={revokeErrors[entitlement.id]}
+                      isRevoking={revokingId === entitlement.id}
+                      onRevokeReasonChange={(reason) =>
+                        updateRevokeReason(entitlement.id, reason)
+                      }
+                      onRevoke={() => revokeGrant(entitlement)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+                  Brak historii płatnych produktów i grantów dla tej oferty.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                Ręczne korekty ceny
+              </p>
+              {summary.manualAdjustments.length > 0 ? (
+                <div className="space-y-2">
+                  {summary.manualAdjustments.map((adjustment) => (
+                    <AdminManualAdjustmentRow
+                      key={adjustment.id}
+                      adjustment={adjustment}
+                      archiveReason={
+                        archiveAdjustmentReasons[adjustment.id] ?? ''
+                      }
+                      archiveError={archiveAdjustmentErrors[adjustment.id]}
+                      isArchiving={archivingAdjustmentId === adjustment.id}
+                      onArchiveReasonChange={(reason) =>
+                        updateArchiveAdjustmentReason(adjustment.id, reason)
+                      }
+                      onArchive={() => archiveManualAdjustment(adjustment)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+                  Brak ręcznych korekt ceny dla tej oferty.
+                </p>
+              )}
+            </div>
+          </>
+        ) : null}
+
+        <div className="rounded-xl border border-border bg-card p-3">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+            <Gift className="h-4 w-4 text-primary" />
+            Ręczna korekta ceny
+          </div>
+
+          <div className="grid gap-3">
+            <FormField label="Etykieta rabatu" error={adjustmentErrors.label}>
+              <input
+                value={adjustmentForm.label}
+                placeholder="Np. rabat po zgłoszeniu"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                disabled={isSubmittingAdjustment}
+                onChange={(event) =>
+                  updateAdjustmentForm('label', event.target.value)
+                }
+              />
+            </FormField>
+
+            <FormField
+              label="Typ korekty"
+              error={adjustmentErrors.discountType}
+            >
+              <select
+                value={adjustmentForm.discountType}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                disabled={isSubmittingAdjustment}
+                onChange={(event) =>
+                  updateAdjustmentForm(
+                    'discountType',
+                    event.target
+                      .value as AdminManualAdjustmentFormValues['discountType'],
+                  )
+                }
+              >
+                <option value={ListingPromotionDiscountType.FIXED_GROSS}>
+                  Kwota brutto
+                </option>
+                <option value={ListingPromotionDiscountType.PERCENTAGE}>
+                  Procent
+                </option>
+              </select>
+            </FormField>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {adjustmentForm.discountType ===
+              ListingPromotionDiscountType.PERCENTAGE ? (
+                <FormField
+                  label="Rabat (%)"
+                  error={adjustmentErrors.discountPercent}
+                >
+                  <input
+                    value={adjustmentForm.discountPercent}
+                    inputMode="decimal"
+                    placeholder="10"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    disabled={isSubmittingAdjustment}
+                    onChange={(event) =>
+                      updateAdjustmentForm('discountPercent', event.target.value)
+                    }
+                  />
+                </FormField>
+              ) : (
+                <FormField
+                  label="Rabat brutto (zł)"
+                  error={adjustmentErrors.discountGrossPln}
+                >
+                  <input
+                    value={adjustmentForm.discountGrossPln}
+                    inputMode="decimal"
+                    placeholder="20"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    disabled={isSubmittingAdjustment}
+                    onChange={(event) =>
+                      updateAdjustmentForm(
+                        'discountGrossPln',
+                        event.target.value,
+                      )
+                    }
+                  />
+                </FormField>
+              )}
+
+              <FormField
+                label="Maksymalny rabat (zł)"
+                error={adjustmentErrors.maxDiscountGrossPln}
+              >
+                <input
+                  value={adjustmentForm.maxDiscountGrossPln}
+                  inputMode="decimal"
+                  placeholder="Opcjonalnie"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  disabled={isSubmittingAdjustment}
+                  onChange={(event) =>
+                    updateAdjustmentForm(
+                      'maxDiscountGrossPln',
+                      event.target.value,
+                    )
+                  }
+                />
+              </FormField>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField label="Start" error={adjustmentErrors.startsAt}>
+                <input
+                  type="datetime-local"
+                  value={adjustmentForm.startsAt}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  disabled={isSubmittingAdjustment}
+                  onChange={(event) =>
+                    updateAdjustmentForm('startsAt', event.target.value)
+                  }
+                />
+              </FormField>
+
+              <FormField label="Koniec" error={adjustmentErrors.endsAt}>
+                <input
+                  type="datetime-local"
+                  value={adjustmentForm.endsAt}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  disabled={isSubmittingAdjustment}
+                  onChange={(event) =>
+                    updateAdjustmentForm('endsAt', event.target.value)
+                  }
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Powód audytowy" error={adjustmentErrors.reason}>
+              <textarea
+                value={adjustmentForm.reason}
+                rows={3}
+                placeholder="Np. rekompensata po kontakcie z supportem"
+                className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                disabled={isSubmittingAdjustment}
+                onChange={(event) =>
+                  updateAdjustmentForm('reason', event.target.value)
+                }
+              />
+            </FormField>
+
+            <Button
+              type="button"
+              className="cursor-pointer rounded-xl"
+              disabled={isSubmittingAdjustment}
+              onClick={submitManualAdjustment}
+            >
+              {isSubmittingAdjustment ? 'Dodawanie…' : 'Dodaj korektę'}
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-3">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+            <Gift className="h-4 w-4 text-primary" />
+            Ręczny grant administratora
+          </div>
+
+          <div className="grid gap-3">
+            <FormField label="Typ grantu" error={errors.productType}>
+              <select
+                value={form.productType}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                disabled={isSubmitting}
+                onChange={(event) =>
+                  updateForm(
+                    'productType',
+                    event.target.value as AdminEntitlementGrantFormValues['productType'],
+                  )
+                }
+              >
+                <option value={ListingProductType.PUBLICATION}>
+                  Publikacja ogłoszenia
+                </option>
+                <option value={ListingProductType.RENEWAL}>
+                  Przedłużenie publikacji
+                </option>
+                <option value={ListingProductType.FEATURED}>
+                  Wyróżnienie ogłoszenia
+                </option>
+              </select>
+            </FormField>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField label="Okres (dni)" error={errors.durationDays}>
+                <input
+                  value={form.durationDays}
+                  inputMode="numeric"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  disabled={isSubmitting}
+                  onChange={(event) =>
+                    updateForm('durationDays', event.target.value)
+                  }
+                />
+              </FormField>
+
+              <FormField label="Tier wyróżnienia" error={errors.featuredTier}>
+                <input
+                  value={form.featuredTier}
+                  placeholder="standard"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  disabled={isSubmitting}
+                  onChange={(event) =>
+                    updateForm('featuredTier', event.target.value)
+                  }
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Waga wyróżnienia" error={errors.priorityWeight}>
+              <input
+                value={form.priorityWeight}
+                inputMode="numeric"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                disabled={isSubmitting}
+                onChange={(event) =>
+                  updateForm('priorityWeight', event.target.value)
+                }
+              />
+            </FormField>
+
+            <FormField label="Powód audytowy" error={errors.reason}>
+              <textarea
+                value={form.reason}
+                rows={3}
+                placeholder="Np. rekompensata po zgłoszeniu klienta"
+                className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                disabled={isSubmitting}
+                onChange={(event) => updateForm('reason', event.target.value)}
+              />
+            </FormField>
+
+            <Button
+              type="button"
+              className="cursor-pointer rounded-xl"
+              disabled={isSubmitting}
+              onClick={submitGrant}
+            >
+              {isSubmitting ? 'Przyznawanie…' : 'Przyznaj grant'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </PreviewSection>
+  );
+}
+
+function AdminEntitlementRow({
+  entitlement,
+  revokeReason,
+  revokeError,
+  isRevoking,
+  onRevokeReasonChange,
+  onRevoke,
+}: {
+  entitlement: AdminListingEntitlement;
+  revokeReason: string;
+  revokeError?: string;
+  isRevoking: boolean;
+  onRevokeReasonChange: (reason: string) => void;
+  onRevoke: () => void;
+}) {
+  const isAdminGrant =
+    entitlement.sourceType === ListingEntitlementSource.ADMIN_GRANT;
+  const canRevoke =
+    isAdminGrant &&
+    (entitlement.status === ListingEntitlementStatus.ACTIVE ||
+      entitlement.status === ListingEntitlementStatus.SCHEDULED);
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={getEntitlementBadgeVariant(entitlement.status)}>
+          {ENTITLEMENT_STATUS_LABELS[entitlement.status]}
+        </Badge>
+        <span className="font-medium">
+          {ENTITLEMENT_TYPE_LABELS[entitlement.type]}
+          {entitlement.tier ? ` · ${entitlement.tier}` : ''}
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {formatDateTime(entitlement.startsAt)} —{' '}
+        {formatDateTime(entitlement.endsAt)}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Źródło: {isAdminGrant ? 'grant admina' : 'zamówienie'}
+        {entitlement.audit.reason ? ` · ${entitlement.audit.reason}` : ''}
+      </p>
+      {entitlement.audit.revokedReason ? (
+        <p className="mt-1 text-xs text-destructive">
+          Cofnięto: {entitlement.audit.revokedReason}
+        </p>
+      ) : null}
+      {canRevoke ? (
+        <div className="mt-3 grid gap-2">
+          <FormField label="Powód cofnięcia" error={revokeError}>
+            <textarea
+              value={revokeReason}
+              rows={2}
+              placeholder="Np. grant przyznany omyłkowo"
+              className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              disabled={isRevoking}
+              onChange={(event) => onRevokeReasonChange(event.target.value)}
+            />
+          </FormField>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="cursor-pointer rounded-xl"
+            disabled={isRevoking}
+            onClick={onRevoke}
+          >
+            {isRevoking ? 'Cofanie…' : 'Cofnij grant'}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function AdminManualAdjustmentRow({
+  adjustment,
+  archiveReason,
+  archiveError,
+  isArchiving,
+  onArchiveReasonChange,
+  onArchive,
+}: {
+  adjustment: AdminListingManualAdjustment;
+  archiveReason: string;
+  archiveError?: string;
+  isArchiving: boolean;
+  onArchiveReasonChange: (reason: string) => void;
+  onArchive: () => void;
+}) {
+  const status = getManualAdjustmentStatus(adjustment);
+  const canArchive = status !== 'archived';
+
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={getManualAdjustmentBadgeVariant(status)}>
+          {getManualAdjustmentStatusLabel(status)}
+        </Badge>
+        <span className="font-medium">{adjustment.label}</span>
+        <span className="text-xs text-muted-foreground">
+          {MANUAL_ADJUSTMENT_DISCOUNT_TYPE_LABELS[adjustment.discountType]} ·{' '}
+          {formatManualAdjustmentValue(adjustment)}
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {formatDateTime(adjustment.startsAt)} —{' '}
+        {formatDateTime(adjustment.endsAt)}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Powód: {adjustment.reason}
+      </p>
+      {adjustment.archivedReason ? (
+        <p className="mt-1 text-xs text-destructive">
+          Archiwizacja: {adjustment.archivedReason}
+        </p>
+      ) : null}
+      {canArchive ? (
+        <div className="mt-3 grid gap-2">
+          <FormField label="Powód archiwizacji" error={archiveError}>
+            <textarea
+              value={archiveReason}
+              rows={2}
+              placeholder="Np. korekta nie jest już potrzebna"
+              className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              disabled={isArchiving}
+              onChange={(event) => onArchiveReasonChange(event.target.value)}
+            />
+          </FormField>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="cursor-pointer rounded-xl"
+            disabled={isArchiving}
+            onClick={onArchive}
+          >
+            {isArchiving ? 'Archiwizowanie…' : 'Zarchiwizuj korektę'}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function FormField({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="grid gap-1 text-sm">
+      <span className="font-medium text-foreground">{label}</span>
+      {children}
+      {error ? <span className="text-xs text-destructive">{error}</span> : null}
+    </label>
   );
 }
 
@@ -786,4 +1625,81 @@ function formatDate(value: string): string {
     month: '2-digit',
     year: 'numeric',
   });
+}
+
+function formatDateTime(value: string | null): string {
+  if (!value) return 'Brak';
+  return new Date(value).toLocaleString('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function getEntitlementBadgeVariant(
+  status: AdminListingEntitlement['status'],
+): 'default' | 'secondary' | 'destructive' | 'outline' {
+  if (status === ListingEntitlementStatus.ACTIVE) return 'default';
+  if (status === ListingEntitlementStatus.SCHEDULED) return 'secondary';
+  if (status === ListingEntitlementStatus.REVOKED) return 'destructive';
+  return 'outline';
+}
+
+type ManualAdjustmentStatus = 'active' | 'scheduled' | 'expired' | 'archived';
+
+function getManualAdjustmentStatus(
+  adjustment: AdminListingManualAdjustment,
+): ManualAdjustmentStatus {
+  if (adjustment.archivedAt) return 'archived';
+  const now = Date.now();
+  if (new Date(adjustment.startsAt).getTime() > now) return 'scheduled';
+  if (new Date(adjustment.endsAt).getTime() <= now) return 'expired';
+  return 'active';
+}
+
+function getManualAdjustmentStatusLabel(status: ManualAdjustmentStatus): string {
+  const labels: Record<ManualAdjustmentStatus, string> = {
+    active: 'Aktywna',
+    scheduled: 'Zaplanowana',
+    expired: 'Wygasła',
+    archived: 'Archiwum',
+  };
+  return labels[status];
+}
+
+function getManualAdjustmentBadgeVariant(
+  status: ManualAdjustmentStatus,
+): 'default' | 'secondary' | 'destructive' | 'outline' {
+  if (status === 'active') return 'default';
+  if (status === 'scheduled') return 'secondary';
+  if (status === 'archived') return 'destructive';
+  return 'outline';
+}
+
+function formatManualAdjustmentValue(
+  adjustment: AdminListingManualAdjustment,
+): string {
+  const value =
+    adjustment.discountType === ListingPromotionDiscountType.PERCENTAGE
+      ? formatBasisPointsPercent(adjustment.discountValue)
+      : formatGrossAmount(adjustment.discountValue);
+  const max =
+    adjustment.maxDiscountGrossAmount === null
+      ? ''
+      : `, maks. ${formatGrossAmount(adjustment.maxDiscountGrossAmount)}`;
+  return `${value}${max}`;
+}
+
+function formatBasisPointsPercent(value: number): string {
+  const percent = value / 100;
+  return `${new Intl.NumberFormat('pl-PL', {
+    minimumFractionDigits: Number.isInteger(percent) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(percent)}%`;
+}
+
+function formatGrossAmount(value: number): string {
+  return formatPrice(value / 100);
 }
