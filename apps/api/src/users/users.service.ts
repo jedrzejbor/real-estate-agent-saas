@@ -82,6 +82,7 @@ export class UsersService {
     lastName?: string;
     role?: UserRole;
     initialPlan?: AgencyPlan;
+    requireEmailVerification?: boolean;
   }): Promise<User> {
     const existing = await this.findByEmail(params.email);
     if (existing) {
@@ -99,6 +100,9 @@ export class UsersService {
         email: params.email,
         passwordHash: params.passwordHash,
         role: params.role ?? UserRole.AGENT,
+        emailVerificationRequiredAt: params.requireEmailVerification
+          ? new Date()
+          : null,
       });
 
       const savedUser = await userRepo.save(user);
@@ -345,9 +349,7 @@ export class UsersService {
     await this.userRepo.save(user);
   }
 
-  async findByPasswordResetTokenHash(
-    tokenHash: string,
-  ): Promise<User | null> {
+  async findByPasswordResetTokenHash(tokenHash: string): Promise<User | null> {
     return this.userRepo.findOne({
       where: { passwordResetTokenHash: tokenHash },
     });

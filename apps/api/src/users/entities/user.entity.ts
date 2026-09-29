@@ -50,6 +50,14 @@ export class User {
   })
   emailVerifiedAt?: Date | null;
 
+  /** Set for accounts enrolled in enforcement; null for legacy accounts awaiting rollout. */
+  @Column({
+    type: 'timestamptz',
+    name: 'email_verification_required_at',
+    nullable: true,
+  })
+  emailVerificationRequiredAt?: Date | null;
+
   @Index('uq_users_email_verification_token_hash', {
     unique: true,
     where: 'email_verification_token_hash IS NOT NULL',

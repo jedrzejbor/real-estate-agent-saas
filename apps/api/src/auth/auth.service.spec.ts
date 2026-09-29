@@ -1,4 +1,9 @@
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { APP_NAME } from '../common/brand';
 import { AgencyPlan, UserRole } from '../common/enums';
@@ -13,6 +18,7 @@ function buildUser(overrides: Partial<User> = {}): User {
     passwordResetTokenHash: null,
     passwordResetExpiresAt: null,
     emailVerifiedAt: null,
+    emailVerificationRequiredAt: null,
     emailVerificationSendCount: 0,
     role: UserRole.AGENT,
     isActive: true,
@@ -22,7 +28,10 @@ function buildUser(overrides: Partial<User> = {}): User {
   };
 }
 
-function buildService(userOverrides: Partial<User> = {}) {
+function buildService(
+  userOverrides: Partial<User> = {},
+  verificationEnabled = false,
+) {
   const user = buildUser(userOverrides);
   const accessContext = {
     user,
@@ -75,10 +84,19 @@ function buildService(userOverrides: Partial<User> = {}) {
     signAsync: jest.fn().mockResolvedValue('token'),
   };
   const configService = {
-    get: jest.fn().mockImplementation((_key: string, fallback?: string) => fallback),
+    get: jest
+      .fn()
+      .mockImplementation((key: string, fallback?: string) =>
+        key === 'ACCOUNT_EMAIL_VERIFICATION_ENABLED'
+          ? String(verificationEnabled)
+          : fallback,
+      ),
   };
   const emailService = {
     send: jest.fn().mockResolvedValue(undefined),
+  };
+  const verificationService = {
+    sendForUser: jest.fn().mockResolvedValue(true),
   };
 
   return {
@@ -89,9 +107,12 @@ function buildService(userOverrides: Partial<User> = {}) {
       jwtService as never,
       configService as never,
       emailService as never,
+      verificationService as never,
     ),
     usersService,
     emailService,
+    verificationService,
+    jwtService,
     accessContext,
   };
 }
@@ -215,7 +236,8 @@ describe('AuthService account settings', () => {
       confirmPassword: 'NewPass123',
     });
 
-    const [, newPasswordHash] = usersService.completePasswordReset.mock.calls[0];
+    const [, newPasswordHash] =
+      usersService.completePasswordReset.mock.calls[0];
     await expect(bcrypt.compare('NewPass123', newPasswordHash)).resolves.toBe(
       true,
     );
@@ -309,8 +331,113 @@ describe('AuthService registration', () => {
       lastName: 'Kowalski',
     });
 
-    expect(usersService.create).toHaveBeenCalledWith(expect.objectContaining({
-      initialPlan: AgencyPlan.FREE,
-    }));
+    expect(usersService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialPlan: AgencyPlan.FREE,
+      }),
+    );
+  });
+
+  it.each(['agent', 'private_seller'] as const)(
+    'creates %s as pending without tokens',
+    async (accountType) => {
+      const { service, usersService, verificationService, jwtService } =
+        buildService({}, true);
+      const result = await service.register({
+        accountType,
+        email: 'agent@example.com',
+        password: 'StrongPass123',
+      });
+
+      expect(result).toEqual({ status: 'pending_email_verification' });
+      expect(usersService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requireEmailVerification: true,
+          role: accountType === 'agent' ? UserRole.AGENT : UserRole.VIEWER,
+        }),
+      );
+      expect(verificationService.sendForUser).toHaveBeenCalledWith('user-1');
+      expect(jwtService.signAsync).not.toHaveBeenCalled();
+    },
+  );
+
+  it('keeps a pending account retryable after delivery failure', async () => {
+    const { service, verificationService, jwtService } = buildService({}, true);
+    verificationService.sendForUser.mockRejectedValue(
+      new ServiceUnavailableException('SMTP unavailable'),
+    );
+    await expect(
+      service.register({
+        email: 'agent@example.com',
+        password: 'StrongPass123',
+      }),
+    ).resolves.toEqual({ status: 'pending_email_verification' });
+    expect(jwtService.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('returns the same pending response for an existing address', async () => {
+    const { service, usersService, verificationService, jwtService } =
+      buildService({}, true);
+    usersService.create.mockRejectedValue(new ConflictException());
+
+    await expect(
+      service.register({
+        email: 'agent@example.com',
+        password: 'StrongPass123',
+      }),
+    ).resolves.toEqual({ status: 'pending_email_verification' });
+    expect(verificationService.sendForUser).not.toHaveBeenCalled();
+    expect(jwtService.signAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService verification gate', () => {
+  const pending = {
+    emailVerificationRequiredAt: new Date(),
+    emailVerifiedAt: null,
+  };
+
+  it('rejects correct-password login for pending and does not issue tokens', async () => {
+    const passwordHash = await bcrypt.hash('StrongPass123', 4);
+    const { service, jwtService } = buildService({ ...pending, passwordHash });
+    await expect(
+      service.login({ email: 'agent@example.com', password: 'StrongPass123' }),
+    ).rejects.toMatchObject({
+      response: { code: 'EMAIL_VERIFICATION_REQUIRED' },
+    });
+    expect(jwtService.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not reveal pending state for an incorrect password', async () => {
+    const passwordHash = await bcrypt.hash('StrongPass123', 4);
+    const { service } = buildService({ ...pending, passwordHash });
+    await expect(
+      service.login({
+        email: 'agent@example.com',
+        password: 'IncorrectPass123',
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('rejects refresh after enrollment, including a previously issued token', async () => {
+    const { service, jwtService } = buildService(pending);
+    await expect(service.refresh('user-1')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(jwtService.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('allows verified and transitional legacy accounts', async () => {
+    const { service: verified } = buildService({
+      ...pending,
+      emailVerifiedAt: new Date(),
+    });
+    const { service: legacy } = buildService();
+    await expect(verified.refresh('user-1')).resolves.toHaveProperty(
+      'accessToken',
+    );
+    await expect(legacy.refresh('user-1')).resolves.toHaveProperty(
+      'accessToken',
+    );
   });
 });

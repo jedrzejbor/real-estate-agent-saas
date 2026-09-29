@@ -6,6 +6,7 @@ import { Request } from 'express';
 import { UsersService } from '../../users/users.service';
 import { extractRefreshTokenFromRequest } from '../auth-token-cookies';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
+import { needsEmailVerification } from '../account-email-access.policy';
 
 /**
  * Passport strategy for refresh tokens.
@@ -35,8 +36,10 @@ export class JwtRefreshStrategy extends PassportStrategy(
   async validate(req: Request, payload: JwtPayload) {
     const user = await this.usersService.findById(payload.sub);
 
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('Nieprawidłowy lub wygasły refresh token');
+    if (!user || !user.isActive || needsEmailVerification(user)) {
+      throw new UnauthorizedException(
+        'Nieprawidłowy lub wygasły refresh token',
+      );
     }
 
     return { id: user.id, email: user.email, role: user.role };

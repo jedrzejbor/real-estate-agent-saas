@@ -46,11 +46,17 @@ export class AuthController {
   /** POST /api/auth/register — public */
   @Public()
   @Post('register')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.authService.register(dto);
+    if (result.status === 'pending_email_verification') {
+      clearAuthTokenCookies(response, this.configService);
+      response.status(HttpStatus.ACCEPTED);
+      return { status: result.status };
+    }
     setAuthTokenCookies(response, result.tokens, this.configService);
     return { user: result.user };
   }
@@ -115,7 +121,7 @@ export class AuthController {
     @CurrentUser() user: { id: string; email: string; role: string },
     @Res({ passthrough: true }) response: Response,
   ) {
-    const tokens = await this.authService.refresh(user.id, user.email, user.role);
+    const tokens = await this.authService.refresh(user.id);
     setAuthTokenCookies(response, tokens, this.configService);
     return { success: true };
   }
