@@ -1,10 +1,7 @@
-import {
-  Injectable,
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Not, Repository } from 'typeorm';
+import { EntityManager, In, Not, QueryFailedError, Repository } from 'typeorm';
+import { EmailAlreadyRegisteredException } from './errors/email-already-registered.exception';
 import { User } from './entities/user.entity';
 import { Agent } from './entities/agent.entity';
 import { Agency } from './entities/agency.entity';
@@ -83,12 +80,11 @@ export class UsersService {
     role?: UserRole;
     initialPlan?: AgencyPlan;
     requireEmailVerification?: boolean;
+    onCreated?: (manager: EntityManager, user: User) => Promise<void>;
   }): Promise<User> {
     const existing = await this.findByEmail(params.email);
     if (existing) {
-      throw new ConflictException(
-        'Użytkownik z tym adresem email już istnieje',
-      );
+      throw new EmailAlreadyRegisteredException();
     }
 
     const userId = await this.userRepo.manager.transaction(async (manager) => {
@@ -105,7 +101,18 @@ export class UsersService {
           : null,
       });
 
-      const savedUser = await userRepo.save(user);
+      let savedUser: User;
+      try {
+        savedUser = await userRepo.save(user);
+      } catch (error) {
+        if (
+          error instanceof QueryFailedError &&
+          (error.driverError as { code?: string }).code === '23505'
+        ) {
+          throw new EmailAlreadyRegisteredException();
+        }
+        throw error;
+      }
 
       const agency = agencyRepo.create({
         name: this.buildAgencyName(
@@ -129,6 +136,8 @@ export class UsersService {
         agency: savedAgency,
       });
       await agentRepo.save(agent);
+
+      await params.onCreated?.(manager, savedUser);
 
       return savedUser.id;
     });

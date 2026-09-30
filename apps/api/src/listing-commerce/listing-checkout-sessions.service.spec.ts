@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { ReleaseFlagsService } from '../release-flags';
+import { User } from '../users/entities';
 import {
   ListingOrder,
   ListingOrderItem,
@@ -65,21 +66,29 @@ function buildAttempt(
   });
 }
 
-function buildHarness(options: {
-  order?: ListingOrder | null;
-  latestAttempt?: ListingPaymentAttempt | null;
-  checkoutEnabled?: boolean;
-} = {}) {
+function buildHarness(
+  options: {
+    order?: ListingOrder | null;
+    latestAttempt?: ListingPaymentAttempt | null;
+    checkoutEnabled?: boolean;
+    verificationEnabled?: boolean;
+  } = {},
+) {
   const order = 'order' in options ? options.order : buildOrder();
   let persistedAttempt = options.latestAttempt ?? null;
   const manager = {
-    findOne: jest.fn(async (entity: unknown, query: { where?: { id?: string } }) => {
-      if (entity === ListingOrder) return order;
-      if (entity === ListingPaymentAttempt) {
-        return query.where?.id ? persistedAttempt : options.latestAttempt ?? null;
-      }
-      return null;
-    }),
+    findOne: jest.fn(
+      async (entity: unknown, query: { where?: { id?: string } }) => {
+        if (entity === ListingOrder) return order;
+        if (entity === User) return { id: 'owner-1', emailVerifiedAt: null };
+        if (entity === ListingPaymentAttempt) {
+          return query.where?.id
+            ? persistedAttempt
+            : (options.latestAttempt ?? null);
+        }
+        return null;
+      },
+    ),
     create: jest.fn((_entity: unknown, values: object) =>
       Object.assign(new ListingPaymentAttempt(), values),
     ),
@@ -115,6 +124,11 @@ function buildHarness(options: {
     dataSource as unknown as DataSource,
     paymentGateway as unknown as ListingPaymentGateway,
     releaseFlagsService as unknown as ReleaseFlagsService,
+    {
+      get: jest
+        .fn()
+        .mockReturnValue(String(options.verificationEnabled ?? false)),
+    } as never,
   );
 
   return {
@@ -128,6 +142,17 @@ function buildHarness(options: {
 }
 
 describe('ListingCheckoutSessionsService', () => {
+  it('does not open a payment session for an unverified buyer after rollout', async () => {
+    const { service, paymentGateway } = buildHarness({
+      verificationEnabled: true,
+    });
+    await expect(
+      service.createOwnedCheckoutSession('owner-1', 'order-1'),
+    ).rejects.toMatchObject({
+      response: { code: 'EMAIL_VERIFICATION_REQUIRED' },
+    });
+    expect(paymentGateway.createCheckoutSession).not.toHaveBeenCalled();
+  });
   afterEach(() => jest.useRealTimers());
 
   it('allocates and binds the first durable payment attempt', async () => {

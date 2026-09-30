@@ -186,7 +186,9 @@ function buildService(submission: PublicListingSubmission) {
     create: jest.fn((_entity: unknown, value: unknown) => value),
     createQueryBuilder: jest.fn().mockReturnValue(transactionQueryBuilder),
     delete: jest.fn().mockResolvedValue(undefined),
-    findOne: jest.fn().mockResolvedValue(null),
+    findOne: jest.fn(async (entity: unknown) =>
+      entity === PublicListingSubmission ? submission : null,
+    ),
     save: jest.fn(async (entity: unknown, value: unknown) => {
       if (Array.isArray(value)) return value;
       if (entity === Listing) {
@@ -218,6 +220,7 @@ function buildService(submission: PublicListingSubmission) {
     getAgencyAccessContext: jest.fn().mockResolvedValue({
       user: {
         id: 'owner-1',
+        email: 'jan@example.com',
         role: UserRole.VIEWER,
       },
       agent: {
@@ -239,8 +242,7 @@ function buildService(submission: PublicListingSubmission) {
   };
   const monitoringService = {
     monitor: jest.fn(
-      async (_options: unknown, callback: () => Promise<unknown>) =>
-        callback(),
+      async (_options: unknown, callback: () => Promise<unknown>) => callback(),
     ),
   };
   const releaseFlagsService = {
@@ -264,6 +266,7 @@ function buildService(submission: PublicListingSubmission) {
       releaseFlagsService as never,
     ),
     submissionRepo,
+    listingRepo,
     analyticsEventRepo,
     publicLeadRepo,
     activityService,
@@ -347,12 +350,8 @@ describe('PublicListingSubmissionsService authenticated seller create', () => {
 
   it('uses the current owner account contact instead of stale submitted contact', async () => {
     const submission = buildSubmission();
-    const {
-      service,
-      submissionRepo,
-      emailService,
-      usersService,
-    } = buildService(submission);
+    const { service, submissionRepo, emailService, usersService } =
+      buildService(submission);
     usersService.findById.mockResolvedValueOnce({
       id: 'owner-current',
       email: 'current.owner@example.com',
@@ -413,6 +412,90 @@ describe('PublicListingSubmissionsService claim flow', () => {
     jest.restoreAllMocks();
   });
 
+  it('refuses direct claim by an account with a different email', async () => {
+    const submission = buildSubmission({
+      status: PublicListingSubmissionStatus.VERIFIED,
+    });
+    const { service, usersService, transactionManager } =
+      buildService(submission);
+    usersService.getAgencyAccessContext.mockResolvedValueOnce({
+      user: { id: 'owner-1', email: 'other@example.com' },
+    });
+
+    await expect(
+      service.claim('owner-1', { claimToken: 'claim-token' }),
+    ).rejects.toThrow('Adres e-mail konta nie pasuje do zgłoszenia');
+    expect(transactionManager.save).not.toHaveBeenCalled();
+  });
+
+  it('returns the existing claim for a repeated pending-intent completion', async () => {
+    const submission = buildSubmission({ pendingClaimUserId: 'owner-1' });
+    const { service, usersService, listingRepo, transactionManager } =
+      buildService(submission);
+    usersService.getAgencyAccessContext.mockResolvedValueOnce({
+      user: {
+        id: 'owner-1',
+        email: 'jan@example.com',
+        emailVerifiedAt: new Date(),
+      },
+    });
+    listingRepo.findOne.mockResolvedValueOnce({
+      id: submission.publishedListingId,
+      publicSlug: 'slug',
+    });
+
+    const result = await service.completeClaimIntent('owner-1', submission.id);
+
+    expect(result.listingId).toBe(submission.publishedListingId);
+    expect(transactionManager.save).not.toHaveBeenCalled();
+  });
+
+  it('does not create a second listing when another claim wins the row lock', async () => {
+    const submission = buildSubmission({
+      status: PublicListingSubmissionStatus.VERIFIED,
+      pendingClaimUserId: 'owner-1',
+      publishedListingId: null,
+      claimedAt: null,
+    });
+    const alreadyClaimed = {
+      ...submission,
+      status: PublicListingSubmissionStatus.CLAIMED,
+      ownerUserId: 'owner-1',
+      publishedListingId: 'listing-1',
+      claimedAt: new Date(),
+    };
+    const { service, usersService, listingRepo, transactionManager } =
+      buildService(submission);
+    usersService.getAgencyAccessContext.mockResolvedValueOnce({
+      user: {
+        id: 'owner-1',
+        email: 'jan@example.com',
+        emailVerifiedAt: new Date(),
+      },
+      agent: { id: 'agent-1' },
+      agency: { id: 'agency-1' },
+      agencyAgentIds: ['agent-1'],
+      entitlements: { limits: { activeListings: null } },
+    });
+    transactionManager.findOne.mockResolvedValueOnce(alreadyClaimed);
+    listingRepo.findOne.mockResolvedValueOnce({
+      id: 'listing-1',
+      publicSlug: 'slug',
+    });
+
+    const result = await service.completeClaimIntent('owner-1', submission.id);
+
+    expect(result.listingId).toBe('listing-1');
+    expect(transactionManager.findOne).toHaveBeenCalledWith(
+      PublicListingSubmission,
+      {
+        where: { id: submission.id },
+        lock: { mode: 'pessimistic_write' },
+      },
+    );
+    expect(transactionManager.save).not.toHaveBeenCalled();
+  });
+
   it('keeps an automatically approved claimed listing private until payment when checkout is enabled', async () => {
     const submission = buildSubmission({
       status: PublicListingSubmissionStatus.VERIFIED,
@@ -424,12 +507,8 @@ describe('PublicListingSubmissionsService claim flow', () => {
       claimedAgentId: null,
       claimedAgencyId: null,
     });
-    const {
-      service,
-      emailService,
-      releaseFlagsService,
-      transactionManager,
-    } = buildService(submission);
+    const { service, emailService, releaseFlagsService, transactionManager } =
+      buildService(submission);
     releaseFlagsService.getFlags.mockReturnValue({
       privateListingCheckoutEnabled: true,
     });
@@ -489,9 +568,7 @@ describe('PublicListingSubmissionsService admin moderation', () => {
     expect(listing.ownerUserId).toBe('owner-1');
     expect(submission.ownerUserId).toBe('owner-1');
     expect(listing.status).toBe(ListingStatus.ACTIVE);
-    expect(listing.publicationStatus).toBe(
-      ListingPublicationStatus.PUBLISHED,
-    );
+    expect(listing.publicationStatus).toBe(ListingPublicationStatus.PUBLISHED);
     expect(listing.publicSlug).toBe('mieszkanie-testowe-warszawa');
     expect(submission.metadata.adminApproval).toMatchObject({
       approvedByUserId: 'admin-1',
@@ -644,11 +721,8 @@ describe('PublicListingSubmissionsService admin moderation', () => {
       publishedListingId: listing.id,
       expiresAt: listing.expiresAt,
     });
-    const {
-      service,
-      releaseFlagsService,
-      transactionManager,
-    } = buildService(submission);
+    const { service, releaseFlagsService, transactionManager } =
+      buildService(submission);
     releaseFlagsService.getFlags.mockReturnValue({
       privateListingCheckoutEnabled: true,
     });
@@ -764,9 +838,7 @@ describe('PublicListingSubmissionsService admin moderation', () => {
 
     const result = await service.findPendingAdminReview();
 
-    expect(result[0].moderationReasons).not.toContain(
-      'very_low_price_per_m2',
-    );
+    expect(result[0].moderationReasons).not.toContain('very_low_price_per_m2');
   });
 
   it('returns full claimed submission details for admin review', async () => {

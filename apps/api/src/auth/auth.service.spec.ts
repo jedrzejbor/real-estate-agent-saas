@@ -8,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 import { APP_NAME } from '../common/brand';
 import { AgencyPlan, UserRole } from '../common/enums';
 import { User } from '../users/entities';
+import { EmailAlreadyRegisteredException } from '../users/errors/email-already-registered.exception';
 import { AuthService } from './auth.service';
 
 function buildUser(overrides: Partial<User> = {}): User {
@@ -98,6 +99,10 @@ function buildService(
   const verificationService = {
     sendForUser: jest.fn().mockResolvedValue(true),
   };
+  const publicListingClaimIntentsService = {
+    prepare: jest.fn().mockResolvedValue('submission-1'),
+    bind: jest.fn().mockResolvedValue(undefined),
+  };
 
   return {
     service: new AuthService(
@@ -108,10 +113,12 @@ function buildService(
       configService as never,
       emailService as never,
       verificationService as never,
+      publicListingClaimIntentsService as never,
     ),
     usersService,
     emailService,
     verificationService,
+    publicListingClaimIntentsService,
     jwtService,
     accessContext,
   };
@@ -378,7 +385,9 @@ describe('AuthService registration', () => {
   it('returns the same pending response for an existing address', async () => {
     const { service, usersService, verificationService, jwtService } =
       buildService({}, true);
-    usersService.create.mockRejectedValue(new ConflictException());
+    usersService.create.mockRejectedValue(
+      new EmailAlreadyRegisteredException(),
+    );
 
     await expect(
       service.register({
@@ -388,6 +397,47 @@ describe('AuthService registration', () => {
     ).resolves.toEqual({ status: 'pending_email_verification' });
     expect(verificationService.sendForUser).not.toHaveBeenCalled();
     expect(jwtService.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not hide a failed claim binding as a successful registration', async () => {
+    const { service, usersService } = buildService({}, true);
+    usersService.create.mockRejectedValue(
+      new ConflictException('Claim no longer available'),
+    );
+    await expect(
+      service.register({
+        accountType: 'private_seller',
+        email: 'agent@example.com',
+        password: 'StrongPass123',
+        claimToken: 'claim-token',
+      }),
+    ).rejects.toThrow('Claim no longer available');
+  });
+
+  it('binds a seller claim intent inside account creation without storing the raw token', async () => {
+    const { service, usersService, publicListingClaimIntentsService } =
+      buildService({}, true);
+    await service.register({
+      accountType: 'private_seller',
+      email: 'agent@example.com',
+      password: 'StrongPass123',
+      claimToken: 'raw-claim-token',
+    });
+
+    expect(publicListingClaimIntentsService.prepare).toHaveBeenCalledWith(
+      'raw-claim-token',
+      'agent@example.com',
+    );
+    const createInput = usersService.create.mock.calls[0][0];
+    expect(createInput).not.toHaveProperty('claimToken');
+    const manager = {} as never;
+    await createInput.onCreated(manager, { id: 'user-1' });
+    expect(publicListingClaimIntentsService.bind).toHaveBeenCalledWith(
+      manager,
+      'submission-1',
+      'user-1',
+      'agent@example.com',
+    );
   });
 });
 

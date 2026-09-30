@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -10,10 +9,12 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import { EntityManager } from 'typeorm';
 import { createHash, randomBytes } from 'crypto';
 import { APP_NAME } from '../common/brand';
 import { EmailService } from '../email';
 import { UsersService } from '../users/users.service';
+import { EmailAlreadyRegisteredException } from '../users/errors/email-already-registered.exception';
 import { AgencyPlanService } from '../users/agency-plan.service';
 import { ReleaseFlagsService } from '../release-flags';
 import {
@@ -32,6 +33,7 @@ import { UserRole } from '../common/enums';
 import { AgencyPlan } from '../common/enums';
 import { normalizeAccountEmail } from './account-email';
 import { AccountEmailVerificationService } from './account-email-verification.service';
+import { PublicListingClaimIntentsService } from '../public-listing-submissions/public-listing-claim-intents.service';
 import {
   EMAIL_VERIFICATION_REQUIRED_CODE,
   needsEmailVerification,
@@ -53,6 +55,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
     private readonly accountEmailVerificationService: AccountEmailVerificationService,
+    private readonly publicListingClaimIntentsService: PublicListingClaimIntentsService,
   ) {}
 
   /** Register an account; enforced registrations wait for mailbox proof. */
@@ -64,6 +67,21 @@ export class AuthService {
       ) === 'true';
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     const email = normalizeAccountEmail(dto.email);
+    if (
+      dto.claimToken &&
+      dto.accountType !== RegisterAccountType.PRIVATE_SELLER
+    ) {
+      throw new BadRequestException(
+        'Przejęcie zgłoszenia wymaga konta sprzedającego',
+      );
+    }
+    const pendingClaimSubmissionId =
+      requireEmailVerification && dto.claimToken
+        ? await this.publicListingClaimIntentsService.prepare(
+            dto.claimToken,
+            email,
+          )
+        : null;
     let createdUser: User;
     try {
       createdUser = await this.usersService.create({
@@ -78,9 +96,23 @@ export class AuthService {
         // Selected paid plan is only an intent; webhook activates it after payment.
         initialPlan: AgencyPlan.FREE,
         requireEmailVerification,
+        ...(pendingClaimSubmissionId
+          ? {
+              onCreated: (manager: EntityManager, user: User) =>
+                this.publicListingClaimIntentsService.bind(
+                  manager,
+                  pendingClaimSubmissionId,
+                  user.id,
+                  email,
+                ),
+            }
+          : {}),
       });
     } catch (error) {
-      if (requireEmailVerification && error instanceof ConflictException) {
+      if (
+        requireEmailVerification &&
+        error instanceof EmailAlreadyRegisteredException
+      ) {
         return { status: 'pending_email_verification' as const };
       }
       throw error;

@@ -133,6 +133,7 @@ function buildHarness(options?: {
   quote?: ListingQuoteContract;
   existingIdempotentOrder?: ListingOrder | null;
   candidates?: ListingOrder[];
+  verificationEnabled?: boolean;
 }) {
   const quote = options?.quote ?? buildQuote();
   const product = buildProduct();
@@ -159,8 +160,14 @@ function buildHarness(options?: {
   };
   const manager = {
     findOne: jest.fn(async (entity: unknown) => {
-      if (entity === ListingOrder) return options?.existingIdempotentOrder ?? null;
-      if (entity === User) return { id: 'owner-1', email: 'OWNER@EXAMPLE.COM' };
+      if (entity === ListingOrder)
+        return options?.existingIdempotentOrder ?? null;
+      if (entity === User)
+        return {
+          id: 'owner-1',
+          email: 'OWNER@EXAMPLE.COM',
+          emailVerifiedAt: null,
+        };
       return null;
     }),
     find: jest.fn().mockResolvedValue(options?.candidates ?? []),
@@ -170,20 +177,22 @@ function buildHarness(options?: {
         values,
       ),
     ),
-    save: jest.fn(async (entity: unknown, value: ListingOrder | ListingOrderItem[]) => {
-      if (entity === ListingOrder && !Array.isArray(value)) {
-        return Object.assign(value, {
-          id: value.id ?? 'order-created',
-          createdAt: value.createdAt ?? new Date('2026-09-07T10:00:00.000Z'),
-        });
-      }
-      if (entity === ListingOrderItem && Array.isArray(value)) {
-        return value.map((item, index) =>
-          Object.assign(item, { id: `item-created-${index + 1}` }),
-        );
-      }
-      return value;
-    }),
+    save: jest.fn(
+      async (entity: unknown, value: ListingOrder | ListingOrderItem[]) => {
+        if (entity === ListingOrder && !Array.isArray(value)) {
+          return Object.assign(value, {
+            id: value.id ?? 'order-created',
+            createdAt: value.createdAt ?? new Date('2026-09-07T10:00:00.000Z'),
+          });
+        }
+        if (entity === ListingOrderItem && Array.isArray(value)) {
+          return value.map((item, index) =>
+            Object.assign(item, { id: `item-created-${index + 1}` }),
+          );
+        }
+        return value;
+      },
+    ),
   };
   const dataSource = {
     transaction: jest.fn((callback: (manager: EntityManager) => unknown) =>
@@ -196,6 +205,11 @@ function buildHarness(options?: {
     listingQuotesService as unknown as ListingQuotesService,
     listingEntitlementsService as unknown as ListingEntitlementsService,
     listingPromotionsService as unknown as ListingPromotionsService,
+    {
+      get: jest
+        .fn()
+        .mockReturnValue(String(options?.verificationEnabled ?? false)),
+    } as never,
     telemetryService as unknown as ListingCommerceTelemetryService,
   );
 
@@ -213,12 +227,42 @@ function buildHarness(options?: {
 describe('ListingOrdersService', () => {
   afterEach(() => jest.useRealTimers());
 
+  it('does not create a paid listing order for an unverified buyer after rollout', async () => {
+    const { service, listingQuotesService } = buildHarness({
+      verificationEnabled: true,
+    });
+    await expect(
+      service.createOrder('owner-1', 'request-key-1', orderDto),
+    ).rejects.toMatchObject({
+      response: { code: 'EMAIL_VERIFICATION_REQUIRED' },
+    });
+    expect(
+      listingQuotesService.createQuoteInTransaction,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('does not expose a previous checkout order through an idempotent retry before verification', async () => {
+    const { service } = buildHarness({
+      verificationEnabled: true,
+      existingIdempotentOrder: buildPersistedOrder(),
+    });
+    await expect(
+      service.createOrder('owner-1', 'request-key-1', orderDto),
+    ).rejects.toMatchObject({
+      response: { code: 'EMAIL_VERIFICATION_REQUIRED' },
+    });
+  });
+
   it('atomically persists the quote snapshot and matching item snapshots', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-09-07T10:00:00.000Z'));
     const { service, manager, listingQuotesService, telemetryService } =
       buildHarness();
 
-    const result = await service.createOrder('owner-1', 'request-key-1', orderDto);
+    const result = await service.createOrder(
+      'owner-1',
+      'request-key-1',
+      orderDto,
+    );
 
     expect(listingQuotesService.createQuoteInTransaction).toHaveBeenCalledWith(
       manager,
@@ -276,7 +320,9 @@ describe('ListingOrdersService', () => {
       totalGrossAmount: 3_900,
       pricingSnapshot: quote,
     });
-    expect(listingPromotionsService.reserveDiscountsForOrder).toHaveBeenCalledWith(
+    expect(
+      listingPromotionsService.reserveDiscountsForOrder,
+    ).toHaveBeenCalledWith(
       manager,
       expect.objectContaining({ id: 'order-created' }),
       expect.any(Date),
@@ -293,7 +339,11 @@ describe('ListingOrdersService', () => {
       quote: buildQuote(0),
     });
 
-    const result = await service.createOrder('owner-1', 'free-order-1', orderDto);
+    const result = await service.createOrder(
+      'owner-1',
+      'free-order-1',
+      orderDto,
+    );
 
     expect(result.status).toBe(ListingOrderStatus.PAID);
     expect(result.requiresPayment).toBe(false);
@@ -316,13 +366,19 @@ describe('ListingOrdersService', () => {
     const existing = buildPersistedOrder();
     const { service, listingQuotesService, manager, telemetryService } =
       buildHarness({
-      existingIdempotentOrder: existing,
+        existingIdempotentOrder: existing,
       });
 
-    const result = await service.createOrder('owner-1', 'request-key-1', orderDto);
+    const result = await service.createOrder(
+      'owner-1',
+      'request-key-1',
+      orderDto,
+    );
 
     expect(result.id).toBe(existing.id);
-    expect(listingQuotesService.createQuoteInTransaction).not.toHaveBeenCalled();
+    expect(
+      listingQuotesService.createQuoteInTransaction,
+    ).not.toHaveBeenCalled();
     expect(manager.save).not.toHaveBeenCalled();
     expect(telemetryService.trackOrderCreated).not.toHaveBeenCalled();
   });
@@ -332,7 +388,11 @@ describe('ListingOrdersService', () => {
     const { service, manager, telemetryService } = buildHarness();
     manager.findOne
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: 'owner-1', email: 'owner@example.com' })
+      .mockResolvedValueOnce({
+        id: 'owner-1',
+        email: 'owner@example.com',
+        emailVerifiedAt: null,
+      })
       .mockResolvedValueOnce(concurrentlyCreated);
 
     const result = await service.createOrder(
@@ -439,9 +499,9 @@ describe('ListingOrdersService', () => {
 
     const result = await service.findOwnedOrder('owner-1', existing.id);
 
-    expect(result.paymentAttempts.map((attempt) => attempt.attemptNumber)).toEqual([
-      2, 1,
-    ]);
+    expect(
+      result.paymentAttempts.map((attempt) => attempt.attemptNumber),
+    ).toEqual([2, 1]);
     expect(result.canRetryPayment).toBe(true);
     expect(result.paymentAttempts[1]).not.toHaveProperty(
       'providerCheckoutSessionId',
@@ -455,9 +515,9 @@ describe('ListingOrdersService', () => {
       findOne: jest.fn().mockResolvedValue(null),
     });
 
-    await expect(
-      service.findOwnedOrder('intruder', 'order-1'),
-    ).rejects.toThrow('Zamówienie nie istnieje');
+    await expect(service.findOwnedOrder('intruder', 'order-1')).rejects.toThrow(
+      'Zamówienie nie istnieje',
+    );
   });
 
   it('lists only buyer-scoped orders for a listing with bounded history', async () => {
@@ -495,9 +555,7 @@ describe('order idempotency helpers', () => {
     expect(normalizeIdempotencyKey('  checkout:request-1  ')).toBe(
       'checkout:request-1',
     );
-    expect(() => normalizeIdempotencyKey(undefined)).toThrow(
-      ConflictException,
-    );
+    expect(() => normalizeIdempotencyKey(undefined)).toThrow(ConflictException);
     expect(() => normalizeIdempotencyKey('contains spaces')).toThrow(
       ConflictException,
     );
@@ -536,6 +594,7 @@ describe('order idempotency helpers', () => {
       {} as ListingQuotesService,
       {} as ListingEntitlementsService,
       {} as ListingPromotionsService,
+      { get: jest.fn().mockReturnValue('false') } as never,
     );
 
     await expect(

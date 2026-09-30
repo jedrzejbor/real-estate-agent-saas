@@ -99,6 +99,20 @@ export class PublicListingSubmission {
   })
   claimTokenHash?: string | null;
 
+  /** Server-side intent for a registered seller; no raw claim token is stored. */
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({
+    name: 'pending_claim_user_id',
+    foreignKeyConstraintName: 'fk_public_listing_submissions_pending_claim_user',
+  })
+  pendingClaimUser?: User | null;
+
+  @Index('idx_public_listing_submissions_pending_claim_user_id', {
+    where: 'pending_claim_user_id IS NOT NULL',
+  })
+  @Column({ type: 'uuid', name: 'pending_claim_user_id', nullable: true })
+  pendingClaimUserId?: string | null;
+
   @Column({
     type: 'timestamptz',
     name: 'verification_expires_at',
