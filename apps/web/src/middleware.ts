@@ -6,6 +6,7 @@ const PUBLIC_PATHS = [
   '/register',
   '/forgot-password',
   '/reset-password',
+  '/verify-email',
 ];
 
 /** Simple client-side token check. Real validation happens in AuthProvider. */

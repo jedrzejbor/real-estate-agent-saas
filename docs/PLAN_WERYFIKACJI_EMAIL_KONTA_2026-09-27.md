@@ -167,3 +167,15 @@ Rollout: migracja → kod w trybie obserwacji → kontrola SMTP i metryk → wł
 **Weryfikacja:** 93 testy powiązanych serwisów przeszły; type-check API i lint API również. Testy obejmują brak dostępu do płatności przed potwierdzeniem, odrzucenie starej wyceny planu, wiązanie intencji bez jawnego tokena, odmowę przejęcia z innym e-mailem, równoległe przejęcie i ponowienie operacji. Pełny test z realną bazą, SMTP i przeglądarką należy do etapu F.
 
 **Dla etapu E:** frontend ma przekazać `claimToken` podczas rejestracji sprzedającego, a po potwierdzeniu e-maila i logowaniu odczytać intencje z serwera i wywołać `complete`. Wybrany plan, okres rozliczeniowy i kod promocyjny są wyłącznie niesekretną intencją UI; po logowaniu należy ponownie utworzyć wycenę. Flaga pozostaje wyłączona do chwili ukończenia tego przepływu.
+
+## 15. Dziennik wdrożenia — etap E (30.09.2026)
+
+**Frontend:**
+
+- Rejestracja obsługuje odpowiedź `202 pending_email_verification` bez sesji: pokazuje zamaskowany adres, instrukcję, resend i powrót do logowania. Rejestracja sprzedającego przekazuje `claimToken` do API. Dotychczasowy przepływ przy wyłączonej fladze nadal obsługuje natychmiastową sesję.
+- `/verify-email` pobiera token wyłącznie z fragmentu adresu, usuwa fragment z historii przed wywołaniem API i pokazuje wynik potwierdzenia, błąd lub formularz prośby o nowy link. Strona ma `noindex` i nagłówek `Referrer-Policy: no-referrer`. Sukces prowadzi do logowania, bez automatycznego tworzenia sesji.
+- Po poprawnym haśle konta pending logowanie pokazuje ekran resend. Błędne hasło nadal używa standardowego komunikatu logowania. Po zalogowaniu sprzedającego aplikacja pobiera przypisane intencje z serwera i kończy przejęcie oferty; działa to także na innym urządzeniu. Wybór płatnego planu agenta jest przechowywany przez 24 godziny w pamięci przeglądarki, powiązany z adresem konta. Po zalogowaniu otwiera formularz planu, który pobiera nową wycenę; kod promocji nie trafia do URL.
+
+**Weryfikacja:** kontrola typów, lint, testy przepływu intencji planu i kontraktu pending oraz produkcyjny build web. Pełny scenariusz z prawdziwym PostgreSQL, SMTP i przeglądarką pozostaje etapem F. Przeniesienie wyboru planu między różnymi urządzeniami wymaga ponownego wyboru planu; nie wpływa to na konto ani opłatę.
+
+**Przed włączeniem flagi:** wykonać etap F oraz decyzję o kontach istniejących i ustawieniach SMTP/limiterów z sekcji 8. `ACCOUNT_EMAIL_VERIFICATION_ENABLED` pozostaje domyślnie `false`.

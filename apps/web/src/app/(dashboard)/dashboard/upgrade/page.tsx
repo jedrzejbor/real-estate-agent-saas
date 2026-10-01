@@ -44,6 +44,7 @@ import {
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
 import { assertStripeCheckoutUrl } from '@/lib/stripe-checkout-url';
+import { clearPendingPlanSelection, readPendingPlanSelection } from '@/lib/registration-continuation';
 
 const resourceLabels: Record<string, string> = {
   listings: 'limit ofert',
@@ -111,6 +112,21 @@ export default function UpgradePage() {
     if (resource) return resourceLabels[resource] ?? 'upgrade planu';
     return 'upgrade planu';
   }, [resource, selectedUpsell]);
+
+  useEffect(() => {
+    const accountEmail = user?.email;
+    if (!accountEmail) return;
+    const timer = window.setTimeout(() => {
+      const intent = readPendingPlanSelection(accountEmail);
+      if (!intent) return;
+      if (intent.plan === initialPlan && intent.billing === billingInterval) {
+        setQuote(null);
+        setPromotionCode(intent.promotionCode ?? '');
+      }
+      clearPendingPlanSelection();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [user?.email, initialPlan, billingInterval]);
 
   useEffect(() => {
     let isMounted = true;
