@@ -15,6 +15,7 @@ import { UsersModule } from '../users/users.module';
 import { ReleaseFlagsModule } from '../release-flags';
 import { EmailModule } from '../email';
 import { MonitoringModule } from '../monitoring';
+import { PublicListingClaimIntentsModule } from '../public-listing-submissions/public-listing-claim-intents.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { MonitoringModule } from '../monitoring';
     ReleaseFlagsModule,
     EmailModule,
     MonitoringModule,
+    PublicListingClaimIntentsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

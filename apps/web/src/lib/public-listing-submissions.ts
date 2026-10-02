@@ -388,6 +388,22 @@ export async function claimPublicListingSubmission(
   return result;
 }
 
+export interface PendingClaimIntent {
+  id: string;
+  status: 'verified' | 'claimed' | 'approved';
+}
+
+export function listPendingClaimIntents(): Promise<PendingClaimIntent[]> {
+  return apiFetch<PendingClaimIntent[]>('/public-listing-submissions/claim-intents');
+}
+
+export function completePendingClaimIntent(submissionId: string): Promise<PublicListingSubmissionClaimResult> {
+  return apiFetch<PublicListingSubmissionClaimResult>(
+    `/public-listing-submissions/claim-intents/${encodeURIComponent(submissionId)}/complete`,
+    { method: 'POST' },
+  );
+}
+
 export function buildClaimRedirectPath(claimToken: string): string {
   const params = new URLSearchParams({ claimToken });
   return `/dashboard/claim-listing?${params.toString()}`;

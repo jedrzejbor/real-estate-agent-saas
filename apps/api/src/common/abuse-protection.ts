@@ -163,8 +163,9 @@ function countLinks(value: string): number {
 }
 
 function getClientIp(request: Request): string | null {
-  const forwardedFor = request.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return forwardedFor || request.ip || null;
+  // Express resolves request.ip using the configured trusted proxy list.
+  // Reading X-Forwarded-For directly would let clients bypass IP-based limits.
+  return request.ip || null;
 }
 
 function hashIp(ip: string | null): string | null {

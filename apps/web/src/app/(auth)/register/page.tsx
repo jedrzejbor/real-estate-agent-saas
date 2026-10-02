@@ -15,6 +15,7 @@ import {
   buildAuthReturnToPath,
   getAuthenticatedRedirectPath,
   getSafeReturnToPath,
+  isPendingRegistration,
   PRIVATE_SELLER_HOME_PATH,
   registerSchema,
   type RegisterFormData,
@@ -49,9 +50,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuthFormField } from '@/components/auth/auth-form-field';
 import { AuthRedirectLoading } from '@/components/auth/auth-redirect-loading';
+import { AccountEmailPendingNotice } from '@/components/auth/account-email-pending-notice';
 import { APP_NAME } from '@/lib/brand';
 import { cn } from '@/lib/utils';
 import { assertStripeCheckoutUrl } from '@/lib/stripe-checkout-url';
+import { savePendingPlanSelection } from '@/lib/registration-continuation';
 
 type RegisterPlan = PublicPlan & {
   code: Exclude<AgencyPlanCode, 'custom'>;
@@ -99,6 +102,7 @@ function RegisterForm() {
   const [authenticatedClaimError, setAuthenticatedClaimError] = useState<
     string | null
   >(null);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (claimToken || accountType !== 'agent') return;
@@ -204,10 +208,14 @@ function RegisterForm() {
     onSubmit: async (data: RegisterFormData) => {
       if (claimToken) {
         hasClaimedAuthenticatedTokenRef.current = true;
-        await register(
-          { ...data, accountType: 'private_seller' },
+        const response = await register(
+          { ...data, accountType: 'private_seller', claimToken },
           { skipRedirect: true },
         );
+        if (isPendingRegistration(response)) {
+          setPendingEmail(data.email);
+          return;
+        }
         try {
           const result = await claimPublicListingSubmission(claimToken);
           router.push(buildSellerListingPath(result.id));
@@ -226,7 +234,18 @@ function RegisterForm() {
           throw new Error('Wycena jest zbyt stara. Odśwież stronę i sprawdź aktualną cenę.');
         }
         isStartingCheckoutRef.current = true;
-        await register(data, { skipRedirect: true });
+        const response = await register(data, { skipRedirect: true });
+        if (isPendingRegistration(response)) {
+          savePendingPlanSelection({
+            email: data.email,
+            plan: data.selectedPlan,
+            billing: billingInterval,
+            promotionCode: promotionCode.trim() || undefined,
+          });
+          isStartingCheckoutRef.current = false;
+          setPendingEmail(data.email);
+          return;
+        }
         try {
           const attempt = await createAgencyPlanCheckoutAttempt(quote.quoteId);
           window.location.assign(assertStripeCheckoutUrl(attempt.checkoutUrl));
@@ -241,14 +260,19 @@ function RegisterForm() {
         return;
       }
 
-      await register(data, {
+      const response = await register(data, {
         redirectTo:
           data.accountType === 'private_seller'
             ? (returnToPath ?? PRIVATE_SELLER_HOME_PATH)
             : (returnToPath ?? undefined),
       });
+      if (isPendingRegistration(response)) setPendingEmail(data.email);
     },
   });
+
+  if (pendingEmail && !user) {
+    return <AccountEmailPendingNotice email={pendingEmail} />;
+  }
 
   if (isAuthLoading || user) {
     return authenticatedClaimError ? (
@@ -276,8 +300,8 @@ function RegisterForm() {
       <div className="rounded-2xl border border-border bg-card p-5 shadow-sm lg:p-6">
         {claimToken && (
           <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
-            Oferta jest już zweryfikowana. Po rejestracji automatycznie dodamy
-            ją do Twojego panelu.
+            Oferta jest już zweryfikowana. Po rejestracji i ewentualnym
+            potwierdzeniu adresu e-mail dodamy ją do Twojego panelu.
           </div>
         )}
 
@@ -349,8 +373,8 @@ function RegisterForm() {
               </div>
               {claimToken ? (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Zweryfikowana oferta zostanie automatycznie przypisana do
-                  konta właściciela.
+                  Po rejestracji i ewentualnym potwierdzeniu adresu e-mail
+                  oferta zostanie przypisana do konta właściciela.
                 </p>
               ) : null}
               {getFieldError('accountType') ? (
@@ -515,8 +539,9 @@ function RegisterForm() {
                 </div>
 
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  Po utworzeniu konta przejdziesz do Stripe Checkout. Plan
-                  zostanie aktywowany dopiero po potwierdzeniu płatności.
+                  Jeśli konto wymaga potwierdzenia adresu e-mail, zapłacisz po
+                  weryfikacji i zalogowaniu. Plan zostanie aktywowany dopiero po
+                  opłaceniu w Stripe Checkout.
                 </p>
                 {getFieldError('selectedPlan') ? (
                   <p className="mt-2 text-xs text-destructive">

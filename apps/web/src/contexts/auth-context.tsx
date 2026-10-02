@@ -18,11 +18,16 @@ import { fetchCurrentUser } from '@/lib/account';
 import {
   type AuthUser,
   type AuthResponse,
+  type RegisterResponse,
   type LoginFormData,
   type RegisterFormData,
   clearLegacyAuthTokens,
   getAuthenticatedRedirectPath,
+  isPendingRegistration,
+  isPrivateSellerUser,
 } from '@/lib/auth';
+import { listPendingClaimIntents } from '@/lib/public-listing-submissions';
+import { getPendingPlanContinuationPath } from '@/lib/registration-continuation';
 
 // ── Context shape ──
 
@@ -35,9 +40,9 @@ interface AuthContextValue {
     options?: AuthRedirectOptions,
   ) => Promise<AuthResponse>;
   register: (
-    data: RegisterFormData,
+    data: RegisterFormData & { claimToken?: string },
     options?: AuthRedirectOptions,
-  ) => Promise<AuthResponse>;
+  ) => Promise<RegisterResponse>;
   refreshUser: () => Promise<AuthUser | null>;
   logout: () => void;
 }
@@ -161,8 +166,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
       if (!options?.skipRedirect) {
+        let continuation = options?.redirectTo;
+        if (!continuation && isPrivateSellerUser(res.user)) {
+          try {
+            const intents = await listPendingClaimIntents();
+            if (intents.some((intent) => intent.status === 'verified')) {
+              continuation = '/dashboard/claim-listing';
+            }
+          } catch {
+            // Login stays usable; the seller can retry from their account.
+          }
+        }
+        if (!continuation && !isPrivateSellerUser(res.user)) {
+          continuation = getPendingPlanContinuationPath(res.user.email) ?? undefined;
+        }
         router.push(
-          getAuthenticatedRedirectPath(res.user, options?.redirectTo),
+          getAuthenticatedRedirectPath(res.user, continuation),
         );
       }
       return res;
@@ -172,12 +191,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     async (data: RegisterFormData, options?: AuthRedirectOptions) => {
-      const res = await apiFetch<AuthResponse>('/auth/register', {
+      const res = await apiFetch<RegisterResponse>('/auth/register', {
         method: 'POST',
         body: data,
         skipAuth: true,
       });
       clearLegacyAuthTokens();
+      if (isPendingRegistration(res)) {
+        setUser(null);
+        return res;
+      }
       setUser(res.user);
       if (!options?.skipRedirect) {
         router.push(

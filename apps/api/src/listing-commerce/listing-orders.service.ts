@@ -6,6 +6,11 @@ import {
   Optional,
 } from '@nestjs/common';
 import { DataSource, EntityManager, In, QueryFailedError } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
+import {
+  assertVerifiedEmailForSensitiveAction,
+  isEmailVerificationEnforced,
+} from '../auth/account-email-access.policy';
 import { User } from '../users/entities';
 import type { ListingOrderContract } from './contracts';
 import { CreateListingOrderDto, ListingOrderBuyerDto } from './dto';
@@ -35,6 +40,7 @@ export class ListingOrdersService {
     private readonly listingQuotesService: ListingQuotesService,
     private readonly listingEntitlementsService: ListingEntitlementsService,
     private readonly listingPromotionsService: ListingPromotionsService,
+    private readonly configService: ConfigService,
     @Optional()
     private readonly telemetryService?: ListingCommerceTelemetryService,
   ) {}
@@ -82,6 +88,13 @@ export class ListingOrdersService {
           idempotencyKey,
         );
         if (existing) {
+          if (isEmailVerificationEnforced(this.configService)) {
+            const buyer = await manager.findOne(User, {
+              where: { id: buyerUserId, isActive: true },
+            });
+            if (!buyer) throw new NotFoundException('Użytkownik nie istnieje');
+            assertVerifiedEmailForSensitiveAction(buyer, this.configService);
+          }
           return {
             order: this.assertMatchingIdempotentOrder(
               existing,
@@ -96,6 +109,7 @@ export class ListingOrdersService {
           where: { id: buyerUserId, isActive: true },
         });
         if (!buyer) throw new NotFoundException('Użytkownik nie istnieje');
+        assertVerifiedEmailForSensitiveAction(buyer, this.configService);
 
         const now = new Date();
         const { quote, products } =
@@ -152,9 +166,7 @@ export class ListingOrdersService {
           providerPaymentId: null,
           metadata: {
             requestFingerprint,
-            ...(isZeroValue
-              ? { zeroValueFinalizedAt: now.toISOString() }
-              : {}),
+            ...(isZeroValue ? { zeroValueFinalizedAt: now.toISOString() } : {}),
           },
           paidAt: isZeroValue ? now : null,
         });

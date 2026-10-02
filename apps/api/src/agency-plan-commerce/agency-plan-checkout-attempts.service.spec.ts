@@ -91,11 +91,14 @@ function buildAttempt(
   } as AgencyPlanCheckoutAttempt;
 }
 
-function buildService(input: {
-  quote?: AgencyPlanQuote | null;
-  latestAttempt?: AgencyPlanCheckoutAttempt | null;
-  plan?: PlanCatalog | null;
-} = {}) {
+function buildService(
+  input: {
+    quote?: AgencyPlanQuote | null;
+    latestAttempt?: AgencyPlanCheckoutAttempt | null;
+    plan?: PlanCatalog | null;
+    verificationEnabled?: boolean;
+  } = {},
+) {
   const createdAttempts: AgencyPlanCheckoutAttempt[] = [];
   const saved: unknown[] = [];
   const quote = input.quote === undefined ? buildQuote() : input.quote;
@@ -140,7 +143,7 @@ function buildService(input: {
   };
   const usersService = {
     getAgencyAccessContext: jest.fn().mockResolvedValue({
-      user: { id: 'user-1', email: 'owner@example.com' },
+      user: { id: 'user-1', email: 'owner@example.com', emailVerifiedAt: null },
       agency: {
         id: 'agency-1',
         name: 'Example Agency',
@@ -169,6 +172,11 @@ function buildService(input: {
       usersService as never,
       promotionsService as never,
       paymentGateway as never,
+      {
+        get: jest
+          .fn()
+          .mockReturnValue(String(input.verificationEnabled ?? false)),
+      } as never,
     ),
     manager,
     usersService,
@@ -181,6 +189,30 @@ function buildService(input: {
 }
 
 describe('AgencyPlanCheckoutAttemptsService', () => {
+  it('blocks checkout until email proof and then requires a new quote', async () => {
+    const { service, usersService, paymentGateway } = buildService({
+      verificationEnabled: true,
+    });
+    await expect(
+      service.createCheckoutAttempt('user-1', 'quote-1', NOW),
+    ).rejects.toMatchObject({
+      response: { code: 'EMAIL_VERIFICATION_REQUIRED' },
+    });
+    usersService.getAgencyAccessContext.mockResolvedValueOnce({
+      user: {
+        id: 'user-1',
+        email: 'owner@example.com',
+        emailVerifiedAt: new Date(NOW.getTime() + 1_000),
+      },
+      agency: { id: 'agency-1', billingSubscriptionId: null },
+    });
+    await expect(
+      service.createCheckoutAttempt('user-1', 'quote-1', NOW),
+    ).rejects.toThrow('Wycena poprzedza weryfikację konta');
+    expect(
+      paymentGateway.createSubscriptionCheckoutSession,
+    ).not.toHaveBeenCalled();
+  });
   it('attaches a public quote, reserves discounts, creates a provider session and binds it to the attempt', async () => {
     const {
       service,
@@ -230,7 +262,9 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
       providerCheckoutSessionId: 'cs_agent_1',
       providerSubscriptionId: 'sub_pending_1',
     });
-    expect(paymentGateway.createSubscriptionCheckoutSession).toHaveBeenCalledWith({
+    expect(
+      paymentGateway.createSubscriptionCheckoutSession,
+    ).toHaveBeenCalledWith({
       quoteId: 'quote-1',
       checkoutAttemptId: 'attempt-1',
       attemptNumber: 1,
@@ -283,7 +317,9 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
     );
 
     expect(manager.create).not.toHaveBeenCalled();
-    expect(paymentGateway.createSubscriptionCheckoutSession).toHaveBeenCalledWith(
+    expect(
+      paymentGateway.createSubscriptionCheckoutSession,
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
         checkoutAttemptId: 'attempt-open',
       }),
@@ -309,11 +345,19 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
     const { service, usersService, paymentGateway } = buildService();
     usersService.getAgencyAccessContext.mockResolvedValueOnce({
       user: { id: 'user-1', email: 'owner@example.com' },
-      agency: { id: 'agency-1', name: 'Example Agency', billingSubscriptionId: 'sub_existing' },
+      agency: {
+        id: 'agency-1',
+        name: 'Example Agency',
+        billingSubscriptionId: 'sub_existing',
+      },
     });
 
-    await expect(service.createCheckoutAttempt('user-1', 'quote-1', NOW)).rejects.toBeInstanceOf(ConflictException);
-    expect(paymentGateway.createSubscriptionCheckoutSession).not.toHaveBeenCalled();
+    await expect(
+      service.createCheckoutAttempt('user-1', 'quote-1', NOW),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(
+      paymentGateway.createSubscriptionCheckoutSession,
+    ).not.toHaveBeenCalled();
   });
 
   it('rejects expired quotes before reserving discounts', async () => {
@@ -327,7 +371,9 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
       service.createCheckoutAttempt('user-1', 'quote-1', NOW),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(promotionsService.reserveDiscountsForQuote).not.toHaveBeenCalled();
-    expect(paymentGateway.createSubscriptionCheckoutSession).not.toHaveBeenCalled();
+    expect(
+      paymentGateway.createSubscriptionCheckoutSession,
+    ).not.toHaveBeenCalled();
   });
 
   it('rejects quotes with less than 35 minutes remaining before reserving discounts', async () => {
@@ -335,9 +381,13 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
       quote: buildQuote({ expiresAt: new Date('2026-09-17T10:34:59.000Z') }),
     });
 
-    await expect(service.createCheckoutAttempt('user-1', 'quote-1', NOW)).rejects.toBeInstanceOf(ConflictException);
+    await expect(
+      service.createCheckoutAttempt('user-1', 'quote-1', NOW),
+    ).rejects.toBeInstanceOf(ConflictException);
     expect(promotionsService.reserveDiscountsForQuote).not.toHaveBeenCalled();
-    expect(paymentGateway.createSubscriptionCheckoutSession).not.toHaveBeenCalled();
+    expect(
+      paymentGateway.createSubscriptionCheckoutSession,
+    ).not.toHaveBeenCalled();
   });
 
   it('rejects already successful checkout attempts', async () => {
@@ -365,6 +415,8 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
     await expect(
       service.createCheckoutAttempt('user-1', 'quote-1', NOW),
     ).rejects.toBeInstanceOf(ConflictException);
-    expect(paymentGateway.createSubscriptionCheckoutSession).not.toHaveBeenCalled();
+    expect(
+      paymentGateway.createSubscriptionCheckoutSession,
+    ).not.toHaveBeenCalled();
   });
 });

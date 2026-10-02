@@ -200,6 +200,22 @@ export class PublicListingSubmissionsController {
   ) {
     return this.submissionsService.claim(userId, dto);
   }
+
+  /** GET /api/public-listing-submissions/claim-intents — recover claims after login on any device. */
+  @Get('claim-intents')
+  listClaimIntents(@CurrentUser('id') userId: string) {
+    return this.submissionsService.listClaimIntents(userId);
+  }
+
+  /** POST /api/public-listing-submissions/claim-intents/:id/complete — idempotent claim. */
+  @Post('claim-intents/:id/complete')
+  @HttpCode(HttpStatus.OK)
+  completeClaimIntent(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.submissionsService.completeClaimIntent(userId, id);
+  }
 }
 
 @Controller('admin/listing-submissions')

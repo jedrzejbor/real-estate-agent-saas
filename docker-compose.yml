@@ -45,6 +45,7 @@ services:
       JWT_SECRET: dev-super-secret-key-change-in-production-2024
       JWT_ACCESS_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN: 7d
+      ACCOUNT_EMAIL_VERIFICATION_ENABLED: ${ACCOUNT_EMAIL_VERIFICATION_ENABLED:-false}
       EMAIL_PROVIDER: smtp
       SMTP_HOST: mailpit
       SMTP_PORT: 1025

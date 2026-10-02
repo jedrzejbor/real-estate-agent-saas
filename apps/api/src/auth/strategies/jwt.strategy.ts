@@ -6,6 +6,7 @@ import { Request } from 'express';
 import { UsersService } from '../../users/users.service';
 import { extractAccessTokenFromRequest } from '../auth-token-cookies';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
+import { needsEmailVerification } from '../account-email-access.policy';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -27,7 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload) {
     const user = await this.usersService.findById(payload.sub);
 
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || needsEmailVerification(user)) {
       throw new UnauthorizedException('Sesja wygasła lub konto nieaktywne');
     }
 

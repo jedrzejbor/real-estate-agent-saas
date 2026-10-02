@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -12,6 +13,8 @@ import type { Request } from 'express';
 import { mkdir, writeFile } from 'fs/promises';
 import { extname, join } from 'path';
 import { DataSource, In, MoreThanOrEqual, Not, Repository } from 'typeorm';
+import { normalizeAccountEmail } from '../auth/account-email';
+import { assertVerifiedEmailForSensitiveAction } from '../auth/account-email-access.policy';
 import { ActivityService } from '../activity';
 import { AnalyticsEvent } from '../analytics/entities/analytics-event.entity';
 import { EmailService } from '../email';
@@ -348,10 +351,7 @@ export class PublicListingSubmissionsService {
       throw new NotFoundException('Użytkownik nie znaleziony');
     }
 
-    const ownerName = [
-      owner.agent?.firstName,
-      owner.agent?.lastName,
-    ]
+    const ownerName = [owner.agent?.firstName, owner.agent?.lastName]
       .filter(Boolean)
       .join(' ')
       .trim();
@@ -581,7 +581,9 @@ export class PublicListingSubmissionsService {
       .where('listing_id = :listingId', { listingId: listing.id })
       .execute();
 
-    const imageData = sortImageDataByPrimary(buildImageDataFromPayload(payload));
+    const imageData = sortImageDataByPrimary(
+      buildImageDataFromPayload(payload),
+    );
     const primaryImageIndex = getPrimaryImageIndex(imageData);
     const images = imageData.map((image, index) =>
       manager.create(ListingImage, {
@@ -1133,30 +1135,86 @@ export class PublicListingSubmissionsService {
     );
   }
 
+  async listClaimIntents(
+    userId: string,
+  ): Promise<Array<{ id: string; status: PublicListingSubmissionStatus }>> {
+    const submissions = await this.submissionRepo.find({
+      where: { pendingClaimUserId: userId },
+      order: { createdAt: 'ASC' },
+    });
+    return submissions.map(({ id, status }) => ({ id, status }));
+  }
+
+  async completeClaimIntent(
+    userId: string,
+    submissionId: string,
+  ): Promise<PublicListingSubmissionClaimResult> {
+    return this.monitoringService.monitor(
+      {
+        flow: 'public_submission_claim',
+        failureEvent: 'claim_failed',
+        successEvent: 'submission_claimed',
+        context: { userId, submissionId },
+      },
+      () => this.claimCore(userId, { submissionId }),
+    );
+  }
+
   private async claimCore(
     userId: string,
-    dto: ClaimPublicListingSubmissionDto,
+    lookup: ClaimPublicListingSubmissionDto | { submissionId: string },
   ): Promise<PublicListingSubmissionClaimResult> {
-    const claimTokenHash = hashToken(dto.claimToken);
-    const submission = await this.submissionRepo.findOne({
-      where: { claimTokenHash },
+    const byIntent = 'submissionId' in lookup;
+    const initialSubmission = await this.submissionRepo.findOne({
+      where: byIntent
+        ? { id: lookup.submissionId, pendingClaimUserId: userId }
+        : { claimTokenHash: hashToken(lookup.claimToken) },
     });
 
-    if (!submission) {
+    if (!initialSubmission) {
       throw new BadRequestException('Nieprawidłowy token przejęcia oferty');
     }
+    let submission: PublicListingSubmission = initialSubmission;
 
-    if (submission.status !== PublicListingSubmissionStatus.VERIFIED) {
+    if (
+      submission.status !== PublicListingSubmissionStatus.VERIFIED &&
+      !(
+        byIntent &&
+        submission.ownerUserId === userId &&
+        submission.publishedListingId
+      )
+    ) {
       throw new BadRequestException('To zgłoszenie nie może zostać przejęte');
     }
 
     const access = await this.usersService.getAgencyAccessContext(userId);
+    assertVerifiedEmailForSensitiveAction(access.user, this.configService);
+    if (
+      normalizeAccountEmail(submission.email) !==
+        normalizeAccountEmail(access.user.email) ||
+      (submission.pendingClaimUserId &&
+        submission.pendingClaimUserId !== userId)
+    ) {
+      throw new ForbiddenException(
+        'Adres e-mail konta nie pasuje do zgłoszenia',
+      );
+    }
+    if (byIntent && !access.user.emailVerifiedAt) {
+      throw new ForbiddenException('Najpierw potwierdź adres e-mail konta');
+    }
+    if (
+      byIntent &&
+      submission.publishedListingId &&
+      submission.ownerUserId === userId
+    ) {
+      return this.presentExistingClaim(submission);
+    }
     await this.assertListingCreateWithinPlanLimit(access);
 
     const now = new Date();
     const moderation = evaluateSubmissionModeration(submission);
-    const paidCheckoutEnabled = this.releaseFlagsService.getFlags()
-      .privateListingCheckoutEnabled;
+    const paidCheckoutEnabled =
+      this.releaseFlagsService.getFlags().privateListingCheckoutEnabled;
     const awaitingPaidPublication =
       paidCheckoutEnabled && !moderation.reviewRequired;
     const listingState = awaitingPaidPublication
@@ -1172,6 +1230,30 @@ export class PublicListingSubmissionsService {
         ? buildSellerListingExpiresAt(now)
         : null;
     const claimed = await this.dataSource.transaction(async (manager) => {
+      const locked = await manager.findOne(PublicListingSubmission, {
+        where: { id: submission.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked) throw new BadRequestException('Zgłoszenie nie istnieje');
+      if (locked.status !== PublicListingSubmissionStatus.VERIFIED) {
+        if (
+          byIntent &&
+          locked.ownerUserId === userId &&
+          locked.publishedListingId
+        ) {
+          return { submission: locked, listing: null, created: false as const };
+        }
+        throw new ConflictException('Zgłoszenie zostało już przejęte');
+      }
+      if (
+        locked.claimTokenHash !== submission.claimTokenHash ||
+        (locked.pendingClaimUserId && locked.pendingClaimUserId !== userId) ||
+        normalizeAccountEmail(locked.email) !==
+          normalizeAccountEmail(access.user.email)
+      ) {
+        throw new ConflictException('Zgłoszenie zmieniło stan');
+      }
+      submission = locked;
       const listing = manager.create(Listing, {
         ...buildListingDataFromPayload(submission.payload),
         agentId: access.agent.id,
@@ -1245,8 +1327,14 @@ export class PublicListingSubmissionsService {
         submission,
       );
 
-      return { listing: savedListing, submission: savedSubmission };
+      return {
+        listing: savedListing,
+        submission: savedSubmission,
+        created: true as const,
+      };
     });
+
+    if (!claimed.created) return this.presentExistingClaim(claimed.submission);
 
     await this.activityService.log({
       userId,
@@ -1277,6 +1365,27 @@ export class PublicListingSubmissionsService {
       listingId: claimed.listing.id,
       publicSlug: claimed.listing.publicSlug ?? null,
       claimedAt: claimed.submission.claimedAt ?? now,
+      reviewRequired: moderation.reviewRequired,
+      moderationReasons: moderation.reasons,
+    };
+  }
+
+  private async presentExistingClaim(
+    submission: PublicListingSubmission,
+  ): Promise<PublicListingSubmissionClaimResult> {
+    const listing = await this.listingRepo.findOne({
+      where: { id: submission.publishedListingId! },
+    });
+    if (!listing || !submission.claimedAt) {
+      throw new ConflictException('Nie można odczytać przejętej oferty');
+    }
+    const moderation = evaluateSubmissionModeration(submission);
+    return {
+      id: submission.id,
+      status: submission.status,
+      listingId: listing.id,
+      publicSlug: listing.publicSlug ?? null,
+      claimedAt: submission.claimedAt,
       reviewRequired: moderation.reviewRequired,
       moderationReasons: moderation.reasons,
     };
@@ -1314,8 +1423,8 @@ export class PublicListingSubmissionsService {
     }
 
     const now = new Date();
-    const paidCheckoutEnabled = this.releaseFlagsService.getFlags()
-      .privateListingCheckoutEnabled;
+    const paidCheckoutEnabled =
+      this.releaseFlagsService.getFlags().privateListingCheckoutEnabled;
     listing.publicSlug =
       listing.publicSlug ??
       (await this.generateUniquePublicSlug(submission.payload));
@@ -1329,8 +1438,7 @@ export class PublicListingSubmissionsService {
       submission.publishedAt = null;
       submission.expiresAt = null;
     } else {
-      const expiresAt =
-        listing.expiresAt ?? buildSellerListingExpiresAt(now);
+      const expiresAt = listing.expiresAt ?? buildSellerListingExpiresAt(now);
       listing.status = ListingStatus.ACTIVE;
       listing.publicationStatus = ListingPublicationStatus.PUBLISHED;
       listing.publishedAt = listing.publishedAt ?? now;
@@ -2307,8 +2415,7 @@ function normalizeAgentCollaborationInput(
     allowsExclusiveAgreement:
       input.preferences?.allowsExclusiveAgreement ?? false,
     allowsMultipleAgents,
-    preferredCommissionType:
-      input.preferences?.preferredCommissionType ?? null,
+    preferredCommissionType: input.preferences?.preferredCommissionType ?? null,
     preferredCommissionValue:
       input.preferences?.preferredCommissionValue ?? null,
     expectedServices: (input.preferences?.expectedServices ?? [])

@@ -37,6 +37,7 @@
 - [ ] 🔴 Plik `.env.production` stworzony bezpośrednio na serwerze — NIE commitować do gita
 - [ ] 🔴 Zmienić `NODE_ENV=production` w kontenerach API i Web
 - [ ] 🔴 Skonfigurować Nginx (`/etc/nginx/sites-available/estateflow`) z proxy do kontenerów
+- [ ] 🔴 Ustawić `TRUSTED_PROXY_CIDRS` tylko na adresy ingressu widziane przez API; Nginx ma nadpisywać `X-Forwarded-For` adresem klienta, a limity IP wymagają próby z podszytym nagłówkiem
 - [ ] 🟠 Skrypt deploy: `git pull && docker compose -f docker-compose.prod.yml up --build -d`
 - [ ] 🟠 CI/CD pipeline (GitHub Actions) — automatyczny deploy na VPS po push do `main` przez SSH
 - [ ] 🟠 Health check endpoint `/api/health` sprawdzony i monitorowany
@@ -87,7 +88,7 @@
   - opcja B: **Brevo (Sendinblue)** — ma polskie compliance
   - opcja C: **SendGrid**, **Postmark**
 - [ ] 🔴 Zweryfikować domenę w serwisie email (SPF, DKIM, DMARC)
-- [ ] 🔴 Skonfigurować `EMAIL_DRIVER=smtp` zamiast log-providera
+- [ ] 🔴 Skonfigurować `EMAIL_PROVIDER=smtp` zamiast log-providera; sprawdzić `SMTP_FROM`, `FRONTEND_URL` i dostarczenie linku na staging
 - [ ] 🔴 Przetestować wysyłkę emaili weryfikacyjnych i powiadomień o zapytaniach
 - [ ] 🔴 Skonfigurować skrzynki:
   - `support@estateflow.pl` — obsługa klientów
@@ -315,12 +316,14 @@ JWT_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 
 # Email (Resend — darmowy tier 3k emaili/mies.)
-EMAIL_DRIVER=smtp
+EMAIL_PROVIDER=smtp
 SMTP_HOST=smtp.resend.com
 SMTP_PORT=465
+SMTP_SECURE=true
 SMTP_USER=resend
-SMTP_PASS=<resend-api-key>
-EMAIL_FROM=noreply@estateflow.pl
+SMTP_PASSWORD=<resend-api-key>
+SMTP_FROM=PodAdresem <noreply@twoja-domena.example>
+ACCOUNT_EMAIL_VERIFICATION_ENABLED=false # włączyć po odbiorze etap F i migracji istniejących kont
 
 # Storage — Cloudflare R2
 STORAGE_DRIVER=s3
@@ -374,6 +377,7 @@ server {
         proxy_pass http://localhost:4000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
     }
 }
 ```

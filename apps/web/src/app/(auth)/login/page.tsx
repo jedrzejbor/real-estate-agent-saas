@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
@@ -20,6 +20,8 @@ import { Button } from '@/components/ui/button';
 import { AuthFormField } from '@/components/auth/auth-form-field';
 import { AuthRedirectLoading } from '@/components/auth/auth-redirect-loading';
 import { APP_NAME } from '@/lib/brand';
+import { isEmailVerificationRequired } from '@/lib/account-email-verification';
+import { AccountEmailPendingNotice } from '@/components/auth/account-email-pending-notice';
 
 export default function LoginPage() {
   return (
@@ -41,9 +43,11 @@ function LoginForm() {
     ? null
     : getSafeReturnToPath(searchParams.get('returnTo'));
   const redirectPath = claimRedirectPath ?? returnToPath;
+  const submittedRef = useRef(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isAuthLoading || !user) return;
+    if (isAuthLoading || !user || submittedRef.current) return;
 
     router.replace(getAuthenticatedRedirectPath(user, redirectPath));
   }, [isAuthLoading, redirectPath, router, user]);
@@ -56,9 +60,23 @@ function LoginForm() {
   } = useAuthForm<typeof loginSchema>({
     schema: loginSchema,
     onSubmit: async (data: LoginFormData) => {
-      await login(data, { redirectTo: redirectPath ?? undefined });
+      submittedRef.current = true;
+      try {
+        await login(data, { redirectTo: redirectPath ?? undefined });
+      } catch (error) {
+        submittedRef.current = false;
+        if (isEmailVerificationRequired(error)) {
+          setPendingEmail(data.email);
+          return;
+        }
+        throw error;
+      }
     },
   });
+
+  if (pendingEmail && !user) {
+    return <AccountEmailPendingNotice email={pendingEmail} onBackToLogin={() => setPendingEmail(null)} />;
+  }
 
   if (isAuthLoading || user) {
     return <AuthRedirectLoading />;

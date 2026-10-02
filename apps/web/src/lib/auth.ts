@@ -104,6 +104,22 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
+export type RegisterResponse =
+  | AuthResponse
+  | { status: 'pending_email_verification' };
+
+export function isPendingRegistration(
+  response: RegisterResponse,
+): response is { status: 'pending_email_verification' } {
+  return 'status' in response && response.status === 'pending_email_verification';
+}
+
+export function maskAccountEmail(email: string): string {
+  const [local, domain] = email.trim().split('@');
+  if (!local || !domain) return '***';
+  return `${local.slice(0, 2)}***@${domain}`;
+}
+
 export const PRIVATE_SELLER_HOME_PATH = '/seller';
 export const AGENT_DASHBOARD_PATH = '/dashboard';
 
@@ -232,7 +248,7 @@ export function getAuthenticatedRedirectPath(
 }
 
 export function getSafeReturnToPath(value?: string | null): string | null {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+  if (!value || !value.startsWith('/') || value.startsWith('//') || /[\\\r\n]/.test(value)) {
     return null;
   }
 

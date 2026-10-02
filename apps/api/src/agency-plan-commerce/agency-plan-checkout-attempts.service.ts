@@ -5,6 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
+import {
+  assertVerifiedEmailForSensitiveAction,
+  isEmailVerificationEnforced,
+} from '../auth/account-email-access.policy';
 import { PlanCatalog } from '../plans/entities';
 import { UsersService } from '../users/users.service';
 import type { AgencyPlanCheckoutAttemptContract } from './contracts';
@@ -34,6 +39,7 @@ export class AgencyPlanCheckoutAttemptsService {
     private readonly promotionsService: AgencyPlanPromotionsService,
     @Inject(AGENCY_PLAN_PAYMENT_GATEWAY)
     private readonly paymentGateway: AgencyPlanPaymentGateway,
+    private readonly configService: ConfigService,
   ) {}
 
   async createCheckoutAttempt(
@@ -42,6 +48,7 @@ export class AgencyPlanCheckoutAttemptsService {
     now = new Date(),
   ): Promise<AgencyPlanCheckoutAttemptContract> {
     const access = await this.usersService.getAgencyAccessContext(userId);
+    assertVerifiedEmailForSensitiveAction(access.user, this.configService);
     if (access.agency.billingSubscriptionId) {
       throw new ConflictException(
         'Zmiana aktywnego abonamentu wymaga obsługi istniejącej subskrypcji',
@@ -52,12 +59,25 @@ export class AgencyPlanCheckoutAttemptsService {
       const quote = await this.findQuoteForUpdate(manager, quoteId);
       assertQuoteBelongsToRequester(quote, userId, access.agency.id);
       assertQuoteCanStartCheckout(quote, now);
+      if (
+        isEmailVerificationEnforced(this.configService) &&
+        access.user.emailVerifiedAt &&
+        quote.quotedAt.getTime() < access.user.emailVerifiedAt.getTime()
+      ) {
+        throw new ConflictException(
+          'Wycena poprzedza weryfikację konta, przelicz cenę ponownie',
+        );
+      }
       const plan = await this.findPlanForQuote(manager, quote);
 
       if (!quote.userId) quote.userId = userId;
       if (!quote.agencyId) quote.agencyId = access.agency.id;
 
-      await this.promotionsService.reserveDiscountsForQuote(manager, quote, now);
+      await this.promotionsService.reserveDiscountsForQuote(
+        manager,
+        quote,
+        now,
+      );
 
       const attempt = await this.findOrCreateOpenAttempt(manager, quote, now);
       quote.metadata = {
@@ -93,10 +113,9 @@ export class AgencyPlanCheckoutAttemptsService {
       };
     });
 
-    const session =
-      await this.paymentGateway.createSubscriptionCheckoutSession(
-        prepared.paymentInput,
-      );
+    const session = await this.paymentGateway.createSubscriptionCheckoutSession(
+      prepared.paymentInput,
+    );
 
     return this.dataSource.transaction(async (manager) => {
       const quote = await this.findQuoteForUpdate(manager, prepared.quoteId);
@@ -251,7 +270,9 @@ function assertQuoteBelongsToRequester(
 
 function assertQuoteCanStartCheckout(quote: AgencyPlanQuote, now: Date): void {
   if (quote.expiresAt.getTime() - now.getTime() < MIN_CHECKOUT_REMAINING_MS) {
-    throw new ConflictException('Wycena jest zbyt stara, przelicz cenę ponownie');
+    throw new ConflictException(
+      'Wycena jest zbyt stara, przelicz cenę ponownie',
+    );
   }
   if (quote.totalGrossAmount <= 0) {
     throw new ConflictException('Plan nie wymaga płatności');
@@ -260,9 +281,7 @@ function assertQuoteCanStartCheckout(quote: AgencyPlanQuote, now: Date): void {
     quote.status !== AgencyPlanQuoteStatus.QUOTED &&
     quote.status !== AgencyPlanQuoteStatus.RESERVED
   ) {
-    throw new ConflictException(
-      'Stan wyceny nie pozwala rozpocząć checkoutu',
-    );
+    throw new ConflictException('Stan wyceny nie pozwala rozpocząć checkoutu');
   }
 }
 

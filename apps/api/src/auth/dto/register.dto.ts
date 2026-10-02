@@ -66,4 +66,10 @@ export class RegisterDto {
   @IsString()
   @MaxLength(255)
   lastName?: string;
+
+  /** Optional public listing claim intent, bound to this account during registration. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  claimToken?: string;
 }

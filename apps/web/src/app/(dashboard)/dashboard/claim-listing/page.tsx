@@ -20,6 +20,8 @@ import { isPrivateSellerUser } from '@/lib/auth';
 import {
   buildSellerListingPath,
   claimPublicListingSubmission,
+  completePendingClaimIntent,
+  listPendingClaimIntents,
   type PublicListingSubmissionClaimResult,
 } from '@/lib/public-listing-submissions';
 
@@ -41,24 +43,21 @@ function ClaimListingContent() {
   const claimToken = searchParams.get('claimToken');
   const hasClaimedRef = useRef(false);
   const { success: showSuccessToast, error: showErrorToast } = useToast();
-  const [state, setState] = useState<ClaimState>(() =>
-    claimToken
-      ? { status: 'loading' }
-      : {
-          status: 'error',
-          message: 'Brakuje tokenu przejęcia oferty.',
-        },
-  );
+  const [state, setState] = useState<ClaimState>({ status: 'loading' });
 
   useEffect(() => {
     if (hasClaimedRef.current) return;
     hasClaimedRef.current = true;
 
-    if (!claimToken) {
-      return;
-    }
+    const claim = claimToken
+      ? claimPublicListingSubmission(claimToken)
+      : listPendingClaimIntents().then((intents) => {
+          const pending = intents.find((intent) => intent.status === 'verified');
+          if (!pending) throw new Error('Nie ma oferty oczekującej na przejęcie na tym koncie.');
+          return completePendingClaimIntent(pending.id);
+        });
 
-    claimPublicListingSubmission(claimToken)
+    claim
       .then((result) => {
         setState({ status: 'success', result });
         showSuccessToast({

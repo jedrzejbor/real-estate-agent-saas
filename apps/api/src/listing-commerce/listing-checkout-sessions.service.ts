@@ -7,6 +7,12 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
+import { User } from '../users/entities';
+import {
+  assertVerifiedEmailForSensitiveAction,
+  isEmailVerificationEnforced,
+} from '../auth/account-email-access.policy';
 import { ReleaseFlagsService } from '../release-flags';
 import type { ListingCheckoutSessionContract } from './contracts';
 import { ListingOrder, ListingPaymentAttempt } from './entities';
@@ -44,6 +50,7 @@ export class ListingCheckoutSessionsService {
     @Inject(LISTING_PAYMENT_GATEWAY)
     private readonly paymentGateway: ListingPaymentGateway,
     private readonly releaseFlagsService: ReleaseFlagsService,
+    private readonly configService: ConfigService,
     @Optional()
     private readonly telemetryService?: ListingCommerceTelemetryService,
   ) {}
@@ -140,6 +147,13 @@ export class ListingCheckoutSessionsService {
     buyerUserId: string,
     orderId: string,
   ): Promise<CreateListingPaymentSessionInput> {
+    if (isEmailVerificationEnforced(this.configService)) {
+      const buyer = await manager.findOne(User, {
+        where: { id: buyerUserId, isActive: true },
+      });
+      if (!buyer) throw new NotFoundException('Użytkownik nie istnieje');
+      assertVerifiedEmailForSensitiveAction(buyer, this.configService);
+    }
     const order = await this.findOwnedOrderForUpdate(
       manager,
       buyerUserId,
@@ -194,9 +208,7 @@ export class ListingCheckoutSessionsService {
         failureCode: null,
         failureMessage: null,
         expiresAt: new Date(
-          now.getTime() +
-            CHECKOUT_VALIDITY_MS +
-            PROVIDER_EXPIRY_CLOCK_SKEW_MS,
+          now.getTime() + CHECKOUT_VALIDITY_MS + PROVIDER_EXPIRY_CLOCK_SKEW_MS,
         ),
         startedAt: now,
         completedAt: null,
@@ -229,9 +241,7 @@ export class ListingCheckoutSessionsService {
       buyerEmail: order.buyerSnapshot.email,
       currency: attempt.currency,
       totalGrossAmount: attempt.amountGross,
-      itemNames: (order.items ?? []).map(
-        (item) => item.productNameSnapshot,
-      ),
+      itemNames: (order.items ?? []).map((item) => item.productNameSnapshot),
       expiresAt: attempt.expiresAt,
     };
   }

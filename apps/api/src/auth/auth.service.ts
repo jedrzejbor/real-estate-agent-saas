@@ -3,15 +3,18 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import { EntityManager } from 'typeorm';
 import { createHash, randomBytes } from 'crypto';
 import { APP_NAME } from '../common/brand';
 import { EmailService } from '../email';
 import { UsersService } from '../users/users.service';
+import { EmailAlreadyRegisteredException } from '../users/errors/email-already-registered.exception';
 import { AgencyPlanService } from '../users/agency-plan.service';
 import { ReleaseFlagsService } from '../release-flags';
 import {
@@ -29,6 +32,12 @@ import { User } from '../users/entities/user.entity';
 import { UserRole } from '../common/enums';
 import { AgencyPlan } from '../common/enums';
 import { normalizeAccountEmail } from './account-email';
+import { AccountEmailVerificationService } from './account-email-verification.service';
+import { PublicListingClaimIntentsService } from '../public-listing-submissions/public-listing-claim-intents.service';
+import {
+  EMAIL_VERIFICATION_REQUIRED_CODE,
+  needsEmailVerification,
+} from './account-email-access.policy';
 
 const BCRYPT_ROUNDS = 12;
 const PASSWORD_RESET_TOKEN_BYTES = 32;
@@ -45,30 +54,89 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
+    private readonly accountEmailVerificationService: AccountEmailVerificationService,
+    private readonly publicListingClaimIntentsService: PublicListingClaimIntentsService,
   ) {}
 
-  /** Register a new user and return tokens. */
+  /** Register an account; enforced registrations wait for mailbox proof. */
   async register(dto: RegisterDto) {
+    const requireEmailVerification =
+      this.configService.get<string>(
+        'ACCOUNT_EMAIL_VERIFICATION_ENABLED',
+        'false',
+      ) === 'true';
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+    const email = normalizeAccountEmail(dto.email);
+    if (
+      dto.claimToken &&
+      dto.accountType !== RegisterAccountType.PRIVATE_SELLER
+    ) {
+      throw new BadRequestException(
+        'Przejęcie zgłoszenia wymaga konta sprzedającego',
+      );
+    }
+    const pendingClaimSubmissionId =
+      requireEmailVerification && dto.claimToken
+        ? await this.publicListingClaimIntentsService.prepare(
+            dto.claimToken,
+            email,
+          )
+        : null;
+    let createdUser: User;
+    try {
+      createdUser = await this.usersService.create({
+        email,
+        passwordHash,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        role:
+          dto.accountType === RegisterAccountType.PRIVATE_SELLER
+            ? UserRole.VIEWER
+            : UserRole.AGENT,
+        // Selected paid plan is only an intent; webhook activates it after payment.
+        initialPlan: AgencyPlan.FREE,
+        requireEmailVerification,
+        ...(pendingClaimSubmissionId
+          ? {
+              onCreated: (manager: EntityManager, user: User) =>
+                this.publicListingClaimIntentsService.bind(
+                  manager,
+                  pendingClaimSubmissionId,
+                  user.id,
+                  email,
+                ),
+            }
+          : {}),
+      });
+    } catch (error) {
+      if (
+        requireEmailVerification &&
+        error instanceof EmailAlreadyRegisteredException
+      ) {
+        return { status: 'pending_email_verification' as const };
+      }
+      throw error;
+    }
 
-    const createdUser = await this.usersService.create({
-      email: normalizeAccountEmail(dto.email),
-      passwordHash,
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      role:
-        dto.accountType === RegisterAccountType.PRIVATE_SELLER
-          ? UserRole.VIEWER
-          : UserRole.AGENT,
-      // Selected paid plan is only an intent; webhook activates it after payment.
-      initialPlan: AgencyPlan.FREE,
-    });
+    if (requireEmailVerification) {
+      try {
+        await this.accountEmailVerificationService.sendForUser(createdUser.id);
+      } catch (error) {
+        if (!(error instanceof ServiceUnavailableException)) throw error;
+        // The account remains pending and the neutral resend endpoint permits retry.
+        this.logger.warn(
+          `Initial verification delivery failed for user: ${createdUser.id}`,
+        );
+      }
+      return { status: 'pending_email_verification' as const };
+    }
 
     const user = await this.usersService.ensureAgencyForUser(createdUser.id);
 
     this.logger.log(`User registered: ${user.id}`);
 
     return {
+      status: 'authenticated' as const,
       user: await this.serializeUser(user),
       tokens: await this.generateTokens(user.id, user.email, user.role),
     };
@@ -97,6 +165,10 @@ export class AuthService {
       throw new UnauthorizedException('Nieprawidłowy email lub hasło');
     }
 
+    if (needsEmailVerification(user)) {
+      throw new ForbiddenException({ code: EMAIL_VERIFICATION_REQUIRED_CODE });
+    }
+
     this.logger.log(`User logged in: ${user.id}`);
 
     // Re-fetch with agent relation
@@ -109,9 +181,13 @@ export class AuthService {
   }
 
   /** Refresh tokens — issues a new access + refresh token pair. */
-  async refresh(userId: string, email: string, role: string) {
+  async refresh(userId: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user || !user.isActive || needsEmailVerification(user)) {
+      throw new UnauthorizedException('Sesja wygasła lub konto nieaktywne');
+    }
     this.logger.log(`Token refreshed for user: ${userId}`);
-    return this.generateTokens(userId, email, role);
+    return this.generateTokens(user.id, user.email, user.role);
   }
 
   /** Get current user profile. */
@@ -186,9 +262,8 @@ export class AuthService {
     }
 
     const tokenHash = hashPasswordResetToken(dto.token);
-    const user = await this.usersService.findByPasswordResetTokenHash(
-      tokenHash,
-    );
+    const user =
+      await this.usersService.findByPasswordResetTokenHash(tokenHash);
 
     if (
       !user ||
