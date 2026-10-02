@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, Mail, RotateCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { maskAccountEmail } from '@/lib/auth';
 import { requestAccountEmailVerification } from '@/lib/account-email-verification';
 
@@ -75,10 +75,13 @@ export function AccountEmailPendingNotice({
             Wróć do logowania
           </Button>
         ) : (
-          <Button render={<Link href={loginHref} />} className="w-full gap-2">
+          <Link
+            href={loginHref}
+            className={buttonVariants({ className: 'w-full gap-2' })}
+          >
             <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
             Przejdź do logowania
-          </Button>
+          </Link>
         )}
       </div>
       {message && (

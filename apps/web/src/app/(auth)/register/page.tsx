@@ -300,8 +300,8 @@ function RegisterForm() {
       <div className="rounded-2xl border border-border bg-card p-5 shadow-sm lg:p-6">
         {claimToken && (
           <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
-            Oferta jest już zweryfikowana. Po rejestracji automatycznie dodamy
-            ją do Twojego panelu.
+            Oferta jest już zweryfikowana. Po rejestracji i ewentualnym
+            potwierdzeniu adresu e-mail dodamy ją do Twojego panelu.
           </div>
         )}
 
@@ -373,8 +373,8 @@ function RegisterForm() {
               </div>
               {claimToken ? (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Zweryfikowana oferta zostanie automatycznie przypisana do
-                  konta właściciela.
+                  Po rejestracji i ewentualnym potwierdzeniu adresu e-mail
+                  oferta zostanie przypisana do konta właściciela.
                 </p>
               ) : null}
               {getFieldError('accountType') ? (
@@ -539,8 +539,9 @@ function RegisterForm() {
                 </div>
 
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  Po utworzeniu konta przejdziesz do Stripe Checkout. Plan
-                  zostanie aktywowany dopiero po potwierdzeniu płatności.
+                  Jeśli konto wymaga potwierdzenia adresu e-mail, zapłacisz po
+                  weryfikacji i zalogowaniu. Plan zostanie aktywowany dopiero po
+                  opłaceniu w Stripe Checkout.
                 </p>
                 {getFieldError('selectedPlan') ? (
                   <p className="mt-2 text-xs text-destructive">

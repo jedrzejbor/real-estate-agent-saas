@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, CircleAlert, Loader2, Mail } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ApiError } from '@/lib/api-client';
 import {
@@ -98,9 +98,9 @@ export function VerifyEmailClient() {
           <p className="mt-3 text-sm text-muted-foreground">
             Zaloguj się, aby kontynuować pracę z kontem.
           </p>
-          <Button render={<Link href="/login" />} className="mt-6">
+          <Link href="/login" className={buttonVariants({ className: 'mt-6' })}>
             Zaloguj się
-          </Button>
+          </Link>
         </>
       )}
       {(state === 'invalid' || state === 'network-error') && (

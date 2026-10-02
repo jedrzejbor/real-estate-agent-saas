@@ -1,0 +1,70 @@
+name: email-verification-acceptance
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: email_verification_acceptance
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d email_verification_acceptance"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.22
+    ports:
+      - "127.0.0.1:8125:8025"
+
+  api:
+    image: email-verification-acceptance-api
+    build:
+      context: ../..
+      dockerfile: Dockerfile.api
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: email_verification_acceptance
+      TYPEORM_SYNCHRONIZE: "true"
+      NODE_ENV: development
+      PORT: 4000
+      FRONTEND_URL: http://localhost:3100
+      JWT_SECRET: acceptance-only-secret-never-use-in-production
+      ACCOUNT_EMAIL_VERIFICATION_ENABLED: "true"
+      EMAIL_PROVIDER: smtp
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_SECURE: "false"
+      SMTP_FROM: PodAdresem <noreply@localhost>
+    ports:
+      - "127.0.0.1:4100:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    volumes:
+      - ../../apps/api/src:/app/apps/api/src:ro
+    command: pnpm --filter api dev
+
+  web:
+    image: email-verification-acceptance-web
+    build:
+      context: ../..
+      dockerfile: Dockerfile.web
+    environment:
+      API_URL: http://api:4000/api
+      NEXT_PUBLIC_API_URL: http://localhost:4100/api
+      NODE_ENV: development
+    ports:
+      - "127.0.0.1:3100:3000"
+    depends_on:
+      - api
+    volumes:
+      - ../../apps/web/src:/app/apps/web/src:ro
+      - ../../apps/web/public:/app/apps/web/public:ro
+    command: pnpm --filter web dev

@@ -9,6 +9,14 @@ async function bootstrap() {
     rawBody: true,
   });
 
+  const trustedProxyCidrs = process.env.TRUSTED_PROXY_CIDRS
+    ?.split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (trustedProxyCidrs?.length) {
+    app.getHttpAdapter().getInstance().set('trust proxy', trustedProxyCidrs);
+  }
+
   registerLocalPublicUploadAssets(app);
 
   app.enableCors({

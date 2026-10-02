@@ -1,7 +1,7 @@
 # Plan wdrożenia weryfikacji adresu e-mail konta
 
 **Data:** 27.09.2026  
-**Status:** plan do implementacji  
+**Status:** etapy A–E zaimplementowane; lokalny odbiór F wykonany, aktywacja produkcyjna wymaga bramek z sekcji 16
 **Cel:** nowy agent i prywatny sprzedający potwierdzają własność adresu e-mail, zanim uzyskają dostęp do konta, kupią plan lub przejmą ofertę. Zakres dotyczy konta `users`; weryfikacja e-maila pojedynczego zgłoszenia oferty jest osobnym mechanizmem.
 
 ## 1. Stan obecny i problem
@@ -179,3 +179,29 @@ Rollout: migracja → kod w trybie obserwacji → kontrola SMTP i metryk → wł
 **Weryfikacja:** kontrola typów, lint, testy przepływu intencji planu i kontraktu pending oraz produkcyjny build web. Pełny scenariusz z prawdziwym PostgreSQL, SMTP i przeglądarką pozostaje etapem F. Przeniesienie wyboru planu między różnymi urządzeniami wymaga ponownego wyboru planu; nie wpływa to na konto ani opłatę.
 
 **Przed włączeniem flagi:** wykonać etap F oraz decyzję o kontach istniejących i ustawieniach SMTP/limiterów z sekcji 8. `ACCOUNT_EMAIL_VERIFICATION_ENABLED` pozostaje domyślnie `false`.
+
+## 16. Dziennik wdrożenia — etap F, odbiór lokalny (01.10.2026)
+
+**Środowisko:** izolowany stack z [`tests/email-verification/compose.yml`](../tests/email-verification/compose.yml) uruchamia PostgreSQL 16, Mailpit (rzeczywisty transport SMTP), API z `ACCOUNT_EMAIL_VERIFICATION_ENABLED=true` oraz web. Baza ma osobny katalog danych; TypeORM tworzy w niej bieżący schemat, po czym zastosowano trzy migracje z etapów A, C i D. Instrukcja powtórzenia i usunięcia danych jest w [`README`](../tests/email-verification/README.md). Test dotyczy kodu z rewizji `20fb395` wraz ze zmianami etapu F w katalogu roboczym; nie jest odbiorem wdrożonego staging.
+
+**Scenariusze Chromium z realnym API i Mailpit:**
+
+| Scenariusz | Wynik lokalny |
+| --- | --- |
+| Agent Free: rejestracja bez sesji, odmowa logowania przed weryfikacją, link w Mailpit, potwierdzenie na innym urządzeniu, logowanie | Przeszedł. |
+| Agent płatny: rejestracja pending, potwierdzenie, powrót do wybranego planu i nowej wyceny; plan pozostaje Free do opłacenia | Przeszedł. Stripe Checkout nie był uruchamiany. |
+| Sprzedający: zgłoszenie oferty, odmowa użycia `claimToken` z obcym adresem, rejestracja pending, potwierdzenie i przejęcie po logowaniu na innym urządzeniu | Przeszedł. |
+
+Testy Playwright: [`account-email-verification.spec.ts`](../apps/web/e2e/account-email-verification.spec.ts) dla ścieżek przeglądarkowych oraz [`account-email-verification.api.spec.ts`](../apps/web/e2e/account-email-verification.api.spec.ts) dla kontraktu HTTP. Przeglądarka sprawdza usunięcie tokena z URL po otwarciu linku i brak cookies sesyjnych po rejestracji oraz po potwierdzeniu. Test HTTP sprawdza błędne hasło, `401` dla `/auth/me` i refresh przed weryfikacją, atomowość dwóch równoczesnych potwierdzeń, odrzucenie ponownego użycia tokena oraz neutralny resend. Audyt porównał 14 jednorazowych tokenów z Mailpit z dostępnymi w chwili audytu logami testowego API/web i nie znalazł jawnych tokenów; po odtworzeniu kontenera API starsze logi nie były już dostępne. Podczas odbioru poprawiono treść rejestracji dla etapu pending i semantykę linków renderowanych jako przyciski. Kolejna próba scenariusza sprzedającego po kilku przebiegach dostała oczekiwane `429` z trwałego limitu zgłoszeń na IP; instrukcja ponownego przebiegu wymaga świeżej testowej bazy.
+
+**Poprawka bezpieczeństwa odkryta podczas odbioru:** fingerprint IP nie odczytuje już bezpośrednio nagłówka `X-Forwarded-For`, który klient mógł sfałszować i ominąć limit publicznych zgłoszeń. Używa `request.ip` wyliczonego przez Express. Lista zaufanych adresów proxy jest ustawiana tylko przez `TRUSTED_PROXY_CIDRS`; bez tej konfiguracji Express nie ufa nagłówkom proxy. Test jednostkowy potwierdza, że podmieniony nagłówek nie zmienia fingerprintu. Dla produkcyjnego ingressu trzeba wpisać wyłącznie rzeczywiste adresy/CIDR zaufanego proxy i sprawdzić działanie limitów na staging.
+
+**Bramki przed publicznym włączeniem flagi — nadal otwarte:**
+
+1. Odbiór na staging z produkcyjnym dostawcą SMTP: agent Free, plan płatny, sprzedający, opóźnienie wiadomości, resend, wygasły link, filtr spamu, zajęty adres i awaria dostawcy. Zapisać datę, wersję, wiadomość/rezultat i wynik każdego przypadku. Mailpit dowodzi działania lokalnego SMTP, nie dostarczalności na rzeczywiste skrzynki.
+2. Stripe Sandbox: opłacić plan i ofertę dopiero po weryfikacji; sprawdzić webhook, anulowanie, ponowienie, brak benefitów przed płatnością i świeżą wycenę. Lokalny test potwierdza tylko powrót do wyceny.
+3. Odczytać bazę docelową i rozstrzygnąć politykę kont istniejących z sekcji 8, zwłaszcza aktywnych, płacących i administratorów. Bez tej decyzji włączenie flagi może zatrzymać ich nowe płatności. Nie oznaczać kont jako zweryfikowanych zbiorczo.
+4. Dla więcej niż jednej instancji API wdrożyć współdzielony limiter. Na staging skonfigurować `TRUSTED_PROXY_CIDRS` wyłącznie dla adresów ingressu i przetestować limity z prawdziwym oraz sfałszowanym `X-Forwarded-For`. Sprawdzić kanał enumeracji przez czas synchronicznego SMTP; jeśli jest istotny, przenieść dostawę do trwałej kolejki. Zweryfikować alerty dla `verification_email_delivery_failed`, `verification_request_failed`, `verification_token_rejected`, `verification_send_limit_reached` i tempo `account_email_verified` względem `verification_email_sent`.
+5. Zatwierdzić procedurę awaryjną: przy awarii SMTP wstrzymać nowe rejestracje na ingressie, zachować istniejące sesje i możliwość ponowienia wysyłki po naprawie. Samo ustawienie flagi na `false` dopuściłoby nowe konta bez weryfikacji, więc nie jest bezpiecznym rollbackiem przy otwartej rejestracji. Konta już oznaczone `email_verification_required_at` pozostają zablokowane także po wyłączeniu flagi.
+
+**Status:** lokalny odbiór funkcji jest wykonany; etap F i zadanie launchowe pozostają otwarte do odbioru staging, decyzji o starych kontach oraz konfiguracji operacyjnej. Flagi nie włączono w zwykłym stacku deweloperskim ani w produkcji.
