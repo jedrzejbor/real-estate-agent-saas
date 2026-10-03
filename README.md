@@ -69,6 +69,8 @@ Dostępne pod:
 
 Instrukcja wdrozenia testowego/stagingowego dla domeny `podadresem24.pl` jest w [DEPLOYMENT.md](./DEPLOYMENT.md).
 
+Przed każdym wydaniem przejdź [katalog testów manualnych](./docs/MANUAL_RELEASE_TESTS.md) i zapisz osobny protokół wyników. Przy zmianie funkcji aktualizuj jej scenariusze w tym samym PR.
+
 Docelowy uklad:
 
 - `podadresem24.pl` - publiczny portal / landing / katalog ofert
