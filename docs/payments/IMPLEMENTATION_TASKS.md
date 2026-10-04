@@ -1,10 +1,10 @@
 # Zadania implementacyjne płatności PodAdresem
 
-Status: plan; żadne zadanie nie jest wykonane. Obowiązuje [plan architektury](../tpay-integration-plan.md) i [katalog testów manualnych](MANUAL_TESTS.md). Wykonuj tylko wskazany `PAY-XXX`, bez automatycznego przechodzenia do kolejnego. Po zmianie zachowania aktualizuj odpowiedni MT-XXX oraz `docs/MANUAL_RELEASE_TESTS.md` zgodnie z `AGENTS.md`. Testy manualne opisuje się po każdym takim zadaniu; wykonuje się wskazane dla taska oraz krótką regresję po większej iteracji. Pola `Files` są planowaną lokalizacją; jeśli repo wymaga innej, odnotuj ją w review. `—` oznacza brak zmiany. Przed każdym taskiem sprawdź zależności z wcześniejszych faz.
+Status: PAY-001 wykonany; pozostałe zadania są planowane. Obowiązuje [plan architektury](../tpay-integration-plan.md) i [katalog testów manualnych](MANUAL_TESTS.md). Wykonuj tylko wskazany `PAY-XXX`, bez automatycznego przechodzenia do kolejnego. Po zmianie zachowania aktualizuj odpowiedni MT-XXX oraz `docs/MANUAL_RELEASE_TESTS.md` zgodnie z `AGENTS.md`. Testy manualne opisuje się po każdym takim zadaniu; wykonuje się wskazane dla taska oraz krótką regresję po większej iteracji. Pola `Files` są planowaną lokalizacją; jeśli repo wymaga innej, odnotuj ją w review. `—` oznacza brak zmiany. Przed każdym taskiem sprawdź zależności z wcześniejszych faz.
 
 ## Phase 0 — Preparation
 
-- [ ] **PAY-001 — Potwierdź stan lokalnego Stripe**
+- [x] **PAY-001 — Potwierdź stan lokalnego Stripe**
 
 ### Task PAY-001 — Potwierdź stan lokalnego Stripe
 
@@ -39,6 +39,15 @@ Wynik audytu i decyzja o lokalnych rekordach są zapisane.
 #### Do not do yet
 
 Nie usuwaj danych ani kodu.
+
+#### Wynik audytu — 4 października 2026 r.
+
+- **Zakres środowiska:** właściciel projektu potwierdził brak produkcji, realnych klientów i płatności Stripe. Kontenery `real-estate-web`, `real-estate-api` i `real-estate-db` działają lokalnie; web i API odpowiedziały HTTP 200. Nie korzystano z konta ani danych produkcyjnych Stripe.
+- **Konfiguracja:** `apps/api/.env.local` istnieje i ma ustawiony `STRIPE_SECRET_KEY`; nie zapisano ani nie wyświetlono jego wartości. Lokalne `STRIPE_LISTING_WEBHOOK_SECRET` i `STRIPE_AGENCY_PLAN_WEBHOOK_SECRET` nie mają ustawionej wartości. Sekcja Stripe w `.env.example` zawiera przykładową konfigurację. Kod nadal rejestruje dwa adaptery i dwa webhooki Stripe — ich usuwanie należy do PAY-012–PAY-014.
+- **Baza lokalna:** odczyt wyłącznie agregatów z `real_estate_saas` w transakcji `READ ONLY`: `listing_orders` 0, `listing_payment_attempts` 0, `listing_payment_events` 0, `agency_plan_quotes` 0. Tabela `agencies` ma 9 rekordów, ale 0 z `billing_customer_id` i 0 z `billing_subscription_id`. `plan_catalog` ma 4 rekordy i 0 z ustawionym Stripe Price ID. Tabela `agency_plan_checkout_attempts` nie występuje w tej lokalnej bazie. Nie ma tu historii Stripe do migracji.
+- **Kontrola manualna:** lokalny panel odpowiada HTTP 200. Nie wykonano zalogowanego przeglądu ekranów administracyjnych; brak płatności i identyfikatorów billingowych sprawdzono bezpośrednio w lokalnej bazie, a brak realnych klientów potwierdził właściciel. To ograniczenie nie zmienia decyzji o migracji lokalnej.
+- **Plan dla danych testowych:** przed PAY-014 developer decyduje, czy potrzebuje kopii 9 lokalnych agencji i pozostałych danych dev. Jeśli tak, wykonuje lokalny backup bazy poza repo i sprawdza możliwość jego odtworzenia. Następnie usuwa/odtwarza wyłącznie rekordy testowe Stripe oraz stosuje migrację developerską pól Stripe. Nie budować backfillu ani okresu współistnienia Stripe i Tpay. PAY-001 nie wykonał backupu, resetu ani migracji.
+- **Decyzja:** PAY-001 zakończony. Do PAY-002 można przejść po osobnym poleceniu. Gdyby przed PAY-014 pojawiły się realne płatności, zatrzymać usuwanie danych i ponownie ocenić plan.
 
 - [ ] **PAY-002 — Załóż i sprawdź konto Tpay Sandbox**
 

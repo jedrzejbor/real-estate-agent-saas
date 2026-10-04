@@ -4,6 +4,17 @@ Status: scenariusze planowane; nie są jeszcze wykonane. Powiązania z [planem](
 
 ## MT-001 — Uzyskanie tokenu OAuth Tpay Sandbox
 
+### Przygotowanie konta do MT-001 — PAY-002
+
+Ten etap sprawdza wyłącznie dostęp do konta Sandbox; żądanie OAuth z sekcji **Steps** poniżej wykonamy dopiero w zadaniach klienta API. Sandbox i produkcja mają odrębne konta oraz dane dostępowe. [Środowiska Tpay](https://docs-api.tpay.com/en/first-steps/environments/).
+
+1. Otwórz [rejestrację Tpay Sandbox](https://register.sandbox.tpay.com/) albo, jeśli konto już istnieje, przejdź od razu do [panelu Sandbox](https://panel.sandbox.tpay.com/).
+2. Przy nowym koncie wpisz własny adres e-mail i nazwę firmy; zapoznaj się z regulaminem Sandbox i samodzielnie zaakceptuj go, jeśli chcesz utworzyć konto. Dokończ wymagane przez Tpay potwierdzenie konta.
+3. Zaloguj się do panelu Sandbox. Sprawdź, czy widzisz identyfikator akceptanta (Merchant ID); zanotuj go w prywatnym miejscu, bez haseł i sekretów w repo lub zgłoszeniu.
+4. Otwórz **Integracja → API** i znajdź sekcję **Open API Keys** oraz przycisk **Add new key**. Sprawdź dostępność tej sekcji, ale nie generuj jeszcze klucza ani tokenu OAuth w ramach PAY-002. [Autoryzacja Tpay](https://docs-api.tpay.com/en/first-steps/authorization/).
+
+**Wynik PAY-002 do odnotowania:** data: ______; panel dostępny [ ] tak [ ] nie; Merchant ID znaleziony [ ] tak [ ] nie; sekcja Open API Keys dostępna [ ] tak [ ] nie. Nie wpisuj tutaj Merchant ID, Client Secret, hasła ani tokenu. Jeśli któryś punkt jest niedostępny, zapisz tylko komunikat błędu bez danych konta.
+
 **ID:** MT-001  
 **Name:** Uzyskanie tokenu OAuth Tpay Sandbox  
 **Purpose:** Sprawdzić, że dane konta sandbox pozwalają połączyć się z API.  
