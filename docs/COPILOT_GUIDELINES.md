@@ -26,6 +26,7 @@ Zakres:
 4. Testy
 - Nowe funkcjonalności powinny mieć testy jednostkowe (backend) i/lub komponentowe (frontend).
 - Uruchamiaj `pnpm --filter <package> test` przed PR.
+- W tym samym PR aktualizuj [katalog testów manualnych przed wydaniem](MANUAL_RELEASE_TESTS.md), gdy zmieniasz funkcję, rolę, uprawnienie, flagę, integrację, e-mail lub zachowanie użytkownika. Dodaj nowe ID albo popraw istniejące kroki i oczekiwane wyniki; w opisie PR wymień dotknięte ID lub wyjaśnij brak wpływu na odbiór manualny.
 
 5. Bezpieczeństwo & sekrety
 - Nigdy nie commituj sekretów ani credentiali. Zamiast tego użyj env vars i dokumentacji w `docs/LOCAL_SETUP.md`.
