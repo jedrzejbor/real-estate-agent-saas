@@ -211,6 +211,32 @@ Szczegółowa kolejność i kryteria każdego małego kroku są w [IMPLEMENTATIO
 
 ## 12. Tpay API assumptions / open questions
 
+### PAY-003 — rejestr aktywacji konta (4 października 2026 r.)
+
+**Znaczenie statusu:** „Opisane przez Tpay” potwierdza istnienie funkcji w dokumentacji, **nie** jej dostępność dla konta PodAdresem. Nie mam dostępu do panelu akceptanta ani potwierdzenia od Tpay; PAY-002 nadal oczekuje na ukończenie. Sandbox według [dokumentacji środowisk](https://docs-api.tpay.com/en/first-steps/environments/) udostępnia funkcje testowe, ale nie potwierdza aktywacji produkcyjnej. Każdy wiersz wymaga sprawdzenia w panelu Sandbox i, gdy panel nie pokazuje odpowiedniego uprawnienia, pisemnej odpowiedzi Tpay.
+
+| Funkcja | Co potwierdza dokumentacja | Status dla konta PodAdresem | Dowód wymagany do zamknięcia |
+| --- | --- | --- | --- |
+| BLIK jednorazowy | Kanał BLIK (`groupId=150`) jest opisany przez [Tpay](https://docs-api.tpay.com/en/payment-methods/blik/). | Niepotwierdzony. | Widoczny kanał BLIK w panelu Sandbox albo potwierdzenie Tpay; następnie test konta w osobnym tasku. |
+| Karty jednorazowe | Kanał kart (`groupId=103`) jest opisany przez [Tpay](https://docs-api.tpay.com/en/payment-methods/cards/); Tpay ostrzega, że karty mogą wymagać aktywacji. | Niepotwierdzony. | Widoczny kanał kart i potwierdzone uprawnienie konta. |
+| Tokenizacja karty | [Tokenizacja](https://docs-api.tpay.com/en/tokenization/) wymaga aktywnych płatności kartą i notyfikacji; pozwala otrzymać token. | Niepotwierdzona. | Potwierdzenie Tpay lub udany POC otrzymania tokenu po pierwszej płatności; przed POC sprawdzić uprawnienie konta. |
+| Obciążenia kartowe MIT / `cof=recurring` | Token może służyć do kolejnej transakcji według [dokumentacji tokenizacji](https://docs-api.tpay.com/en/tokenization/) i [referencji API](https://api.tpay.com/). | Niepotwierdzone; **blokuje PAY-034–PAY-035**, dopóki Tpay nie potwierdzi poprawnego flow i uprawnienia. | Pisemne potwierdzenie, że konto może inicjować kolejne obciążenia tokenem dla abonamentu oraz wymaganych pól/cof; potem POC. |
+| BLIK Płatności Powtarzalne PAYID, model A | [Model A](https://docs-api.tpay.com/en/payment-methods/blik/) jest przeznaczony do stałej kwoty i częstotliwości. | Niepotwierdzony; **blokuje PAY-041–PAY-042**, dopóki Tpay nie potwierdzi uprawnienia. | Pisemne potwierdzenie PAYID/modelu A dla konta, limitów, dat zgody i obsługiwanych banków; potem POC. |
+| Zwroty | [API zwrotów](https://docs-api.tpay.com/en/refunds/) opisuje pełny i częściowy refund; wymaga środków na koncie na kwotę zwrotu i opłatę. | Niepotwierdzone dla konta i kanałów, które wybierzemy. | Potwierdzenie dostępności, uprawnień, opłat i ograniczeń dla BLIK/kart; test w PAY-030–PAY-032. |
+| Apple Pay | Występuje na [liście metod](https://docs-api.tpay.com/en/first-steps/list-of-payment-methods/); Tpay wskazuje możliwą potrzebę aktywacji. | Niepotwierdzony; nie blokuje podstawowego MVP. | Potwierdzenie Tpay dla konta i wybranego checkoutu oraz warunków sandbox/produkcja. |
+| Google Pay | Występuje na [liście metod](https://docs-api.tpay.com/en/first-steps/list-of-payment-methods/); Tpay wskazuje możliwą potrzebę aktywacji. | Niepotwierdzony; nie blokuje podstawowego MVP. | Potwierdzenie Tpay dla konta i wybranego checkoutu oraz warunków sandbox/produkcja. |
+
+**Kontrola manualna PAY-003:** po ukończeniu PAY-002 zalogować się do [panelu Sandbox](https://panel.sandbox.tpay.com/), sprawdzić dostępne metody płatności i sekcję Integracja → API; zanotować datę i wynik dla każdego wiersza bez kopiowania kluczy. Sama obecność BLIK lub karty na liście nie dowodzi uprawnienia do PAYID albo MIT. Funkcje niewidoczne lub niejednoznaczne skierować do Tpay. Kontrola panelu **nie została wykonana**, ponieważ dostęp do konta nie został potwierdzony. Żadnej wiadomości do Tpay jeszcze nie wysłano.
+
+**Kontakt do Tpay:** [Centrum pomocy dla deweloperów](https://support.tpay.com/developer), [formularz kontaktowy Tpay](https://tpay.com/kontakt), Biuro Obsługi Klienta **+48 61 66 82 778**. Formularz ma pole ID konta; można je podać Tpay przez ich kanał, bez umieszczania w repo. [Źródło kontaktu](https://support.tpay.com/developer). Właściciel konta może przekazać Tpay następujące pytania, bez sekretów:
+
+1. Czy na naszym koncie Sandbox i docelowym koncie produkcyjnym są dostępne: BLIK, karty, tokenizacja kart, obciążenia MIT (`cof=recurring`), PAYID model A, pełne/częściowe zwroty, Apple Pay i Google Pay? Co wymaga osobnej aktywacji/umowy?
+2. Jaki jest aktualny poprawny proces drugiego obciążenia karty zapisanym tokenem, w tym wymagane pola API i zgoda klienta? Czy konto ma uprawnienie do takiego charge?
+3. Czy PAYID model A obsłuży stałą miesięczną cenę PRO; jakie są limity, daty ważności zgody, banki i warunki anulowania?
+4. Jakie są opłaty i ograniczenia zwrotów oraz dostępność portfeli w checkoutcie przekierowującym?
+
+**Wniosek na dziś:** można projektować neutralną domenę, ale POC karty i PAYID wymaga potwierdzenia aktywacji konta. PAY-003 pozostaje otwarty do czasu sprawdzenia panelu i uzyskania odpowiedzi na niejednoznaczne uprawnienia. Nie utożsamiać dokumentacji funkcji ani domyślnych możliwości Sandbox z gotowością konta produkcyjnego.
+
 1. **Business i aktywacja:** przed POC karty potwierdzić tokenizację, MIT i `cof=recurring`; przed POC BLIK potwierdzić Płatności Powtarzalne, PAYID i model A; przed planowaniem portfeli potwierdzić Apple Pay/Google Pay w wybranym flow. Sprawdzić refundy i opłaty. Sandbox może mieć funkcje włączone, produkcja niekoniecznie. [Metody](https://docs-api.tpay.com/en/first-steps/list-of-payment-methods/).
 2. **Card MIT:** referencja opisuje `tokenPaymentData` i `cof`, dokumentacja tokenizacji opisuje otrzymanie tokena, ale szczegóły poprawnego payloadu odnowienia i wymaganego pierwotnego ID transakcji trzeba potwierdzić w aktualnej referencji i działającym sandboxie przed implementacją. [API](https://api.tpay.com/), [tokenizacja](https://docs-api.tpay.com/en/tokenization/).
 3. **BLIK model A:** jakie limity, data końca zgody i banki są dostępne dla stałej kwoty miesięcznej? Promocja pierwszego miesiąca i model M/O są poza MVP. [BLIK](https://docs-api.tpay.com/en/payment-methods/blik/).
