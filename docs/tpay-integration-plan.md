@@ -211,7 +211,7 @@ Szczegółowa kolejność i kryteria każdego małego kroku są w [IMPLEMENTATIO
 
 ## 12. Tpay API assumptions / open questions
 
-### PAY-003 — rejestr aktywacji konta (4 października 2026 r.)
+### PAY-003 — rejestr aktywacji konta (ponowna weryfikacja: 6 października 2026 r.)
 
 **Znaczenie statusu:** „Opisane przez Tpay” potwierdza istnienie funkcji w dokumentacji, **nie** jej dostępność dla konta PodAdresem. Nie mam dostępu do panelu akceptanta ani potwierdzenia od Tpay; PAY-002 nadal oczekuje na ukończenie. Sandbox według [dokumentacji środowisk](https://docs-api.tpay.com/en/first-steps/environments/) udostępnia funkcje testowe, ale nie potwierdza aktywacji produkcyjnej. Każdy wiersz wymaga sprawdzenia w panelu Sandbox i, gdy panel nie pokazuje odpowiedniego uprawnienia, pisemnej odpowiedzi Tpay.
 
@@ -235,7 +235,7 @@ Szczegółowa kolejność i kryteria każdego małego kroku są w [IMPLEMENTATIO
 3. Czy PAYID model A obsłuży stałą miesięczną cenę PRO; jakie są limity, daty ważności zgody, banki i warunki anulowania?
 4. Jakie są opłaty i ograniczenia zwrotów oraz dostępność portfeli w checkoutcie przekierowującym?
 
-**Wniosek na dziś:** można projektować neutralną domenę, ale POC karty i PAYID wymaga potwierdzenia aktywacji konta. PAY-003 pozostaje otwarty do czasu sprawdzenia panelu i uzyskania odpowiedzi na niejednoznaczne uprawnienia. Nie utożsamiać dokumentacji funkcji ani domyślnych możliwości Sandbox z gotowością konta produkcyjnego.
+**Wynik ponownej kontroli 6 października 2026 r.:** oficjalne strony środowisk, metod, tokenizacji, BLIK i refundów oraz kanał kontaktowy Tpay są dostępne; nie dostarczono dowodu aktywacji żadnej funkcji dla konta PodAdresem. W lokalnym `apps/api/.env.local` nie ma ustawionych kluczy `TPAY_*` (sprawdzono wyłącznie nazwy kluczy, bez odczytu wartości innych sekretów). Można projektować neutralną domenę, ale POC karty i PAYID wymaga potwierdzenia aktywacji konta. PAY-003 pozostaje otwarty do czasu sprawdzenia panelu i uzyskania odpowiedzi na niejednoznaczne uprawnienia. Nie utożsamiać dokumentacji funkcji ani domyślnych możliwości Sandbox z gotowością konta produkcyjnego.
 
 1. **Business i aktywacja:** przed POC karty potwierdzić tokenizację, MIT i `cof=recurring`; przed POC BLIK potwierdzić Płatności Powtarzalne, PAYID i model A; przed planowaniem portfeli potwierdzić Apple Pay/Google Pay w wybranym flow. Sprawdzić refundy i opłaty. Sandbox może mieć funkcje włączone, produkcja niekoniecznie. [Metody](https://docs-api.tpay.com/en/first-steps/list-of-payment-methods/).
 2. **Card MIT:** referencja opisuje `tokenPaymentData` i `cof`, dokumentacja tokenizacji opisuje otrzymanie tokena, ale szczegóły poprawnego payloadu odnowienia i wymaganego pierwotnego ID transakcji trzeba potwierdzić w aktualnej referencji i działającym sandboxie przed implementacją. [API](https://api.tpay.com/), [tokenizacja](https://docs-api.tpay.com/en/tokenization/).
