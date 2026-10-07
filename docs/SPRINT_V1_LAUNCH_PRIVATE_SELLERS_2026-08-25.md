@@ -438,7 +438,7 @@ Nie wypuszczamy publicznie, jeśli:
 
 
 
-
+testtest
 
 TO DO CO MOIM ZDANIEM MUSIMY MIEĆ W APLIKACJI:
 
