@@ -451,6 +451,6 @@ TO DO CO MOIM ZDANIEM MUSIMY MIEĆ W APLIKACJI:
 - [ ] cos trzeba fajnego marketingowo wymyslic aby oplacalo sie wchodzic na strone 
 - [ ] 
 - [ ]
-- [ ] x
+- [ ] xx
 - [ ] 
 - [ ] 
