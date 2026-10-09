@@ -438,7 +438,7 @@ Nie wypuszczamy publicznie, jeśli:
 
 
 
-
+testtest
 
 TO DO CO MOIM ZDANIEM MUSIMY MIEĆ W APLIKACJI:
 
@@ -451,6 +451,6 @@ TO DO CO MOIM ZDANIEM MUSIMY MIEĆ W APLIKACJI:
 - [ ] cos trzeba fajnego marketingowo wymyslic aby oplacalo sie wchodzic na strone 
 - [ ] 
 - [ ]
-- [ ] 
+- [ ] xx
 - [ ] 
 - [ ] 
