@@ -1,17 +1,17 @@
 # Manualne testy płatności PodAdresem
 
-Status: scenariusze planowane; nie są jeszcze wykonane. Powiązania z [planem](../tpay-integration-plan.md) i [zadaniami PAY-XXX](IMPLEMENTATION_TASKS.md). Testy są napisane dla osoby używającej aplikacji; tam, gdzie trzeba zasymulować czas, webhook lub błąd sieci, developer przygotowuje bezpieczne narzędzie testowe i pomaga w uruchomieniu. Nie używaj prawdziwych kart ani pieniędzy. Dane kart i sekrety pozostają poza repo. Po każdym tasku zmieniającym zachowanie aktualizuj odpowiedni scenariusz oraz `docs/MANUAL_RELEASE_TESTS.md`. W protokole konkretnego przebiegu zapisz datę, środowisko, wersję i Pass/Fail. Po większej iteracji podaj krótką listę `Manual regression required: MT-...`.
+Status: scenariusze planowane; MT-001 wykonano ręcznie w Sandbox 10 października 2026 r. ([protokół](test-runs/2026-10-10-mt-001-sandbox.md)); pozostałych nie wykonano. Powiązania z [planem](../tpay-integration-plan.md) i [zadaniami PAY-XXX](IMPLEMENTATION_TASKS.md). Testy są napisane dla osoby używającej aplikacji; tam, gdzie trzeba zasymulować czas, webhook lub błąd sieci, developer przygotowuje bezpieczne narzędzie testowe i pomaga w uruchomieniu. Nie używaj prawdziwych kart ani pieniędzy. Dane kart i sekrety pozostają poza repo. Po każdym tasku zmieniającym zachowanie aktualizuj odpowiedni scenariusz oraz `docs/MANUAL_RELEASE_TESTS.md`. W protokole konkretnego przebiegu zapisz datę, środowisko, wersję i Pass/Fail. Po większej iteracji podaj krótką listę `Manual regression required: MT-...`.
 
 ## MT-001 — Uzyskanie tokenu OAuth Tpay Sandbox
 
 ### Przygotowanie konta do MT-001 — PAY-002
 
-Ten etap sprawdza wyłącznie dostęp do konta Sandbox; żądanie OAuth z sekcji **Steps** poniżej wykonamy dopiero w zadaniach klienta API. Sandbox i produkcja mają odrębne konta oraz dane dostępowe. [Środowiska Tpay](https://docs-api.tpay.com/en/first-steps/environments/).
+Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już ręczny test OAuth; klient API aplikacji pozostaje do zaimplementowania w PAY-016. Sandbox i produkcja mają odrębne konta oraz dane dostępowe. [Środowiska Tpay](https://docs-api.tpay.com/en/first-steps/environments/).
 
 1. Otwórz [rejestrację Tpay Sandbox](https://register.sandbox.tpay.com/) albo, jeśli konto już istnieje, przejdź od razu do [panelu Sandbox](https://panel.sandbox.tpay.com/).
 2. Przy nowym koncie wpisz własny adres e-mail i nazwę firmy; zapoznaj się z regulaminem Sandbox i samodzielnie zaakceptuj go, jeśli chcesz utworzyć konto. Dokończ wymagane przez Tpay potwierdzenie konta.
 3. Zaloguj się do panelu Sandbox. Sprawdź, czy widzisz identyfikator akceptanta (Merchant ID); zanotuj go w prywatnym miejscu, bez haseł i sekretów w repo lub zgłoszeniu.
-4. Otwórz **Integracja → API** i znajdź sekcję **Open API Keys** oraz przycisk **Add new key**. Sprawdź dostępność tej sekcji, ale nie generuj jeszcze klucza ani tokenu OAuth w ramach PAY-002. [Autoryzacja Tpay](https://docs-api.tpay.com/en/first-steps/authorization/).
+4. Otwórz **Integracja → API** i znajdź sekcję **Open API Keys** oraz przycisk **Add new key**. Klucz Sandbox jest już zapisany lokalnie; nie wpisuj go do protokołu. [Autoryzacja Tpay](https://docs-api.tpay.com/en/first-steps/authorization/).
 
 **Wynik PAY-002 do odnotowania:** data: ______; panel dostępny [ ] tak [ ] nie; Merchant ID znaleziony [ ] tak [ ] nie; sekcja Open API Keys dostępna [ ] tak [ ] nie. Nie wpisuj tutaj Merchant ID, Client Secret, hasła ani tokenu. Jeśli któryś punkt jest niedostępny, zapisz tylko komunikat błędu bez danych konta.
 

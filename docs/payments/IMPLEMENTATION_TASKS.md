@@ -1,6 +1,6 @@
 # Zadania implementacyjne płatności PodAdresem
 
-Status: PAY-001 wykonany; pozostałe zadania są planowane. Obowiązuje [plan architektury](../tpay-integration-plan.md) i [katalog testów manualnych](MANUAL_TESTS.md). Wykonuj tylko wskazany `PAY-XXX`, bez automatycznego przechodzenia do kolejnego. Po zmianie zachowania aktualizuj odpowiedni MT-XXX oraz `docs/MANUAL_RELEASE_TESTS.md` zgodnie z `AGENTS.md`. Testy manualne opisuje się po każdym takim zadaniu; wykonuje się wskazane dla taska oraz krótką regresję po większej iteracji. Pola `Files` są planowaną lokalizacją; jeśli repo wymaga innej, odnotuj ją w review. `—` oznacza brak zmiany. Przed każdym taskiem sprawdź zależności z wcześniejszych faz.
+Status: PAY-001 i PAY-002 wykonane; pozostałe zadania są planowane. Obowiązuje [plan architektury](../tpay-integration-plan.md) i [katalog testów manualnych](MANUAL_TESTS.md). Wykonuj tylko wskazany `PAY-XXX`, bez automatycznego przechodzenia do kolejnego. Po zmianie zachowania aktualizuj odpowiedni MT-XXX oraz `docs/MANUAL_RELEASE_TESTS.md` zgodnie z `AGENTS.md`. Testy manualne opisuje się po każdym takim zadaniu; wykonuje się wskazane dla taska oraz krótką regresję po większej iteracji. Pola `Files` są planowaną lokalizacją; jeśli repo wymaga innej, odnotuj ją w review. `—` oznacza brak zmiany. Przed każdym taskiem sprawdź zależności z wcześniejszych faz.
 
 ## Phase 0 — Preparation
 
@@ -49,7 +49,7 @@ Nie usuwaj danych ani kodu.
 - **Plan dla danych testowych:** przed PAY-014 developer decyduje, czy potrzebuje kopii 9 lokalnych agencji i pozostałych danych dev. Jeśli tak, wykonuje lokalny backup bazy poza repo i sprawdza możliwość jego odtworzenia. Następnie usuwa/odtwarza wyłącznie rekordy testowe Stripe oraz stosuje migrację developerską pól Stripe. Nie budować backfillu ani okresu współistnienia Stripe i Tpay. PAY-001 nie wykonał backupu, resetu ani migracji.
 - **Decyzja:** PAY-001 zakończony. Do PAY-002 można przejść po osobnym poleceniu. Gdyby przed PAY-014 pojawiły się realne płatności, zatrzymać usuwanie danych i ponownie ocenić plan.
 
-- [ ] **PAY-002 — Załóż i sprawdź konto Tpay Sandbox**
+- [x] **PAY-002 — Załóż i sprawdź konto Tpay Sandbox**
 
 ### Task PAY-002 — Załóż i sprawdź konto Tpay Sandbox
 
@@ -84,6 +84,13 @@ Konto testowe działa; MT-001 ma aktualne kroki.
 #### Do not do yet
 
 Nie twórz klienta API.
+
+#### Wynik — 10 października 2026 r.
+
+- Właściciel potwierdził dostęp do panelu Sandbox i sekcji Integracja → API; klucz Open API został utworzony poza repozytorium.
+- `TPAY_CLIENT_ID`, `TPAY_CLIENT_SECRET` i `TPAY_MERCHANT_ID` są uzupełnione lokalnie w ignorowanym przez Git `apps/api/.env.local`; sprawdzono wyłącznie obecność wartości i adres API Sandbox, bez odczytu lub zapisu sekretów do dokumentacji.
+- Właściciel wykonał MT-001 w Postmanie: HTTP 200, odpowiedź zawierała `access_token` i `expires_in`. [Protokół przebiegu](test-runs/2026-10-10-mt-001-sandbox.md). Wcześniejsza próba z otoczenia agenta otrzymała 403 od Cloudflare; nie jest wynikiem testu właściciela.
+- PAY-002 zakończony. Klient API Tpay i transakcje nie zostały zaimplementowane ani przetestowane w aplikacji.
 
 - [ ] **PAY-003 — Zapisz wymagane aktywacje Tpay**
 
