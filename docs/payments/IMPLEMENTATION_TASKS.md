@@ -259,6 +259,14 @@ Model nie nadaje PRO automatycznie po samym statusie.
 
 Nie implementuj checkoutu.
 
+#### Wynik prac PAY-006 (11 października 2026)
+
+- Dodano lokalną encję `Subscription` i migrację `20261011_subscriptions.sql`. Dotychczasowe dane agencji i Stripe nie były migrowane.
+- Test migracyjny unikatowości aktywnej/`past_due` subskrypcji: PASS (1/1). Test jednostkowy opłaconego okresu grace i rozdzielenia statusu billingowego od uprawnień: PASS (1/1).
+- Migrację zastosowano tylko w `real_estate_saas_pay006_test`; API uruchomiło się z tą bazą. W dotychczasowej bazie nie ma tabeli `subscriptions`.
+- Adres panelu `/dashboard/upgrade` zwrócił HTTP 200. Bez sesji zalogowanego konta przeglądarka nie wyświetliła treści panelu, więc pełna kontrola wizualna pozostaje do wykonania. Odczyt zbiorczy dotychczasowej bazy przed i po kontroli był identyczny: 6 agencji Free i 3 Professional; ich statusy pozostały `active`.
+- Bieżące zachowanie użytkownika nie zmieniło się; `docs/MANUAL_RELEASE_TESTS.md` nie wymaga aktualizacji.
+
 - [ ] **PAY-007 — Dodaj RecurringAuthorization**
 
 ### Task PAY-007 — Dodaj RecurringAuthorization

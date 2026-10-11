@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AgencyPlan, SubscriptionStatus } from '../common/enums';
 import { PlanCatalog } from '../plans/entities/plan-catalog.entity';
+import type { Subscription } from '../payments/infrastructure/typeorm/subscription.entity';
 import { Agency } from './entities';
 import {
   AgencyEntitlements,
@@ -289,6 +290,8 @@ export class AgencyPlanService implements OnModuleInit {
   }
 
   getEntitlements(agency?: Agency | null): AgencyEntitlements {
+    // Billing records do not grant a plan. The agency projection remains the
+    // sole source of entitlements until a payment is confirmed by a later task.
     const plan = this.getPlanCode(agency?.plan) ?? AgencyPlan.FREE;
     const status = this.getSubscriptionStatus(agency?.subscription);
     const base = this.planCatalog.get(plan) ?? DEFAULT_PLAN_CATALOG[plan];
@@ -303,6 +306,27 @@ export class AgencyPlanService implements OnModuleInit {
       limits: { ...base.limits, ...overrides.limits },
       features: { ...base.features, ...overrides.features },
     };
+  }
+
+  /** Billing coverage is separate from the agency's projected entitlements. */
+  hasPaidBillingCoverage(
+    subscription: Pick<
+      Subscription,
+      'status' | 'currentPeriodStart' | 'currentPeriodEnd' | 'graceEndsAt'
+    >,
+    now: Date = new Date(),
+  ): boolean {
+    const { currentPeriodStart, currentPeriodEnd, graceEndsAt, status } =
+      subscription;
+    if (!currentPeriodStart || !currentPeriodEnd || now < currentPeriodStart) {
+      return false;
+    }
+
+    if (status === 'active') {
+      return now < currentPeriodEnd;
+    }
+
+    return status === 'past_due' && !!graceEndsAt && now < graceEndsAt;
   }
 
   private resetCatalogToDefaults(): void {
