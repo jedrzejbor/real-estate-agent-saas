@@ -16,6 +16,27 @@ export function newAuthorizationId(): AuthorizationId {
 
 export type ProviderReferenceType = 'CARD_TOKEN' | 'RECURRING_ALIAS';
 
+/** One locally owned renewal for one subscription billing period. */
+export type RenewalId = string & { readonly __brand: 'RenewalId' };
+
+export function newRenewalId(): RenewalId {
+  return randomUUID() as RenewalId;
+}
+
+export type RenewalStatus = 'due' | 'charging' | 'unknown' | 'paid' | 'failed';
+export type RenewalAttemptStatus = 'charging' | 'unknown' | 'paid' | 'failed';
+
+/** A later worker must resolve an uncertain attempt before any retry. */
+export function canStartRenewalAttempt(
+  renewalStatus: RenewalStatus,
+  latestAttemptStatus?: RenewalAttemptStatus,
+): boolean {
+  return (
+    (renewalStatus === 'due' || renewalStatus === 'failed') &&
+    (latestAttemptStatus === undefined || latestAttemptStatus === 'failed')
+  );
+}
+
 /** An integer amount in grosze, never a floating-point amount in złoty. */
 export type PaymentAmountMinor = number & {
   readonly __brand: 'PaymentAmountMinor';

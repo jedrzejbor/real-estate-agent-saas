@@ -310,7 +310,7 @@ Nie pobieraj tokenu z Tpay.
 - Kontrola ręczna: w tabeli są dwa testowe szyfrogramy `bytea`, bez jawnego tokenu; API uruchomiło się z tą bazą i `/api` zwróciło HTTP 200. Baza testowa zawiera jeden testowy rekord agencji, jedną subskrypcję, dwie autoryzacje i cztery wiersze katalogu planów utworzone przy starcie API. Dotychczasowa baza `real_estate_saas` nie ma tabeli `recurring_authorizations`.
 - Nie wykonywano wywołań Tpay ani checkoutu. Zachowanie użytkownika nie zmieniło się, więc `docs/MANUAL_RELEASE_TESTS.md` nie wymaga aktualizacji. Użytkownik potwierdził później widoczność wybranego planu w zalogowanym panelu PAY-006.
 
-- [ ] **PAY-008 — Dodaj należność i próbę odnowienia**
+- [x] **PAY-008 — Dodaj należność i próbę odnowienia**
 
 ### Task PAY-008 — Dodaj należność i próbę odnowienia
 
@@ -345,6 +345,13 @@ Duplikat okresu nie powstaje.
 #### Do not do yet
 
 Nie uruchamiaj schedulera.
+
+#### Wynik PAY-008 (11 października 2026)
+
+- Dodano neutralną encję `SubscriptionRenewal`, osobną encję prób obciążenia i migrację. Unikat `(subscription_id, period_start)` dopuszcza jedną należność za okres. Częściowy unikat aktywnej próby blokuje kolejny charge przy `charging`, `unknown` lub `paid`; reguła domenowa odrzuca retry, dopóki należność lub ostatnia próba ma niepewny stan.
+- Dwa wymagane testy integracyjne na `real_estate_saas_pay008_test`: duplikat należności odrzucony i `unknown` blokuje ponowienie, które staje się dozwolone po definitywnym `failed` — 2/2 PASS.
+- Kontrola ręczna po migracji: dla testowego okresu 1 listopada – 1 grudnia 2026 r. istnieje jedna należność oraz osobne próby nr 1 (`failed`) i nr 2 (`charging`). Osobna baza testowa zawiera jedną testową agencję, jedną subskrypcję, jedną należność i dwie próby. Skopiowano do niej tylko schemat dotychczasowej bazy i zastosowano migrację PAY-006 jako wymagany schemat zależny. Dotychczasowa baza `real_estate_saas` nie ma tabeli `subscription_renewals`.
+- Nie uruchamiano schedulera ani wywołań Tpay; istniejący checkout i zachowanie użytkownika nie zmieniły się. `docs/MANUAL_RELEASE_TESTS.md` nie wymaga aktualizacji.
 
 - [ ] **PAY-009 — Dodaj dwa porty i capabilities**
 
