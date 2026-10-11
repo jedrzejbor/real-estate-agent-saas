@@ -1,6 +1,6 @@
 # Zadania implementacyjne płatności PodAdresem
 
-Status: PAY-001 i PAY-002 wykonane; pozostałe zadania są planowane. Obowiązuje [plan architektury](../tpay-integration-plan.md) i [katalog testów manualnych](MANUAL_TESTS.md). Wykonuj tylko wskazany `PAY-XXX`, bez automatycznego przechodzenia do kolejnego. Po zmianie zachowania aktualizuj odpowiedni MT-XXX oraz `docs/MANUAL_RELEASE_TESTS.md` zgodnie z `AGENTS.md`. Testy manualne opisuje się po każdym takim zadaniu; wykonuje się wskazane dla taska oraz krótką regresję po większej iteracji. Pola `Files` są planowaną lokalizacją; jeśli repo wymaga innej, odnotuj ją w review. `—` oznacza brak zmiany. Przed każdym taskiem sprawdź zależności z wcześniejszych faz.
+Status: PAY-001, PAY-002 i PAY-003 wykonane; pozostałe zadania są planowane. Obowiązuje [plan architektury](../tpay-integration-plan.md) i [katalog testów manualnych](MANUAL_TESTS.md). Wykonuj tylko wskazany `PAY-XXX`, bez automatycznego przechodzenia do kolejnego. Po zmianie zachowania aktualizuj odpowiedni MT-XXX oraz `docs/MANUAL_RELEASE_TESTS.md` zgodnie z `AGENTS.md`. Testy manualne opisuje się po każdym takim zadaniu; wykonuje się wskazane dla taska oraz krótką regresję po większej iteracji. Pola `Files` są planowaną lokalizacją; jeśli repo wymaga innej, odnotuj ją w review. `—` oznacza brak zmiany. Przed każdym taskiem sprawdź zależności z wcześniejszych faz.
 
 ## Phase 0 — Preparation
 
@@ -92,7 +92,7 @@ Nie twórz klienta API.
 - Właściciel wykonał MT-001 w Postmanie: HTTP 200, odpowiedź zawierała `access_token` i `expires_in`. [Protokół przebiegu](test-runs/2026-10-10-mt-001-sandbox.md). Wcześniejsza próba z otoczenia agenta otrzymała 403 od Cloudflare; nie jest wynikiem testu właściciela.
 - PAY-002 zakończony. Klient API Tpay i transakcje nie zostały zaimplementowane ani przetestowane w aplikacji.
 
-- [ ] **PAY-003 — Zapisz wymagane aktywacje Tpay**
+- [x] **PAY-003 — Zapisz wymagane aktywacje Tpay**
 
 ### Task PAY-003 — Zapisz wymagane aktywacje Tpay
 
@@ -127,6 +127,13 @@ Wiadomo, co blokuje POC karty, BLIK i walletów.
 #### Do not do yet
 
 Nie zakładaj, że sandbox oznacza aktywację produkcyjną.
+
+#### Wynik — 11 października 2026 r.
+
+- Status BLIK, karty, tokenizacji, MIT, PAYID model A, zwrotów i portfeli oraz blokady POC zapisano w [rejestrze PAY-003](../tpay-integration-plan.md).
+- Właściciel potwierdził włączenie widocznych kanałów w panelu Sandbox. Tokenizacja, MIT, PAYID model A i zwroty pozostają niepotwierdzone dla konta; Sandbox nie dowodzi aktywacji produkcyjnej.
+- **Odstępstwo zaakceptowane przez właściciela:** zapytanie do Tpay o funkcje niewidoczne w panelu jest przygotowane, ale nie zostało wysłane. Można rozpocząć neutralny PAY-004. Odpowiednie POC recurring (PAY-033/040 i następne) pozostają zablokowane do potwierdzenia warunków; zapytanie należy wysłać przed nimi.
+- Brak testów automatycznych i zmian zachowania aplikacji w PAY-003.
 
 ## Phase 1 — Neutral payment domain
 
