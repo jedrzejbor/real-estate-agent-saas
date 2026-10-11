@@ -22,6 +22,11 @@ export function toPaymentAmountMinor(value: number): PaymentAmountMinor {
 
 export type PaymentCurrency = 'PLN';
 
+export type PaymentKind =
+  | 'listing'
+  | 'subscription_initial'
+  | 'subscription_renewal';
+
 export type PaymentStatus =
   | 'created'
   | 'pending'

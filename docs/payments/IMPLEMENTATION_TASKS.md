@@ -180,7 +180,7 @@ Nie twórz żądań Tpay.
 - Test jednostkowy `payment.types.spec.ts`: 36/36 PASS. Ręczna kontrola uruchomionej aplikacji: `/oferty`, `/dodaj-oferte` i `/api/listings/public/catalog` zwróciły HTTP 200.
 - Zachowanie użytkownika nie zmieniło się; `docs/MANUAL_RELEASE_TESTS.md` nie wymaga aktualizacji.
 
-- [ ] **PAY-005 — Dodaj neutralną encję Payment**
+- [x] **PAY-005 — Dodaj neutralną encję Payment**
 
 ### Task PAY-005 — Dodaj neutralną encję Payment
 
@@ -215,6 +215,13 @@ Migracja i testy DB przechodzą.
 #### Do not do yet
 
 Nie przenoś prób Stripe do nowej tabeli.
+
+#### Wynik PAY-005 (11 października 2026)
+
+- Dodano encję `Payment` i migrację `20261011_payments.sql`; moduł płatności nadal nie jest importowany przez aplikację.
+- Na osobnej bazie `real_estate_saas_pay005_test` testy integracyjne: zapis, unikatowa referencja operatora i rollback migracji — 3/3 PASS.
+- Migrację zastosowano w tej bazie ręcznie. API uruchomione z tą bazą na porcie 4001; `/api` i `/api/listings/public/catalog` zwróciły HTTP 200. Dotychczasowe ekrany `/oferty` i `/dodaj-oferte` zwróciły HTTP 200.
+- Produkcyjna/deweloperska baza `real_estate_saas` nie została zmieniona. Brak zmiany zachowania i scenariuszy w `docs/MANUAL_RELEASE_TESTS.md`.
 
 - [ ] **PAY-006 — Dodaj lokalną Subscription**
 
