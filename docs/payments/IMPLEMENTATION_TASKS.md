@@ -223,7 +223,7 @@ Nie przenoś prób Stripe do nowej tabeli.
 - Migrację zastosowano w tej bazie ręcznie. API uruchomione z tą bazą na porcie 4001; `/api` i `/api/listings/public/catalog` zwróciły HTTP 200. Dotychczasowe ekrany `/oferty` i `/dodaj-oferte` zwróciły HTTP 200.
 - Produkcyjna/deweloperska baza `real_estate_saas` nie została zmieniona. Brak zmiany zachowania i scenariuszy w `docs/MANUAL_RELEASE_TESTS.md`.
 
-- [ ] **PAY-006 — Dodaj lokalną Subscription**
+- [x] **PAY-006 — Dodaj lokalną Subscription**
 
 ### Task PAY-006 — Dodaj lokalną Subscription
 
@@ -264,10 +264,10 @@ Nie implementuj checkoutu.
 - Dodano lokalną encję `Subscription` i migrację `20261011_subscriptions.sql`. Dotychczasowe dane agencji i Stripe nie były migrowane.
 - Test migracyjny unikatowości aktywnej/`past_due` subskrypcji: PASS (1/1). Test jednostkowy opłaconego okresu grace i rozdzielenia statusu billingowego od uprawnień: PASS (1/1).
 - Migrację zastosowano tylko w `real_estate_saas_pay006_test`; API uruchomiło się z tą bazą. W dotychczasowej bazie nie ma tabeli `subscriptions`.
-- Adres panelu `/dashboard/upgrade` zwrócił HTTP 200. Bez sesji zalogowanego konta przeglądarka nie wyświetliła treści panelu, więc pełna kontrola wizualna pozostaje do wykonania. Odczyt zbiorczy dotychczasowej bazy przed i po kontroli był identyczny: 6 agencji Free i 3 Professional; ich statusy pozostały `active`.
+- Adres panelu `/dashboard/upgrade` zwrócił HTTP 200. Użytkownik potwierdził 11 października 2026 r., że po zalogowaniu widzi w nim wybrany plan. Nie zgłoszono zakupu ani zmiany planu. Odczyt zbiorczy dotychczasowej bazy przed i po kontroli był identyczny: 6 agencji Free i 3 Professional; ich statusy pozostały `active`.
 - Bieżące zachowanie użytkownika nie zmieniło się; `docs/MANUAL_RELEASE_TESTS.md` nie wymaga aktualizacji.
 
-- [ ] **PAY-007 — Dodaj RecurringAuthorization**
+- [x] **PAY-007 — Dodaj RecurringAuthorization**
 
 ### Task PAY-007 — Dodaj RecurringAuthorization
 
@@ -302,6 +302,13 @@ Zaszyfrowany model i testy przechodzą.
 #### Do not do yet
 
 Nie pobieraj tokenu z Tpay.
+
+#### Wynik PAY-007 (11 października 2026)
+
+- Dodano lokalny `AuthorizationId`, encję `RecurringAuthorization`, migrację i wąski magazyn referencji. Referencja jest szyfrowana AES-256-GCM przed zapisem; ORM domyślnie pomija szyfrogram, a jawny odczyt wymaga aktywnej zgody i zgodnego ID subskrypcji. Klucz jest przekazywany z zewnątrz, nie jest zapisany w repozytorium ani bazie.
+- Na osobnej bazie `real_estate_saas_pay007_test` trzy wymagane testy przeszły: unikat aktywnej metody, szyfrowanie/odszyfrowanie oraz brak jawnych referencji w logach zapytań (3/3 PASS).
+- Kontrola ręczna: w tabeli są dwa testowe szyfrogramy `bytea`, bez jawnego tokenu; API uruchomiło się z tą bazą i `/api` zwróciło HTTP 200. Baza testowa zawiera jeden testowy rekord agencji, jedną subskrypcję, dwie autoryzacje i cztery wiersze katalogu planów utworzone przy starcie API. Dotychczasowa baza `real_estate_saas` nie ma tabeli `recurring_authorizations`.
+- Nie wykonywano wywołań Tpay ani checkoutu. Zachowanie użytkownika nie zmieniło się, więc `docs/MANUAL_RELEASE_TESTS.md` nie wymaga aktualizacji. Użytkownik potwierdził później widoczność wybranego planu w zalogowanym panelu PAY-006.
 
 - [ ] **PAY-008 — Dodaj należność i próbę odnowienia**
 

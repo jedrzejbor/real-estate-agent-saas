@@ -7,6 +7,15 @@ export function newPaymentId(): PaymentId {
   return randomUUID() as PaymentId;
 }
 
+/** Local recurring consent ID; provider tokens and aliases never identify it. */
+export type AuthorizationId = string & { readonly __brand: 'AuthorizationId' };
+
+export function newAuthorizationId(): AuthorizationId {
+  return randomUUID() as AuthorizationId;
+}
+
+export type ProviderReferenceType = 'CARD_TOKEN' | 'RECURRING_ALIAS';
+
 /** An integer amount in grosze, never a floating-point amount in złoty. */
 export type PaymentAmountMinor = number & {
   readonly __brand: 'PaymentAmountMinor';
