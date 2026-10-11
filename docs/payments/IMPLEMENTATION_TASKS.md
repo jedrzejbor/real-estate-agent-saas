@@ -1,6 +1,6 @@
 # Zadania implementacyjne płatności PodAdresem
 
-Status: PAY-001, PAY-002 i PAY-003 wykonane; pozostałe zadania są planowane. Obowiązuje [plan architektury](../tpay-integration-plan.md) i [katalog testów manualnych](MANUAL_TESTS.md). Wykonuj tylko wskazany `PAY-XXX`, bez automatycznego przechodzenia do kolejnego. Po zmianie zachowania aktualizuj odpowiedni MT-XXX oraz `docs/MANUAL_RELEASE_TESTS.md` zgodnie z `AGENTS.md`. Testy manualne opisuje się po każdym takim zadaniu; wykonuje się wskazane dla taska oraz krótką regresję po większej iteracji. Pola `Files` są planowaną lokalizacją; jeśli repo wymaga innej, odnotuj ją w review. `—` oznacza brak zmiany. Przed każdym taskiem sprawdź zależności z wcześniejszych faz.
+Status: PAY-001–PAY-004 wykonane; pozostałe zadania są planowane. Obowiązuje [plan architektury](../tpay-integration-plan.md) i [katalog testów manualnych](MANUAL_TESTS.md). Wykonuj tylko wskazany `PAY-XXX`, bez automatycznego przechodzenia do kolejnego. Po zmianie zachowania aktualizuj odpowiedni MT-XXX oraz `docs/MANUAL_RELEASE_TESTS.md` zgodnie z `AGENTS.md`. Testy manualne opisuje się po każdym takim zadaniu; wykonuje się wskazane dla taska oraz krótką regresję po większej iteracji. Pola `Files` są planowaną lokalizacją; jeśli repo wymaga innej, odnotuj ją w review. `—` oznacza brak zmiany. Przed każdym taskiem sprawdź zależności z wcześniejszych faz.
 
 ## Phase 0 — Preparation
 
@@ -137,7 +137,7 @@ Nie zakładaj, że sandbox oznacza aktywację produkcyjną.
 
 ## Phase 1 — Neutral payment domain
 
-- [ ] **PAY-004 — Zdefiniuj statusy i przejścia płatności**
+- [x] **PAY-004 — Zdefiniuj statusy i przejścia płatności**
 
 ### Task PAY-004 — Zdefiniuj statusy i przejścia płatności
 
@@ -172,6 +172,13 @@ Typy są neutralne i testy przejść przechodzą.
 #### Do not do yet
 
 Nie twórz żądań Tpay.
+
+#### Wynik — 11 października 2026 r.
+
+- Dodano neutralne `PaymentId` (lokalny UUID), kwotę jako dodatnią bezpieczną liczbę całkowitą groszy, walutę PLN i statusy z `unknown` oraz monotoniczną tabelą przejść. Powtórzony status jest idempotentnym no-op.
+- `apps/api/src/payments/payments.module.ts` nie istniał przed PAY-004, dlatego utworzono pusty moduł bez importu do aplikacji. Nie dodano encji, migracji, adaptera ani żądań Tpay.
+- Test jednostkowy `payment.types.spec.ts`: 36/36 PASS. Ręczna kontrola uruchomionej aplikacji: `/oferty`, `/dodaj-oferte` i `/api/listings/public/catalog` zwróciły HTTP 200.
+- Zachowanie użytkownika nie zmieniło się; `docs/MANUAL_RELEASE_TESTS.md` nie wymaga aktualizacji.
 
 - [ ] **PAY-005 — Dodaj neutralną encję Payment**
 
