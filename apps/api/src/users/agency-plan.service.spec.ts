@@ -35,6 +35,32 @@ describe('AgencyPlanService', () => {
     jest.restoreAllMocks();
   });
 
+  it('keeps projected PRO during paid grace without granting it from billing status alone', () => {
+    const service = new AgencyPlanService(buildRepo() as never);
+    const billing = {
+      status: 'past_due' as const,
+      currentPeriodStart: new Date('2026-10-01T00:00:00Z'),
+      currentPeriodEnd: new Date('2026-11-01T00:00:00Z'),
+      graceEndsAt: new Date('2026-11-08T00:00:00Z'),
+    };
+    const duringGrace = new Date('2026-11-04T00:00:00Z');
+
+    expect(service.hasPaidBillingCoverage(billing, duringGrace)).toBe(true);
+    expect(
+      service.getEntitlements(
+        buildAgency({ plan: AgencyPlan.PROFESSIONAL, subscription: 'past_due' }),
+      ).plan.code,
+    ).toBe(AgencyPlan.PROFESSIONAL);
+    expect(
+      service.getEntitlements(
+        buildAgency({ plan: AgencyPlan.FREE, subscription: 'past_due' }),
+      ).plan.code,
+    ).toBe(AgencyPlan.FREE);
+    expect(
+      service.hasPaidBillingCoverage(billing, new Date('2026-11-08T00:00:00Z')),
+    ).toBe(false);
+  });
+
   it('returns fallback free entitlements before database catalog is loaded', () => {
     const service = new AgencyPlanService(buildRepo() as never);
 

@@ -1,6 +1,6 @@
 # Zadania implementacyjne płatności PodAdresem
 
-Status: PAY-001 wykonany; pozostałe zadania są planowane. Obowiązuje [plan architektury](../tpay-integration-plan.md) i [katalog testów manualnych](MANUAL_TESTS.md). Wykonuj tylko wskazany `PAY-XXX`, bez automatycznego przechodzenia do kolejnego. Po zmianie zachowania aktualizuj odpowiedni MT-XXX oraz `docs/MANUAL_RELEASE_TESTS.md` zgodnie z `AGENTS.md`. Testy manualne opisuje się po każdym takim zadaniu; wykonuje się wskazane dla taska oraz krótką regresję po większej iteracji. Pola `Files` są planowaną lokalizacją; jeśli repo wymaga innej, odnotuj ją w review. `—` oznacza brak zmiany. Przed każdym taskiem sprawdź zależności z wcześniejszych faz.
+Status: PAY-001–PAY-004 wykonane; pozostałe zadania są planowane. Obowiązuje [plan architektury](../tpay-integration-plan.md) i [katalog testów manualnych](MANUAL_TESTS.md). Wykonuj tylko wskazany `PAY-XXX`, bez automatycznego przechodzenia do kolejnego. Po zmianie zachowania aktualizuj odpowiedni MT-XXX oraz `docs/MANUAL_RELEASE_TESTS.md` zgodnie z `AGENTS.md`. Testy manualne opisuje się po każdym takim zadaniu; wykonuje się wskazane dla taska oraz krótką regresję po większej iteracji. Pola `Files` są planowaną lokalizacją; jeśli repo wymaga innej, odnotuj ją w review. `—` oznacza brak zmiany. Przed każdym taskiem sprawdź zależności z wcześniejszych faz.
 
 ## Phase 0 — Preparation
 
@@ -49,7 +49,7 @@ Nie usuwaj danych ani kodu.
 - **Plan dla danych testowych:** przed PAY-014 developer decyduje, czy potrzebuje kopii 9 lokalnych agencji i pozostałych danych dev. Jeśli tak, wykonuje lokalny backup bazy poza repo i sprawdza możliwość jego odtworzenia. Następnie usuwa/odtwarza wyłącznie rekordy testowe Stripe oraz stosuje migrację developerską pól Stripe. Nie budować backfillu ani okresu współistnienia Stripe i Tpay. PAY-001 nie wykonał backupu, resetu ani migracji.
 - **Decyzja:** PAY-001 zakończony. Do PAY-002 można przejść po osobnym poleceniu. Gdyby przed PAY-014 pojawiły się realne płatności, zatrzymać usuwanie danych i ponownie ocenić plan.
 
-- [ ] **PAY-002 — Załóż i sprawdź konto Tpay Sandbox**
+- [x] **PAY-002 — Załóż i sprawdź konto Tpay Sandbox**
 
 ### Task PAY-002 — Załóż i sprawdź konto Tpay Sandbox
 
@@ -85,7 +85,14 @@ Konto testowe działa; MT-001 ma aktualne kroki.
 
 Nie twórz klienta API.
 
-- [ ] **PAY-003 — Zapisz wymagane aktywacje Tpay**
+#### Wynik — 10 października 2026 r.
+
+- Właściciel potwierdził dostęp do panelu Sandbox i sekcji Integracja → API; klucz Open API został utworzony poza repozytorium.
+- `TPAY_CLIENT_ID`, `TPAY_CLIENT_SECRET` i `TPAY_MERCHANT_ID` są uzupełnione lokalnie w ignorowanym przez Git `apps/api/.env.local`; sprawdzono wyłącznie obecność wartości i adres API Sandbox, bez odczytu lub zapisu sekretów do dokumentacji.
+- Właściciel wykonał MT-001 w Postmanie: HTTP 200, odpowiedź zawierała `access_token` i `expires_in`. [Protokół przebiegu](test-runs/2026-10-10-mt-001-sandbox.md). Wcześniejsza próba z otoczenia agenta otrzymała 403 od Cloudflare; nie jest wynikiem testu właściciela.
+- PAY-002 zakończony. Klient API Tpay i transakcje nie zostały zaimplementowane ani przetestowane w aplikacji.
+
+- [x] **PAY-003 — Zapisz wymagane aktywacje Tpay**
 
 ### Task PAY-003 — Zapisz wymagane aktywacje Tpay
 
@@ -121,9 +128,16 @@ Wiadomo, co blokuje POC karty, BLIK i walletów.
 
 Nie zakładaj, że sandbox oznacza aktywację produkcyjną.
 
+#### Wynik — 11 października 2026 r.
+
+- Status BLIK, karty, tokenizacji, MIT, PAYID model A, zwrotów i portfeli oraz blokady POC zapisano w [rejestrze PAY-003](../tpay-integration-plan.md).
+- Właściciel potwierdził włączenie widocznych kanałów w panelu Sandbox. Tokenizacja, MIT, PAYID model A i zwroty pozostają niepotwierdzone dla konta; Sandbox nie dowodzi aktywacji produkcyjnej.
+- **Odstępstwo zaakceptowane przez właściciela:** zapytanie do Tpay o funkcje niewidoczne w panelu jest przygotowane, ale nie zostało wysłane. Można rozpocząć neutralny PAY-004. Odpowiednie POC recurring (PAY-033/040 i następne) pozostają zablokowane do potwierdzenia warunków; zapytanie należy wysłać przed nimi.
+- Brak testów automatycznych i zmian zachowania aplikacji w PAY-003.
+
 ## Phase 1 — Neutral payment domain
 
-- [ ] **PAY-004 — Zdefiniuj statusy i przejścia płatności**
+- [x] **PAY-004 — Zdefiniuj statusy i przejścia płatności**
 
 ### Task PAY-004 — Zdefiniuj statusy i przejścia płatności
 
@@ -159,7 +173,14 @@ Typy są neutralne i testy przejść przechodzą.
 
 Nie twórz żądań Tpay.
 
-- [ ] **PAY-005 — Dodaj neutralną encję Payment**
+#### Wynik — 11 października 2026 r.
+
+- Dodano neutralne `PaymentId` (lokalny UUID), kwotę jako dodatnią bezpieczną liczbę całkowitą groszy, walutę PLN i statusy z `unknown` oraz monotoniczną tabelą przejść. Powtórzony status jest idempotentnym no-op.
+- `apps/api/src/payments/payments.module.ts` nie istniał przed PAY-004, dlatego utworzono pusty moduł bez importu do aplikacji. Nie dodano encji, migracji, adaptera ani żądań Tpay.
+- Test jednostkowy `payment.types.spec.ts`: 36/36 PASS. Ręczna kontrola uruchomionej aplikacji: `/oferty`, `/dodaj-oferte` i `/api/listings/public/catalog` zwróciły HTTP 200.
+- Zachowanie użytkownika nie zmieniło się; `docs/MANUAL_RELEASE_TESTS.md` nie wymaga aktualizacji.
+
+- [x] **PAY-005 — Dodaj neutralną encję Payment**
 
 ### Task PAY-005 — Dodaj neutralną encję Payment
 
@@ -195,7 +216,14 @@ Migracja i testy DB przechodzą.
 
 Nie przenoś prób Stripe do nowej tabeli.
 
-- [ ] **PAY-006 — Dodaj lokalną Subscription**
+#### Wynik PAY-005 (11 października 2026)
+
+- Dodano encję `Payment` i migrację `20261011_payments.sql`; moduł płatności nadal nie jest importowany przez aplikację.
+- Na osobnej bazie `real_estate_saas_pay005_test` testy integracyjne: zapis, unikatowa referencja operatora i rollback migracji — 3/3 PASS.
+- Migrację zastosowano w tej bazie ręcznie. API uruchomione z tą bazą na porcie 4001; `/api` i `/api/listings/public/catalog` zwróciły HTTP 200. Dotychczasowe ekrany `/oferty` i `/dodaj-oferte` zwróciły HTTP 200.
+- Produkcyjna/deweloperska baza `real_estate_saas` nie została zmieniona. Brak zmiany zachowania i scenariuszy w `docs/MANUAL_RELEASE_TESTS.md`.
+
+- [x] **PAY-006 — Dodaj lokalną Subscription**
 
 ### Task PAY-006 — Dodaj lokalną Subscription
 
@@ -231,7 +259,15 @@ Model nie nadaje PRO automatycznie po samym statusie.
 
 Nie implementuj checkoutu.
 
-- [ ] **PAY-007 — Dodaj RecurringAuthorization**
+#### Wynik prac PAY-006 (11 października 2026)
+
+- Dodano lokalną encję `Subscription` i migrację `20261011_subscriptions.sql`. Dotychczasowe dane agencji i Stripe nie były migrowane.
+- Test migracyjny unikatowości aktywnej/`past_due` subskrypcji: PASS (1/1). Test jednostkowy opłaconego okresu grace i rozdzielenia statusu billingowego od uprawnień: PASS (1/1).
+- Migrację zastosowano tylko w `real_estate_saas_pay006_test`; API uruchomiło się z tą bazą. W dotychczasowej bazie nie ma tabeli `subscriptions`.
+- Adres panelu `/dashboard/upgrade` zwrócił HTTP 200. Użytkownik potwierdził 11 października 2026 r., że po zalogowaniu widzi w nim wybrany plan. Nie zgłoszono zakupu ani zmiany planu. Odczyt zbiorczy dotychczasowej bazy przed i po kontroli był identyczny: 6 agencji Free i 3 Professional; ich statusy pozostały `active`.
+- Bieżące zachowanie użytkownika nie zmieniło się; `docs/MANUAL_RELEASE_TESTS.md` nie wymaga aktualizacji.
+
+- [x] **PAY-007 — Dodaj RecurringAuthorization**
 
 ### Task PAY-007 — Dodaj RecurringAuthorization
 
@@ -267,7 +303,14 @@ Zaszyfrowany model i testy przechodzą.
 
 Nie pobieraj tokenu z Tpay.
 
-- [ ] **PAY-008 — Dodaj należność i próbę odnowienia**
+#### Wynik PAY-007 (11 października 2026)
+
+- Dodano lokalny `AuthorizationId`, encję `RecurringAuthorization`, migrację i wąski magazyn referencji. Referencja jest szyfrowana AES-256-GCM przed zapisem; ORM domyślnie pomija szyfrogram, a jawny odczyt wymaga aktywnej zgody i zgodnego ID subskrypcji. Klucz jest przekazywany z zewnątrz, nie jest zapisany w repozytorium ani bazie.
+- Na osobnej bazie `real_estate_saas_pay007_test` trzy wymagane testy przeszły: unikat aktywnej metody, szyfrowanie/odszyfrowanie oraz brak jawnych referencji w logach zapytań (3/3 PASS).
+- Kontrola ręczna: w tabeli są dwa testowe szyfrogramy `bytea`, bez jawnego tokenu; API uruchomiło się z tą bazą i `/api` zwróciło HTTP 200. Baza testowa zawiera jeden testowy rekord agencji, jedną subskrypcję, dwie autoryzacje i cztery wiersze katalogu planów utworzone przy starcie API. Dotychczasowa baza `real_estate_saas` nie ma tabeli `recurring_authorizations`.
+- Nie wykonywano wywołań Tpay ani checkoutu. Zachowanie użytkownika nie zmieniło się, więc `docs/MANUAL_RELEASE_TESTS.md` nie wymaga aktualizacji. Użytkownik potwierdził później widoczność wybranego planu w zalogowanym panelu PAY-006.
+
+- [x] **PAY-008 — Dodaj należność i próbę odnowienia**
 
 ### Task PAY-008 — Dodaj należność i próbę odnowienia
 
@@ -302,6 +345,13 @@ Duplikat okresu nie powstaje.
 #### Do not do yet
 
 Nie uruchamiaj schedulera.
+
+#### Wynik PAY-008 (11 października 2026)
+
+- Dodano neutralną encję `SubscriptionRenewal`, osobną encję prób obciążenia i migrację. Unikat `(subscription_id, period_start)` dopuszcza jedną należność za okres. Częściowy unikat aktywnej próby blokuje kolejny charge przy `charging`, `unknown` lub `paid`; reguła domenowa odrzuca retry, dopóki należność lub ostatnia próba ma niepewny stan.
+- Dwa wymagane testy integracyjne na `real_estate_saas_pay008_test`: duplikat należności odrzucony i `unknown` blokuje ponowienie, które staje się dozwolone po definitywnym `failed` — 2/2 PASS.
+- Kontrola ręczna po migracji: dla testowego okresu 1 listopada – 1 grudnia 2026 r. istnieje jedna należność oraz osobne próby nr 1 (`failed`) i nr 2 (`charging`). Osobna baza testowa zawiera jedną testową agencję, jedną subskrypcję, jedną należność i dwie próby. Skopiowano do niej tylko schemat dotychczasowej bazy i zastosowano migrację PAY-006 jako wymagany schemat zależny. Dotychczasowa baza `real_estate_saas` nie ma tabeli `subscription_renewals`.
+- Nie uruchamiano schedulera ani wywołań Tpay; istniejący checkout i zachowanie użytkownika nie zmieniły się. `docs/MANUAL_RELEASE_TESTS.md` nie wymaga aktualizacji.
 
 - [ ] **PAY-009 — Dodaj dwa porty i capabilities**
 
