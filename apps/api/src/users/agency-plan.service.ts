@@ -280,8 +280,6 @@ export class AgencyPlanService implements OnModuleInit {
       description: metadata.description,
       priceMonthlyPln: metadata.priceMonthlyPln,
       priceYearlyPln: metadata.priceYearlyPln,
-      stripePriceIdMonthly: null,
-      stripePriceIdYearly: null,
       limits: definition.limits,
       features: definition.features,
       isPublic: true,

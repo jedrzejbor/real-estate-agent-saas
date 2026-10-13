@@ -20,8 +20,6 @@ function buildPlan(overrides: Partial<PlanCatalog> = {}): PlanCatalog {
     description: null,
     priceMonthlyPln: 19_900,
     priceYearlyPln: 199_000,
-    stripePriceIdMonthly: 'price_professional_monthly',
-    stripePriceIdYearly: 'price_professional_yearly',
     limits: {},
     features: {},
     isPublic: true,
@@ -275,7 +273,6 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
       planCode: AgencyPlan.PROFESSIONAL,
       planLabel: 'Professional',
       billingInterval: AgencyPlanBillingInterval.MONTHLY,
-      providerPriceReference: 'price_professional_monthly',
       currency: 'PLN',
       subtotalGrossAmount: 19_900,
       discountGrossAmount: 9_950,
@@ -407,16 +404,4 @@ describe('AgencyPlanCheckoutAttemptsService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('rejects checkout when the selected interval has no provider price', async () => {
-    const { service, paymentGateway } = buildService({
-      plan: buildPlan({ stripePriceIdMonthly: null }),
-    });
-
-    await expect(
-      service.createCheckoutAttempt('user-1', 'quote-1', NOW),
-    ).rejects.toBeInstanceOf(ConflictException);
-    expect(
-      paymentGateway.createSubscriptionCheckoutSession,
-    ).not.toHaveBeenCalled();
-  });
 });

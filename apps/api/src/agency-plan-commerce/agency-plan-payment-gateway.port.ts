@@ -16,7 +16,6 @@ export interface CreateAgencyPlanSubscriptionCheckoutInput {
   planCode: AgencyPlan;
   planLabel: string;
   billingInterval: AgencyPlanBillingInterval;
-  providerPriceReference: string;
   currency: 'PLN';
   subtotalGrossAmount: number;
   discountGrossAmount: number;

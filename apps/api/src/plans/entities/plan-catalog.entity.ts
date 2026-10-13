@@ -27,22 +27,6 @@ export class PlanCatalog {
   @Column({ type: 'int', name: 'price_yearly_pln', default: 0 })
   priceYearlyPln: number;
 
-  @Column({
-    type: 'varchar',
-    length: 255,
-    name: 'stripe_price_id_monthly',
-    nullable: true,
-  })
-  stripePriceIdMonthly?: string | null;
-
-  @Column({
-    type: 'varchar',
-    length: 255,
-    name: 'stripe_price_id_yearly',
-    nullable: true,
-  })
-  stripePriceIdYearly?: string | null;
-
   @Column({ type: 'jsonb', default: {} })
   limits: Partial<AgencyPlanLimits>;
 

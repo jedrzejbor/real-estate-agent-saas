@@ -108,16 +108,6 @@ export class UpdatePlanDto {
   @Min(0)
   priceYearlyPln?: number;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  stripePriceIdMonthly?: string | null;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  stripePriceIdYearly?: string | null;
-
   @ValidateIf((_, value) => value !== undefined)
   @ValidateNested()
   @Type(() => UpdatePlanLimitsDto)

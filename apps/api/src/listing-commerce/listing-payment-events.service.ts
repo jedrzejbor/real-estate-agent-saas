@@ -410,8 +410,8 @@ async function assertOrBindLegacyProviderSession(
       );
     }
 
-    // Stripe may create a session just before the database becomes
-    // unavailable. A signed success can safely close that gap only after the
+    // A provider may create a session just before the database becomes
+    // unavailable. A verified success can safely close that gap only after the
     // immutable amount and currency have been checked.
     assertSuccessfulPaymentMatchesOrder(order, event, null);
     order.provider = event.provider;

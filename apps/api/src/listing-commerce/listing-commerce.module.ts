@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, ServiceUnavailableException } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReleaseFlagsModule } from '../release-flags';
 import { MonitoringModule } from '../monitoring';
@@ -33,7 +33,10 @@ import { ListingCheckoutSessionsService } from './listing-checkout-sessions.serv
 import { ListingCommerceTelemetryService } from './listing-commerce-telemetry.service';
 import { ListingEntitlementsService } from './listing-entitlements.service';
 import { ListingEntitlementsScheduler } from './listing-entitlements.scheduler';
-import { LISTING_PAYMENT_GATEWAY } from './listing-payment-gateway.port';
+import {
+  LISTING_PAYMENT_GATEWAY,
+  type ListingPaymentGateway,
+} from './listing-payment-gateway.port';
 import { ListingOrdersController } from './listing-orders.controller';
 import { ListingOrdersService } from './listing-orders.service';
 import { ListingPaymentEventsService } from './listing-payment-events.service';
@@ -44,8 +47,13 @@ import { ListingProductsController } from './listing-products.controller';
 import { ListingProductsService } from './listing-products.service';
 import { ListingPromotionsService } from './listing-promotions.service';
 import { ListingQuotesService } from './listing-quotes.service';
-import { StripeListingPaymentAdapter } from './stripe-listing-payment.adapter';
-import { StripeListingWebhooksController } from './stripe-listing-webhooks.controller';
+
+const unavailablePaymentGateway: ListingPaymentGateway = {
+  provider: 'unavailable',
+  async createCheckoutSession() {
+    throw new ServiceUnavailableException('Płatności są tymczasowo niedostępne. Spróbuj ponownie później.');
+  },
+};
 
 const LISTING_COMMERCE_ENTITIES = [
   ListingProductCatalog,
@@ -82,7 +90,6 @@ const LISTING_COMMERCE_ENTITIES = [
     ListingCheckoutController,
     ListingEntitlementsController,
     ListingOrdersController,
-    StripeListingWebhooksController,
   ],
   providers: [
     ListingProductsService,
@@ -99,10 +106,9 @@ const LISTING_COMMERCE_ENTITIES = [
     ListingPaymentEventsService,
     ListingPaymentReconciliationService,
     ListingPaymentReconciliationScheduler,
-    StripeListingPaymentAdapter,
     {
       provide: LISTING_PAYMENT_GATEWAY,
-      useExisting: StripeListingPaymentAdapter,
+      useValue: unavailablePaymentGateway,
     },
   ],
   exports: [

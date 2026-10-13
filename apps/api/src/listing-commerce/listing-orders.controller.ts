@@ -6,17 +6,14 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { ListingCheckoutSessionsService } from './listing-checkout-sessions.service';
 import { ListingOrdersService } from './listing-orders.service';
 
 @Controller('listing-orders')
 export class ListingOrdersController {
-  constructor(
-    private readonly listingOrdersService: ListingOrdersService,
-    private readonly listingCheckoutSessionsService: ListingCheckoutSessionsService,
-  ) {}
+  constructor(private readonly listingOrdersService: ListingOrdersService) {}
 
   /** GET /api/listing-orders/by-listing/:listingId — owner-scoped order history. */
   @Get('by-listing/:listingId')
@@ -39,16 +36,13 @@ export class ListingOrdersController {
     return this.listingOrdersService.findOwnedOrder(userId, orderId);
   }
 
-  /** POST /api/listing-orders/:id/checkout-session — start or resume Stripe checkout. */
+  /** POST /api/listing-orders/:id/checkout-session — unavailable during payment migration. */
   @Post(':id/checkout-session')
   @HttpCode(HttpStatus.OK)
-  createCheckoutSession(
-    @CurrentUser('id') userId: string,
-    @Param('id', ParseUUIDPipe) orderId: string,
-  ) {
-    return this.listingCheckoutSessionsService.createOwnedCheckoutSession(
-      userId,
-      orderId,
-    );
+  createCheckoutSession() {
+    throw new ServiceUnavailableException({
+      code: 'PAYMENTS_UNAVAILABLE',
+      message: 'Płatności są tymczasowo niedostępne. Spróbuj ponownie później.',
+    });
   }
 }

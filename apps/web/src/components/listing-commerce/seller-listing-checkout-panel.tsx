@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -19,14 +18,11 @@ import { getApiErrorMessage } from '@/lib/api-client';
 import { getListingEntitlementLifecycle } from '@/lib/listing-entitlement-lifecycle';
 import {
   canStartListingCheckout,
-  createListingCheckoutSession,
-  createListingOrder,
   createListingQuote,
   fetchListingEntitlementsForListing,
   fetchListingOrdersForListing,
   findCurrentPayableOrder,
   isListingOrderPaid,
-  isStripeCheckoutUrl,
   type ListingOrder,
   type ListingEntitlement,
   type ListingQuote,
@@ -47,7 +43,6 @@ interface SellerListingCheckoutPanelProps {
 
 export function SellerListingCheckoutPanel({
   listingId,
-  ownerName,
   isPublished,
   isExpired,
 }: SellerListingCheckoutPanelProps) {
@@ -60,9 +55,7 @@ export function SellerListingCheckoutPanel({
   const [entitlements, setEntitlements] = useState<ListingEntitlement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isQuoting, setIsQuoting] = useState(false);
-  const [isStartingPayment, setIsStartingPayment] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const idempotencyKeyRef = useRef<string | null>(null);
 
   const loadCheckout = useCallback(async () => {
     setIsLoading(true);
@@ -166,67 +159,16 @@ export function SellerListingCheckoutPanel({
   function applyPromotionCode() {
     const normalized = promotionCodeInput.trim();
     setAppliedPromotionCode(normalized);
-    idempotencyKeyRef.current = null;
   }
 
   function removePromotionCode() {
     setPromotionCodeInput('');
     setAppliedPromotionCode('');
-    idempotencyKeyRef.current = null;
   }
 
-  async function startPayment() {
+  function startPayment() {
     if (!selectedCode && !payableOrder) return;
-
-    setIsStartingPayment(true);
-    setError(null);
-
-    try {
-      let order = payableOrder;
-
-      if (!order) {
-        idempotencyKeyRef.current ??= `listing-checkout:${crypto.randomUUID()}`;
-        order = await createListingOrder(
-          listingId,
-          [{ productCode: selectedCode, quantity: 1 }],
-          {
-            countryCode: 'PL',
-            buyerType: 'consumer',
-            ...(ownerName.trim() ? { fullName: ownerName.trim() } : {}),
-          },
-          idempotencyKeyRef.current,
-          { promotionCode: appliedPromotionCode },
-        );
-        setOrders((current) => [order!, ...current]);
-      }
-
-      if (isListingOrderPaid(order) || !order.requiresPayment) {
-        await loadCheckout();
-        return;
-      }
-
-      const session = await createListingCheckoutSession(order.id);
-      if (!isStripeCheckoutUrl(session.checkoutUrl)) {
-        throw new Error(
-          'Operator płatności zwrócił nieprawidłowy adres przekierowania.',
-        );
-      }
-
-      window.location.assign(session.checkoutUrl);
-    } catch (cause) {
-      setError(getApiErrorMessage(cause));
-      await refreshOrdersSilently();
-    } finally {
-      setIsStartingPayment(false);
-    }
-  }
-
-  async function refreshOrdersSilently() {
-    try {
-      setOrders(await fetchListingOrdersForListing(listingId));
-    } catch {
-      // The original checkout error is more useful than a secondary refresh error.
-    }
+    setError('Płatności są tymczasowo niedostępne. Spróbuj ponownie później.');
   }
 
   if (isLoading) {
@@ -288,7 +230,6 @@ export function SellerListingCheckoutPanel({
                 checked={selectedCode === product.code}
                 onChange={() => {
                   setSelectedCode(product.code);
-                  idempotencyKeyRef.current = null;
                 }}
                 className="mt-1"
               />
@@ -313,7 +254,7 @@ export function SellerListingCheckoutPanel({
         <PromotionCodeForm
           value={promotionCodeInput}
           appliedCode={appliedPromotionCode}
-          isBusy={isQuoting || isStartingPayment}
+          isBusy={isQuoting}
           onChange={setPromotionCodeInput}
           onApply={applyPromotionCode}
           onRemove={removePromotionCode}
@@ -404,7 +345,6 @@ export function SellerListingCheckoutPanel({
       <button
         type="button"
         disabled={
-          isStartingPayment ||
           isQuoting ||
           !summary ||
           (payableOrder !== null && !canStartListingCheckout(payableOrder))
@@ -412,11 +352,7 @@ export function SellerListingCheckoutPanel({
         onClick={startPayment}
         className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isStartingPayment ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <CreditCard className="h-4 w-4" />
-        )}
+        <CreditCard className="h-4 w-4" />
         {payableOrder ? 'Przejdź do płatności' : 'Zamawiam i płacę'}
       </button>
       <p className="mt-2 text-center text-xs text-muted-foreground">

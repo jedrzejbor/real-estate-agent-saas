@@ -1,6 +1,56 @@
 # Manualne testy płatności PodAdresem
 
-Status: scenariusze planowane; MT-001 wykonano ręcznie w Sandbox 10 października 2026 r. ([protokół](test-runs/2026-10-10-mt-001-sandbox.md)); pozostałych nie wykonano. Powiązania z [planem](../tpay-integration-plan.md) i [zadaniami PAY-XXX](IMPLEMENTATION_TASKS.md). Testy są napisane dla osoby używającej aplikacji; tam, gdzie trzeba zasymulować czas, webhook lub błąd sieci, developer przygotowuje bezpieczne narzędzie testowe i pomaga w uruchomieniu. Nie używaj prawdziwych kart ani pieniędzy. Dane kart i sekrety pozostają poza repo. Po każdym tasku zmieniającym zachowanie aktualizuj odpowiedni scenariusz oraz `docs/MANUAL_RELEASE_TESTS.md`. W protokole konkretnego przebiegu zapisz datę, środowisko, wersję i Pass/Fail. Po większej iteracji podaj krótką listę `Manual regression required: MT-...`.
+## MT-016 — Tymczasowa niedostępność checkoutu (PAY-011)
+
+**Prerequisites:** Wersja z PAY-011; testowe konto prywatnego sprzedającego z ofertą gotową do zakupu oraz osobne konto właściciela agencji z planem **Free**. Nie używaj prawdziwych pieniędzy. Developer porówna liczbę prób płatności i uprawnień w testowej bazie przed testem i po nim.
+
+1. Jako sprzedający otwórz zakup publikacji ogłoszenia i naciśnij przycisk rozpoczęcia płatności.
+2. Sprawdź, że widzisz komunikat „Płatności są tymczasowo niedostępne. Spróbuj ponownie później.” i pozostajesz w PodAdresem.
+3. Jako właściciel agencji z planem **Free** wejdź na `/dashboard/upgrade`, wybierz płatny plan i poczekaj na wycenę. Kliknij „Przejdź do bezpiecznej płatności”. Sprawdź ten sam komunikat. Jeśli przycisk jest nieaktywny, zanotuj widoczną przyczynę (np. obecny płatny plan albo błąd wyceny) i oznacz tę część jako **Blocked**, nie jako Pass.
+4. Odśwież obie strony. Sprawdź, że istniejące zamówienie, wycena i dotychczasowe uprawnienia są nadal dostępne. Developer porównuje liczbę prób płatności i uprawnień przed testem i po nim.
+5. Powtórz żądania jako niezalogowany użytkownik lub osoba bez dostępu do zasobu; obowiązujące reguły uwierzytelnienia i uprawnień nadal mają działać. Sprawdź też stan dostępnych flag sprzedaży ogłoszeń: żadna nie może ponownie włączyć checkoutu.
+
+**Expected result:** Próba rozpoczęcia płatności zwraca HTTP 503 z kodem `PAYMENTS_UNAVAILABLE`; nie ma przekierowania do Stripe ani nowego zamówienia, próby płatności lub uprawnienia. Odczyt istniejących zamówień oraz wyceny ogłoszenia i planu nadal działają. Komunikat „Internal server error” jest wynikiem negatywnym.
+
+**Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______; środowisko/wersja: ______; stan flag: ______; uwagi: ______.
+
+**Do zapisania po powrocie — wyślij wyniki bez danych logowania:**
+
+- Ogłoszenie: [ ] komunikat o niedostępności [ ] inny wynik [ ] Blocked; widoczny tekst: ______; przekierowanie do Stripe: [ ] tak [ ] nie.
+- PRO na agencji Free: [ ] komunikat o niedostępności [ ] inny wynik [ ] Blocked; widoczny tekst lub powód nieaktywnego przycisku: ______; przekierowanie do Stripe: [ ] tak [ ] nie.
+- Dotychczasowy plan na wcześniej używanym koncie (zaległa kontrola PAY-010): [ ] nadal widoczny [ ] niewidoczny [ ] nie sprawdzono.
+- Data i wersja aplikacji: ______. Developer uzupełni wynik kontroli bazy i kod odpowiedzi API; nie trzeba otwierać Tpay ani wpisywać karty.
+
+Pozostałe scenariusze MT-002–MT-015 dotyczą płatności po ponownym uruchomieniu checkoutu i nie są scenariuszami odbioru PAY-011.
+
+## MT-017 — Frontend bez Stripe podczas wstrzymanych płatności (PAY-013)
+
+**Prerequisites:** Lokalny frontend i API z PAY-013; testowe konto agencji Free, konto sprzedającego z ogłoszeniem oraz dane do rejestracji nowego konta testowego. Nie wpisuj danych karty.
+
+1. Otwórz rejestrację i wybierz płatny plan. Sprawdź, że strona nie wymienia Stripe i informuje o tymczasowej niedostępności płatności. Po utworzeniu konta przejdź do panelu: konto pozostaje dostępne, plan nie aktywuje się bez zapłaty, a komunikat o niedostępności jest czytelny. Jeśli wymagane jest potwierdzenie e-mail, sprawdź najpierw ekran oczekiwania, a potem panel po weryfikacji.
+2. Jako właściciel agencji Free otwórz `/dashboard/upgrade`, poczekaj na wycenę i kliknij „Przejdź do bezpiecznej płatności”. Powinien pojawić się komunikat o niedostępności. Sprawdź także konto z istniejącym płatnym planem: plan nadal jest widoczny, a zakup kolejnego planu pozostaje niedostępny.
+3. Jako prywatny sprzedający otwórz zakup ogłoszenia i kliknij „Zamawiam i płacę”. Powinien pojawić się ten sam komunikat, bez utworzenia zamówienia.
+4. Jako administrator otwórz edycję katalogu planów. Nie ma pól identyfikatorów cen Stripe. Zapisz nieszkodliwą zmianę planu testowego tylko jeśli środowisko testowe na to pozwala; formularz nie wysyła pól Stripe. Sprawdź role: zwykły użytkownik nie może edytować katalogu.
+5. Developer porównuje zamówienia, próby płatności, uprawnienia i plan konta przed/po testach. Sprawdza też, że żadna dostępna flaga sprzedaży nie przywraca przekierowania do Stripe.
+
+**Expected result:** Nigdzie w tych przepływach nie ma marki Stripe ani przekierowania do operatora. Kliknięcia pokazują „Płatności są tymczasowo niedostępne. Spróbuj ponownie później.”, nie tworzą płatnego uprawnienia i nie zmieniają dotychczasowych danych. Rejestracja konta jest możliwa niezależnie od niedostępności płatności.
+
+**Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______; środowisko/wersja: ______; stan flag: ______; uwagi: ______.
+
+## MT-018 — Aplikacja po usunięciu SDK i kolumn Stripe (PAY-014)
+
+**Prerequisites:** Lokalna aplikacja po migracji PAY-014; istniejące konto agencji z przypisanym planem, konto agencji Free i ogłoszenie gotowe do zakupu. Developer ma zweryfikowany backup sprzed migracji i porównuje stan bazy przed/po. Nie używaj karty ani prawdziwych pieniędzy.
+
+1. Uruchom API i web, zaloguj się na istniejące konto. Otwórz panel agencji, listę ogłoszeń i `/dashboard/upgrade`. Sprawdź, że dotychczasowy plan, ogłoszenia i wyceny pozostają dostępne.
+2. Na agencji Free spróbuj rozpocząć zakup PRO; jako właściciel ogłoszenia spróbuj opłacić publikację. Oba widoki powinny pokazać komunikat „Płatności są tymczasowo niedostępne. Spróbuj ponownie później.” bez przekierowania i bez nowej próby płatności.
+3. Sprawdź walidację i role: konto bez dostępu nie może edytować katalogu planów ani kupić cudzego ogłoszenia. W panelu admina nie ma pól Stripe; edycja ceny testowego planu nadal podlega istniejącym regułom walidacji.
+4. Developer porównuje liczbę agencji, planów, ogłoszeń, zamówień i uprawnień przed/po migracji oraz sprawdza, że pozostałe flagi sprzedaży nie przywracają checkoutu.
+
+**Expected result:** Aplikacja startuje bez SDK i konfiguracji Stripe. Tylko dwie puste kolumny cen Stripe są usunięte; pozostałe dane i uprawnienia są zachowane. Checkout pozostaje niedostępny niezależnie od roli i flagi, a zwykłe ekrany działają.
+
+**Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______; środowisko/wersja: ______; stan flag: ______; uwagi: ______.
+
+Status: scenariusze planowane; MT-001 wykonano ręcznie w Sandbox 10 października 2026 r. ([protokół](test-runs/2026-10-10-mt-001-sandbox.md)); główne ścieżki MT-016 wykonano lokalnie 12 października 2026 r. ([protokół](test-runs/2026-10-12-pay-011-local.md)), a dodatkowe kontrole ról i flag czekają na wynik; główne ścieżki MT-017 potwierdzono lokalnie 12 października 2026 r. ([protokół](test-runs/2026-10-12-pay-013-local.md)), bez osobnych pomiarów bazy, ról i flag; MT-018 czeka na kontrolę ręczną; pozostałych scenariuszy nie wykonano. Powiązania z [planem](../tpay-integration-plan.md) i [zadaniami PAY-XXX](IMPLEMENTATION_TASKS.md). Testy są napisane dla osoby używającej aplikacji; tam, gdzie trzeba zasymulować czas, webhook lub błąd sieci, developer przygotowuje bezpieczne narzędzie testowe i pomaga w uruchomieniu. Nie używaj prawdziwych kart ani pieniędzy. Dane kart i sekrety pozostają poza repo. Po każdym tasku zmieniającym zachowanie aktualizuj odpowiedni scenariusz oraz `docs/MANUAL_RELEASE_TESTS.md`. W protokole konkretnego przebiegu zapisz datę, środowisko, wersję i Pass/Fail. Po większej iteracji podaj krótką listę `Manual regression required: MT-...`.
 
 ## MT-001 — Uzyskanie tokenu OAuth Tpay Sandbox
 

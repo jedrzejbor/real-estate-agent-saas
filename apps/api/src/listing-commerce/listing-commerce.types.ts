@@ -1,8 +1,8 @@
 /**
  * Domain vocabulary for one-off listing products and purchases.
  *
- * Keep these types provider-agnostic. Stripe-specific event and session names
- * belong in a payment adapter, not in the commerce domain.
+ * Keep these types provider-agnostic. Provider event and session names belong
+ * in a payment adapter, not in the commerce domain.
  */
 export enum ListingProductType {
   PUBLICATION = 'publication',

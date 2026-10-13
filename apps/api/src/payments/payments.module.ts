@@ -5,13 +5,19 @@ import {
   PaymentProviderCapabilities,
 } from './domain/provider-capabilities';
 import { Payment } from './infrastructure/typeorm/payment.entity';
+import { PaymentRepository } from './infrastructure/typeorm/payment.repository';
+import { RenewalRepository } from './infrastructure/typeorm/renewal.repository';
+import { SubscriptionRenewal } from './infrastructure/typeorm/subscription-renewal.entity';
+import { Subscription } from './infrastructure/typeorm/subscription.entity';
+import { SubscriptionRepository } from './infrastructure/typeorm/subscription.repository';
 import { PAYMENT_GATEWAY, PaymentGateway } from './ports/payment-gateway.port';
 import { RECURRING_GATEWAY, RecurringGateway } from './ports/recurring-gateway.port';
 
 /** Registered only when a future task imports this module into the application. */
 @Module({
-  imports: [TypeOrmModule.forFeature([Payment])],
-  exports: [TypeOrmModule],
+  imports: [TypeOrmModule.forFeature([Payment, Subscription, SubscriptionRenewal])],
+  providers: [PaymentRepository, SubscriptionRepository, RenewalRepository],
+  exports: [TypeOrmModule, PaymentRepository, SubscriptionRepository, RenewalRepository],
 })
 export class PaymentsModule {
   /** Opt-in binding; current checkout does not import or use these ports. */

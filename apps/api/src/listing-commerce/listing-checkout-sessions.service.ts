@@ -70,8 +70,7 @@ export class ListingCheckoutSessionsService {
     );
 
     // Never keep a database transaction open during a provider network call.
-    // A retry reuses the durable attempt ID and therefore the same Stripe
-    // idempotency key. A new attempt gets a new key and a new session.
+    // A retry reuses the durable attempt ID; a new attempt gets a new ID.
     const session =
       await this.paymentGateway.createCheckoutSession(paymentInput);
 

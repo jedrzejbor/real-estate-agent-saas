@@ -15,8 +15,6 @@ function buildPlan(overrides: Partial<PlanCatalog> = {}): PlanCatalog {
     description: 'Plan dla biura',
     priceMonthlyPln: 24_900,
     priceYearlyPln: 249_000,
-    stripePriceIdMonthly: 'price_monthly',
-    stripePriceIdYearly: 'price_yearly',
     limits: {},
     features: {},
     isPublic: true,

@@ -36,14 +36,10 @@ export interface AdminPlan {
   description: string | null;
   priceMonthlyPln: number;
   priceYearlyPln: number;
-  stripePriceIdMonthly: string | null;
-  stripePriceIdYearly: string | null;
   limits: AgencyPlanLimits;
   features: AgencyPlanFeatures;
   isPublic: boolean;
   sortOrder: number;
-  billingReady: boolean;
-  billingWarnings: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -166,8 +162,6 @@ export type UpdatePlanInput = Partial<
     | 'description'
     | 'priceMonthlyPln'
     | 'priceYearlyPln'
-    | 'stripePriceIdMonthly'
-    | 'stripePriceIdYearly'
     | 'limits'
     | 'features'
     | 'isPublic'

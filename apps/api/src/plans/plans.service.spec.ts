@@ -10,8 +10,6 @@ function buildPlan(overrides: Partial<PlanCatalog> = {}): PlanCatalog {
     description: 'Starter plan',
     priceMonthlyPln: 9900,
     priceYearlyPln: 99000,
-    stripePriceIdMonthly: 'price_starter_monthly',
-    stripePriceIdYearly: 'price_starter_yearly',
     limits: {
       activeListings: 25,
       clients: 250,
@@ -77,8 +75,6 @@ describe('PlansService', () => {
       billingInterval: AgencyPlanBillingInterval.YEARLY,
       now: expect.any(Date),
     });
-    expect(plans[0]).not.toHaveProperty('stripePriceIdMonthly');
-    expect(plans[0]).not.toHaveProperty('stripePriceIdYearly');
     expect(plans[0]).not.toHaveProperty('isPublic');
     expect(JSON.stringify(plans[0])).not.toContain('campaign-1');
   });
