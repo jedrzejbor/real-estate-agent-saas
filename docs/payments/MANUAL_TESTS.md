@@ -52,9 +52,20 @@ Pozostałe scenariusze MT-002–MT-015 dotyczą płatności po ponownym uruchomi
 
 Status: scenariusze planowane; MT-001 wykonano ręcznie w Sandbox 10 października 2026 r. ([protokół](test-runs/2026-10-10-mt-001-sandbox.md)); główne ścieżki MT-016 wykonano lokalnie 12 października 2026 r. ([protokół](test-runs/2026-10-12-pay-011-local.md)), a dodatkowe kontrole ról i flag czekają na wynik; główne ścieżki MT-017 potwierdzono lokalnie 12 października 2026 r. ([protokół](test-runs/2026-10-12-pay-013-local.md)), bez osobnych pomiarów bazy, ról i flag; główne ścieżki MT-018 potwierdzono po restarcie API 13 października 2026 r. ([protokół](test-runs/2026-10-12-pay-014-local.md)), a role, flagi i pełne porównanie danych nadal czekają na wynik; pozostałych scenariuszy nie wykonano. Powiązania z [planem](../tpay-integration-plan.md) i [zadaniami PAY-XXX](IMPLEMENTATION_TASKS.md). Testy są napisane dla osoby używającej aplikacji; tam, gdzie trzeba zasymulować czas, webhook lub błąd sieci, developer przygotowuje bezpieczne narzędzie testowe i pomaga w uruchomieniu. Nie używaj prawdziwych kart ani pieniędzy. Dane kart i sekrety pozostają poza repo. Po każdym tasku zmieniającym zachowanie aktualizuj odpowiedni scenariusz oraz `docs/MANUAL_RELEASE_TESTS.md`. W protokole konkretnego przebiegu zapisz datę, środowisko, wersję i Pass/Fail. Po większej iteracji podaj krótką listę `Manual regression required: MT-...`.
 
-Kontrolę startu konfiguracji PAY-015 wykonano lokalnie 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-015-local.md)); nie ponawiano MT-001 ani nie pobierano tokenu.
+Kontrolę startu konfiguracji PAY-015 wykonano lokalnie 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-015-local.md)); nie ponawiano wtedy MT-001 ani nie pobierano tokenu. Kontrolę klienta OAuth PAY-016 wykonano 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-016-local.md)).
 
 ## MT-001 — Uzyskanie tokenu OAuth Tpay Sandbox
+
+### Kontrola klienta OAuth — PAY-016
+
+Użyj istniejących danych Sandbox z ignorowanego `apps/api/.env.local` i wywołaj **tylko** metodę `TpayApiClient.getAccessToken()` w jednorazowym lokalnym skrypcie. `PAYMENT_PROVIDER=tpay` dotyczy tego procesu; sam start API nie powinien pobierać tokenu. Nie zapisuj tokenu, Client ID ani sekretu w protokole lub logach.
+
+1. Developer uruchamia klienta z konfiguracją Sandbox. Potwierdza, że żądanie OAuth zakończyło się powodzeniem i odpowiedź ma dodatni `expires_in`; do protokołu wpisuje jedynie wynik i czas ważności, bez tokenu.
+2. Developer sprawdza, że ponowne wywołanie w okresie ważności korzysta z cache, a równoległe wywołania przy odświeżeniu wykonują jedno żądanie (testy jednostkowe z fikcyjnymi danymi).
+3. Błędne dane (401) i timeout sprawdza tylko testem jednostkowym z fikcyjnymi sekretami. Komunikat błędu oraz logi nie mogą ujawniać danych uwierzytelniających ani tokenu.
+4. Sprawdź, że checkout dla uprawnionego konta nadal jest niedostępny, konto bez uprawnień nie dostaje dostępu do płatności, a stan płatności, planu i ogłoszenia nie zmienił się. Flagi wydania nie uruchamiają nowego klienta OAuth automatycznie.
+
+**Oczekiwany wynik PAY-016:** Token Sandbox można uzyskać przez nowego klienta, bez ujawnienia wartości. Sam OAuth nie tworzy transakcji, nie zapisuje danych w bazie i nie aktywuje checkoutu. Wcześniejszy test Postman MT-001 nie zastępuje tej kontroli.
 
 ### Kontrola konfiguracji API — PAY-015
 
