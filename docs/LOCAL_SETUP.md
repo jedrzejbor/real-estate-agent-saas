@@ -114,6 +114,8 @@ EOF
 
 Checkout płatności jest tymczasowo wyłączony podczas migracji operatora. Do lokalnego uruchomienia nie potrzeba kluczy bramki; próba zakupu pokazuje komunikat o niedostępności i nie przekierowuje do operatora.
 
+Po zastosowaniu migracji PAY-014 usuwającej kolumny Stripe uruchom ponownie proces API (`docker compose restart api` w Dockerze). Proces działający przed migracją może mieć w pamięci starą definicję encji planu i zwracać HTTP 500 przy pobieraniu wyceny. Dopiero po restarcie sprawdź `/dashboard/upgrade`.
+
 ### 4. Utwórz plik `.env.local` dla frontendu
 
 ```bash
