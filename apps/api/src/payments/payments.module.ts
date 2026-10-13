@@ -1,4 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   PAYMENT_PROVIDER_CAPABILITIES,
@@ -10,14 +11,34 @@ import { RenewalRepository } from './infrastructure/typeorm/renewal.repository';
 import { SubscriptionRenewal } from './infrastructure/typeorm/subscription-renewal.entity';
 import { Subscription } from './infrastructure/typeorm/subscription.entity';
 import { SubscriptionRepository } from './infrastructure/typeorm/subscription.repository';
+import {
+  loadPaymentConfiguration,
+  PAYMENT_CONFIGURATION,
+} from './infrastructure/tpay/tpay.config';
 import { PAYMENT_GATEWAY, PaymentGateway } from './ports/payment-gateway.port';
 import { RECURRING_GATEWAY, RecurringGateway } from './ports/recurring-gateway.port';
 
-/** Registered only when a future task imports this module into the application. */
+/** Configuration is validated at startup; gateway bindings remain opt-in. */
 @Module({
-  imports: [TypeOrmModule.forFeature([Payment, Subscription, SubscriptionRenewal])],
-  providers: [PaymentRepository, SubscriptionRepository, RenewalRepository],
-  exports: [TypeOrmModule, PaymentRepository, SubscriptionRepository, RenewalRepository],
+  imports: [ConfigModule, TypeOrmModule.forFeature([Payment, Subscription, SubscriptionRenewal])],
+  providers: [
+    PaymentRepository,
+    SubscriptionRepository,
+    RenewalRepository,
+    {
+      provide: PAYMENT_CONFIGURATION,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) =>
+        loadPaymentConfiguration((name) => configService.get<string>(name)),
+    },
+  ],
+  exports: [
+    TypeOrmModule,
+    PaymentRepository,
+    SubscriptionRepository,
+    RenewalRepository,
+    PAYMENT_CONFIGURATION,
+  ],
 })
 export class PaymentsModule {
   /** Opt-in binding; current checkout does not import or use these ports. */

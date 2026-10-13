@@ -52,7 +52,19 @@ Pozostałe scenariusze MT-002–MT-015 dotyczą płatności po ponownym uruchomi
 
 Status: scenariusze planowane; MT-001 wykonano ręcznie w Sandbox 10 października 2026 r. ([protokół](test-runs/2026-10-10-mt-001-sandbox.md)); główne ścieżki MT-016 wykonano lokalnie 12 października 2026 r. ([protokół](test-runs/2026-10-12-pay-011-local.md)), a dodatkowe kontrole ról i flag czekają na wynik; główne ścieżki MT-017 potwierdzono lokalnie 12 października 2026 r. ([protokół](test-runs/2026-10-12-pay-013-local.md)), bez osobnych pomiarów bazy, ról i flag; główne ścieżki MT-018 potwierdzono po restarcie API 13 października 2026 r. ([protokół](test-runs/2026-10-12-pay-014-local.md)), a role, flagi i pełne porównanie danych nadal czekają na wynik; pozostałych scenariuszy nie wykonano. Powiązania z [planem](../tpay-integration-plan.md) i [zadaniami PAY-XXX](IMPLEMENTATION_TASKS.md). Testy są napisane dla osoby używającej aplikacji; tam, gdzie trzeba zasymulować czas, webhook lub błąd sieci, developer przygotowuje bezpieczne narzędzie testowe i pomaga w uruchomieniu. Nie używaj prawdziwych kart ani pieniędzy. Dane kart i sekrety pozostają poza repo. Po każdym tasku zmieniającym zachowanie aktualizuj odpowiedni scenariusz oraz `docs/MANUAL_RELEASE_TESTS.md`. W protokole konkretnego przebiegu zapisz datę, środowisko, wersję i Pass/Fail. Po większej iteracji podaj krótką listę `Manual regression required: MT-...`.
 
+Kontrolę startu konfiguracji PAY-015 wykonano lokalnie 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-015-local.md)); nie ponawiano MT-001 ani nie pobierano tokenu.
+
 ## MT-001 — Uzyskanie tokenu OAuth Tpay Sandbox
+
+### Kontrola konfiguracji API — PAY-015
+
+Ta kontrola nie ponawia testu OAuth i nie wysyła żądania do Tpay. W ignorowanym `apps/api/.env.local` przygotuj `PAYMENT_PROVIDER=tpay`, `TPAY_API_URL=https://openapi.sandbox.tpay.com`, Sandbox Client ID/Secret i numeryczny Merchant ID. Nie wklejaj wartości do protokołu ani logów. `TPAY_SECURITY_CODE` będzie potrzebny przy późniejszym webhooku; nie jest wymagany do startu PAY-015.
+
+1. Uruchom lokalne API z `NODE_ENV=development` i sprawdź, że startuje. Jeśli używasz Dockera, przekaż zmienne do procesu API; sam plik `apps/api/.env.local` nie jest montowany do kontenera przez obecny `docker-compose.yml`.
+2. Sprawdź log startowy: nie ma w nim Client Secret ani innych danych uwierzytelniających Tpay. Nie wykonuj checkoutu ani żądania OAuth.
+3. Developer uruchamia testy jednostkowe z fikcyjnymi wartościami: nieznany `PAYMENT_PROVIDER`, brak wymaganego sekretu i URL produkcyjny w środowisku Sandbox muszą zatrzymać inicjalizację. Wartości sekretów nie mogą pojawić się w komunikacie błędu.
+
+**Oczekiwany wynik PAY-015:** API startuje z kompletną konfiguracją Sandbox; płatności nadal pokazują komunikat o niedostępności. Konfiguracja nie zmienia danych, ról ani flag wydania. Wynik zapisz osobno, bez sekretów. Wcześniejszy wynik MT-001 w Postmanie pozostaje bez zmian.
 
 ### Przygotowanie konta do MT-001 — PAY-002
 

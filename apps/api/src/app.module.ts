@@ -34,6 +34,7 @@ import { AgentListingMarketModule } from './agent-listing-market';
 import { ListingAgentProposalsModule } from './listing-agent-proposals';
 import { ListingCommerceModule } from './listing-commerce';
 import { AgencyPlanCommerceModule } from './agency-plan-commerce';
+import { PaymentsModule } from './payments/payments.module';
 
 function getBooleanConfig(
   configService: ConfigService,
@@ -85,6 +86,7 @@ function getBooleanConfig(
     ListingAgentProposalsModule,
     ListingCommerceModule,
     AgencyPlanCommerceModule,
+    PaymentsModule,
     ReportsModule,
     SearchModule,
     NotificationsModule,
