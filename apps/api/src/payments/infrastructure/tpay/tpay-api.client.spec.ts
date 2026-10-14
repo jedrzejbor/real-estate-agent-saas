@@ -1,5 +1,7 @@
+import { createServer, IncomingMessage, ServerResponse } from 'node:http';
+import { AddressInfo } from 'node:net';
 import { TpayApiClient } from './tpay-api.client';
-import { TpayConfiguration } from './tpay.config';
+import { loadPaymentConfiguration, TpayConfiguration } from './tpay.config';
 
 const config: TpayConfiguration = {
   environment: 'sandbox',
@@ -98,4 +100,145 @@ describe('PAY-016 Tpay OAuth client', () => {
       jest.useRealTimers();
     }
   });
+});
+
+async function startOAuthServer(
+  handle: (request: IncomingMessage, response: ServerResponse) => Promise<void>,
+) {
+  const server = createServer((request, response) => {
+    void handle(request, response).catch(() => {
+      response.writeHead(500).end();
+    });
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
+  const address = server.address() as AddressInfo;
+  return {
+    apiUrl: `http://127.0.0.1:${address.port}`,
+    close: async () => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    },
+  };
+}
+
+async function readForm(request: IncomingMessage): Promise<URLSearchParams> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) chunks.push(Buffer.from(chunk));
+  return new URLSearchParams(Buffer.concat(chunks).toString('utf8'));
+}
+
+describe('PAY-017 OAuth HTTP integration', () => {
+  it('sends a form POST and refreshes after the HTTP response expires', async () => {
+    let requests = 0;
+    let currentTime = 1_000;
+    const server = await startOAuthServer(async (request, response) => {
+      requests += 1;
+      const form = await readForm(request);
+      if (
+        request.method !== 'POST' ||
+        request.url !== '/oauth/auth' ||
+        request.headers['content-type'] !== 'application/x-www-form-urlencoded' ||
+        form.get('client_id') !== config.clientId ||
+        form.get('client_secret') !== config.clientSecret
+      ) {
+        response.writeHead(400).end();
+        return;
+      }
+      response.writeHead(200, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ access_token: `local-token-${requests}`, expires_in: 30 }));
+    });
+
+    try {
+      const client = new TpayApiClient(
+        { ...config, apiUrl: server.apiUrl },
+        fetch,
+        () => currentTime,
+      );
+      await expect(client.getAccessToken()).resolves.toBe('local-token-1');
+      currentTime += 26_999;
+      await expect(client.getAccessToken()).resolves.toBe('local-token-1');
+      expect(requests).toBe(1);
+      currentTime += 1;
+      await expect(client.getAccessToken()).resolves.toBe('local-token-2');
+      expect(requests).toBe(2);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('rejects an invalid client secret without exposing the HTTP response', async () => {
+    const rejectedSecret = 'local-bad-secret';
+    const leakedToken = 'should-never-appear';
+    const server = await startOAuthServer(async (request, response) => {
+      const form = await readForm(request);
+      expect(form.get('client_secret')).toBe(rejectedSecret);
+      response.writeHead(401, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: rejectedSecret, access_token: leakedToken }));
+    });
+
+    try {
+      const client = new TpayApiClient({ ...config, apiUrl: server.apiUrl, clientSecret: rejectedSecret });
+      const message = await client.getAccessToken().catch((error: Error) => error.message);
+      expect(message).toBe('Tpay OAuth authorization rejected');
+      expect(message).not.toContain(rejectedSecret);
+      expect(message).not.toContain(leakedToken);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('masks malformed successful responses and provider errors', async () => {
+    let requests = 0;
+    const secret = 'local-secret-value';
+    const server = await startOAuthServer(async (request, response) => {
+      await readForm(request);
+      requests += 1;
+      response.writeHead(requests === 1 ? 200 : 503, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: secret, access_token: 'unsafe-provider-token' }));
+    });
+
+    try {
+      const client = new TpayApiClient({ ...config, apiUrl: server.apiUrl, clientSecret: secret });
+      const first = await client.getAccessToken().catch((error: Error) => error.message);
+      const second = await client.getAccessToken().catch((error: Error) => error.message);
+      expect(first).toBe('Tpay OAuth response is invalid');
+      expect(second).toBe('Tpay OAuth request failed');
+      expect(`${first} ${second}`).not.toContain(secret);
+      expect(`${first} ${second}`).not.toContain('unsafe-provider-token');
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+/** Explicit opt-in: ordinary Jest runs never contact Tpay Sandbox. */
+const liveSandboxTest = process.env.TPAY_OAUTH_LIVE_TEST === '1' ? it : it.skip;
+liveSandboxTest('PAY-017 live Sandbox OAuth (opt-in)', async () => {
+  const paymentConfig = loadPaymentConfiguration((name) => process.env[name]);
+  if (paymentConfig.provider !== 'tpay' || paymentConfig.tpay.environment !== 'sandbox') {
+    throw new Error('Tpay Sandbox configuration is required for the opt-in OAuth test');
+  }
+
+  let expiresIn: unknown;
+  const capturingFetch: typeof fetch = async (input, init) => {
+    const response = await fetch(input, init);
+    if (response.ok) {
+      const payload: unknown = await response.clone().json();
+      if (typeof payload === 'object' && payload !== null && 'expires_in' in payload) {
+        expiresIn = payload.expires_in;
+      }
+    }
+    return response;
+  };
+  const client = new TpayApiClient(paymentConfig.tpay, capturingFetch);
+  const token = await client.getAccessToken();
+  expect(token.length).toBeGreaterThan(0);
+  expect(typeof expiresIn).toBe('number');
+  expect(expiresIn as number).toBeGreaterThan(0);
 });

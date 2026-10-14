@@ -52,9 +52,20 @@ Pozostałe scenariusze MT-002–MT-015 dotyczą płatności po ponownym uruchomi
 
 Status: scenariusze planowane; MT-001 wykonano ręcznie w Sandbox 10 października 2026 r. ([protokół](test-runs/2026-10-10-mt-001-sandbox.md)); główne ścieżki MT-016 wykonano lokalnie 12 października 2026 r. ([protokół](test-runs/2026-10-12-pay-011-local.md)), a dodatkowe kontrole ról i flag czekają na wynik; główne ścieżki MT-017 potwierdzono lokalnie 12 października 2026 r. ([protokół](test-runs/2026-10-12-pay-013-local.md)), bez osobnych pomiarów bazy, ról i flag; główne ścieżki MT-018 potwierdzono po restarcie API 13 października 2026 r. ([protokół](test-runs/2026-10-12-pay-014-local.md)), a role, flagi i pełne porównanie danych nadal czekają na wynik; pozostałych scenariuszy nie wykonano. Powiązania z [planem](../tpay-integration-plan.md) i [zadaniami PAY-XXX](IMPLEMENTATION_TASKS.md). Testy są napisane dla osoby używającej aplikacji; tam, gdzie trzeba zasymulować czas, webhook lub błąd sieci, developer przygotowuje bezpieczne narzędzie testowe i pomaga w uruchomieniu. Nie używaj prawdziwych kart ani pieniędzy. Dane kart i sekrety pozostają poza repo. Po każdym tasku zmieniającym zachowanie aktualizuj odpowiedni scenariusz oraz `docs/MANUAL_RELEASE_TESTS.md`. W protokole konkretnego przebiegu zapisz datę, środowisko, wersję i Pass/Fail. Po większej iteracji podaj krótką listę `Manual regression required: MT-...`.
 
-Kontrolę startu konfiguracji PAY-015 wykonano lokalnie 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-015-local.md)); nie ponawiano wtedy MT-001 ani nie pobierano tokenu. Kontrolę klienta OAuth PAY-016 wykonano 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-016-local.md)).
+Kontrolę startu konfiguracji PAY-015 wykonano lokalnie 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-015-local.md)); nie ponawiano wtedy MT-001 ani nie pobierano tokenu. Kontrolę klienta OAuth PAY-016 wykonano 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-016-local.md)). Testy integracyjne i ponowne MT-001 dla PAY-017 wykonano 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-017-local.md)).
 
 ## MT-001 — Uzyskanie tokenu OAuth Tpay Sandbox
+
+### Kontrola integracyjna — PAY-017
+
+Testy lokalnego HTTP w `tpay-api.client.spec.ts` sprawdzają formularz `POST /oauth/auth`, odpowiedź z tokenem, odświeżenie po wygaśnięciu, błędny Client Secret oraz maskowanie odpowiedzi błędu. Używają wyłącznie fikcyjnych danych i lokalnego serwera. Test Sandbox jest domyślnie pomijany; trzeba go jawnie włączyć, używając ignorowanego `apps/api/.env.local`:
+
+```sh
+cd apps/api
+PAYMENT_PROVIDER=tpay TPAY_OAUTH_LIVE_TEST=1 node --env-file=.env.local ./node_modules/jest/bin/jest.js --runInBand src/payments/infrastructure/tpay/tpay-api.client.spec.ts --testNamePattern='PAY-017 live Sandbox'
+```
+
+Po teście powtórz MT-001 przez `TpayApiClient.getAccessToken()` i zapisz tylko Pass/Fail, kod HTTP i `expires_in`. Nie zapisuj tokenu, Client ID, Client Secret ani pełnej odpowiedzi. Błędny sekret sprawdzaj lokalnym testem HTTP, nie przez niepotrzebne próby na koncie Sandbox. Sam OAuth nie zmienia danych, uprawnień, ról ani flag i nie odblokowuje checkoutu.
 
 ### Kontrola klienta OAuth — PAY-016
 
@@ -79,7 +90,7 @@ Ta kontrola nie ponawia testu OAuth i nie wysyła żądania do Tpay. W ignorowan
 
 ### Przygotowanie konta do MT-001 — PAY-002
 
-Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już ręczny test OAuth; klient API aplikacji pozostaje do zaimplementowania w PAY-016. Sandbox i produkcja mają odrębne konta oraz dane dostępowe. [Środowiska Tpay](https://docs-api.tpay.com/en/first-steps/environments/).
+Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już ręczny test OAuth; klient API aplikacji został zaimplementowany w PAY-016 i sprawdzony integracyjnie w PAY-017. Sandbox i produkcja mają odrębne konta oraz dane dostępowe. [Środowiska Tpay](https://docs-api.tpay.com/en/first-steps/environments/).
 
 1. Otwórz [rejestrację Tpay Sandbox](https://register.sandbox.tpay.com/) albo, jeśli konto już istnieje, przejdź od razu do [panelu Sandbox](https://panel.sandbox.tpay.com/).
 2. Przy nowym koncie wpisz własny adres e-mail i nazwę firmy; zapoznaj się z regulaminem Sandbox i samodzielnie zaakceptuj go, jeśli chcesz utworzyć konto. Dokończ wymagane przez Tpay potwierdzenie konta.
