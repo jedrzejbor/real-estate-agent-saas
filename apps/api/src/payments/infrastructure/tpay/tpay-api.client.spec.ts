@@ -242,3 +242,96 @@ liveSandboxTest('PAY-017 live Sandbox OAuth (opt-in)', async () => {
   expect(typeof expiresIn).toBe('number');
   expect(expiresIn as number).toBeGreaterThan(0);
 });
+
+describe('PAY-018 one-time payment channels', () => {
+  it('returns only channels explicitly marked available', async () => {
+    const fetcher = jest.fn()
+      .mockResolvedValueOnce(ok())
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ result: 'success', channels: [
+          { id: '64', name: 'BLIK', fullName: 'BLIK', available: true, groups: [{ id: '150', name: 'BLIK' }] },
+          { id: '53', name: 'Card', available: false, groups: [{ id: '103', name: 'Card' }] },
+          { id: '68', name: 'Google Pay', groups: [{ id: '166', name: 'Wallet' }] },
+        ] }),
+      });
+    const client = new TpayApiClient(config, fetcher);
+
+    await expect(client.getAvailablePaymentChannels()).resolves.toEqual([
+      { id: '64', name: 'BLIK', fullName: 'BLIK', groups: [{ id: '150', name: 'BLIK' }] },
+    ]);
+    expect(fetcher.mock.calls[1][0]).toBe('https://openapi.sandbox.tpay.com/transactions/channels');
+    expect(fetcher.mock.calls[1][1]).toMatchObject({
+      method: 'GET',
+      headers: { Authorization: 'Bearer unit-access-token' },
+    });
+  });
+
+  it('uses OAuth over HTTP and does not advertise a disabled card channel', async () => {
+    let authRequests = 0;
+    let channelRequests = 0;
+    const server = await startOAuthServer(async (request, response) => {
+      if (request.url === '/oauth/auth') {
+        authRequests += 1;
+        await readForm(request);
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ access_token: 'local-integration-token', expires_in: 120 }));
+        return;
+      }
+      if (request.url === '/transactions/channels') {
+        channelRequests += 1;
+        if (request.method !== 'GET' || request.headers.authorization !== 'Bearer local-integration-token') {
+          response.writeHead(401).end();
+          return;
+        }
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ result: 'success', channels: [
+          { id: '64', name: 'BLIK', available: true, groups: [{ id: '150', name: 'BLIK' }] },
+          { id: '53', name: 'Card', available: false, groups: [{ id: '103', name: 'Card' }] },
+        ] }));
+        return;
+      }
+      response.writeHead(404).end();
+    });
+
+    try {
+      const client = new TpayApiClient({ ...config, apiUrl: server.apiUrl });
+      await expect(client.getAvailablePaymentChannels()).resolves.toEqual([
+        { id: '64', name: 'BLIK', groups: [{ id: '150', name: 'BLIK' }] },
+      ]);
+      expect(authRequests).toBe(1);
+      expect(channelRequests).toBe(1);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('masks an authorization error and provider response data', async () => {
+    const fetcher = jest.fn()
+      .mockResolvedValueOnce(ok('private-test-token'))
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ error: config.clientSecret, token: 'private-test-token' }),
+      });
+    const client = new TpayApiClient(config, fetcher);
+
+    const message = await client.getAvailablePaymentChannels().catch((error: Error) => error.message);
+    expect(message).toBe('Tpay payment channels authorization rejected');
+    expect(message).not.toContain(config.clientSecret);
+    expect(message).not.toContain('private-test-token');
+  });
+
+  it('rejects provider errors and malformed lists instead of declaring availability', async () => {
+    const fetcher = jest.fn()
+      .mockResolvedValueOnce(ok())
+      .mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ channels: null }) });
+    const client = new TpayApiClient(config, fetcher);
+
+    await expect(client.getAvailablePaymentChannels()).rejects.toThrow('Tpay payment channels request failed');
+    await expect(client.getAvailablePaymentChannels()).rejects.toThrow('Tpay payment channels response is invalid');
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+});
