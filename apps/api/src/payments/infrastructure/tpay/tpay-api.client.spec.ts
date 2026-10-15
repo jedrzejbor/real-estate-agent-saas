@@ -1,6 +1,6 @@
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 import { AddressInfo } from 'node:net';
-import { TpayApiClient } from './tpay-api.client';
+import { TpayApiClient, TpayCreateTransactionInput } from './tpay-api.client';
 import { loadPaymentConfiguration, TpayConfiguration } from './tpay.config';
 
 const config: TpayConfiguration = {
@@ -333,5 +333,161 @@ describe('PAY-018 one-time payment channels', () => {
     await expect(client.getAvailablePaymentChannels()).rejects.toThrow('Tpay payment channels request failed');
     await expect(client.getAvailablePaymentChannels()).rejects.toThrow('Tpay payment channels response is invalid');
     expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+});
+
+const transactionInput: TpayCreateTransactionInput = {
+  amountMinor: 4999,
+  description: 'PodAdresem sandbox test',
+  hiddenDescription: 'pay-019-local-test',
+  payer: { email: 'test@example.com', name: 'Test User' },
+  callbacks: {
+    notificationUrl: 'https://example.com/tpay/notification',
+    successUrl: 'https://example.com/tpay/success',
+    errorUrl: 'https://example.com/tpay/error',
+  },
+};
+
+function createdTransaction(): Response {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({
+      result: 'success',
+      status: 'pending',
+      transactionId: '01TESTPAY019TRANSACTION',
+      title: 'TR-TEST-PAY019',
+      transactionPaymentUrl: 'https://secure.sandbox.tpay.com/test-payment',
+    }),
+  } as Response;
+}
+
+describe('PAY-019 create transaction', () => {
+  it('serializes grosze as exact JSON decimal PLN without float arithmetic', async () => {
+    const fetcher = jest.fn().mockImplementation((url: string) =>
+      Promise.resolve(url.endsWith('/oauth/auth') ? ok() : createdTransaction()),
+    );
+    const client = new TpayApiClient(config, fetcher);
+
+    for (const amountMinor of [1, 100, 4999, Number.MAX_SAFE_INTEGER]) {
+      await expect(client.createTransaction({ ...transactionInput, amountMinor })).resolves.toMatchObject({
+        status: 'pending',
+      });
+    }
+    const bodies = fetcher.mock.calls
+      .filter(([url]) => url.endsWith('/transactions'))
+      .map(([, init]) => init.body as string);
+    expect(bodies).toHaveLength(4);
+    expect(bodies[0]).toContain('"amount":0.01,');
+    expect(bodies[1]).toContain('"amount":1.00,');
+    expect(bodies[2]).toContain('"amount":49.99,');
+    expect(bodies[3]).toContain('"amount":90071992547409.91,');
+    await expect(client.createTransaction({ ...transactionInput, amountMinor: 49.99 }))
+      .rejects.toThrow('Payment amount must be a positive safe integer in grosze');
+    expect(fetcher).toHaveBeenCalledTimes(5);
+  });
+
+  it('creates a pending transaction over local HTTP with payer and callbacks', async () => {
+    let transactionPosts = 0;
+    const server = await startOAuthServer(async (request, response) => {
+      if (request.url === '/oauth/auth') {
+        await readForm(request);
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ access_token: 'local-oauth-token', expires_in: 120 }));
+        return;
+      }
+      if (request.url === '/transactions') {
+        transactionPosts += 1;
+        const chunks: Buffer[] = [];
+        for await (const chunk of request) chunks.push(Buffer.from(chunk));
+        const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        expect(request.method).toBe('POST');
+        expect(request.headers.authorization).toBe('Bearer local-oauth-token');
+        expect(request.headers['content-type']).toBe('application/json');
+        expect(body).toMatchObject({
+          amount: 49.99,
+          description: transactionInput.description,
+          hiddenDescription: transactionInput.hiddenDescription,
+          payer: transactionInput.payer,
+          callbacks: {
+            notification: { url: transactionInput.callbacks.notificationUrl },
+            payerUrls: {
+              success: transactionInput.callbacks.successUrl,
+              error: transactionInput.callbacks.errorUrl,
+            },
+          },
+        });
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify(await createdTransaction().json()));
+        return;
+      }
+      response.writeHead(404).end();
+    });
+
+    try {
+      const client = new TpayApiClient({ ...config, apiUrl: server.apiUrl });
+      await expect(client.createTransaction(transactionInput)).resolves.toEqual({
+        status: 'pending',
+        transactionId: '01TESTPAY019TRANSACTION',
+        title: 'TR-TEST-PAY019',
+        transactionPaymentUrl: 'https://secure.sandbox.tpay.com/test-payment',
+      });
+      expect(transactionPosts).toBe(1);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('classifies a definite 4xx rejection without returning provider error details', async () => {
+    const fetcher = jest.fn().mockResolvedValueOnce(ok()).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ secret: config.clientSecret }),
+    });
+    const client = new TpayApiClient(config, fetcher);
+    await expect(client.createTransaction(transactionInput)).resolves.toEqual({
+      status: 'rejected',
+      httpStatus: 400,
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('classifies a 5xx response as unknown and never retries the POST', async () => {
+    const fetcher = jest.fn().mockResolvedValueOnce(ok()).mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+    });
+    const client = new TpayApiClient(config, fetcher);
+    await expect(client.createTransaction(transactionInput)).resolves.toEqual({
+      status: 'unknown',
+      reason: 'provider_error',
+      httpStatus: 503,
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('classifies timeout and broken connection as unknown without retrying', async () => {
+    jest.useFakeTimers();
+    try {
+      const fetcher = jest.fn()
+        .mockResolvedValueOnce(ok())
+        .mockImplementationOnce((_: string, init: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init.signal?.addEventListener('abort', () => reject(new Error('network details')));
+          }),
+        )
+        .mockRejectedValueOnce(new Error('connection reset with private details'));
+      const client = new TpayApiClient(config, fetcher);
+      const pending = client.createTransaction(transactionInput);
+      await jest.advanceTimersByTimeAsync(5_000);
+      await expect(pending).resolves.toEqual({ status: 'unknown', reason: 'timeout' });
+      await expect(client.createTransaction(transactionInput)).resolves.toEqual({
+        status: 'unknown',
+        reason: 'network',
+      });
+      expect(fetcher).toHaveBeenCalledTimes(3);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

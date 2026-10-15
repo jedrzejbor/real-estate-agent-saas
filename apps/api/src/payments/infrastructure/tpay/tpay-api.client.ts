@@ -1,7 +1,31 @@
 import { TpayConfiguration } from './tpay.config';
+import { toPaymentAmountMinor } from '../../domain/payment.types';
 
 const OAUTH_TIMEOUT_MS = 5_000;
 const CHANNELS_TIMEOUT_MS = 5_000;
+const CREATE_TRANSACTION_TIMEOUT_MS = 5_000;
+
+export interface TpayCreateTransactionInput {
+  amountMinor: number;
+  description: string;
+  payer: { email: string; name: string };
+  callbacks: { notificationUrl: string; successUrl: string; errorUrl: string };
+  hiddenDescription?: string;
+}
+
+export type TpayCreateTransactionResult =
+  | {
+      status: 'pending';
+      transactionId: string;
+      title: string;
+      transactionPaymentUrl: string;
+    }
+  | { status: 'rejected'; httpStatus: number }
+  | {
+      status: 'unknown';
+      reason: 'timeout' | 'network' | 'provider_error' | 'invalid_response';
+      httpStatus?: number;
+    };
 
 /** One-time payment channels reported as available by the merchant API. */
 export interface TpayAvailablePaymentChannel {
@@ -11,7 +35,7 @@ export interface TpayAvailablePaymentChannel {
   groups: Array<{ id: string; name: string }>;
 }
 
-/** OAuth and read-only channel discovery; payment requests belong to later tasks. */
+/** OAuth, channel discovery and isolated transaction creation. */
 export class TpayApiClient {
   private cachedToken: { value: string; validUntil: number } | null = null;
   private refreshInFlight: Promise<string> | null = null;
@@ -79,6 +103,82 @@ export class TpayApiClient {
     }
   }
 
+  /** A failed or ambiguous POST is never retried here; callers must reconcile first. */
+  async createTransaction(input: TpayCreateTransactionInput): Promise<TpayCreateTransactionResult> {
+    const amountDecimal = formatAmountPln(input.amountMinor);
+    const description = requiredText(input.description, 'description');
+    const payerEmail = requiredText(input.payer.email, 'payer.email');
+    const payerName = requiredText(input.payer.name, 'payer.name');
+    const notificationUrl = requiredHttpsUrl(input.callbacks.notificationUrl, 'notificationUrl');
+    const successUrl = requiredHttpsUrl(input.callbacks.successUrl, 'successUrl');
+    const errorUrl = requiredHttpsUrl(input.callbacks.errorUrl, 'errorUrl');
+
+    // The amount is inserted as a JSON decimal literal, avoiding PLN float arithmetic.
+    const otherFields = JSON.stringify({
+      description,
+      ...(input.hiddenDescription === undefined
+        ? {}
+        : { hiddenDescription: requiredText(input.hiddenDescription, 'hiddenDescription') }),
+      payer: { email: payerEmail, name: payerName },
+      callbacks: {
+        notification: { url: notificationUrl },
+        payerUrls: { success: successUrl, error: errorUrl },
+      },
+    });
+    const body = `{"amount":${amountDecimal},${otherFields.slice(1)}`;
+    const token = await this.getAccessToken();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), CREATE_TRANSACTION_TIMEOUT_MS);
+    let response: Response;
+    try {
+      response = await this.fetcher(`${this.config.apiUrl}/transactions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body,
+        signal: controller.signal,
+      });
+    } catch {
+      clearTimeout(timeout);
+      return {
+        status: 'unknown',
+        reason: controller.signal.aborted ? 'timeout' : 'network',
+      };
+    }
+
+    try {
+      if (response.status >= 400 && response.status < 500 && response.status !== 408) {
+        return { status: 'rejected', httpStatus: response.status };
+      }
+      if (!response.ok) {
+        return { status: 'unknown', reason: 'provider_error', httpStatus: response.status };
+      }
+
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        return {
+          status: 'unknown',
+          reason: controller.signal.aborted ? 'timeout' : 'invalid_response',
+        };
+      }
+      if (!isCreatedTransaction(payload)) {
+        return { status: 'unknown', reason: 'invalid_response' };
+      }
+      return {
+        status: 'pending',
+        transactionId: payload.transactionId,
+        title: payload.title,
+        transactionPaymentUrl: payload.transactionPaymentUrl,
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   private async requestToken(): Promise<string> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), OAUTH_TIMEOUT_MS);
@@ -124,6 +224,54 @@ export class TpayApiClient {
     } finally {
       clearTimeout(timeout);
     }
+  }
+}
+
+function formatAmountPln(amountMinor: number): string {
+  toPaymentAmountMinor(amountMinor);
+  const whole = Math.floor(amountMinor / 100);
+  const fraction = String(amountMinor % 100).padStart(2, '0');
+  return `${whole}.${fraction}`;
+}
+
+function requiredText(value: string, name: string): string {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new Error(`Tpay transaction ${name} is required`);
+  }
+  return value.trim();
+}
+
+function requiredHttpsUrl(value: string, name: string): string {
+  try {
+    const url = new URL(value);
+    if (url.protocol === 'https:' && !url.username && !url.password) return url.toString();
+  } catch {
+    // Use the same safe validation error for malformed URLs.
+  }
+  throw new Error(`Tpay transaction ${name} must be an HTTPS URL`);
+}
+
+function isCreatedTransaction(value: unknown): value is {
+  transactionId: string;
+  title: string;
+  transactionPaymentUrl: string;
+} {
+  if (!isRecord(value) || value.result !== 'success' || value.status !== 'pending') {
+    return false;
+  }
+  if (
+    typeof value.transactionId !== 'string' ||
+    value.transactionId.length === 0 ||
+    typeof value.title !== 'string' ||
+    value.title.length === 0 ||
+    typeof value.transactionPaymentUrl !== 'string'
+  ) {
+    return false;
+  }
+  try {
+    return new URL(value.transactionPaymentUrl).protocol === 'https:';
+  } catch {
+    return false;
   }
 }
 

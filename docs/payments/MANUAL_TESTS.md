@@ -63,7 +63,7 @@ Pozostałe scenariusze MT-002–MT-015 dotyczą płatności po ponownym uruchomi
 
 **Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______; dostępne BLIK: ______; karta: ______; liczba kanałów: ______; uwagi: ______.
 
-Status: scenariusze planowane; MT-001 wykonano ręcznie w Sandbox 10 października 2026 r. ([protokół](test-runs/2026-10-10-mt-001-sandbox.md)); główne ścieżki MT-016 wykonano lokalnie 12 października 2026 r. ([protokół](test-runs/2026-10-12-pay-011-local.md)), a dodatkowe kontrole ról i flag czekają na wynik; główne ścieżki MT-017 potwierdzono lokalnie 12 października 2026 r. ([protokół](test-runs/2026-10-12-pay-013-local.md)), bez osobnych pomiarów bazy, ról i flag; główne ścieżki MT-018 potwierdzono po restarcie API 13 października 2026 r. ([protokół](test-runs/2026-10-12-pay-014-local.md)), a role, flagi i pełne porównanie danych nadal czekają na wynik; MT-019 potwierdzono w Sandbox 14 października 2026 r. ([protokół](test-runs/2026-10-14-pay-018-local.md)); pozostałych scenariuszy nie wykonano. Powiązania z [planem](../tpay-integration-plan.md) i [zadaniami PAY-XXX](IMPLEMENTATION_TASKS.md). Testy są napisane dla osoby używającej aplikacji; tam, gdzie trzeba zasymulować czas, webhook lub błąd sieci, developer przygotowuje bezpieczne narzędzie testowe i pomaga w uruchomieniu. Nie używaj prawdziwych kart ani pieniędzy. Dane kart i sekrety pozostają poza repo. Po każdym tasku zmieniającym zachowanie aktualizuj odpowiedni scenariusz oraz `docs/MANUAL_RELEASE_TESTS.md`. W protokole konkretnego przebiegu zapisz datę, środowisko, wersję i Pass/Fail. Po większej iteracji podaj krótką listę `Manual regression required: MT-...`.
+Status: scenariusze planowane; MT-001 wykonano ręcznie w Sandbox 10 października 2026 r. ([protokół](test-runs/2026-10-10-mt-001-sandbox.md)); MT-002 ma potwierdzone utworzenie transakcji 15 października 2026 r., lecz otwarcie strony płatności pozostaje **Blocked** — panel pokazuje transakcję, ale nie udostępnia linku ([protokół](test-runs/2026-10-15-pay-019-local.md)); główne ścieżki MT-016 wykonano lokalnie 12 października 2026 r. ([protokół](test-runs/2026-10-12-pay-011-local.md)), a dodatkowe kontrole ról i flag czekają na wynik; główne ścieżki MT-017 potwierdzono lokalnie 12 października 2026 r. ([protokół](test-runs/2026-10-12-pay-013-local.md)), bez osobnych pomiarów bazy, ról i flag; główne ścieżki MT-018 potwierdzono po restarcie API 13 października 2026 r. ([protokół](test-runs/2026-10-12-pay-014-local.md)), a role, flagi i pełne porównanie danych nadal czekają na wynik; MT-019 potwierdzono w Sandbox 14 października 2026 r. ([protokół](test-runs/2026-10-14-pay-018-local.md)); pozostałych scenariuszy nie wykonano. Powiązania z [planem](../tpay-integration-plan.md) i [zadaniami PAY-XXX](IMPLEMENTATION_TASKS.md). Testy są napisane dla osoby używającej aplikacji; tam, gdzie trzeba zasymulować czas, webhook lub błąd sieci, developer przygotowuje bezpieczne narzędzie testowe i pomaga w uruchomieniu. Nie używaj prawdziwych kart ani pieniędzy. Dane kart i sekrety pozostają poza repo. Po każdym tasku zmieniającym zachowanie aktualizuj odpowiedni scenariusz oraz `docs/MANUAL_RELEASE_TESTS.md`. W protokole konkretnego przebiegu zapisz datę, środowisko, wersję i Pass/Fail. Po większej iteracji podaj krótką listę `Manual regression required: MT-...`.
 
 Kontrolę startu konfiguracji PAY-015 wykonano lokalnie 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-015-local.md)); nie ponawiano wtedy MT-001 ani nie pobierano tokenu. Kontrolę klienta OAuth PAY-016 wykonano 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-016-local.md)). Testy integracyjne i ponowne MT-001 dla PAY-017 wykonano 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-017-local.md)).
 
@@ -136,21 +136,21 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 **ID:** MT-002  
 **Name:** Utworzenie testowej transakcji  
 **Purpose:** Sprawdzić, że backend/Tpay tworzy płatność i zwraca adres checkoutu.  
-**Prerequisites:** MT-001 zaliczony; lokalne API i ngrok uruchomione, gdy test obejmuje callback.
+**Prerequisites:** MT-001 zaliczony; dane Sandbox w ignorowanym `apps/api/.env.local`. W PAY-019 test wykonywany jest jednorazowym narzędziem developerskim, bez podłączania checkoutu aplikacji. Publiczny tunel jest potrzebny dopiero do testu działającego webhooka, nie do samego utworzenia nieopłaconej transakcji.
 
 **Steps:**
 
-1. W przygotowanej kolekcji wybierz „Utwórz transakcję testową”.
-2. Ustaw kwotę i opis testowy zgodnie z instrukcją developera, kliknij Send.
-3. Otwórz zwrócony adres płatności w przeglądarce.
+1. Developer wywołuje `TpayApiClient.createTransaction()` z niewielką kwotą testową w groszach, opisem, testowym płatnikiem i adresami callback HTTPS. Użyj unikalnego `hiddenDescription`; nie używaj prawdziwych danych kupującego.
+2. Sprawdź wynik `pending`, identyfikator transakcji, `title` i obecność adresu płatności. W protokole zapisz tylko bezpieczne identyfikatory i domenę adresu, bez pełnego URL, tokenu lub sekretów. Jeśli wynik to `unknown`, **nie powtarzaj POST**; zanotuj niepewny wynik do uzgodnienia w późniejszym etapie.
+3. Otwórz zwrócony link w przeglądarce i potwierdź, że widać stronę płatności **Sandbox**. Nie wybieraj metody i nie finalizuj płatności. Jeśli przeglądarka testowa zwraca HTTP 403, oznacz kontrolę strony jako **Blocked** i zweryfikuj tę samą transakcję zwykłą przeglądarką lub panelem Sandbox, bez tworzenia drugiej.
 
-**Expected result:** Widać stronę Tpay Sandbox; transakcja ma status oczekujący, bez aktywacji usługi.
+**Expected result:** Odpowiedź tworzenia ma status `pending` i link Tpay Sandbox; strona płatności otwiera się bez dokonania zapłaty i aktywacji usługi. `result=success` z POST oznacza utworzenie transakcji, nie zapłatę.
 
-**Database state:** Po integracji: payment.status=pending, zapisane transactionId/title; przy samym Postmanie może nie być lokalnego rekordu. Stan bazy sprawdza developer; tester ocenia przede wszystkim widok aplikacji.
+**Database state:** PAY-019 nie zapisuje lokalnego rekordu płatności. Po późniejszym podłączeniu aplikacji potrzebny będzie trwały zapis identyfikatorów i osobne potwierdzenie statusu. Stan bazy sprawdza developer.
 
 **Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______.
 
-**Notes:** Nie uznawaj wyniku result=success z POST za opłaconą transakcję. Miejsce na numer zamówienia i uwagi: ______.
+**Notes:** Nie uznawaj wyniku `result=success` z POST za opłaconą transakcję. Błędy 4xx i niepewne 5xx/timeout sprawdzają testy PAY-019; pełnego URL nie wklejaj do dokumentacji. Miejsce na bezpieczny identyfikator i uwagi: ______.
 
 ## MT-003 — Udana płatność BLIK za ogłoszenie
 
