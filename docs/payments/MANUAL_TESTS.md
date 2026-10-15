@@ -63,9 +63,21 @@ Pozostałe scenariusze MT-002–MT-015 dotyczą płatności po ponownym uruchomi
 
 **Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______; dostępne BLIK: ______; karta: ______; liczba kanałów: ______; uwagi: ______.
 
+## MT-020 — Awaryjny odczyt statusu transakcji (PAY-020)
+
+**Prerequisites:** Istniejąca transakcja Tpay Sandbox z MT-002 i jej `transactionId`; lokalna konfiguracja Sandbox w ignorowanym `apps/api/.env.local`. Nie twórz nowej transakcji, nie otwieraj checkoutu i nie dokonuj płatności.
+
+1. Developer jednokrotnie wywołuje `TpayApiClient.getTransactionStatus(transactionId)`. Klient używa OAuth oraz `GET /transactions/{transactionId}` wyłącznie jako odczytu awaryjnego; nie uruchamiaj automatycznego pollingu.
+2. Porównaj status neutralny (`pending`, `confirmed`, `failed` lub `unknown`) ze statusem tej samej transakcji w panelu Sandbox. Nie uznawaj `result=success` z API za potwierdzenie zapłaty: oznacza powodzenie zapytania.
+3. Przy `unknown`, HTTP 404, niespójnej lub niepełnej odpowiedzi zapisz ograniczenie; nie aktywuj usługi. W protokole umieść tylko bezpieczny identyfikator, status i wynik porównania, bez tokenu, sekretu, danych płatnika lub pełnej odpowiedzi.
+
+**Expected result:** Odczyt jest zgodny z panelem. Oczekująca lub nieznana transakcja nie otrzymuje `confirmed`, nie powstaje lokalna płatność ani uprawnienie; checkout pozostaje niedostępny. Kontrola nie zastępuje brakującego testu otwarcia strony w MT-002.
+
+**Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______; status API: ______; status panelu: ______; uwagi: ______.
+
 Status: scenariusze planowane; MT-001 wykonano ręcznie w Sandbox 10 października 2026 r. ([protokół](test-runs/2026-10-10-mt-001-sandbox.md)); MT-002 ma potwierdzone utworzenie transakcji 15 października 2026 r., lecz otwarcie strony płatności pozostaje **Blocked** — panel pokazuje transakcję, ale nie udostępnia linku ([protokół](test-runs/2026-10-15-pay-019-local.md)); główne ścieżki MT-016 wykonano lokalnie 12 października 2026 r. ([protokół](test-runs/2026-10-12-pay-011-local.md)), a dodatkowe kontrole ról i flag czekają na wynik; główne ścieżki MT-017 potwierdzono lokalnie 12 października 2026 r. ([protokół](test-runs/2026-10-12-pay-013-local.md)), bez osobnych pomiarów bazy, ról i flag; główne ścieżki MT-018 potwierdzono po restarcie API 13 października 2026 r. ([protokół](test-runs/2026-10-12-pay-014-local.md)), a role, flagi i pełne porównanie danych nadal czekają na wynik; MT-019 potwierdzono w Sandbox 14 października 2026 r. ([protokół](test-runs/2026-10-14-pay-018-local.md)); pozostałych scenariuszy nie wykonano. Powiązania z [planem](../tpay-integration-plan.md) i [zadaniami PAY-XXX](IMPLEMENTATION_TASKS.md). Testy są napisane dla osoby używającej aplikacji; tam, gdzie trzeba zasymulować czas, webhook lub błąd sieci, developer przygotowuje bezpieczne narzędzie testowe i pomaga w uruchomieniu. Nie używaj prawdziwych kart ani pieniędzy. Dane kart i sekrety pozostają poza repo. Po każdym tasku zmieniającym zachowanie aktualizuj odpowiedni scenariusz oraz `docs/MANUAL_RELEASE_TESTS.md`. W protokole konkretnego przebiegu zapisz datę, środowisko, wersję i Pass/Fail. Po większej iteracji podaj krótką listę `Manual regression required: MT-...`.
 
-Kontrolę startu konfiguracji PAY-015 wykonano lokalnie 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-015-local.md)); nie ponawiano wtedy MT-001 ani nie pobierano tokenu. Kontrolę klienta OAuth PAY-016 wykonano 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-016-local.md)). Testy integracyjne i ponowne MT-001 dla PAY-017 wykonano 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-017-local.md)).
+Kontrolę startu konfiguracji PAY-015 wykonano lokalnie 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-015-local.md)); nie ponawiano wtedy MT-001 ani nie pobierano tokenu. Kontrolę klienta OAuth PAY-016 wykonano 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-016-local.md)). Testy integracyjne i ponowne MT-001 dla PAY-017 wykonano 13 października 2026 r. ([protokół](test-runs/2026-10-13-pay-017-local.md)). MT-020 potwierdzono w Sandbox 15 października 2026 r. ([protokół](test-runs/2026-10-15-pay-020-local.md)); MT-002 pozostaje częściowo zablokowany.
 
 ## MT-001 — Uzyskanie tokenu OAuth Tpay Sandbox
 

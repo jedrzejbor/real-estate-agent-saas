@@ -4,6 +4,11 @@ import { toPaymentAmountMinor } from '../../domain/payment.types';
 const OAUTH_TIMEOUT_MS = 5_000;
 const CHANNELS_TIMEOUT_MS = 5_000;
 const CREATE_TRANSACTION_TIMEOUT_MS = 5_000;
+const GET_TRANSACTION_TIMEOUT_MS = 5_000;
+
+export type TpayTransactionStatusResult =
+  | { status: 'pending' | 'confirmed' | 'failed'; transactionId: string }
+  | { status: 'unknown'; reason: 'not_found' | 'authorization' | 'provider_error' | 'timeout' | 'network' | 'invalid_response' };
 
 export interface TpayCreateTransactionInput {
   amountMinor: number;
@@ -35,7 +40,7 @@ export interface TpayAvailablePaymentChannel {
   groups: Array<{ id: string; name: string }>;
 }
 
-/** OAuth, channel discovery and isolated transaction creation. */
+/** OAuth, channel discovery, isolated transaction creation and fallback status reads. */
 export class TpayApiClient {
   private cachedToken: { value: string; validUntil: number } | null = null;
   private refreshInFlight: Promise<string> | null = null;
@@ -179,6 +184,44 @@ export class TpayApiClient {
     }
   }
 
+  /** Reconciliation fallback only; callers must not poll every payment. */
+  async getTransactionStatus(transactionId: string): Promise<TpayTransactionStatusResult> {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(transactionId)) {
+      throw new Error('Tpay transaction ID is invalid');
+    }
+    const token = await this.getAccessToken();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), GET_TRANSACTION_TIMEOUT_MS);
+    let response: Response;
+    try {
+      response = await this.fetcher(
+        `${this.config.apiUrl}/transactions/${encodeURIComponent(transactionId)}`,
+        { method: 'GET', headers: { Authorization: `Bearer ${token}` }, signal: controller.signal },
+      );
+    } catch {
+      clearTimeout(timeout);
+      return { status: 'unknown', reason: controller.signal.aborted ? 'timeout' : 'network' };
+    }
+
+    try {
+      if (response.status === 404) return { status: 'unknown', reason: 'not_found' };
+      if (response.status === 401 || response.status === 403) {
+        return { status: 'unknown', reason: 'authorization' };
+      }
+      if (!response.ok) return { status: 'unknown', reason: 'provider_error' };
+
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        return { status: 'unknown', reason: controller.signal.aborted ? 'timeout' : 'invalid_response' };
+      }
+      return mapTransactionStatus(payload, transactionId);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   private async requestToken(): Promise<string> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), OAUTH_TIMEOUT_MS);
@@ -273,6 +316,44 @@ function isCreatedTransaction(value: unknown): value is {
   } catch {
     return false;
   }
+}
+
+function mapTransactionStatus(payload: unknown, transactionId: string): TpayTransactionStatusResult {
+  if (
+    !isRecord(payload) ||
+    payload.result !== 'success' ||
+    payload.transactionId !== transactionId ||
+    !isRecord(payload.payments)
+  ) {
+    return { status: 'unknown', reason: 'invalid_response' };
+  }
+
+  const paymentStatus = payload.payments.status;
+  // GET can return only payments.attempts for an untouched pending transaction.
+  if (payload.status === 'pending' && (paymentStatus === 'pending' || paymentStatus === undefined)) {
+    return { status: 'pending', transactionId };
+  }
+  if (payload.status === 'success' && (paymentStatus === 'correct' || paymentStatus === undefined)) {
+    const amount = payload.amount;
+    const amountPaid = payload.payments.amountPaid;
+    const realization = isRecord(payload.date) ? payload.date.realization : undefined;
+    if (
+      payload.currency === 'PLN' &&
+      typeof amount === 'number' && Number.isFinite(amount) && amount > 0 &&
+      typeof realization === 'string' && realization.length > 0 &&
+      (amountPaid === undefined ||
+        (typeof amountPaid === 'number' && Number.isFinite(amountPaid) && amountPaid >= amount))
+    ) {
+      return { status: 'confirmed', transactionId };
+    }
+  }
+  if (
+    (payload.status === 'error' || payload.status === 'failed') &&
+    (paymentStatus === 'error' || paymentStatus === 'failed')
+  ) {
+    return { status: 'failed', transactionId };
+  }
+  return { status: 'unknown', reason: 'invalid_response' };
 }
 
 function parseAvailableChannels(payload: unknown): TpayAvailablePaymentChannel[] {

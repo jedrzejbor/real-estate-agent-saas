@@ -491,3 +491,94 @@ describe('PAY-019 create transaction', () => {
     }
   });
 });
+
+describe('PAY-020 transaction status fallback', () => {
+  const transactionId = '01M4Z0P95T0JKTHVYZWVW201J4';
+  const transaction = (status: string, paymentStatus: string, amountPaid: number) => ({
+    result: 'success',
+    transactionId,
+    status,
+    amount: 1,
+    currency: 'PLN',
+    date: { realization: status === 'success' ? '2026-10-15 10:00:00' : null },
+    payments: { status: paymentStatus, amountPaid },
+  });
+  const clientFor = (payload: unknown, responseStatus = 200) => {
+    const fetcher = jest.fn()
+      .mockResolvedValueOnce(ok('private-test-token'))
+      .mockResolvedValueOnce({
+        ok: responseStatus === 200,
+        status: responseStatus,
+        json: async () => payload,
+      });
+    return { client: new TpayApiClient(config, fetcher), fetcher };
+  };
+
+  it('maps a pending transaction without confirming it', async () => {
+    const { client, fetcher } = clientFor(transaction('pending', 'pending', 0));
+    await expect(client.getTransactionStatus(transactionId)).resolves.toEqual({
+      status: 'pending', transactionId,
+    });
+    expect(fetcher.mock.calls[1][0]).toBe(
+      `https://openapi.sandbox.tpay.com/transactions/${transactionId}`,
+    );
+    expect(fetcher.mock.calls[1][1]).toMatchObject({
+      method: 'GET', headers: { Authorization: 'Bearer private-test-token' },
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    const sparse = clientFor({
+      result: 'success', transactionId, status: 'pending', payments: { attempts: [] },
+    });
+    await expect(sparse.client.getTransactionStatus(transactionId)).resolves.toEqual({
+      status: 'pending', transactionId,
+    });
+  });
+
+  it('maps a fully paid and consistent transaction to confirmed', async () => {
+    const { client } = clientFor(transaction('success', 'correct', 1));
+    await expect(client.getTransactionStatus(transactionId)).resolves.toEqual({
+      status: 'confirmed', transactionId,
+    });
+    const sparse = clientFor({
+      result: 'success', transactionId, status: 'success', amount: 1, currency: 'PLN',
+      date: { realization: '2026-10-15 10:00:00' }, payments: { attempts: [] },
+    });
+    await expect(sparse.client.getTransactionStatus(transactionId)).resolves.toEqual({
+      status: 'confirmed', transactionId,
+    });
+  });
+
+  it('maps a definitive failed transaction to failed', async () => {
+    const { client } = clientFor(transaction('error', 'error', 0));
+    await expect(client.getTransactionStatus(transactionId)).resolves.toEqual({
+      status: 'failed', transactionId,
+    });
+  });
+
+  it('keeps a missing transaction unknown', async () => {
+    const { client, fetcher } = clientFor({ secret: config.clientSecret }, 404);
+    await expect(client.getTransactionStatus(transactionId)).resolves.toEqual({
+      status: 'unknown', reason: 'not_found',
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('never confirms mismatched, underpaid, malformed or ambiguous responses', async () => {
+    const cases = [
+      transaction('pending', 'correct', 1),
+      transaction('success', 'pending', 1),
+      transaction('success', 'correct', 0.5),
+      { ...transaction('success', 'correct', 1), date: { realization: null } },
+      { ...transaction('success', 'correct', 1), transactionId: 'OTHER' },
+      { ...transaction('success', 'correct', 1), currency: 'EUR' },
+      { ...transaction('success', 'correct', 1), result: 'failed' },
+      { result: 'success', status: 'success', transactionId },
+    ];
+    for (const payload of cases) {
+      const { client } = clientFor(payload);
+      await expect(client.getTransactionStatus(transactionId)).resolves.toEqual({
+        status: 'unknown', reason: 'invalid_response',
+      });
+    }
+  });
+});
