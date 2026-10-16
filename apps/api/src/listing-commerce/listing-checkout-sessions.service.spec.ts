@@ -6,6 +6,7 @@ import {
 import { DataSource, EntityManager } from 'typeorm';
 import { ReleaseFlagsService } from '../release-flags';
 import { User } from '../users/entities';
+import { PaymentService } from '../payments/application/payment.service';
 import {
   ListingOrder,
   ListingOrderItem,
@@ -120,6 +121,9 @@ function buildHarness(
       privateListingCheckoutEnabled: options.checkoutEnabled ?? true,
     }),
   };
+  const paymentService = {
+    prepareListingPayment: jest.fn().mockResolvedValue({ id: 'payment-1' }),
+  };
   const service = new ListingCheckoutSessionsService(
     dataSource as unknown as DataSource,
     paymentGateway as unknown as ListingPaymentGateway,
@@ -129,6 +133,7 @@ function buildHarness(
         .fn()
         .mockReturnValue(String(options.verificationEnabled ?? false)),
     } as never,
+    paymentService as unknown as PaymentService,
   );
 
   return {
@@ -136,12 +141,41 @@ function buildHarness(
     manager,
     dataSource,
     paymentGateway,
+    paymentService,
     order,
     getAttempt: () => persistedAttempt,
   };
 }
 
 describe('ListingCheckoutSessionsService', () => {
+  it('PAY-021 uses the backend order amount when preparing local Payment', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-07T10:00:00.000Z'));
+    const { service, paymentService, manager } = buildHarness({
+      order: buildOrder({ totalGrossAmount: 4900 }),
+    });
+    await service.createOwnedCheckoutSession('owner-1', 'order-1');
+    expect(paymentService.prepareListingPayment).toHaveBeenCalledWith(
+      manager,
+      expect.objectContaining({
+        orderId: 'order-1',
+        buyerUserId: 'owner-1',
+        attemptId: 'attempt-created',
+        amountMinor: 4900,
+        currency: 'PLN',
+      }),
+    );
+  });
+
+  it('PAY-021 does not prepare Payment for an unverified buyer', async () => {
+    const { service, paymentService, paymentGateway } = buildHarness({
+      verificationEnabled: true,
+    });
+    await expect(service.createOwnedCheckoutSession('owner-1', 'order-1'))
+      .rejects.toMatchObject({ response: { code: 'EMAIL_VERIFICATION_REQUIRED' } });
+    expect(paymentService.prepareListingPayment).not.toHaveBeenCalled();
+    expect(paymentGateway.createCheckoutSession).not.toHaveBeenCalled();
+  });
+
   it('does not open a payment session for an unverified buyer after rollout', async () => {
     const { service, paymentGateway } = buildHarness({
       verificationEnabled: true,

@@ -7,6 +7,7 @@ import { EmailModule } from '../email';
 import { AnalyticsModule } from '../analytics';
 import { Listing } from '../listings/entities';
 import { PublicListingSubmissionsModule } from '../public-listing-submissions';
+import { PaymentsModule } from '../payments/payments.module';
 import { PublicListingSubmission } from '../public-listing-submissions/entities';
 import { AdminListingEntitlementsController } from './admin-listing-entitlements.controller';
 import { AdminListingProductsController } from './admin-listing-products.controller';
@@ -81,6 +82,7 @@ const LISTING_COMMERCE_ENTITIES = [
     EmailModule,
     AnalyticsModule,
     PublicListingSubmissionsModule,
+    PaymentsModule,
   ],
   controllers: [
     ListingProductsController,

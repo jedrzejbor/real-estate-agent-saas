@@ -17,6 +17,7 @@ import {
   PaymentConfiguration,
 } from './infrastructure/tpay/tpay.config';
 import { TpayApiClient } from './infrastructure/tpay/tpay-api.client';
+import { PaymentService } from './application/payment.service';
 import { PAYMENT_GATEWAY, PaymentGateway } from './ports/payment-gateway.port';
 import { RECURRING_GATEWAY, RecurringGateway } from './ports/recurring-gateway.port';
 
@@ -25,6 +26,7 @@ import { RECURRING_GATEWAY, RecurringGateway } from './ports/recurring-gateway.p
   imports: [ConfigModule, TypeOrmModule.forFeature([Payment, Subscription, SubscriptionRenewal])],
   providers: [
     PaymentRepository,
+    PaymentService,
     SubscriptionRepository,
     RenewalRepository,
     {
@@ -45,6 +47,7 @@ import { RECURRING_GATEWAY, RecurringGateway } from './ports/recurring-gateway.p
   exports: [
     TypeOrmModule,
     PaymentRepository,
+    PaymentService,
     SubscriptionRepository,
     RenewalRepository,
     PAYMENT_CONFIGURATION,

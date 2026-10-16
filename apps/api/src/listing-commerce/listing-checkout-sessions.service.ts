@@ -30,6 +30,7 @@ import {
   ListingPaymentAttemptStatus,
 } from './listing-commerce.types';
 import { ListingCommerceTelemetryService } from './listing-commerce-telemetry.service';
+import { PaymentService } from '../payments/application/payment.service';
 
 const CHECKOUT_ELIGIBLE_ORDER_STATUSES = new Set([
   ListingOrderStatus.DRAFT,
@@ -51,6 +52,7 @@ export class ListingCheckoutSessionsService {
     private readonly paymentGateway: ListingPaymentGateway,
     private readonly releaseFlagsService: ReleaseFlagsService,
     private readonly configService: ConfigService,
+    private readonly paymentService: PaymentService,
     @Optional()
     private readonly telemetryService?: ListingCommerceTelemetryService,
   ) {}
@@ -220,6 +222,15 @@ export class ListingCheckoutSessionsService {
         'Próba jest przypisana do innego operatora płatności',
       );
     }
+    await this.paymentService.prepareListingPayment(manager, {
+      orderId: order.id,
+      buyerUserId,
+      attemptId: attempt.id,
+      attemptNumber: attempt.attemptNumber,
+      amountMinor: order.totalGrossAmount,
+      currency: order.currency,
+      provider: attempt.provider,
+    });
     if (order.status !== ListingOrderStatus.PENDING_PAYMENT) {
       transitionToPendingPayment(order);
     }
