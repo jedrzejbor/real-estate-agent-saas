@@ -1,6 +1,6 @@
 # Manualne testy płatności PodAdresem
 
-PAY-024: [protokół lokalny](test-runs/2026-10-16-pay-024-local.md) potwierdza testy automatyczne; ręczne przerwanie płatności MT-004 pozostaje **Blocked** przy wyłączonym checkoutcie i niedostępnej stronie Sandbox.
+PAY-024: [protokół lokalny](test-runs/2026-10-16-pay-024-local.md) potwierdza testy automatyczne i ręczną kontrolę blokady zakupu ogłoszenia; przerwanie płatności MT-004 pozostaje **Blocked** przy wyłączonym checkoutcie i niedostępnej stronie Sandbox.
 
 PAY-023: [protokół lokalny](test-runs/2026-10-16-pay-023-local.md) potwierdza testy web i build; ręczny widok lokalny oraz pełny powrót z Tpay pozostają **Blocked**.
 
