@@ -29,7 +29,9 @@ describe('PAY-009 payment gateway ports', () => {
   it('accepts mock one-time and recurring gateways through DI', async () => {
     const paymentGateway: PaymentGateway = {
       createPayment: jest.fn().mockResolvedValue({
+        status: 'pending',
         providerTransactionId: 'test-transaction',
+        providerTitle: 'TR-TEST',
         redirectUrl: 'https://checkout.example.test/pay',
       }),
       getPaymentStatus: jest.fn().mockResolvedValue({
@@ -81,7 +83,10 @@ describe('PAY-009 payment gateway ports', () => {
         paymentId: newPaymentId(),
         amountMinor: toPaymentAmountMinor(4999),
         currency: 'PLN',
+        description: 'Test payment',
         buyerEmail: 'buyer@example.test',
+        buyerName: 'Test Buyer',
+        notificationUrl: 'https://api.example.test/notification',
         returnUrls: {
           success: 'https://app.example.test/success',
           failure: 'https://app.example.test/failure',

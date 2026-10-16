@@ -10,6 +10,15 @@ export type TpayTransactionStatusResult =
   | { status: 'pending' | 'confirmed' | 'failed'; transactionId: string }
   | { status: 'unknown'; reason: 'not_found' | 'authorization' | 'provider_error' | 'timeout' | 'network' | 'invalid_response' };
 
+export type TpayTransactionDetailsResult =
+  | {
+      status: 'pending' | 'confirmed' | 'failed';
+      transactionId: string;
+      amountMinor: number | null;
+      currency: string | null;
+    }
+  | Extract<TpayTransactionStatusResult, { status: 'unknown' }>;
+
 export interface TpayCreateTransactionInput {
   amountMinor: number;
   description: string;
@@ -186,6 +195,13 @@ export class TpayApiClient {
 
   /** Reconciliation fallback only; callers must not poll every payment. */
   async getTransactionStatus(transactionId: string): Promise<TpayTransactionStatusResult> {
+    const details = await this.getTransactionDetails(transactionId);
+    if (details.status === 'unknown') return details;
+    return { status: details.status, transactionId: details.transactionId };
+  }
+
+  /** Same single GET, with amount for an adapter to verify against the local ledger. */
+  async getTransactionDetails(transactionId: string): Promise<TpayTransactionDetailsResult> {
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(transactionId)) {
       throw new Error('Tpay transaction ID is invalid');
     }
@@ -216,7 +232,14 @@ export class TpayApiClient {
       } catch {
         return { status: 'unknown', reason: controller.signal.aborted ? 'timeout' : 'invalid_response' };
       }
-      return mapTransactionStatus(payload, transactionId);
+      const mapped = mapTransactionStatus(payload, transactionId);
+      if (mapped.status === 'unknown') return mapped;
+      const amountMinor = isRecord(payload) ? parseProviderAmountMinor(payload.amount) : null;
+      return {
+        ...mapped,
+        amountMinor,
+        currency: isRecord(payload) && typeof payload.currency === 'string' ? payload.currency : null,
+      };
     } finally {
       clearTimeout(timeout);
     }
@@ -268,6 +291,15 @@ export class TpayApiClient {
       clearTimeout(timeout);
     }
   }
+}
+
+function parseProviderAmountMinor(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  const text = String(value);
+  if (!/^\d+(?:\.\d{1,2})?$/.test(text)) return null;
+  const [whole, fractional = ''] = text.split('.');
+  const minor = Number(whole) * 100 + Number(fractional.padEnd(2, '0'));
+  return Number.isSafeInteger(minor) && minor > 0 ? minor : null;
 }
 
 function formatAmountPln(amountMinor: number): string {
