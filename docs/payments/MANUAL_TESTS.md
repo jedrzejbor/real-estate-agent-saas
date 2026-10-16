@@ -1,5 +1,7 @@
 # Manualne testy płatności PodAdresem
 
+PAY-025: [protokół lokalny](test-runs/2026-10-16-pay-025-local.md) potwierdza testy jednostkowe weryfikatora JWS. MT-006 na poziomie aplikacji pozostaje **Blocked** do dodania endpointu Tpay w PAY-026.
+
 PAY-024: [protokół lokalny](test-runs/2026-10-16-pay-024-local.md) potwierdza testy automatyczne i ręczną kontrolę blokady zakupu ogłoszenia; przerwanie płatności MT-004 pozostaje **Blocked** przy wyłączonym checkoutcie i niedostępnej stronie Sandbox.
 
 PAY-023: [protokół lokalny](test-runs/2026-10-16-pay-023-local.md) potwierdza testy web i build; ręczny widok lokalny oraz pełny powrót z Tpay pozostają **Blocked**.
@@ -269,7 +271,7 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 **ID:** MT-006  
 **Name:** Niepoprawny podpis webhooka  
 **Purpose:** Sprawdzić, że fałszywa notyfikacja nie zmienia płatności.  
-**Prerequisites:** Developer przygotował fixture z błędnym JWS; istnieje oczekująca płatność sandbox.
+**Prerequisites:** Developer przygotował fixture z błędnym JWS; istnieje oczekująca płatność sandbox; aplikacja ma endpoint Tpay odbierający webhook. W PAY-025 gotowy jest wyłącznie weryfikator: bez endpointu test ręczny ma wynik **Blocked**. Testy jednostkowe weryfikatora zapisuj osobno, nie jako zaliczone MT-006.
 
 **Steps:**
 
