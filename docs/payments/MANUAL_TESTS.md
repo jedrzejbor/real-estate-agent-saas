@@ -1,5 +1,7 @@
 # Manualne testy płatności PodAdresem
 
+PAY-026: [protokół lokalny](test-runs/2026-10-16-pay-026-local.md) potwierdza odpowiedź `401` bez przekierowania dla błędnego JWS i niezmienione liczniki zamówień/uprawnień. Pełne MT-006 pozostaje **Blocked** bez oczekującego lokalnego `Payment` i potwierdzenia wpisu w logu.
+
 PAY-025: [protokół lokalny](test-runs/2026-10-16-pay-025-local.md) potwierdza testy jednostkowe weryfikatora JWS. MT-006 na poziomie aplikacji pozostaje **Blocked** do dodania endpointu Tpay w PAY-026.
 
 PAY-024: [protokół lokalny](test-runs/2026-10-16-pay-024-local.md) potwierdza testy automatyczne i ręczną kontrolę blokady zakupu ogłoszenia; przerwanie płatności MT-004 pozostaje **Blocked** przy wyłączonym checkoutcie i niedostępnej stronie Sandbox.
@@ -271,16 +273,16 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 **ID:** MT-006  
 **Name:** Niepoprawny podpis webhooka  
 **Purpose:** Sprawdzić, że fałszywa notyfikacja nie zmienia płatności.  
-**Prerequisites:** Developer przygotował fixture z błędnym JWS; istnieje oczekująca płatność sandbox; aplikacja ma endpoint Tpay odbierający webhook. W PAY-025 gotowy jest wyłącznie weryfikator: bez endpointu test ręczny ma wynik **Blocked**. Testy jednostkowe weryfikatora zapisuj osobno, nie jako zaliczone MT-006.
+**Prerequisites:** Developer przygotował fixture z błędnym JWS; istnieje oczekująca lokalna płatność testowa powiązana z transakcją sandbox; aplikacja ma endpoint Tpay odbierający webhook. Od PAY-026 endpoint jest dostępny, ale nie zapisuje zdarzeń ani nie zmienia płatności. Nie konfiguruj tego endpointu dla produkcyjnych powiadomień, dopóki trwałe przetwarzanie zdarzeń nie będzie wdrożone. Testy jednostkowe weryfikatora i kontrolera zapisuj osobno, nie jako zaliczone pełne MT-006.
 
 **Steps:**
 
 1. Zanotuj status oczekującej płatności.
-2. Uruchom przygotowany test „Niepoprawny podpis” lub poproś developera o jego uruchomienie.
+2. Wyślij przygotowane lokalnie żądanie `POST /api/payments/webhooks/tpay` jako `application/x-www-form-urlencoded` z błędnym `X-JWS-Signature`, bez danych karty ani sekretów. Nie wysyłaj go do Tpay.
 3. Odśwież panel i sprawdź, czy ogłoszenie nadal oczekuje.
 4. Sprawdź, czy log pokazuje odrzucenie bez sekretów.
 
-**Expected result:** Żadne ogłoszenie ani PRO nie zostaje aktywowane; webhook jest odrzucony.
+**Expected result:** Endpoint zwraca 4xx bez przekierowania; żadne ogłoszenie ani PRO nie zostaje aktywowane. Poprawnie podpisane powiadomienie ma odpowiedź HTTP 200 z dokładnym body `TRUE`, co na tym etapie potwierdza wyłącznie transport, nie rozliczenie płatności.
 
 **Database state:** Payment nie zmienia się na confirmed; zdarzenie może mieć bezpieczny wpis audytu. Stan bazy sprawdza developer; tester ocenia przede wszystkim widok aplikacji.
 

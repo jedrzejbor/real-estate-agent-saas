@@ -1,0 +1,90 @@
+import { INestApplication, Logger } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { IS_PUBLIC_KEY } from '../../../auth/decorators/public.decorator';
+import { TpayJwsVerifier } from './tpay-jws.verifier';
+import { TpayWebhookController } from './tpay-webhook.controller';
+
+describe('TpayWebhookController transport', () => {
+  let app: INestApplication;
+  let baseUrl: string;
+  let warning: jest.SpyInstance;
+  const verify = jest.fn<Promise<boolean>, [string | undefined, Buffer | undefined]>();
+  const rawBody = 'id=123&tr_id=TR-TEST&tr_amount=49.00';
+  const path = '/api/payments/webhooks/tpay';
+
+  beforeAll(async () => {
+    warning = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const module = await Test.createTestingModule({
+      controllers: [TpayWebhookController],
+      providers: [{ provide: TpayJwsVerifier, useValue: { verify } }],
+    }).compile();
+    app = module.createNestApplication({ rawBody: true });
+    app.setGlobalPrefix('api');
+    await app.listen(0, '127.0.0.1');
+    baseUrl = await app.getUrl();
+  });
+
+  afterAll(async () => {
+    if (app) await app.close();
+    warning?.mockRestore();
+  });
+
+  beforeEach(() => {
+    verify.mockReset();
+    warning.mockClear();
+  });
+
+  it('returns HTTP 200 and exact TRUE for a verified raw form notification', async () => {
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, TpayWebhookController.prototype.receiveNotification)).toBe(true);
+    verify.mockResolvedValue(true);
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'x-jws-signature': 'test-detached-jws',
+      },
+      body: rawBody,
+      redirect: 'manual',
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('TRUE');
+    expect(response.headers.get('location')).toBeNull();
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(verify.mock.calls[0][0]).toBe('test-detached-jws');
+    expect(verify.mock.calls[0][1]).toEqual(Buffer.from(rawBody));
+  });
+
+  it.each([
+    ['invalid', 'invalid-jws'],
+    ['missing', undefined],
+  ])('returns 4xx without redirect for %s JWS', async (_case, signature) => {
+    verify.mockResolvedValue(false);
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        ...(signature ? { 'x-jws-signature': signature } : {}),
+      },
+      body: rawBody,
+      redirect: 'manual',
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get('location')).toBeNull();
+    expect(verify.mock.calls[0][1]).toEqual(Buffer.from(rawBody));
+    expect(warning.mock.calls.flat().join(' ')).not.toContain(rawBody);
+  });
+
+  it('rejects non-form notifications before verification', async () => {
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+      redirect: 'manual',
+    });
+    expect(response.status).toBe(415);
+    expect(response.headers.get('location')).toBeNull();
+    expect(verify).not.toHaveBeenCalled();
+  });
+});
