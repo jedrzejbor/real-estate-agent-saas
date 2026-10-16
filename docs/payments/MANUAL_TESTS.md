@@ -1,5 +1,7 @@
 # Manualne testy płatności PodAdresem
 
+PAY-024: [protokół lokalny](test-runs/2026-10-16-pay-024-local.md) potwierdza testy automatyczne; ręczne przerwanie płatności MT-004 pozostaje **Blocked** przy wyłączonym checkoutcie i niedostępnej stronie Sandbox.
+
 PAY-023: [protokół lokalny](test-runs/2026-10-16-pay-023-local.md) potwierdza testy web i build; ręczny widok lokalny oraz pełny powrót z Tpay pozostają **Blocked**.
 
 ## MT-016 — Tymczasowa niedostępność checkoutu (PAY-011)
@@ -221,18 +223,20 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 **ID:** MT-004  
 **Name:** Nieudana lub anulowana płatność BLIK  
 **Purpose:** Sprawdzić brak aktywacji ogłoszenia bez zapłaty.  
-**Prerequisites:** Warunki MT-003; drugie, nieopłacone ogłoszenie testowe.
+**Prerequisites:** Warunki MT-003; drugie, nieopłacone ogłoszenie testowe. Publiczny checkout musi być faktycznie dostępny w Sandbox. Gdy nadal zwraca `PAYMENTS_UNAVAILABLE` albo strona Tpay zwraca HTTP 403, oznacz próbę przerwania płatności jako **Blocked** i nie obchodź blokady.
 
 **Steps:**
 
 1. Rozpocznij zakup ogłoszenia.
 2. W Tpay Sandbox użyj scenariusza odmowy z aktualnej dokumentacji (np. kwota 144.00, jeśli konfiguracja pozwala) albo anuluj płatność.
 3. Wróć do PodAdresem i odśwież panel.
-4. Spróbuj ponownie tylko po wyraźnym komunikacie, że poprzednia próba jest zakończona.
+4. Jeśli powrót wskazuje anulowanie, sprawdź przez API, że nie zmienił on potwierdzonej wcześniej płatności. Nie uznawaj samego powrotu za dowód odmowy.
+5. Przy timeout lub niejednoznacznym wyniku developer sprawdza lokalny status `unknown` i kolejkę rekoncyliacji. Nie ponawiaj POST tworzącego transakcję. Sprawdź status operatora dopiero po uzyskaniu identyfikatora transakcji.
+6. Spróbuj ponownie tylko po wyraźnym, definitywnym zakończeniu poprzedniej próby. Jeśli później nadejdzie zweryfikowany sukces tej samej transakcji, sprawdź, że zamówienie i uprawnienie są zapisane raz.
 
-**Expected result:** Ogłoszenie pozostaje nieaktywne; widoczny jest błąd lub anulowanie, bez fałszywego sukcesu.
+**Expected result:** Po definitywnej odmowie ogłoszenie pozostaje nieaktywne. `unknown` nie uruchamia drugiego POST i blokuje wygaśnięcie próby do wyjaśnienia. Anulowanie w przeglądarce nie cofa potwierdzonej płatności; zweryfikowany spóźniony sukces może nadać uprawnienie tylko raz.
 
-**Database state:** payment.status=failed/expired albo pending/unknown do uzgodnienia; brak entitlement. Stan bazy sprawdza developer; tester ocenia przede wszystkim widok aplikacji.
+**Database state:** Przy odmowie potwierdzonej odczytem operatora `payment.status=failed`, próba `failed`, zamówienie `payment_failed`, brak entitlement. Odrzucenie POST typu 4xx zapisuje lokalne `Payment.failed`; publiczna projekcja zamówienia pozostaje wyłączona do czasu podłączenia checkoutu. Przy niepewnym wyniku `payment.status=unknown`, próba pozostaje otwarta, bez ponownego charge. Spóźniony, zweryfikowany sukces zapisuje `confirmed`, `paid` i jedno entitlement w jednej transakcji. Stan bazy sprawdza developer; tester ocenia przede wszystkim widok aplikacji.
 
 **Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______.
 

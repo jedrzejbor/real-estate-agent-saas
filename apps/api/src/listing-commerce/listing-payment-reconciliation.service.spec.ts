@@ -1,4 +1,5 @@
 import { ListingOrder, ListingPaymentAttempt } from './entities';
+import { Payment } from '../payments/infrastructure/typeorm/payment.entity';
 import { ListingPromotionsService } from './listing-promotions.service';
 import { ListingPaymentReconciliationService } from './listing-payment-reconciliation.service';
 import {
@@ -41,6 +42,7 @@ function buildService(input?: {
     findOne: jest.fn(
       (entity: unknown, options: { where?: { id?: string } }) => {
         if (entity === ListingOrder) return Promise.resolve(order);
+        if (entity === Payment) return Promise.resolve(null);
         if (options.where?.id) return Promise.resolve(attempt);
         return Promise.resolve(latestAttempt);
       },
@@ -50,8 +52,9 @@ function buildService(input?: {
   const attemptsRepository = {
     find: jest.fn().mockResolvedValue(candidates),
   };
+  const paymentsRepository = { find: jest.fn().mockResolvedValue([]) };
   const dataSource = {
-    getRepository: jest.fn().mockReturnValue(attemptsRepository),
+    getRepository: jest.fn((entity: unknown) => entity === Payment ? paymentsRepository : attemptsRepository),
     transaction: jest.fn((callback: (value: typeof manager) => unknown) =>
       callback(manager),
     ),
@@ -111,6 +114,7 @@ describe('ListingPaymentReconciliationService', () => {
     expect(manager.findOne.mock.calls.map(([entity]) => entity)).toEqual([
       ListingOrder,
       ListingPaymentAttempt,
+      Payment,
       ListingPaymentAttempt,
     ]);
     expect(

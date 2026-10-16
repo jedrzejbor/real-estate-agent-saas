@@ -1,7 +1,16 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { EntityManager, In } from 'typeorm';
-import { newPaymentId, toPaymentAmountMinor } from '../domain/payment.types';
+import {
+  canTransitionPaymentStatus,
+  newPaymentId,
+  toPaymentAmountMinor,
+  type PaymentId,
+} from '../domain/payment.types';
 import { Payment } from '../infrastructure/typeorm/payment.entity';
+import type {
+  CreatePaymentResult,
+  VerifiedProviderPaymentStatus,
+} from '../ports/payment-gateway.port';
 
 const ACTIVE_LISTING_PAYMENT_STATUSES = ['created', 'pending', 'unknown'] as const;
 
@@ -80,5 +89,79 @@ export class PaymentService {
       confirmedAt: null,
       metadata: {},
     }));
+  }
+
+  /** Save a single POST outcome. An uncertain result remains active and blocks retry. */
+  async recordCreationOutcome(
+    manager: EntityManager,
+    paymentId: PaymentId,
+    outcome: CreatePaymentResult,
+  ): Promise<Payment> {
+    const payment = await this.lockPayment(manager, paymentId);
+    if (payment.status !== 'created') {
+      throw new ConflictException('Próba utworzenia płatności została już rozstrzygnięta');
+    }
+
+    if (outcome.status === 'pending') {
+      if (!outcome.providerTransactionId.trim() || !outcome.providerTitle.trim()) {
+        throw new ConflictException('Operator nie zwrócił identyfikatorów płatności');
+      }
+      payment.status = 'pending';
+      payment.providerTransactionId = outcome.providerTransactionId;
+      payment.providerTitle = outcome.providerTitle;
+    } else if (outcome.status === 'rejected') {
+      payment.status = 'failed';
+      payment.failureCode = 'provider_rejected';
+    } else {
+      payment.status = 'unknown';
+      payment.failureCode = 'reconciliation_required';
+    }
+    return manager.save(Payment, payment);
+  }
+
+  /** Only an identified, amount-matched provider status can confirm a payment. */
+  async recordVerifiedProviderStatus(
+    manager: EntityManager,
+    paymentId: PaymentId,
+    result: VerifiedProviderPaymentStatus,
+    confirmedAt = new Date(),
+  ): Promise<Payment> {
+    const payment = await this.lockPayment(manager, paymentId);
+    if (
+      !payment.providerTransactionId ||
+      payment.providerTransactionId !== result.providerTransactionId ||
+      result.status === 'unknown'
+    ) {
+      return payment;
+    }
+    if (
+      result.amountMinor !== payment.amountMinor ||
+      result.currency !== payment.currency
+    ) {
+      return payment;
+    }
+    // A pending read does not resolve an earlier unknown POST/GET outcome.
+    if (result.status === 'pending' || payment.status === 'confirmed') {
+      return payment;
+    }
+    if (!canTransitionPaymentStatus(payment.status, result.status)) {
+      return payment;
+    }
+    payment.status = result.status;
+    payment.failureCode = result.status === 'failed' ? 'provider_failed' : null;
+    if (result.status === 'confirmed') payment.confirmedAt = confirmedAt;
+    return manager.save(Payment, payment);
+  }
+
+  private async lockPayment(manager: EntityManager, paymentId: PaymentId): Promise<Payment> {
+    if (!manager.queryRunner?.isTransactionActive) {
+      throw new Error('Payment status update requires a transaction');
+    }
+    const payment = await manager.findOne(Payment, {
+      where: { id: paymentId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!payment) throw new ConflictException('Płatność nie istnieje');
+    return payment;
   }
 }

@@ -1,5 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { DataSource, In, LessThanOrEqual } from 'typeorm';
+import { PaymentService } from '../payments/application/payment.service';
+import { Payment } from '../payments/infrastructure/typeorm/payment.entity';
+import { PAYMENT_GATEWAY, type PaymentGateway } from '../payments/ports/payment-gateway.port';
 import { ListingOrder, ListingPaymentAttempt } from './entities';
 import { ListingEntitlementsService } from './listing-entitlements.service';
 import { ListingPromotionsService } from './listing-promotions.service';
@@ -26,6 +29,9 @@ export interface ListingPaymentReconciliationFailure {
 }
 
 export interface ListingPaymentReconciliationResult {
+  unresolvedPaymentIds: string[];
+  resolvedPaymentIds: string[];
+  paymentStatusFailures: ListingPaymentReconciliationFailure[];
   expiredAttemptIds: string[];
   expiredOrderIds: string[];
   skippedAttemptIds: string[];
@@ -46,6 +52,8 @@ export class ListingPaymentReconciliationService {
     private readonly dataSource: DataSource,
     private readonly listingEntitlementsService: ListingEntitlementsService,
     private readonly listingPromotionsService: ListingPromotionsService,
+    @Optional() private readonly paymentService?: PaymentService,
+    @Optional() @Inject(PAYMENT_GATEWAY) private readonly paymentGateway?: PaymentGateway,
   ) {}
 
   async reconcile(
@@ -56,13 +64,119 @@ export class ListingPaymentReconciliationService {
     const fulfillmentGraceMs = normalizeNonNegativeInteger(
       options?.fulfillmentGraceMs,
     );
+    const paymentStatuses = await this.reconcileProviderPayments(batchSize);
     const expiration = await this.expireAbandonedAttempts(now, batchSize);
     const recovery = await this.recoverMissingEntitlements(
       new Date(now.getTime() - fulfillmentGraceMs),
       batchSize,
     );
 
-    return { ...expiration, ...recovery };
+    return { ...paymentStatuses, ...expiration, ...recovery };
+  }
+
+  private async reconcileProviderPayments(batchSize: number) {
+    const candidates = await this.dataSource.getRepository(Payment).find({
+      select: { id: true, orderId: true, correlationId: true, providerTransactionId: true },
+      where: { kind: 'listing', status: In(['unknown', 'pending']) },
+      order: { createdAt: 'ASC', id: 'ASC' },
+      take: batchSize,
+    });
+    const unresolvedPaymentIds: string[] = [];
+    const resolvedPaymentIds: string[] = [];
+    const paymentStatusFailures: ListingPaymentReconciliationFailure[] = [];
+
+    for (const candidate of candidates) {
+      if (!candidate.providerTransactionId || !this.paymentGateway || !this.paymentService) {
+        unresolvedPaymentIds.push(candidate.id);
+        continue;
+      }
+      try {
+        const result = await this.paymentGateway.getPaymentStatus(candidate.providerTransactionId);
+        const payment = await this.dataSource.transaction(async (manager) => {
+          if (!candidate.orderId || !candidate.correlationId) {
+            throw new Error('Listing payment has no order or attempt correlation');
+          }
+          const order = await manager.findOne(ListingOrder, {
+            where: { id: candidate.orderId },
+            relations: ['items'],
+            lock: { mode: 'pessimistic_write' },
+          });
+          const attempt = await manager.findOne(ListingPaymentAttempt, {
+            where: { id: candidate.correlationId, orderId: candidate.orderId },
+            lock: { mode: 'pessimistic_write' },
+          });
+          if (!order || !attempt) {
+            throw new Error('Listing payment correlation is missing');
+          }
+          const payment = await this.paymentService!.recordVerifiedProviderStatus(
+            manager, candidate.id, result,
+          );
+          if (payment.status !== 'confirmed' && payment.status !== 'failed') return payment;
+          if (
+            payment.amountMinor !== order.totalGrossAmount ||
+            payment.amountMinor !== attempt.amountGross ||
+            payment.currency !== order.currency ||
+            payment.currency !== attempt.currency ||
+            payment.provider !== attempt.provider ||
+            payment.providerTransactionId !== result.providerTransactionId
+          ) {
+            throw new Error('Verified payment does not match listing order');
+          }
+          if (payment.status === 'confirmed') {
+            if (
+              order.status === ListingOrderStatus.PAID &&
+              order.providerPaymentId &&
+              order.providerPaymentId !== payment.providerTransactionId
+            ) {
+              throw new Error('Listing order was paid with a different transaction');
+            }
+            attempt.status = ListingPaymentAttemptStatus.SUCCEEDED;
+            attempt.providerPaymentId = payment.providerTransactionId;
+            attempt.completedAt = payment.confirmedAt ?? new Date();
+            await manager.save(ListingPaymentAttempt, attempt);
+            if (order.status !== ListingOrderStatus.PAID) {
+              assertListingOrderStatusTransition(order.status, ListingOrderStatus.PAID);
+              order.status = ListingOrderStatus.PAID;
+              order.provider = payment.provider;
+              order.providerPaymentId = payment.providerTransactionId;
+              order.providerCheckoutSessionId = payment.providerTitle;
+              order.paidAt = payment.confirmedAt ?? new Date();
+              await manager.save(ListingOrder, order);
+            }
+            await this.listingEntitlementsService.fulfillPaidOrderInTransaction(
+              manager, order, order.paidAt ?? payment.confirmedAt ?? new Date(),
+            );
+            await this.listingPromotionsService.applyReservedDiscountsForPaidOrder(
+              manager, order, order.paidAt ?? payment.confirmedAt ?? new Date(),
+            );
+          } else if (
+            order.status !== ListingOrderStatus.PAID &&
+            order.status !== ListingOrderStatus.PARTIALLY_REFUNDED &&
+            order.status !== ListingOrderStatus.REFUNDED
+          ) {
+            attempt.status = ListingPaymentAttemptStatus.FAILED;
+            attempt.failureCode = 'payment_failed';
+            attempt.completedAt = new Date();
+            await manager.save(ListingPaymentAttempt, attempt);
+            if (order.status === ListingOrderStatus.PENDING_PAYMENT) {
+              assertListingOrderStatusTransition(order.status, ListingOrderStatus.PAYMENT_FAILED);
+              order.status = ListingOrderStatus.PAYMENT_FAILED;
+              await manager.save(ListingOrder, order);
+            }
+          }
+          return payment;
+        });
+        if (payment.status === 'confirmed' || payment.status === 'failed') {
+          resolvedPaymentIds.push(candidate.id);
+        } else {
+          unresolvedPaymentIds.push(candidate.id);
+        }
+      } catch (error) {
+        paymentStatusFailures.push({ id: candidate.id, error });
+        unresolvedPaymentIds.push(candidate.id);
+      }
+    }
+    return { unresolvedPaymentIds, resolvedPaymentIds, paymentStatusFailures };
   }
 
   private async expireAbandonedAttempts(now: Date, batchSize: number) {
@@ -123,6 +237,16 @@ export class ListingPaymentReconciliationService {
         !OPEN_ATTEMPT_STATUSES.has(attempt.status) ||
         attempt.expiresAt.getTime() > now.getTime()
       ) {
+        return { attemptExpired: false, orderExpired: false };
+      }
+
+      // A lost or delayed provider response cannot be interpreted as refusal.
+      // Keep the attempt open until the local payment has a definitive failure.
+      const payment = await manager.findOne(Payment, {
+        where: { kind: 'listing', correlationId: attempt.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (payment && payment.status !== 'failed' && payment.status !== 'expired') {
         return { attemptExpired: false, orderExpired: false };
       }
 
