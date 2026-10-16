@@ -18,6 +18,7 @@ import { getApiErrorMessage } from '@/lib/api-client';
 import { getListingEntitlementLifecycle } from '@/lib/listing-entitlement-lifecycle';
 import {
   canStartListingCheckout,
+  createListingCheckoutSession,
   createListingQuote,
   fetchListingEntitlementsForListing,
   fetchListingOrdersForListing,
@@ -27,6 +28,10 @@ import {
   type ListingEntitlement,
   type ListingQuote,
 } from '@/lib/listing-checkout';
+import {
+  getPendingPaymentReturnOrderId,
+  getTrustedPaymentCheckoutUrl,
+} from '@/lib/payment-checkout-url';
 import {
   fetchPublicListingProducts,
   formatListingProductPrice,
@@ -56,6 +61,11 @@ export function SellerListingCheckoutPanel({
   const [isLoading, setIsLoading] = useState(true);
   const [isQuoting, setIsQuoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [returnSearch, setReturnSearch] = useState('');
+
+  useEffect(() => {
+    setReturnSearch(window.location.search);
+  }, []);
 
   const loadCheckout = useCallback(async () => {
     setIsLoading(true);
@@ -113,6 +123,7 @@ export function SellerListingCheckoutPanel({
   );
   const summary = payableOrder?.pricingSnapshot ?? quote;
   const lifecycle = getListingEntitlementLifecycle(entitlements);
+  const processingOrderId = getPendingPaymentReturnOrderId(returnSearch, orders);
 
   useEffect(() => {
     if (payableOrder || !purchasableProducts.length) return;
@@ -166,9 +177,33 @@ export function SellerListingCheckoutPanel({
     setAppliedPromotionCode('');
   }
 
-  function startPayment() {
+  async function startPayment() {
     if (!selectedCode && !payableOrder) return;
-    setError('Płatności są tymczasowo niedostępne. Spróbuj ponownie później.');
+    const unavailable = 'Płatności są tymczasowo niedostępne. Spróbuj ponownie później.';
+    if (!payableOrder) {
+      setError(unavailable);
+      return;
+    }
+
+    try {
+      // The public API still returns PAYMENTS_UNAVAILABLE. This path only
+      // prepares safe navigation for a later checkout release.
+      const session = await createListingCheckoutSession(payableOrder.id);
+      const url =
+        session.provider === 'tpay'
+          ? getTrustedPaymentCheckoutUrl(
+              session.checkoutUrl,
+              process.env.NEXT_PUBLIC_TPAY_CHECKOUT_ENVIRONMENT,
+            )
+          : null;
+      if (!url) {
+        setError('Nieprawidłowy adres strony płatności. Spróbuj ponownie później.');
+        return;
+      }
+      window.location.assign(url);
+    } catch (cause) {
+      setError(getApiErrorMessage(cause));
+    }
   }
 
   if (isLoading) {
@@ -214,6 +249,19 @@ export function SellerListingCheckoutPanel({
       ) : null}
 
       <EntitlementLifecycleSummary lifecycle={lifecycle} />
+
+      {processingOrderId ? (
+        <div role="status" className="mt-3 flex items-start gap-2 rounded-xl bg-primary/10 p-3 text-sm text-primary">
+          <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
+          <div>
+            <p className="font-semibold">Sprawdzamy wynik płatności</p>
+            <p className="mt-1">Ogłoszenie oczekuje na potwierdzenie płatności przez serwer.</p>
+            <button type="button" onClick={() => void loadCheckout()} className="mt-2 font-semibold underline">
+              Odśwież status
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {!payableOrder && purchasableProducts.length > 1 ? (
         <fieldset className="mt-4 grid gap-2">

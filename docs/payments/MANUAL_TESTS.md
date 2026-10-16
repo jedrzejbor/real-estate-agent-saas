@@ -1,5 +1,7 @@
 # Manualne testy płatności PodAdresem
 
+PAY-023: [protokół lokalny](test-runs/2026-10-16-pay-023-local.md) potwierdza testy web i build; ręczny widok lokalny oraz pełny powrót z Tpay pozostają **Blocked**.
+
 ## MT-016 — Tymczasowa niedostępność checkoutu (PAY-011)
 
 **Prerequisites:** Wersja z PAY-011; testowe konto prywatnego sprzedającego z ofertą gotową do zakupu oraz osobne konto właściciela agencji z planem **Free**. Nie używaj prawdziwych pieniędzy. Developer porówna liczbę prób płatności i uprawnień w testowej bazie przed testem i po nim.
@@ -179,9 +181,11 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 
 1. Developer wywołuje `TpayApiClient.createTransaction()` z niewielką kwotą testową w groszach, opisem, testowym płatnikiem i adresami callback HTTPS. Użyj unikalnego `hiddenDescription`; nie używaj prawdziwych danych kupującego.
 2. Sprawdź wynik `pending`, identyfikator transakcji, `title` i obecność adresu płatności. W protokole zapisz tylko bezpieczne identyfikatory i domenę adresu, bez pełnego URL, tokenu lub sekretów. Jeśli wynik to `unknown`, **nie powtarzaj POST**; zanotuj niepewny wynik do uzgodnienia w późniejszym etapie.
-3. Otwórz zwrócony link w przeglądarce i potwierdź, że widać stronę płatności **Sandbox**. Nie wybieraj metody i nie finalizuj płatności. Jeśli przeglądarka testowa zwraca HTTP 403, oznacz kontrolę strony jako **Blocked** i zweryfikuj tę samą transakcję zwykłą przeglądarką lub panelem Sandbox, bez tworzenia drugiej.
+3. Sprawdź, że frontend akceptuje adres `https://secure.sandbox.tpay.com/` tylko przy konfiguracji Sandbox, a adres produkcyjny tylko przy konfiguracji produkcyjnej. Adres z innym hostem, HTTP, danymi użytkownika w URL albo nietypowym portem musi zostać odrzucony bez przekierowania. Nie zapisuj pełnego linku w protokole.
+4. Otwórz zwrócony link w przeglądarce i potwierdź, że widać stronę płatności **Sandbox**. Nie wybieraj metody i nie finalizuj płatności. Jeśli przeglądarka testowa zwraca HTTP 403, oznacz kontrolę strony jako **Blocked** i zweryfikuj tę samą transakcję zwykłą przeglądarką lub panelem Sandbox, bez tworzenia drugiej.
+5. Po późniejszym udostępnieniu checkoutu wróć na ogłoszenie z Tpay. Panel ma odczytać zamówienie przez API i przy statusie `pending_payment` wyświetlić „Sprawdzamy wynik płatności”. Sam parametr powrotu lub `success` w URL nie oznacza zapłaty ani publikacji. Dopóki publiczny checkout zwraca `PAYMENTS_UNAVAILABLE`, oznacz ten krok jako **Blocked**; nie obchodź blokady.
 
-**Expected result:** Odpowiedź tworzenia ma status `pending` i link Tpay Sandbox; strona płatności otwiera się bez dokonania zapłaty i aktywacji usługi. `result=success` z POST oznacza utworzenie transakcji, nie zapłatę.
+**Expected result:** Odpowiedź tworzenia ma status `pending` i link Tpay Sandbox; poprawny host jest dozwolony wyłącznie we właściwym środowisku. Powrót z Tpay pokazuje stan serwera, bez fałszywego sukcesu. `result=success` z POST oznacza utworzenie transakcji, nie zapłatę.
 
 **Database state:** PAY-019 nie zapisuje lokalnego rekordu płatności. Po późniejszym podłączeniu aplikacji potrzebny będzie trwały zapis identyfikatorów i osobne potwierdzenie statusu. Stan bazy sprawdza developer.
 
