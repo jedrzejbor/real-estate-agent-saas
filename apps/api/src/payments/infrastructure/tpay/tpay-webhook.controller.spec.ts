@@ -1,6 +1,8 @@
 import { INestApplication, Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { DataSource, EntityManager } from 'typeorm';
 import { IS_PUBLIC_KEY } from '../../../auth/decorators/public.decorator';
+import { PaymentService } from '../../application/payment.service';
 import { TpayJwsVerifier } from './tpay-jws.verifier';
 import { TpayWebhookController } from './tpay-webhook.controller';
 
@@ -9,14 +11,21 @@ describe('TpayWebhookController transport', () => {
   let baseUrl: string;
   let warning: jest.SpyInstance;
   const verify = jest.fn<Promise<boolean>, [string | undefined, Buffer | undefined]>();
-  const rawBody = 'id=123&tr_id=TR-TEST&tr_amount=49.00';
+  const recordVerifiedNotification = jest.fn().mockResolvedValue('recorded');
+  const transaction = jest.fn(async (work: (manager: EntityManager) => Promise<unknown>) =>
+    work({} as EntityManager));
+  const rawBody = 'id=123&tr_id=TR-TEST&tr_status=true&tr_crc=00000000-0000-4000-8000-000000000001&tr_amount=49.00&tr_paid=49.00&tr_currency=PLN';
   const path = '/api/payments/webhooks/tpay';
 
   beforeAll(async () => {
     warning = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     const module = await Test.createTestingModule({
       controllers: [TpayWebhookController],
-      providers: [{ provide: TpayJwsVerifier, useValue: { verify } }],
+      providers: [
+        { provide: TpayJwsVerifier, useValue: { verify } },
+        { provide: DataSource, useValue: { transaction } },
+        { provide: PaymentService, useValue: { recordVerifiedNotification } },
+      ],
     }).compile();
     app = module.createNestApplication({ rawBody: true });
     app.setGlobalPrefix('api');
@@ -32,6 +41,8 @@ describe('TpayWebhookController transport', () => {
   beforeEach(() => {
     verify.mockReset();
     warning.mockClear();
+    transaction.mockClear();
+    recordVerifiedNotification.mockClear();
   });
 
   it('returns HTTP 200 and exact TRUE for a verified raw form notification', async () => {
@@ -53,6 +64,7 @@ describe('TpayWebhookController transport', () => {
     expect(verify).toHaveBeenCalledTimes(1);
     expect(verify.mock.calls[0][0]).toBe('test-detached-jws');
     expect(verify.mock.calls[0][1]).toEqual(Buffer.from(rawBody));
+    expect(recordVerifiedNotification).toHaveBeenCalledTimes(1);
   });
 
   it.each([
@@ -74,6 +86,7 @@ describe('TpayWebhookController transport', () => {
     expect(response.headers.get('location')).toBeNull();
     expect(verify.mock.calls[0][1]).toEqual(Buffer.from(rawBody));
     expect(warning.mock.calls.flat().join(' ')).not.toContain(rawBody);
+    expect(transaction).not.toHaveBeenCalled();
   });
 
   it('rejects non-form notifications before verification', async () => {

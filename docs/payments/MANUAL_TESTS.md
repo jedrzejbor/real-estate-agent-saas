@@ -1,5 +1,7 @@
 # Manualne testy płatności PodAdresem
 
+PAY-027: [protokół lokalny](test-runs/2026-10-17-pay-027-local.md) potwierdza unikatowy ledger i transakcyjny zapis w izolowanej bazie. Ręczne MT-005 pozostaje **Blocked**: brak bezpiecznej podpisanej notyfikacji do replay oraz oczekującej lokalnej płatności w roboczej bazie.
+
 PAY-026: [protokół lokalny](test-runs/2026-10-16-pay-026-local.md) potwierdza odpowiedź `401` bez przekierowania dla błędnego JWS i niezmienione liczniki zamówień/uprawnień. Pełne MT-006 pozostaje **Blocked** bez oczekującego lokalnego `Payment` i potwierdzenia wpisu w logu.
 
 PAY-025: [protokół lokalny](test-runs/2026-10-16-pay-025-local.md) potwierdza testy jednostkowe weryfikatora JWS. MT-006 na poziomie aplikacji pozostaje **Blocked** do dodania endpointu Tpay w PAY-026.
@@ -251,18 +253,18 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 **ID:** MT-005  
 **Name:** Powtórzony webhook  
 **Purpose:** Sprawdzić, że ta sama notyfikacja nie aktywuje usługi dwa razy.  
-**Prerequisites:** MT-003 wykonany; developer przygotował bezpieczny replay tej samej podpisanej notyfikacji sandbox.
+**Prerequisites:** MT-003 wykonany; developer przygotował bezpieczny replay tej samej podpisanej notyfikacji sandbox i lokalną płatność do porównania. W PAY-027 potwierdzamy deduplikację ledgeru w izolowanym teście, ale bez tych danych pełny test ręczny ma wynik **Blocked**. Nie kieruj rzeczywistych powiadomień produkcyjnych na endpoint przed ukończeniem obsługi zdarzeń i uprawnień.
 
 **Steps:**
 
 1. Zanotuj liczbę aktywnych uprawnień ogłoszenia przed testem.
 2. Poproś developera o ponowne wysłanie tej samej notyfikacji przez przygotowane narzędzie.
 3. Odśwież panel ogłoszenia i porównaj stan.
-4. Sprawdź z developerem odpowiedź webhooka.
+4. Sprawdź z developerem oba ACK `200 TRUE`, jeden rekord `payment_events` oraz niezmieniony status płatności i liczbę uprawnień po powtórce. Jeśli zapis ledgeru się nie powiedzie, odpowiedź nie może być `TRUE`.
 
 **Expected result:** Ogłoszenie pozostaje aktywne tylko raz; webhook otrzymuje poprawne ACK.
 
-**Database state:** Jeden payment confirmed, jedno entitlement i jedno zastosowanie zdarzenia. Stan bazy sprawdza developer; tester ocenia przede wszystkim widok aplikacji.
+**Database state:** Jeden `payment_events` dla tego samego klucza; po wdrożeniu PAY-028 jeden `Payment.confirmed` i jedno entitlement. W PAY-027 zdarzenie jest tylko zapisywane; nie aktywuje ogłoszenia. Stan bazy sprawdza developer; tester ocenia przede wszystkim widok aplikacji.
 
 **Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______.
 

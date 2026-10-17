@@ -1,4 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { EntityManager, In } from 'typeorm';
 import {
   canTransitionPaymentStatus,
@@ -7,6 +8,7 @@ import {
   type PaymentId,
 } from '../domain/payment.types';
 import { Payment } from '../infrastructure/typeorm/payment.entity';
+import { PaymentEvent } from '../infrastructure/typeorm/payment-event.entity';
 import type {
   CreatePaymentResult,
   VerifiedProviderPaymentStatus,
@@ -24,8 +26,77 @@ export interface PrepareListingPaymentInput {
   provider: string;
 }
 
+/** Safe fields extracted only after provider signature verification. */
+export interface VerifiedPaymentNotification {
+  provider: string;
+  eventType: 'transaction';
+  providerReference: string;
+  providerStatus: 'pending' | 'confirmed' | 'failed' | 'refunded';
+  merchantReference: string;
+  correlationReference: string | null;
+  amountMinor: number | null;
+  paidMinor: number | null;
+  currency: string | null;
+}
+
 @Injectable()
 export class PaymentService {
+  /** Receipt only. PAY-028 will validate amounts and apply fulfillment separately. */
+  async recordVerifiedNotification(
+    manager: EntityManager,
+    input: VerifiedPaymentNotification,
+  ): Promise<'recorded' | 'duplicate'> {
+    if (!manager.queryRunner?.isTransactionActive) {
+      throw new Error('Payment event recording requires a transaction');
+    }
+    if (
+      !input.provider.trim() || !input.providerReference.trim() ||
+      !input.merchantReference.trim() ||
+      input.providerReference.length > 255 || input.merchantReference.length > 64 ||
+      (input.amountMinor !== null && (!Number.isSafeInteger(input.amountMinor) || input.amountMinor < 0)) ||
+      (input.paidMinor !== null && (!Number.isSafeInteger(input.paidMinor) || input.paidMinor < 0))
+    ) throw new ConflictException('Nieprawidłowe dane zdarzenia płatniczego');
+
+    const eventKey = createHash('sha256').update(JSON.stringify([
+      input.provider, input.eventType, input.merchantReference,
+      input.providerReference, input.providerStatus, input.correlationReference,
+      input.amountMinor, input.paidMinor, input.currency,
+    ])).digest('hex');
+
+    let paymentId: string | null = null;
+    if (input.correlationReference && /^[0-9a-f-]{36}$/i.test(input.correlationReference)) {
+      const payment = await manager.findOne(Payment, {
+        where: {
+          id: input.correlationReference as PaymentId,
+          provider: input.provider,
+          providerTitle: input.providerReference,
+        },
+      });
+      paymentId = payment?.id ?? null;
+    }
+
+    const result = await manager.createQueryBuilder()
+      .insert()
+      .into(PaymentEvent)
+      .values({
+        provider: input.provider,
+        eventKey,
+        eventType: input.eventType,
+        providerReference: input.providerReference,
+        providerStatus: input.providerStatus,
+        merchantReference: input.merchantReference,
+        correlationReference: input.correlationReference,
+        paymentId,
+        amountMinor: input.amountMinor,
+        paidMinor: input.paidMinor,
+        currency: input.currency,
+      })
+      .orIgnore()
+      .returning('id')
+      .execute();
+    return result.raw.length === 0 ? 'duplicate' : 'recorded';
+  }
+
   /** The caller must hold a write lock on the listing order in this transaction. */
   async prepareListingPayment(
     manager: EntityManager,
