@@ -9,6 +9,7 @@ import { TpayJwsVerifier } from '../tpay/tpay-jws.verifier';
 import { TpayWebhookController } from '../tpay/tpay-webhook.controller';
 import { Payment } from './payment.entity';
 import { PaymentEvent } from './payment-event.entity';
+import { ListingPaymentEventsService } from '../../../listing-commerce/listing-payment-events.service';
 
 const describeDatabase = process.env.PAY027_DB_INTEGRATION === '1' ? describe : describe.skip;
 
@@ -114,7 +115,9 @@ describeDatabase('PAY-027 event ledger on isolated PostgreSQL', () => {
 
   it('ACKs the same verified notification twice after only one durable insert', async () => {
     const controller = new TpayWebhookController(
-      { verify: async () => true } as TpayJwsVerifier, dataSource, service,
+      { verify: async () => true } as unknown as TpayJwsVerifier, dataSource, service,
+      { fulfillVerifiedTpayListingInTransaction: async () => undefined } as unknown as ListingPaymentEventsService,
+      { provider: 'tpay', tpay: { merchantId: '123' } } as never,
     );
     const request = {
       headers: {
@@ -143,7 +146,9 @@ describeDatabase('PAY-027 event ledger on isolated PostgreSQL', () => {
       },
     } as unknown as PaymentService;
     const controller = new TpayWebhookController(
-      { verify: async () => true } as TpayJwsVerifier, dataSource, failingService,
+      { verify: async () => true } as unknown as TpayJwsVerifier, dataSource, failingService,
+      { fulfillVerifiedTpayListingInTransaction: async () => undefined } as unknown as ListingPaymentEventsService,
+      { provider: 'tpay', tpay: { merchantId: '123' } } as never,
     );
     const request = {
       headers: {

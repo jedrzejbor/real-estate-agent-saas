@@ -20,7 +20,6 @@ import {
 import { TpayApiClient } from './infrastructure/tpay/tpay-api.client';
 import { TpayPaymentAdapter } from './infrastructure/tpay/tpay-payment.adapter';
 import { TpayJwsVerifier } from './infrastructure/tpay/tpay-jws.verifier';
-import { TpayWebhookController } from './infrastructure/tpay/tpay-webhook.controller';
 import { PaymentService } from './application/payment.service';
 import { PAYMENT_GATEWAY, PaymentGateway } from './ports/payment-gateway.port';
 import { RECURRING_GATEWAY, RecurringGateway } from './ports/recurring-gateway.port';
@@ -28,7 +27,6 @@ import { RECURRING_GATEWAY, RecurringGateway } from './ports/recurring-gateway.p
 /** Configuration is validated at startup; gateway bindings remain opt-in. */
 @Module({
   imports: [ConfigModule, TypeOrmModule.forFeature([Payment, PaymentEvent, Subscription, SubscriptionRenewal])],
-  controllers: [TpayWebhookController],
   providers: [
     { provide: TpayJwsVerifier, useFactory: () => new TpayJwsVerifier() },
     PaymentRepository,
@@ -64,6 +62,7 @@ import { RECURRING_GATEWAY, RecurringGateway } from './ports/recurring-gateway.p
     PAYMENT_CONFIGURATION,
     TpayApiClient,
     TpayPaymentAdapter,
+    TpayJwsVerifier,
   ],
 })
 export class PaymentsModule {

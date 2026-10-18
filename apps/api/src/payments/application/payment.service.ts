@@ -41,7 +41,7 @@ export interface VerifiedPaymentNotification {
 
 @Injectable()
 export class PaymentService {
-  /** Receipt only. PAY-028 will validate amounts and apply fulfillment separately. */
+  /** Persist the verified receipt; callers must complete required effects before commit. */
   async recordVerifiedNotification(
     manager: EntityManager,
     input: VerifiedPaymentNotification,
@@ -95,6 +95,48 @@ export class PaymentService {
       .returning('id')
       .execute();
     return result.raw.length === 0 ? 'duplicate' : 'recorded';
+  }
+
+  /** A signed paid notification may confirm only the exact backend-owned listing payment. */
+  async confirmListingNotification(
+    manager: EntityManager,
+    input: VerifiedPaymentNotification,
+    expectedMerchantId: string,
+    order: { id: string; totalGrossAmount: number; currency: string },
+    confirmedAt = new Date(),
+  ): Promise<Payment> {
+    if (!manager.queryRunner?.isTransactionActive) {
+      throw new Error('Listing confirmation requires a transaction');
+    }
+    if (!input.correlationReference || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.correlationReference)) {
+      throw new ConflictException('Nieznany identyfikator płatności');
+    }
+    const payment = await this.lockPayment(manager, input.correlationReference as PaymentId);
+    if (
+      input.providerStatus !== 'confirmed' ||
+      input.merchantReference !== expectedMerchantId ||
+      payment.kind !== 'listing' || payment.orderId !== order.id ||
+      payment.provider !== input.provider ||
+      !payment.providerTransactionId || !payment.providerTitle ||
+      payment.providerTitle !== input.providerReference ||
+      input.amountMinor !== payment.amountMinor ||
+      input.paidMinor !== payment.amountMinor ||
+      input.currency !== payment.currency ||
+      order.totalGrossAmount !== payment.amountMinor ||
+      order.currency !== payment.currency ||
+      payment.status === 'refunded' || payment.status === 'partially_refunded'
+    ) {
+      throw new ConflictException('Powiadomienie nie odpowiada płatności i zamówieniu');
+    }
+    // A late signed success for the same transaction is authoritative even if
+    // the earlier local result was failed or expired.
+    if (payment.status !== 'confirmed') {
+      payment.status = 'confirmed';
+      payment.confirmedAt = confirmedAt;
+      payment.failureCode = null;
+      await manager.save(Payment, payment);
+    }
+    return payment;
   }
 
   /** The caller must hold a write lock on the listing order in this transaction. */

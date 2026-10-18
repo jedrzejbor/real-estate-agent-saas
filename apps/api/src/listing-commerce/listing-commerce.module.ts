@@ -8,6 +8,7 @@ import { AnalyticsModule } from '../analytics';
 import { Listing } from '../listings/entities';
 import { PublicListingSubmissionsModule } from '../public-listing-submissions';
 import { PaymentsModule } from '../payments/payments.module';
+import { TpayWebhookController } from '../payments/infrastructure/tpay/tpay-webhook.controller';
 import { PublicListingSubmission } from '../public-listing-submissions/entities';
 import { AdminListingEntitlementsController } from './admin-listing-entitlements.controller';
 import { AdminListingProductsController } from './admin-listing-products.controller';
@@ -92,6 +93,7 @@ const LISTING_COMMERCE_ENTITIES = [
     ListingCheckoutController,
     ListingEntitlementsController,
     ListingOrdersController,
+    TpayWebhookController,
   ],
   providers: [
     ListingProductsService,

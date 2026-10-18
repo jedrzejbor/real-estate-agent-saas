@@ -4,10 +4,12 @@ import {
   Header,
   HttpCode,
   HttpStatus,
+  Inject,
   Logger,
   Post,
   RawBodyRequest,
   Req,
+  ServiceUnavailableException,
   UnauthorizedException,
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
@@ -16,8 +18,10 @@ import { Request } from 'express';
 import { Public } from '../../../auth/decorators/public.decorator';
 import { PaymentService, VerifiedPaymentNotification } from '../../application/payment.service';
 import { TpayJwsVerifier } from './tpay-jws.verifier';
+import { ListingPaymentEventsService } from '../../../listing-commerce/listing-payment-events.service';
+import { PAYMENT_CONFIGURATION, type PaymentConfiguration } from './tpay.config';
 
-/** Signed transaction receipt only; PAY-028 owns payment fulfillment. */
+/** Signature, durable receipt and listing fulfillment are one transaction. */
 @Controller('payments/webhooks')
 export class TpayWebhookController {
   private readonly logger = new Logger(TpayWebhookController.name);
@@ -26,6 +30,9 @@ export class TpayWebhookController {
     private readonly verifier: TpayJwsVerifier,
     private readonly dataSource: DataSource,
     private readonly payments: PaymentService,
+    private readonly listingEvents: ListingPaymentEventsService,
+    @Inject(PAYMENT_CONFIGURATION)
+    private readonly paymentConfiguration: PaymentConfiguration,
   ) {}
 
   @Post('tpay')
@@ -50,9 +57,19 @@ export class TpayWebhookController {
     }
 
     const event = parseTransactionNotification(request.rawBody!);
-    // ACK only after a committed insert (or a database-confirmed duplicate).
-    await this.dataSource.transaction((manager) =>
-      this.payments.recordVerifiedNotification(manager, event));
+    if (this.paymentConfiguration.provider !== 'tpay') {
+      throw new ServiceUnavailableException('Tpay notifications are not configured');
+    }
+    const merchantId = this.paymentConfiguration.tpay.merchantId;
+    // A duplicate ledger row is not evidence that fulfillment completed.
+    await this.dataSource.transaction(async (manager) => {
+      await this.payments.recordVerifiedNotification(manager, event);
+      if (event.providerStatus === 'confirmed') {
+        await this.listingEvents.fulfillVerifiedTpayListingInTransaction(
+          manager, event, merchantId,
+        );
+      }
+    });
     return 'TRUE';
   }
 }

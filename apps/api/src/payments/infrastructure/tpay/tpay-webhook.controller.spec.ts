@@ -5,6 +5,8 @@ import { IS_PUBLIC_KEY } from '../../../auth/decorators/public.decorator';
 import { PaymentService } from '../../application/payment.service';
 import { TpayJwsVerifier } from './tpay-jws.verifier';
 import { TpayWebhookController } from './tpay-webhook.controller';
+import { ListingPaymentEventsService } from '../../../listing-commerce/listing-payment-events.service';
+import { PAYMENT_CONFIGURATION } from './tpay.config';
 
 describe('TpayWebhookController transport', () => {
   let app: INestApplication;
@@ -25,6 +27,8 @@ describe('TpayWebhookController transport', () => {
         { provide: TpayJwsVerifier, useValue: { verify } },
         { provide: DataSource, useValue: { transaction } },
         { provide: PaymentService, useValue: { recordVerifiedNotification } },
+        { provide: ListingPaymentEventsService, useValue: { fulfillVerifiedTpayListingInTransaction: jest.fn() } },
+        { provide: PAYMENT_CONFIGURATION, useValue: { provider: 'tpay', tpay: { merchantId: '123' } } },
       ],
     }).compile();
     app = module.createNestApplication({ rawBody: true });

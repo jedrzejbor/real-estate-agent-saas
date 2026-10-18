@@ -1,5 +1,7 @@
 # Manualne testy płatności PodAdresem
 
+PAY-028: [protokół lokalny](test-runs/2026-10-18-pay-028-local.md) potwierdza atomowe potwierdzenie płatności, zamówienia i uprawnienia oraz brak drugiej realizacji przy ponowionym webhooku w izolowanej bazie. MT-003 pozostaje **Blocked**: publiczny checkout jest wyłączony, strona płatności Sandbox wcześniej zwracała HTTP 403, a robocza baza nie ma tabel `payments` i `payment_events`.
+
 PAY-027: [protokół lokalny](test-runs/2026-10-17-pay-027-local.md) potwierdza unikatowy ledger i transakcyjny zapis w izolowanej bazie. Ręczne MT-005 pozostaje **Blocked**: brak bezpiecznej podpisanej notyfikacji do replay oraz oczekującej lokalnej płatności w roboczej bazie.
 
 PAY-026: [protokół lokalny](test-runs/2026-10-16-pay-026-local.md) potwierdza odpowiedź `401` bez przekierowania dla błędnego JWS i niezmienione liczniki zamówień/uprawnień. Pełne MT-006 pozostaje **Blocked** bez oczekującego lokalnego `Payment` i potwierdzenia wpisu w logu.
@@ -206,7 +208,7 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 **ID:** MT-003  
 **Name:** Udana płatność BLIK za ogłoszenie  
 **Purpose:** Sprawdzić pełny zakup i aktywację ogłoszenia po potwierdzeniu.  
-**Prerequisites:** API, web, ngrok i Tpay Sandbox działają; zalogowane konto testowe; testowe ogłoszenie gotowe.
+**Prerequisites:** API, web, ngrok i Tpay Sandbox działają; zalogowane konto testowe; testowe ogłoszenie gotowe; publiczny checkout jest świadomie włączony w bezpiecznym środowisku testowym i wymagane migracje płatności są zastosowane. Przy `PAYMENTS_UNAVAILABLE`, HTTP 403 strony Sandbox lub braku tabel płatności oznacz pełne MT-003 jako **Blocked**. Nie obchodź blokady ani nie twórz dodatkowych transakcji wyłącznie dla tego testu.
 
 **Steps:**
 
@@ -216,9 +218,9 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 4. Zatwierdź płatność i wróć do PodAdresem.
 5. Odśwież panel ogłoszeń po otrzymaniu potwierdzenia.
 
-**Expected result:** Najpierw może pojawić się „Przetwarzamy płatność”; potem potwierdzenie, a ogłoszenie ma status aktywny.
+**Expected result:** Najpierw może pojawić się „Przetwarzamy płatność”; potem podpisany webhook potwierdza lokalną płatność i zamówienie oraz nadaje uprawnienie dokładnie raz. Sam powrót z Tpay nie aktywuje ogłoszenia. Błędny merchant ID, `tr_id`, `tr_crc`, kwota docelowa/zapłacona lub waluta nie mogą zmienić stanu ani dostać ACK `TRUE`.
 
-**Database state:** payment.status=confirmed; order paid; jedno listing entitlement. Stan bazy sprawdza developer; tester ocenia przede wszystkim widok aplikacji.
+**Database state:** Jeden `payment_events`, `Payment.status=confirmed`, `listing_orders.status=paid` i jedno uprawnienie na opłaconą pozycję zamówienia. Developer porównuje te rekordy z panelem Tpay; przy błędzie realizacji żaden z nich nie przechodzi częściowo w stan opłacony. Tester ocenia przede wszystkim widok aplikacji.
 
 **Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______.
 
@@ -253,7 +255,7 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 **ID:** MT-005  
 **Name:** Powtórzony webhook  
 **Purpose:** Sprawdzić, że ta sama notyfikacja nie aktywuje usługi dwa razy.  
-**Prerequisites:** MT-003 wykonany; developer przygotował bezpieczny replay tej samej podpisanej notyfikacji sandbox i lokalną płatność do porównania. W PAY-027 potwierdzamy deduplikację ledgeru w izolowanym teście, ale bez tych danych pełny test ręczny ma wynik **Blocked**. Nie kieruj rzeczywistych powiadomień produkcyjnych na endpoint przed ukończeniem obsługi zdarzeń i uprawnień.
+**Prerequisites:** MT-003 wykonany; developer przygotował bezpieczny replay tej samej podpisanej notyfikacji sandbox i lokalną płatność do porównania. PAY-028 potwierdza deduplikację realizacji w izolowanym teście, ale bez tych danych pełny test ręczny ma wynik **Blocked**. Nie kieruj rzeczywistych powiadomień produkcyjnych na endpoint, gdy robocza baza nie ma wymaganych tabel lub gdy pozostałe typy zdarzeń nie mają docelowej obsługi.
 
 **Steps:**
 
@@ -264,7 +266,7 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 
 **Expected result:** Ogłoszenie pozostaje aktywne tylko raz; webhook otrzymuje poprawne ACK.
 
-**Database state:** Jeden `payment_events` dla tego samego klucza; po wdrożeniu PAY-028 jeden `Payment.confirmed` i jedno entitlement. W PAY-027 zdarzenie jest tylko zapisywane; nie aktywuje ogłoszenia. Stan bazy sprawdza developer; tester ocenia przede wszystkim widok aplikacji.
+**Database state:** Jeden `payment_events` dla tego samego klucza, jeden `Payment.confirmed` i jedno uprawnienie na pozycję zamówienia. Ponowienie wcześniej zapisanego, ale jeszcze niezrealizowanego zdarzenia bezpiecznie kończy realizację. Stan bazy sprawdza developer; tester ocenia przede wszystkim widok aplikacji.
 
 **Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______.
 
