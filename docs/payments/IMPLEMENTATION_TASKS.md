@@ -353,7 +353,7 @@ Nie uruchamiaj schedulera.
 - Kontrola ręczna po migracji: dla testowego okresu 1 listopada – 1 grudnia 2026 r. istnieje jedna należność oraz osobne próby nr 1 (`failed`) i nr 2 (`charging`). Osobna baza testowa zawiera jedną testową agencję, jedną subskrypcję, jedną należność i dwie próby. Skopiowano do niej tylko schemat dotychczasowej bazy i zastosowano migrację PAY-006 jako wymagany schemat zależny. Dotychczasowa baza `real_estate_saas` nie ma tabeli `subscription_renewals`.
 - Nie uruchamiano schedulera ani wywołań Tpay; istniejący checkout i zachowanie użytkownika nie zmieniły się. `docs/MANUAL_RELEASE_TESTS.md` nie wymaga aktualizacji.
 
-- [ ] **PAY-009 — Dodaj dwa porty i capabilities**
+- [x] **PAY-009 — Dodaj dwa porty i capabilities**
 
 ### Task PAY-009 — Dodaj dwa porty i capabilities
 
@@ -388,6 +388,13 @@ Kontrakty są wymienialne i testy przechodzą.
 #### Do not do yet
 
 Nie pisz adaptera Tpay.
+
+#### Wynik PAY-009 (11 października 2026)
+
+- Dodano dwa neutralne porty (`PaymentGateway`, `RecurringGateway`), opis capabilities i tokeny DI. `PaymentsModule.withGateways` przyjmuje implementacje przez DI; bieżący `AppModule` nie importuje modułu płatności i istniejący checkout nie został przełączony.
+- Wymagane testy jednostkowe: oba porty działają z atrapami w Nest DI, a domena i porty nie importują implementacji Tpay — 2/2 PASS.
+- Kontrola ręczna: API uruchomione w tymczasowym module z atrapami obu portów i z osobną bazą testową PAY-008; endpoint zdrowia tego bootstrapu `/` zwrócił HTTP 200. Istniejące strony `/oferty` i `/dodaj-oferte` zwróciły HTTP 200. Tymczasowy bootstrap nie ustawia prefiksu `/api`, dlatego `/api` zwróciło 404; nie jest to zmiana produkcyjnego `main.ts`.
+- PAY-009 nie zmienił schematu bazy. Start API uzupełnił cztery domyślne wiersze `plan_catalog` wyłącznie w bazie `real_estate_saas_pay008_test`; dotychczasowa baza nie była modyfikowana. Nie wykonywano wywołań PSP ani checkoutu. Zachowanie użytkownika nie zmieniło się, więc `docs/MANUAL_RELEASE_TESTS.md` nie wymaga aktualizacji.
 
 - [ ] **PAY-010 — Dodaj repozytoria i transakcje stanu**
 

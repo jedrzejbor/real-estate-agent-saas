@@ -27,14 +27,10 @@ export interface AdminPlanResponse {
   description: string | null;
   priceMonthlyPln: number;
   priceYearlyPln: number;
-  stripePriceIdMonthly: string | null;
-  stripePriceIdYearly: string | null;
   limits: Partial<AgencyPlanLimits>;
   features: Partial<AgencyPlanFeatures>;
   isPublic: boolean;
   sortOrder: number;
-  billingReady: boolean;
-  billingWarnings: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -90,18 +86,6 @@ export class AdminPlansService {
       plan.priceYearlyPln = dto.priceYearlyPln;
     }
 
-    if (dto.stripePriceIdMonthly !== undefined) {
-      plan.stripePriceIdMonthly = this.normalizeNullableString(
-        dto.stripePriceIdMonthly,
-      );
-    }
-
-    if (dto.stripePriceIdYearly !== undefined) {
-      plan.stripePriceIdYearly = this.normalizeNullableString(
-        dto.stripePriceIdYearly,
-      );
-    }
-
     if (dto.limits !== undefined) {
       plan.limits = {
         ...(plan.limits ?? {}),
@@ -155,9 +139,6 @@ export class AdminPlansService {
     if (plan.code === AgencyPlan.FREE) {
       if (plan.priceMonthlyPln !== 0 || plan.priceYearlyPln !== 0) {
         throw new BadRequestException('Plan Free musi mieć cenę 0');
-      }
-      if (plan.stripePriceIdMonthly || plan.stripePriceIdYearly) {
-        throw new BadRequestException('Plan Free nie może mieć Stripe Price ID');
       }
     }
 
@@ -220,42 +201,19 @@ export class AdminPlansService {
   }
 
   private toResponse(plan: PlanCatalog): AdminPlanResponse {
-    const billingWarnings = this.getBillingWarnings(plan);
-
     return {
       code: plan.code,
       label: plan.label,
       description: plan.description ?? null,
       priceMonthlyPln: plan.priceMonthlyPln,
       priceYearlyPln: plan.priceYearlyPln,
-      stripePriceIdMonthly: plan.stripePriceIdMonthly ?? null,
-      stripePriceIdYearly: plan.stripePriceIdYearly ?? null,
       limits: plan.limits,
       features: plan.features,
       isPublic: plan.isPublic,
       sortOrder: plan.sortOrder,
-      billingReady: billingWarnings.length === 0,
-      billingWarnings,
       createdAt: plan.createdAt,
       updatedAt: plan.updatedAt,
     };
   }
 
-  private getBillingWarnings(plan: PlanCatalog): string[] {
-    if (!plan.isPublic || plan.code === AgencyPlan.FREE) {
-      return [];
-    }
-
-    const warnings: string[] = [];
-
-    if (plan.priceMonthlyPln > 0 && !plan.stripePriceIdMonthly) {
-      warnings.push('Brak Stripe Price ID dla rozliczenia miesięcznego');
-    }
-
-    if (plan.priceYearlyPln > 0 && !plan.stripePriceIdYearly) {
-      warnings.push('Brak Stripe Price ID dla rozliczenia rocznego');
-    }
-
-    return warnings;
-  }
 }

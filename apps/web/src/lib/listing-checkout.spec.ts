@@ -9,7 +9,6 @@ import {
   fetchListingOrdersForListing,
   findCurrentPayableOrder,
   isListingOrderPaid,
-  isStripeCheckoutUrl,
   type ListingOrder,
 } from './listing-checkout';
 
@@ -103,16 +102,6 @@ describe('listing checkout HTTP client', () => {
 });
 
 describe('listing checkout policy helpers', () => {
-  it.each([
-    ['https://checkout.stripe.com/c/pay/test', true],
-    ['https://custom.stripe.com/pay/test', true],
-    ['http://checkout.stripe.com/test', false],
-    ['https://stripe.com.attacker.example/test', false],
-    ['javascript:alert(1)', false],
-  ])('validates provider redirect %s', (url, expected) => {
-    expect(isStripeCheckoutUrl(url)).toBe(expected);
-  });
-
   it('selects the newest payable order from an already sorted history', () => {
     const orders = [
       { id: 'paid', status: 'paid' },

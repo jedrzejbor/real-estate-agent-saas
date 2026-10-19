@@ -484,10 +484,10 @@ export class ListingEntitlementsService {
       );
     }
 
-    const listing = await manager.findOne(Listing, {
-      where: { id: order.listingId },
-      lock: { mode: 'pessimistic_write' },
-    });
+    const listing = await manager.createQueryBuilder(Listing, 'listing')
+      .where('listing.id = :id', { id: order.listingId })
+      .setLock('pessimistic_write', undefined, ['listing'])
+      .getOne();
     if (!listing) throw new NotFoundException('Ogłoszenie nie istnieje');
 
     const itemIds = order.items.map((item) => item.id);

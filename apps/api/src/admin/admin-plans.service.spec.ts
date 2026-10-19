@@ -10,8 +10,6 @@ function buildPlan(overrides: Partial<PlanCatalog> = {}): PlanCatalog {
     description: 'Starter plan',
     priceMonthlyPln: 9900,
     priceYearlyPln: 99000,
-    stripePriceIdMonthly: null,
-    stripePriceIdYearly: null,
     limits: {
       activeListings: 25,
       clients: 250,
@@ -66,7 +64,7 @@ describe('AdminPlansService', () => {
     jest.restoreAllMocks();
   });
 
-  it('lists plans with billing readiness warnings', async () => {
+  it('lists plans without provider-specific configuration', async () => {
     const { service, repo } = buildService();
 
     const plans = await service.findPlans();
@@ -75,14 +73,8 @@ describe('AdminPlansService', () => {
       order: { sortOrder: 'ASC', code: 'ASC' },
     });
     expect(plans).toHaveLength(1);
-    expect(plans[0]).toMatchObject({
-      code: AgencyPlan.STARTER,
-      billingReady: false,
-      billingWarnings: [
-        'Brak Stripe Price ID dla rozliczenia miesięcznego',
-        'Brak Stripe Price ID dla rozliczenia rocznego',
-      ],
-    });
+    expect(plans[0]).toMatchObject({ code: AgencyPlan.STARTER });
+    expect(plans[0]).not.toHaveProperty('billingWarnings');
   });
 
   it('updates editable plan fields and refreshes entitlement catalog cache', async () => {
@@ -93,7 +85,6 @@ describe('AdminPlansService', () => {
       label: ' Starter Plus ',
       description: ' ',
       priceMonthlyPln: 12900,
-      stripePriceIdMonthly: ' price_monthly ',
       limits: {
         activeListings: 40,
       },
@@ -108,7 +99,6 @@ describe('AdminPlansService', () => {
         label: 'Starter Plus',
         description: null,
         priceMonthlyPln: 12900,
-        stripePriceIdMonthly: 'price_monthly',
         sortOrder: 2,
       }),
     );
@@ -149,8 +139,6 @@ describe('AdminPlansService', () => {
       label: 'Free',
       priceMonthlyPln: 0,
       priceYearlyPln: 0,
-      stripePriceIdMonthly: null,
-      stripePriceIdYearly: null,
       sortOrder: 0,
     });
     const { service } = buildService([freePlan]);
@@ -159,11 +147,6 @@ describe('AdminPlansService', () => {
       service.updatePlan(AgencyPlan.FREE, { priceMonthlyPln: 100 }),
     ).rejects.toBeInstanceOf(BadRequestException);
 
-    await expect(
-      service.updatePlan(AgencyPlan.FREE, {
-        stripePriceIdMonthly: 'price_free',
-      }),
-    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('requires complete limits and features after update', async () => {

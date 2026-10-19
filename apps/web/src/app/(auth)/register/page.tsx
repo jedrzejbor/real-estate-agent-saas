@@ -23,7 +23,6 @@ import {
 import { getApiErrorMessage } from '@/lib/api-client';
 import {
   canStartAgencyPlanCheckout,
-  createAgencyPlanCheckoutAttempt,
   createAgencyPlanQuote,
   type AgencyPlanQuote,
 } from '@/lib/agency-plan-checkout';
@@ -53,7 +52,6 @@ import { AuthRedirectLoading } from '@/components/auth/auth-redirect-loading';
 import { AccountEmailPendingNotice } from '@/components/auth/account-email-pending-notice';
 import { APP_NAME } from '@/lib/brand';
 import { cn } from '@/lib/utils';
-import { assertStripeCheckoutUrl } from '@/lib/stripe-checkout-url';
 import { savePendingPlanSelection } from '@/lib/registration-continuation';
 
 type RegisterPlan = PublicPlan & {
@@ -246,17 +244,12 @@ function RegisterForm() {
           setPendingEmail(data.email);
           return;
         }
-        try {
-          const attempt = await createAgencyPlanCheckoutAttempt(quote.quoteId);
-          window.location.assign(assertStripeCheckoutUrl(attempt.checkoutUrl));
-        } catch {
-          const params = new URLSearchParams({
-            plan: data.selectedPlan,
-            billing: billingInterval,
-            checkoutError: '1',
-          });
-          router.replace(`/dashboard/upgrade?${params.toString()}`);
-        }
+        const params = new URLSearchParams({
+          plan: data.selectedPlan,
+          billing: billingInterval,
+          checkoutError: 'unavailable',
+        });
+        router.replace(`/dashboard/upgrade?${params.toString()}`);
         return;
       }
 
@@ -541,7 +534,7 @@ function RegisterForm() {
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
                   Jeśli konto wymaga potwierdzenia adresu e-mail, zapłacisz po
                   weryfikacji i zalogowaniu. Plan zostanie aktywowany dopiero po
-                  opłaceniu w Stripe Checkout.
+                  potwierdzeniu płatności. Płatności są teraz tymczasowo niedostępne.
                 </p>
                 {getFieldError('selectedPlan') ? (
                   <p className="mt-2 text-xs text-destructive">

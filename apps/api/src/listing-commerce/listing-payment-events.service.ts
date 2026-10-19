@@ -12,6 +12,7 @@ import type {
 } from './contracts';
 import {
   ListingOrder,
+  ListingOrderItem,
   ListingPaymentAttempt,
   ListingPaymentEvent,
 } from './entities';
@@ -27,6 +28,8 @@ import {
   ListingPaymentEventType,
 } from './listing-commerce.types';
 import { ListingCommerceTelemetryService } from './listing-commerce-telemetry.service';
+import { PaymentService, type VerifiedPaymentNotification } from '../payments/application/payment.service';
+import { Payment } from '../payments/infrastructure/typeorm/payment.entity';
 
 @Injectable()
 export class ListingPaymentEventsService {
@@ -36,7 +39,86 @@ export class ListingPaymentEventsService {
     private readonly listingPromotionsService: ListingPromotionsService,
     @Optional()
     private readonly telemetryService?: ListingCommerceTelemetryService,
+    @Optional()
+    private readonly paymentService?: PaymentService,
   ) {}
+
+  /** Runs inside the webhook receipt transaction, including the PAY-027 ledger. */
+  async fulfillVerifiedTpayListingInTransaction(
+    manager: EntityManager,
+    notification: VerifiedPaymentNotification,
+    merchantId: string,
+  ): Promise<void> {
+    if (!manager.queryRunner?.isTransactionActive || !this.paymentService) {
+      throw new Error('Listing fulfillment requires a configured transaction');
+    }
+    if (!notification.correlationReference ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(notification.correlationReference)) {
+      throw new ConflictException('Nieznany identyfikator płatności');
+    }
+    const reference = await manager.findOne(Payment, {
+      where: { id: notification.correlationReference as Payment['id'] },
+    });
+    if (!reference?.orderId) throw new NotFoundException('Płatność ogłoszenia nie istnieje');
+
+    // Lock the order first so concurrent notifications cannot grant twice.
+    const order = await manager.findOne(ListingOrder, {
+      where: { id: reference.orderId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!order) throw new NotFoundException('Zamówienie nie istnieje');
+    order.items = await manager.find(ListingOrderItem, { where: { orderId: order.id } });
+    const payment = await this.paymentService.confirmListingNotification(
+      manager, notification, merchantId, order,
+    );
+    if (
+      (order.provider && order.provider !== payment.provider) ||
+      (order.providerCheckoutSessionId && order.providerCheckoutSessionId !== payment.providerTitle) ||
+      (order.providerPaymentId && order.providerPaymentId !== payment.providerTransactionId)
+    ) {
+      throw new ConflictException('Powiadomienie nie odpowiada zamówieniu');
+    }
+    if (
+      order.status === ListingOrderStatus.PAID &&
+      (order.provider !== payment.provider ||
+        order.providerPaymentId !== payment.providerTransactionId)
+    ) {
+      throw new ConflictException('Zamówienie opłacono inną transakcją');
+    }
+    if (order.status !== ListingOrderStatus.PAID) {
+      transitionOrder(order, ListingOrderStatus.PAID);
+      order.provider = payment.provider;
+      order.providerPaymentId = payment.providerTransactionId;
+      order.providerCheckoutSessionId = payment.providerTitle;
+      order.paidAt = payment.confirmedAt ?? new Date();
+      await manager.save(ListingOrder, order);
+    }
+    if (payment.correlationId) {
+      const attempt = await manager.findOne(ListingPaymentAttempt, {
+        where: { id: payment.correlationId, orderId: order.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!attempt || attempt.provider !== payment.provider ||
+        attempt.amountGross !== payment.amountMinor || attempt.currency !== payment.currency ||
+        (attempt.providerCheckoutSessionId && attempt.providerCheckoutSessionId !== payment.providerTitle) ||
+        (attempt.providerPaymentId && attempt.providerPaymentId !== payment.providerTransactionId)) {
+        throw new ConflictException('Próba płatności nie odpowiada zamówieniu');
+      }
+      attempt.status = ListingPaymentAttemptStatus.SUCCEEDED;
+      attempt.providerPaymentId = payment.providerTransactionId;
+      attempt.providerCheckoutSessionId = payment.providerTitle;
+      attempt.completedAt = order.paidAt;
+      attempt.failureCode = null;
+      attempt.failureMessage = null;
+      await manager.save(ListingPaymentAttempt, attempt);
+    }
+    await this.listingEntitlementsService.fulfillPaidOrderInTransaction(
+      manager, order, order.paidAt ?? new Date(),
+    );
+    await this.listingPromotionsService.applyReservedDiscountsForPaidOrder(
+      manager, order, order.paidAt ?? new Date(),
+    );
+  }
 
   async processVerifiedEvent(
     input: VerifiedListingPaymentEventContract,
@@ -410,8 +492,8 @@ async function assertOrBindLegacyProviderSession(
       );
     }
 
-    // Stripe may create a session just before the database becomes
-    // unavailable. A signed success can safely close that gap only after the
+    // A provider may create a session just before the database becomes
+    // unavailable. A verified success can safely close that gap only after the
     // immutable amount and currency have been checked.
     assertSuccessfulPaymentMatchesOrder(order, event, null);
     order.provider = event.provider;

@@ -10,7 +10,7 @@ const OPEN_ATTEMPT_STATUSES = new Set<AgencyPlanCheckoutAttemptStatus>([
 ]);
 const DEFAULT_BATCH_SIZE = 100;
 const MAX_BATCH_SIZE = 500;
-// Stripe may deliver a successful-payment webhook shortly after session expiry.
+// A successful-payment webhook may arrive shortly after session expiry.
 // Keep reservations briefly so reconciliation does not release a paid discount first.
 const PAYMENT_WEBHOOK_GRACE_MS = 10 * 60 * 1000;
 

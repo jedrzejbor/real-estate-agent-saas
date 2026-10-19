@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -20,17 +19,19 @@ import { getListingEntitlementLifecycle } from '@/lib/listing-entitlement-lifecy
 import {
   canStartListingCheckout,
   createListingCheckoutSession,
-  createListingOrder,
   createListingQuote,
   fetchListingEntitlementsForListing,
   fetchListingOrdersForListing,
   findCurrentPayableOrder,
   isListingOrderPaid,
-  isStripeCheckoutUrl,
   type ListingOrder,
   type ListingEntitlement,
   type ListingQuote,
 } from '@/lib/listing-checkout';
+import {
+  getPendingPaymentReturnOrderId,
+  getTrustedPaymentCheckoutUrl,
+} from '@/lib/payment-checkout-url';
 import {
   fetchPublicListingProducts,
   formatListingProductPrice,
@@ -47,7 +48,6 @@ interface SellerListingCheckoutPanelProps {
 
 export function SellerListingCheckoutPanel({
   listingId,
-  ownerName,
   isPublished,
   isExpired,
 }: SellerListingCheckoutPanelProps) {
@@ -60,9 +60,12 @@ export function SellerListingCheckoutPanel({
   const [entitlements, setEntitlements] = useState<ListingEntitlement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isQuoting, setIsQuoting] = useState(false);
-  const [isStartingPayment, setIsStartingPayment] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const idempotencyKeyRef = useRef<string | null>(null);
+  const [returnSearch, setReturnSearch] = useState('');
+
+  useEffect(() => {
+    setReturnSearch(window.location.search);
+  }, []);
 
   const loadCheckout = useCallback(async () => {
     setIsLoading(true);
@@ -120,6 +123,7 @@ export function SellerListingCheckoutPanel({
   );
   const summary = payableOrder?.pricingSnapshot ?? quote;
   const lifecycle = getListingEntitlementLifecycle(entitlements);
+  const processingOrderId = getPendingPaymentReturnOrderId(returnSearch, orders);
 
   useEffect(() => {
     if (payableOrder || !purchasableProducts.length) return;
@@ -166,66 +170,39 @@ export function SellerListingCheckoutPanel({
   function applyPromotionCode() {
     const normalized = promotionCodeInput.trim();
     setAppliedPromotionCode(normalized);
-    idempotencyKeyRef.current = null;
   }
 
   function removePromotionCode() {
     setPromotionCodeInput('');
     setAppliedPromotionCode('');
-    idempotencyKeyRef.current = null;
   }
 
   async function startPayment() {
     if (!selectedCode && !payableOrder) return;
-
-    setIsStartingPayment(true);
-    setError(null);
+    const unavailable = 'Płatności są tymczasowo niedostępne. Spróbuj ponownie później.';
+    if (!payableOrder) {
+      setError(unavailable);
+      return;
+    }
 
     try {
-      let order = payableOrder;
-
-      if (!order) {
-        idempotencyKeyRef.current ??= `listing-checkout:${crypto.randomUUID()}`;
-        order = await createListingOrder(
-          listingId,
-          [{ productCode: selectedCode, quantity: 1 }],
-          {
-            countryCode: 'PL',
-            buyerType: 'consumer',
-            ...(ownerName.trim() ? { fullName: ownerName.trim() } : {}),
-          },
-          idempotencyKeyRef.current,
-          { promotionCode: appliedPromotionCode },
-        );
-        setOrders((current) => [order!, ...current]);
-      }
-
-      if (isListingOrderPaid(order) || !order.requiresPayment) {
-        await loadCheckout();
+      // The public API still returns PAYMENTS_UNAVAILABLE. This path only
+      // prepares safe navigation for a later checkout release.
+      const session = await createListingCheckoutSession(payableOrder.id);
+      const url =
+        session.provider === 'tpay'
+          ? getTrustedPaymentCheckoutUrl(
+              session.checkoutUrl,
+              process.env.NEXT_PUBLIC_TPAY_CHECKOUT_ENVIRONMENT,
+            )
+          : null;
+      if (!url) {
+        setError('Nieprawidłowy adres strony płatności. Spróbuj ponownie później.');
         return;
       }
-
-      const session = await createListingCheckoutSession(order.id);
-      if (!isStripeCheckoutUrl(session.checkoutUrl)) {
-        throw new Error(
-          'Operator płatności zwrócił nieprawidłowy adres przekierowania.',
-        );
-      }
-
-      window.location.assign(session.checkoutUrl);
+      window.location.assign(url);
     } catch (cause) {
       setError(getApiErrorMessage(cause));
-      await refreshOrdersSilently();
-    } finally {
-      setIsStartingPayment(false);
-    }
-  }
-
-  async function refreshOrdersSilently() {
-    try {
-      setOrders(await fetchListingOrdersForListing(listingId));
-    } catch {
-      // The original checkout error is more useful than a secondary refresh error.
     }
   }
 
@@ -273,6 +250,19 @@ export function SellerListingCheckoutPanel({
 
       <EntitlementLifecycleSummary lifecycle={lifecycle} />
 
+      {processingOrderId ? (
+        <div role="status" className="mt-3 flex items-start gap-2 rounded-xl bg-primary/10 p-3 text-sm text-primary">
+          <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
+          <div>
+            <p className="font-semibold">Sprawdzamy wynik płatności</p>
+            <p className="mt-1">Ogłoszenie oczekuje na potwierdzenie płatności przez serwer.</p>
+            <button type="button" onClick={() => void loadCheckout()} className="mt-2 font-semibold underline">
+              Odśwież status
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {!payableOrder && purchasableProducts.length > 1 ? (
         <fieldset className="mt-4 grid gap-2">
           <legend className="sr-only">Wariant publikacji</legend>
@@ -288,7 +278,6 @@ export function SellerListingCheckoutPanel({
                 checked={selectedCode === product.code}
                 onChange={() => {
                   setSelectedCode(product.code);
-                  idempotencyKeyRef.current = null;
                 }}
                 className="mt-1"
               />
@@ -313,7 +302,7 @@ export function SellerListingCheckoutPanel({
         <PromotionCodeForm
           value={promotionCodeInput}
           appliedCode={appliedPromotionCode}
-          isBusy={isQuoting || isStartingPayment}
+          isBusy={isQuoting}
           onChange={setPromotionCodeInput}
           onApply={applyPromotionCode}
           onRemove={removePromotionCode}
@@ -404,7 +393,6 @@ export function SellerListingCheckoutPanel({
       <button
         type="button"
         disabled={
-          isStartingPayment ||
           isQuoting ||
           !summary ||
           (payableOrder !== null && !canStartListingCheckout(payableOrder))
@@ -412,11 +400,7 @@ export function SellerListingCheckoutPanel({
         onClick={startPayment}
         className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isStartingPayment ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <CreditCard className="h-4 w-4" />
-        )}
+        <CreditCard className="h-4 w-4" />
         {payableOrder ? 'Przejdź do płatności' : 'Zamawiam i płacę'}
       </button>
       <p className="mt-2 text-center text-xs text-muted-foreground">

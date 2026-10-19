@@ -18,7 +18,6 @@ import { Input } from '@/components/ui/input';
 import { AnalyticsEventName, trackAnalyticsEvent } from '@/lib/analytics';
 import {
   canStartAgencyPlanCheckout,
-  createAgencyPlanCheckoutAttempt,
   createAgencyPlanQuote,
   type AgencyPlanQuote,
 } from '@/lib/agency-plan-checkout';
@@ -43,7 +42,6 @@ import {
 } from '@/lib/public-pricing';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
-import { assertStripeCheckoutUrl } from '@/lib/stripe-checkout-url';
 import { clearPendingPlanSelection, readPendingPlanSelection } from '@/lib/registration-continuation';
 
 const resourceLabels: Record<string, string> = {
@@ -95,7 +93,6 @@ export default function UpgradePage() {
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [isStartingCheckout, setIsStartingCheckout] = useState(false);
 
   const selectedUpsell = upsellId ? GROWTH_UPSELLS[upsellId] : null;
   const currentPlanCode = user?.entitlements.plan.code as
@@ -221,14 +218,7 @@ export default function UpgradePage() {
         setCheckoutError('Wycena jest zbyt stara. Odśwież stronę i sprawdź aktualną cenę.');
         return;
       }
-      setIsStartingCheckout(true);
-      try {
-        const attempt = await createAgencyPlanCheckoutAttempt(quote.quoteId);
-        window.location.assign(assertStripeCheckoutUrl(attempt.checkoutUrl));
-      } catch (error) {
-        setCheckoutError(error instanceof Error ? error.message : 'Nie udało się uruchomić płatności');
-        setIsStartingCheckout(false);
-      }
+      setCheckoutError('Płatności są tymczasowo niedostępne. Spróbuj ponownie później.');
       return;
     }
     trackAnalyticsEvent({
@@ -254,7 +244,7 @@ export default function UpgradePage() {
     <div className="space-y-6">
       {searchParams.get('checkout') === 'success' ? (
         <div className="rounded-xl border border-status-success bg-status-success-bg p-4 text-sm text-status-success">
-          Checkout zakończony. Plan zostanie aktywowany po potwierdzeniu płatności przez Stripe; odśwież stronę za chwilę, aby sprawdzić status.
+          Powrót ze strony płatności nie potwierdza zapłaty. Odśwież stronę, aby sprawdzić aktualny status planu.
         </div>
       ) : searchParams.get('checkout') === 'cancel' ? (
         <div className="rounded-xl border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
@@ -436,7 +426,7 @@ export default function UpgradePage() {
           </h2>
           <div className="mt-4 space-y-4 text-sm leading-6 text-muted-foreground">
             <p>
-              Płatny plan zostanie aktywowany po potwierdzeniu płatności przez Stripe.
+              Płatny plan zostanie aktywowany dopiero po potwierdzeniu płatności. Płatności są teraz tymczasowo niedostępne.
               W przypadku obecnego płatnego abonamentu zmianę planu obsługujemy indywidualnie.
             </p>
             <p>
@@ -461,7 +451,7 @@ export default function UpgradePage() {
               </p>
             </div>
             <Badge variant={submitted ? 'success' : 'outline'}>
-              {submitted ? 'Wysłane' : selectedPlan === 'enterprise' ? 'Kontakt' : 'Stripe Checkout'}
+              {submitted ? 'Wysłane' : selectedPlan === 'enterprise' ? 'Kontakt' : 'Płatność wstrzymana'}
             </Badge>
           </div>
 
@@ -569,7 +559,9 @@ export default function UpgradePage() {
             </div>
           ) : null}
 
-          {searchParams.get('checkoutError') === '1' ? (
+          {searchParams.get('checkoutError') === 'unavailable' ? (
+            <p className="mt-4 text-sm text-destructive">Konto zostało utworzone. Płatności są tymczasowo niedostępne. Spróbuj ponownie później.</p>
+          ) : searchParams.get('checkoutError') === '1' ? (
             <p className="mt-4 text-sm text-destructive">Konto zostało utworzone, ale nie udało się rozpocząć płatności. Sprawdź wycenę i spróbuj ponownie.</p>
           ) : null}
           {checkoutError ? <p className="mt-4 text-sm text-destructive">{checkoutError}</p> : null}
@@ -577,8 +569,8 @@ export default function UpgradePage() {
             <p className="mt-4 text-sm text-muted-foreground">Masz już aktywny plan. Zmiana płatnego abonamentu wymaga obsługi indywidualnej, aby uniknąć drugiej subskrypcji.</p>
           ) : null}
 
-          <Button type="submit" disabled={isStartingCheckout || (selectedPlan !== 'enterprise' && (!quote || isLoadingQuote || Boolean(quoteError) || isPrivateSeller || currentPlanCode !== 'free'))} className="mt-5 h-10 rounded-xl">
-            {isStartingCheckout ? 'Uruchamiamy płatność…' : selectedPlan === 'enterprise' ? 'Zapisz intencję upgrade' : 'Przejdź do bezpiecznej płatności'}
+          <Button type="submit" disabled={selectedPlan !== 'enterprise' && (!quote || isLoadingQuote || Boolean(quoteError) || isPrivateSeller || currentPlanCode !== 'free')} className="mt-5 h-10 rounded-xl">
+            {selectedPlan === 'enterprise' ? 'Zapisz intencję upgrade' : 'Przejdź do bezpiecznej płatności'}
             <ArrowRight className="h-4 w-4" />
           </Button>
         </form>

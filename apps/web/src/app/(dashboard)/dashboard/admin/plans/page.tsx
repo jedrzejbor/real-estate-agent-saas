@@ -5,7 +5,6 @@ import {
   AlertCircle,
   Archive,
   Building2,
-  CheckCircle2,
   Clock3,
   ShieldAlert,
   RefreshCw,
@@ -279,8 +278,6 @@ export default function AdminPlansPage() {
         description: planDraft.description,
         priceMonthlyPln: planDraft.priceMonthlyPln,
         priceYearlyPln: planDraft.priceYearlyPln,
-        stripePriceIdMonthly: planDraft.stripePriceIdMonthly,
-        stripePriceIdYearly: planDraft.stripePriceIdYearly,
         limits: planDraft.limits,
         features: planDraft.features,
         isPublic: planDraft.isPublic,
@@ -468,12 +465,6 @@ export default function AdminPlansPage() {
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">{plan.label}</span>
-                  <Badge
-                    variant={plan.billingReady ? 'brand' : 'outline'}
-                    className="rounded-full"
-                  >
-                    {plan.billingReady ? 'Billing OK' : 'Billing'}
-                  </Badge>
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   {formatMoney(plan.priceMonthlyPln)} / mies.
@@ -589,18 +580,6 @@ function PlanEditor({
               {plan.code}
             </Badge>
           </div>
-          {plan.billingWarnings.length > 0 ? (
-            <div className="mt-2 space-y-1 text-xs text-amber-700">
-              {plan.billingWarnings.map((warning) => (
-                <div key={warning}>{warning}</div>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-2 flex items-center gap-1 text-xs text-status-success">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Konfiguracja billingowa kompletna
-            </div>
-          )}
         </div>
         <Button className="gap-2 rounded-xl" onClick={onSave} disabled={isSaving}>
           <Save className="h-4 w-4" />
@@ -652,28 +631,6 @@ function PlanEditor({
             value={plan.priceYearlyPln}
             onChange={(event) =>
               onChange({ ...plan, priceYearlyPln: toNumber(event.target.value) })
-            }
-          />
-        </Field>
-        <Field label="Stripe monthly">
-          <Input
-            value={plan.stripePriceIdMonthly ?? ''}
-            onChange={(event) =>
-              onChange({
-                ...plan,
-                stripePriceIdMonthly: event.target.value || null,
-              })
-            }
-          />
-        </Field>
-        <Field label="Stripe yearly">
-          <Input
-            value={plan.stripePriceIdYearly ?? ''}
-            onChange={(event) =>
-              onChange({
-                ...plan,
-                stripePriceIdYearly: event.target.value || null,
-              })
             }
           />
         </Field>

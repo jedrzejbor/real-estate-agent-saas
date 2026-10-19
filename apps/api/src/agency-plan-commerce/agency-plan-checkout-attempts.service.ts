@@ -28,7 +28,7 @@ const OPEN_ATTEMPT_STATUSES = new Set([
   AgencyPlanCheckoutAttemptStatus.CREATING,
   AgencyPlanCheckoutAttemptStatus.PENDING,
 ]);
-// Leave room for database and Stripe latency beyond Stripe's 30-minute minimum.
+// Leave room for provider and database latency before a quote expires.
 const MIN_CHECKOUT_REMAINING_MS = 35 * 60 * 1000;
 
 @Injectable()
@@ -68,7 +68,7 @@ export class AgencyPlanCheckoutAttemptsService {
           'Wycena poprzedza weryfikację konta, przelicz cenę ponownie',
         );
       }
-      const plan = await this.findPlanForQuote(manager, quote);
+      await this.findPlanForQuote(manager, quote);
 
       if (!quote.userId) quote.userId = userId;
       if (!quote.agencyId) quote.agencyId = access.agency.id;
@@ -101,7 +101,6 @@ export class AgencyPlanCheckoutAttemptsService {
           planCode: quote.planCode,
           planLabel: quote.pricingSnapshot.planLabel,
           billingInterval: quote.billingInterval,
-          providerPriceReference: getProviderPriceReference(plan, quote),
           currency: quote.currency,
           subtotalGrossAmount: quote.subtotalGrossAmount,
           discountGrossAmount: quote.discountGrossAmount,
@@ -308,22 +307,6 @@ function presentCheckoutAttempt(
     currency: attempt.currency,
     expiresAt: attempt.expiresAt.toISOString(),
   };
-}
-
-function getProviderPriceReference(
-  plan: PlanCatalog,
-  quote: AgencyPlanQuote,
-): string {
-  const priceReference =
-    quote.billingInterval === 'monthly'
-      ? plan.stripePriceIdMonthly
-      : plan.stripePriceIdYearly;
-  if (!priceReference) {
-    throw new ConflictException(
-      'Plan nie ma skonfigurowanej płatności dla wybranego okresu',
-    );
-  }
-  return priceReference;
 }
 
 function getDiscountDurationBillingCycles(

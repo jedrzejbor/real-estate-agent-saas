@@ -1,11 +1,8 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Body, Controller, HttpCode, HttpStatus, Post, ServiceUnavailableException } from '@nestjs/common';
 import { Public } from '../auth/decorators/public.decorator';
-import { AgencyPlanCheckoutAttemptsService } from './agency-plan-checkout-attempts.service';
 import { AgencyPlanPromotionsService } from './agency-plan-promotions.service';
 import { AgencyPlanQuotesService } from './agency-plan-quotes.service';
 import {
-  CreateAgencyPlanCheckoutAttemptDto,
   CreateAgencyPlanQuoteDto,
 } from './dto';
 
@@ -14,7 +11,6 @@ export class AgencyPlanCheckoutController {
   constructor(
     private readonly agencyPlanQuotesService: AgencyPlanQuotesService,
     private readonly agencyPlanPromotionsService: AgencyPlanPromotionsService,
-    private readonly agencyPlanCheckoutAttemptsService: AgencyPlanCheckoutAttemptsService,
   ) {}
 
   /** POST /api/agency-plan-checkout/quote — authoritative plan quote snapshot. */
@@ -39,16 +35,13 @@ export class AgencyPlanCheckoutController {
     });
   }
 
-  /** POST /api/agency-plan-checkout/attempts — reserve quote discounts and create/reuse a durable checkout attempt. */
+  /** POST /api/agency-plan-checkout/attempts — unavailable during payment migration. */
   @Post('attempts')
   @HttpCode(HttpStatus.CREATED)
-  createCheckoutAttempt(
-    @CurrentUser('id') userId: string,
-    @Body() dto: CreateAgencyPlanCheckoutAttemptDto,
-  ) {
-    return this.agencyPlanCheckoutAttemptsService.createCheckoutAttempt(
-      userId,
-      dto.quoteId,
-    );
+  createCheckoutAttempt() {
+    throw new ServiceUnavailableException({
+      code: 'PAYMENTS_UNAVAILABLE',
+      message: 'Płatności są tymczasowo niedostępne. Spróbuj ponownie później.',
+    });
   }
 }

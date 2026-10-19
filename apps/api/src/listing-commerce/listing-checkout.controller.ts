@@ -1,22 +1,18 @@
 import {
   Body,
   Controller,
-  Headers,
   HttpCode,
   HttpStatus,
   Post,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { CreateListingOrderDto, CreateListingQuoteDto } from './dto';
-import { ListingOrdersService } from './listing-orders.service';
+import { CreateListingQuoteDto } from './dto';
 import { ListingQuotesService } from './listing-quotes.service';
 
 @Controller('listing-checkout')
 export class ListingCheckoutController {
-  constructor(
-    private readonly listingQuotesService: ListingQuotesService,
-    private readonly listingOrdersService: ListingOrdersService,
-  ) {}
+  constructor(private readonly listingQuotesService: ListingQuotesService) {}
 
   /** POST /api/listing-checkout/quote — authoritative server-side quote. */
   @Post('quote')
@@ -28,14 +24,13 @@ export class ListingCheckoutController {
     return this.listingQuotesService.createQuote(userId, dto);
   }
 
-  /** POST /api/listing-checkout/orders — create an order without a provider session. */
+  /** POST /api/listing-checkout/orders — unavailable during payment migration. */
   @Post('orders')
   @HttpCode(HttpStatus.CREATED)
-  createOrder(
-    @CurrentUser('id') userId: string,
-    @Headers('idempotency-key') idempotencyKey: string | undefined,
-    @Body() dto: CreateListingOrderDto,
-  ) {
-    return this.listingOrdersService.createOrder(userId, idempotencyKey, dto);
+  createOrder() {
+    throw new ServiceUnavailableException({
+      code: 'PAYMENTS_UNAVAILABLE',
+      message: 'Płatności są tymczasowo niedostępne. Spróbuj ponownie później.',
+    });
   }
 }
