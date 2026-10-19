@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  ConflictException,
   Controller,
   Header,
   HttpCode,
   HttpStatus,
   Inject,
   Logger,
+  NotFoundException,
   Post,
   RawBodyRequest,
   Req,
@@ -42,7 +44,7 @@ export class TpayWebhookController {
   async receiveNotification(@Req() request: RawBodyRequest<Request>): Promise<'TRUE'> {
     const contentType = request.headers['content-type'];
     if (!/^application\/x-www-form-urlencoded(?:\s*;|$)/i.test(contentType ?? '')) {
-      this.logger.warn('Rejected Tpay webhook: unsupported content type');
+      this.logger.warn('PAYMENT_WEBHOOK_REJECTED reason=unsupported_content_type');
       throw new UnsupportedMediaTypeException('Unsupported notification content type');
     }
 
@@ -52,24 +54,45 @@ export class TpayWebhookController {
       request.rawBody,
     );
     if (!valid) {
-      this.logger.warn('Rejected Tpay webhook: invalid signature');
+      this.logger.warn('PAYMENT_WEBHOOK_REJECTED reason=invalid_signature');
       throw new UnauthorizedException('Invalid webhook signature');
     }
 
-    const event = parseTransactionNotification(request.rawBody!);
+    let event: VerifiedPaymentNotification;
+    try {
+      event = parseTransactionNotification(request.rawBody!);
+    } catch (error) {
+      this.logger.warn('PAYMENT_WEBHOOK_REJECTED reason=invalid_notification');
+      throw error;
+    }
     if (this.paymentConfiguration.provider !== 'tpay') {
+      this.logger.error('PAYMENT_WEBHOOK_FAILED reason=provider_not_configured');
       throw new ServiceUnavailableException('Tpay notifications are not configured');
     }
     const merchantId = this.paymentConfiguration.tpay.merchantId;
     // A duplicate ledger row is not evidence that fulfillment completed.
-    await this.dataSource.transaction(async (manager) => {
-      await this.payments.recordVerifiedNotification(manager, event);
-      if (event.providerStatus === 'confirmed') {
-        await this.listingEvents.fulfillVerifiedTpayListingInTransaction(
-          manager, event, merchantId,
-        );
+    try {
+      await this.dataSource.transaction(async (manager) => {
+        await this.payments.recordVerifiedNotification(manager, event);
+        if (event.providerStatus === 'confirmed') {
+          await this.listingEvents.fulfillVerifiedTpayListingInTransaction(
+            manager, event, merchantId,
+          );
+        }
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        this.logger.warn('PAYMENT_WEBHOOK_REJECTED reason=unknown_local_payment_or_order');
+      } else if (error instanceof ConflictException) {
+        this.logger.warn('PAYMENT_WEBHOOK_REJECTED reason=payment_mismatch');
+      } else {
+        this.logger.error('PAYMENT_WEBHOOK_FAILED reason=processing_error');
+        // Nest logs unhandled Error details; keep provider and database payloads
+        // out of logs while returning a retriable non-ACK response.
+        throw new ServiceUnavailableException('Payment notification processing failed');
       }
-    });
+      throw error;
+    }
     return 'TRUE';
   }
 }
