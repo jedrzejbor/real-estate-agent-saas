@@ -123,6 +123,18 @@ describe('TpayWebhookController transport', () => {
     redirect: 'manual',
   });
 
+  it('PAY-029 rejects a bad JWS before recording or fulfilling and emits a safe alert', async () => {
+    verify.mockResolvedValue(false);
+    const response = await signedRequest();
+
+    expect(response.status).toBe(401);
+    expect(await response.text()).not.toBe('TRUE');
+    expect(recordVerifiedNotification).not.toHaveBeenCalled();
+    expect(fulfillVerifiedTpayListingInTransaction).not.toHaveBeenCalled();
+    expect(warning.mock.calls.flat().join(' ')).toContain('reason=invalid_signature');
+    expect(warning.mock.calls.flat().join(' ')).not.toContain(rawBody);
+  });
+
   it.each([
     ['unknown_payment', new NotFoundException('Płatność ogłoszenia nie istnieje'), 404,
       'unknown_local_payment_or_order'],

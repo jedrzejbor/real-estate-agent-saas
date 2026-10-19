@@ -5,6 +5,12 @@ const OAUTH_TIMEOUT_MS = 5_000;
 const CHANNELS_TIMEOUT_MS = 5_000;
 const CREATE_TRANSACTION_TIMEOUT_MS = 5_000;
 const GET_TRANSACTION_TIMEOUT_MS = 5_000;
+const REFUND_TIMEOUT_MS = 5_000;
+
+export type TpayRefundResult =
+  | { status: 'pending'; providerRefundId: string | null }
+  | { status: 'rejected'; httpStatus: number }
+  | { status: 'unknown'; reason: 'timeout' | 'network' | 'provider_error' | 'invalid_response'; httpStatus?: number };
 
 export type TpayTransactionStatusResult =
   | { status: 'pending' | 'confirmed' | 'failed'; transactionId: string }
@@ -239,6 +245,66 @@ export class TpayApiClient {
         ...mapped,
         amountMinor,
         currency: isRecord(payload) && typeof payload.currency === 'string' ? payload.currency : null,
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /** Full refunds use {}; partial refunds provide decimal PLN. A POST is never retried here. */
+  async requestRefund(input: {
+    transactionId: string;
+    kind: 'full' | 'partial';
+    amountMinor: number;
+  }): Promise<TpayRefundResult> {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(input.transactionId)) {
+      throw new Error('Tpay transaction ID is invalid');
+    }
+    const amount = formatAmountPln(input.amountMinor);
+    const body = input.kind === 'full' ? '{}' : `{"amount":${amount}}`;
+    const token = await this.getAccessToken();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REFUND_TIMEOUT_MS);
+    let response: Response;
+    try {
+      response = await this.fetcher(
+        `${this.config.apiUrl}/transactions/${encodeURIComponent(input.transactionId)}/refunds`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body,
+          signal: controller.signal,
+        },
+      );
+    } catch {
+      clearTimeout(timeout);
+      return { status: 'unknown', reason: controller.signal.aborted ? 'timeout' : 'network' };
+    }
+
+    try {
+      if (response.status >= 400 && response.status < 500 && response.status !== 408) {
+        return { status: 'rejected', httpStatus: response.status };
+      }
+      if (!response.ok) {
+        return { status: 'unknown', reason: 'provider_error', httpStatus: response.status };
+      }
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        return { status: 'unknown', reason: controller.signal.aborted ? 'timeout' : 'invalid_response' };
+      }
+      if (!isRecord(payload) || payload.result !== 'success' ||
+          payload.transactionId !== input.transactionId || !Array.isArray(payload.refundsList) ||
+          payload.refundsList.length === 0) {
+        return { status: 'unknown', reason: 'invalid_response' };
+      }
+      const refunds = payload.refundsList.filter((item: unknown) =>
+        isRecord(item) && typeof item.refundId === 'string' && item.refundId.length > 0);
+      // The response can include earlier partial refunds. No ID is safer than guessing.
+      return {
+        status: 'pending',
+        providerRefundId: refunds.length === 1 ? refunds[0].refundId as string : null,
       };
     } finally {
       clearTimeout(timeout);

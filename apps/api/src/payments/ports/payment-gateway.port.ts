@@ -49,6 +49,8 @@ export type VerifiedProviderPaymentStatus =
 
 export interface RefundPaymentRequest {
   readonly paymentId: PaymentId;
+  readonly providerTransactionId: string;
+  readonly kind: 'full' | 'partial';
   readonly amountMinor: PaymentAmountMinor;
   readonly currency: PaymentCurrency;
 }
