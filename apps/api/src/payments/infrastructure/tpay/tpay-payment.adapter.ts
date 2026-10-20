@@ -5,14 +5,16 @@ import {
   CreatePaymentResult,
   PaymentGateway,
   ProviderRefundResult,
+  RefundGateway,
   RefundPaymentRequest,
+  VerifiedProviderRefundStatus,
   VerifiedProviderPaymentStatus,
 } from '../../ports/payment-gateway.port';
 import { TpayApiClient } from './tpay-api.client';
 
 /** Infrastructure mapping only. The application layer owns persistence and entitlements. */
 @Injectable()
-export class TpayPaymentAdapter implements PaymentGateway {
+export class TpayPaymentAdapter implements PaymentGateway, RefundGateway {
   private readonly unresolvedRefunds = new Set<string>();
   private readonly refundInFlight = new Map<string, Promise<ProviderRefundResult>>();
 
@@ -112,5 +114,26 @@ export class TpayPaymentAdapter implements PaymentGateway {
     // PAY-031 must replace this process-local guard with a durable refund record.
     this.unresolvedRefunds.add(input.paymentId);
     return { status: 'unknown', providerRefundId: null };
+  }
+
+  async getRefundStatus(providerRefundId: string): Promise<VerifiedProviderRefundStatus> {
+    try {
+      const result = await this.client.getRefundStatus(providerRefundId);
+      if (result.status === 'unknown' || result.currency !== 'PLN') {
+        return { status: 'unknown', providerRefundId };
+      }
+      return {
+        status: result.status,
+        providerRefundId,
+        amountMinor: toPaymentAmountMinor(result.amountMinor),
+        currency: 'PLN',
+      };
+    } catch {
+      return { status: 'unknown', providerRefundId };
+    }
+  }
+
+  releaseRefundUncertainty(paymentId: RefundPaymentRequest['paymentId']): void {
+    this.unresolvedRefunds.delete(paymentId);
   }
 }

@@ -12,6 +12,10 @@ export type TpayRefundResult =
   | { status: 'rejected'; httpStatus: number }
   | { status: 'unknown'; reason: 'timeout' | 'network' | 'provider_error' | 'invalid_response'; httpStatus?: number };
 
+export type TpayRefundStatusResult =
+  | { status: 'pending' | 'confirmed' | 'failed'; refundId: string; amountMinor: number; currency: string }
+  | { status: 'unknown'; refundId: string };
+
 export type TpayTransactionStatusResult =
   | { status: 'pending' | 'confirmed' | 'failed'; transactionId: string }
   | { status: 'unknown'; reason: 'not_found' | 'authorization' | 'provider_error' | 'timeout' | 'network' | 'invalid_response' };
@@ -306,6 +310,42 @@ export class TpayApiClient {
         status: 'pending',
         providerRefundId: refunds.length === 1 ? refunds[0].refundId as string : null,
       };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /** GET /refunds/{refundId}; only a matching provider record can resolve a local refund. */
+  async getRefundStatus(refundId: string): Promise<TpayRefundStatusResult> {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(refundId)) {
+      throw new Error('Tpay refund ID is invalid');
+    }
+    const unknown = (): TpayRefundStatusResult => ({ status: 'unknown', refundId });
+    const token = await this.getAccessToken();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REFUND_TIMEOUT_MS);
+    try {
+      const response = await this.fetcher(
+        `${this.config.apiUrl}/refunds/${encodeURIComponent(refundId)}`,
+        { method: 'GET', headers: { Authorization: `Bearer ${token}` }, signal: controller.signal },
+      );
+      if (!response.ok) return unknown();
+      const payload: unknown = await response.json();
+      if (!isRecord(payload) || payload.result !== 'success' || payload.refundId !== refundId ||
+          payload.currency !== 'PLN') return unknown();
+      const amountMinor = parseProviderAmountMinor(payload.amount);
+      if (amountMinor === null || typeof payload.status !== 'string') return unknown();
+      const status = payload.status.toLowerCase();
+      if (status === 'done' || status === 'blik_processed' || status === 'blik_incorrect') {
+        return { status: 'confirmed', refundId, amountMinor, currency: 'PLN' };
+      }
+      if (status === 'cancel') return { status: 'failed', refundId, amountMinor, currency: 'PLN' };
+      if (['new', 'pending', 'hold', 'processed', 'blik_pending'].includes(status)) {
+        return { status: 'pending', refundId, amountMinor, currency: 'PLN' };
+      }
+      return unknown();
+    } catch {
+      return unknown();
     } finally {
       clearTimeout(timeout);
     }

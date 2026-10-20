@@ -1,5 +1,7 @@
 # Manualne testy płatności PodAdresem
 
+PAY-031: [protokół lokalny](test-runs/2026-10-20-pay-031-local.md) opisuje trwałą intencję zwrotu, blokadę duplikatu po restarcie i odczyt statusu operatora w izolowanej bazie. MT-015 i widok historii zamówienia pozostają **Blocked**: brak opłaconej transakcji Sandbox, publiczny checkout jest wyłączony, a akcja zwrotu w UI nie istnieje.
+
 PAY-030: [protokół lokalny](test-runs/2026-10-19-pay-030-local.md) potwierdza mapowanie żądania zwrotu w testach automatycznych. MT-015 jest **Blocked**: znana transakcja Sandbox ma status oczekujący, a publiczny checkout jest wyłączony. Adapter nie ma jeszcze trwałego rekordu zwrotu; wynik `unknown` blokuje ponowienie tylko w bieżącym procesie. Nie uruchamiaj zwrotu na prawdziwych środkach ani nie traktuj tego jako gotowego procesu administracyjnego.
 
 PAY-029: [protokół lokalny](test-runs/2026-10-19-pay-029-local.md) opisuje negatywne testy webhooka i bezpieczne kody alertów. Ręczne MT-004, MT-005 i pełne MT-006 pozostają **Blocked** przy wyłączonym checkoutcie, niedostępnej stronie Sandbox oraz braku tabel płatności w roboczej bazie.
@@ -482,7 +484,7 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 **Purpose:** Sprawdzić bezpieczny refund i korektę zamówienia.  
 **Prerequisites:** Opłacona testowa płatność sandbox; konto administratora i zwykłego użytkownika.
 
-W PAY-030 dostępne jest tylko backendowe żądanie operatora; brak ekranu i trwałego rekordu Refund. Poniższych kroków aplikacyjnych nie oznaczaj jako Pass, dopóki nie powstanie pełny proces. Gdy nie ma opłaconej transakcji Sandbox, wynik jest **Blocked** i nie należy tworzyć dodatkowej płatności tylko dla tego testu.
+Od PAY-031 backend zapisuje trwały rekord `Refund` przed żądaniem operatora, ale nadal nie ma akcji zwrotu w UI ani zatwierdzonej polityki korekty zamówienia/uprawnień. Poniższych kroków aplikacyjnych nie oznaczaj jako Pass, dopóki nie powstanie pełny proces. Gdy nie ma opłaconej transakcji Sandbox, wynik jest **Blocked** i nie należy tworzyć dodatkowej płatności tylko dla tego testu.
 
 **Steps:**
 
@@ -492,9 +494,9 @@ W PAY-030 dostępne jest tylko backendowe żądanie operatora; brak ekranu i trw
 4. Spróbuj powtórzyć identyczny zwrot.
 5. Jako zwykły użytkownik sprawdź, że akcja jest niedostępna.
 
-**Expected result:** Docelowo zwrot jest widoczny raz, ponowienie nie oddaje pieniędzy drugi raz; rola bez uprawnień nie wykona zwrotu. Na etapie PAY-030 adapter mapuje zaakceptowane żądanie jako `pending`, pewną odmowę jako `failed`, a niepewny wynik jako `unknown`; nie zmienia uprawnienia.
+**Expected result:** Docelowo zwrot jest widoczny raz, ponowienie nie oddaje pieniędzy drugi raz; rola bez uprawnień nie wykona zwrotu. Na etapie PAY-031 ta sama intencja nie wysyła drugiego POST także po restarcie; `unknown` bez zweryfikowanego wyniku blokuje kolejne żądanie. Zaakceptowany POST pozostaje `pending`; dopiero zgodny odczyt statusu operatora może potwierdzić zakończenie.
 
-**Database state:** Docelowo jeden rekord zwrotu oraz korekta stanu płatności i uprawnienia zgodna z polityką. PAY-030 nie zapisuje jeszcze lokalnego Refund ani nie zmienia Payment lub entitlement. Stan bazy sprawdza developer; tester ocenia przede wszystkim widok aplikacji.
+**Database state:** PAY-031 zapisuje jeden `Refund` na unikatową intencję i rezerwuje kwotę w groszach przed POST. Suma aktywnych zwrotów nie przekracza opłaconej kwoty. `Payment`, zamówienie i uprawnienie nie są automatycznie zmieniane; korekta wymaga osobnej decyzji produktu. Stan bazy sprawdza developer; tester ocenia przede wszystkim widok aplikacji.
 
 **Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______.
 

@@ -181,6 +181,40 @@ describe('PAY-030 Tpay refund request', () => {
   });
 });
 
+describe('PAY-031 refund status lookup', () => {
+  const refundId = 'rf_PAY031';
+  const response = (payload: unknown): Response => ({
+    ok: true, status: 200, json: async () => payload,
+  } as Response);
+
+  it.each([
+    ['new', 'pending'], ['processed', 'pending'], ['hold', 'pending'],
+    ['done', 'confirmed'], ['BLIK_processed', 'confirmed'], ['cancel', 'failed'],
+  ])('maps %s to %s only for a matching refund, amount and currency', async (providerStatus, expected) => {
+    const fetcher = jest.fn()
+      .mockResolvedValueOnce(ok())
+      .mockResolvedValueOnce(response({ result: 'success', refundId, status: providerStatus, amount: 12.34, currency: 'PLN' }));
+    const client = new TpayApiClient(config, fetcher);
+    await expect(client.getRefundStatus(refundId)).resolves.toEqual({
+      status: expected, refundId, amountMinor: 1234, currency: 'PLN',
+    });
+    expect(fetcher.mock.calls[1][0]).toBe(`https://openapi.sandbox.tpay.com/refunds/${refundId}`);
+    expect(fetcher.mock.calls[1][1].method).toBe('GET');
+  });
+
+  it('leaves mismatched and unreadable responses unknown', async () => {
+    for (const payload of [
+      { result: 'success', refundId: 'foreign', status: 'done', amount: 12.34, currency: 'PLN' },
+      { result: 'success', refundId, status: 'done', amount: 12.34, currency: 'EUR' },
+      { result: 'success', refundId, status: 'surprise', amount: 12.34, currency: 'PLN' },
+    ]) {
+      const fetcher = jest.fn().mockResolvedValueOnce(ok()).mockResolvedValueOnce(response(payload));
+      await expect(new TpayApiClient(config, fetcher).getRefundStatus(refundId))
+        .resolves.toEqual({ status: 'unknown', refundId });
+    }
+  });
+});
+
 async function startOAuthServer(
   handle: (request: IncomingMessage, response: ServerResponse) => Promise<void>,
 ) {

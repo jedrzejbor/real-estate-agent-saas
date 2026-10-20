@@ -7,6 +7,7 @@ import {
 } from './domain/provider-capabilities';
 import { Payment } from './infrastructure/typeorm/payment.entity';
 import { PaymentEvent } from './infrastructure/typeorm/payment-event.entity';
+import { Refund } from './infrastructure/typeorm/refund.entity';
 import { PaymentRepository } from './infrastructure/typeorm/payment.repository';
 import { RenewalRepository } from './infrastructure/typeorm/renewal.repository';
 import { SubscriptionRenewal } from './infrastructure/typeorm/subscription-renewal.entity';
@@ -26,7 +27,7 @@ import { RECURRING_GATEWAY, RecurringGateway } from './ports/recurring-gateway.p
 
 /** Configuration is validated at startup; gateway bindings remain opt-in. */
 @Module({
-  imports: [ConfigModule, TypeOrmModule.forFeature([Payment, PaymentEvent, Subscription, SubscriptionRenewal])],
+  imports: [ConfigModule, TypeOrmModule.forFeature([Payment, PaymentEvent, Refund, Subscription, SubscriptionRenewal])],
   providers: [
     { provide: TpayJwsVerifier, useFactory: () => new TpayJwsVerifier() },
     PaymentRepository,
