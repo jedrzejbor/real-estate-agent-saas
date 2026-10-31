@@ -40,6 +40,8 @@ import {
   type ListingPaymentGateway,
 } from './listing-payment-gateway.port';
 import { ListingOrdersController } from './listing-orders.controller';
+import { ListingRefundsService } from './listing-refunds.service';
+import { RefundAdminGuard } from './refund-admin.guard';
 import { ListingOrdersService } from './listing-orders.service';
 import { ListingPaymentEventsService } from './listing-payment-events.service';
 import { ListingPaymentReconciliationScheduler } from './listing-payment-reconciliation.scheduler';
@@ -103,6 +105,8 @@ const LISTING_COMMERCE_ENTITIES = [
     AdminListingPromotionsService,
     ListingQuotesService,
     ListingOrdersService,
+    ListingRefundsService,
+    RefundAdminGuard,
     ListingCheckoutSessionsService,
     ListingCommerceTelemetryService,
     ListingEntitlementsService,

@@ -1,5 +1,7 @@
 # Manualne testy płatności PodAdresem
 
+PAY-032: [protokół lokalny](test-runs/2026-10-20-pay-032-local.md) potwierdza testami API wymóg jawnego uprawnienia administratora oraz trwały zapis aktora zwrotu. Ręczny MT-015 pozostaje **Blocked** bez opłaconej transakcji Sandbox; endpoint nie jest samoobsługowy ani dostępny w UI.
+
 PAY-031: [protokół lokalny](test-runs/2026-10-20-pay-031-local.md) opisuje trwałą intencję zwrotu, blokadę duplikatu po restarcie i odczyt statusu operatora w izolowanej bazie. MT-015 i widok historii zamówienia pozostają **Blocked**: brak opłaconej transakcji Sandbox, publiczny checkout jest wyłączony, a akcja zwrotu w UI nie istnieje.
 
 PAY-030: [protokół lokalny](test-runs/2026-10-19-pay-030-local.md) potwierdza mapowanie żądania zwrotu w testach automatycznych. MT-015 jest **Blocked**: znana transakcja Sandbox ma status oczekujący, a publiczny checkout jest wyłączony. Adapter nie ma jeszcze trwałego rekordu zwrotu; wynik `unknown` blokuje ponowienie tylko w bieżącym procesie. Nie uruchamiaj zwrotu na prawdziwych środkach ani nie traktuj tego jako gotowego procesu administracyjnego.
@@ -481,22 +483,22 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 
 **ID:** MT-015  
 **Name:** Zwrot płatności  
-**Purpose:** Sprawdzić bezpieczny refund i korektę zamówienia.  
+**Purpose:** Sprawdzić autoryzowane zlecenie zwrotu, trwałą intencję i brak podwójnego żądania do operatora.
 **Prerequisites:** Opłacona testowa płatność sandbox; konto administratora i zwykłego użytkownika.
 
-Od PAY-031 backend zapisuje trwały rekord `Refund` przed żądaniem operatora, ale nadal nie ma akcji zwrotu w UI ani zatwierdzonej polityki korekty zamówienia/uprawnień. Poniższych kroków aplikacyjnych nie oznaczaj jako Pass, dopóki nie powstanie pełny proces. Gdy nie ma opłaconej transakcji Sandbox, wynik jest **Blocked** i nie należy tworzyć dodatkowej płatności tylko dla tego testu.
+Od PAY-032 dostępny jest kontrolowany endpoint administracyjny; nie ma akcji zwrotu w UI ani zatwierdzonej polityki korekty zamówienia/uprawnień. Użyj tylko przygotowanego narzędzia testowego i opłaconej transakcji Sandbox. Gdy takiej płatności nie ma, wynik wykonania zwrotu jest **Blocked**; nie twórz dodatkowej płatności tylko dla testu.
 
 **Steps:**
 
-1. Jako administrator otwórz opłacone zamówienie i wybierz zwrot.
-2. Potwierdź kwotę i wykonaj zwrot.
-3. Sprawdź wynik w panelu PodAdresem oraz Tpay Sandbox.
-4. Spróbuj powtórzyć identyczny zwrot.
-5. Jako zwykły użytkownik sprawdź, że akcja jest niedostępna.
+1. Potwierdź w Sandbox opłaconą transakcję i odpowiadający jej lokalny `paymentId` oraz zamówienie. Nie używaj istniejącej transakcji oczekującej.
+2. Jako administrator z jawnym uprawnieniem `listing_commerce:manage_refunds`, przez przygotowane narzędzie wyślij `POST /api/listing-orders/:orderId/refunds` z lokalnym `paymentId`, unikatowym `intentKey`, `kind` (`full` albo `partial`) i `amountMinor` w groszach. Nie wysyłaj danych karty.
+3. Sprawdź lokalny status `Refund`, zapis identyfikatora administratora, historię zamówienia i wynik w panelu Tpay. Przyjęty POST oznacza `pending`, nie zakończony zwrot.
+4. Ponów dokładnie to samo żądanie, również po restarcie testowego API. Sprawdź, że identyfikator zwrotu jest ten sam i operator nie dostał drugiego POST. Sprawdź osobno niepoprawną kwotę i obcy `paymentId`.
+5. Powtórz żądanie jako zwykły użytkownik, administrator bez jawnego uprawnienia i bez sesji. Sprawdź odpowiednio odmowę 403/401 oraz brak nowego `Refund` i żądania do Tpay. Potwierdź, że wyłączony checkout i używane flagi nie otwierają zakupu.
 
-**Expected result:** Docelowo zwrot jest widoczny raz, ponowienie nie oddaje pieniędzy drugi raz; rola bez uprawnień nie wykona zwrotu. Na etapie PAY-031 ta sama intencja nie wysyła drugiego POST także po restarcie; `unknown` bez zweryfikowanego wyniku blokuje kolejne żądanie. Zaakceptowany POST pozostaje `pending`; dopiero zgodny odczyt statusu operatora może potwierdzić zakończenie.
+**Expected result:** Administrator z jawnym uprawnieniem może zlecić zwrot testowy. Pozostałe role i administrator bez uprawnienia nie mogą. Ta sama intencja nie wysyła drugiego POST także po restarcie; `unknown` bez zweryfikowanego wyniku blokuje kolejne żądanie. Zaakceptowany POST pozostaje `pending`; dopiero zgodny odczyt statusu operatora może potwierdzić zakończenie. Uprawnienie ogłoszenia i status zamówienia nie zmieniają się automatycznie.
 
-**Database state:** PAY-031 zapisuje jeden `Refund` na unikatową intencję i rezerwuje kwotę w groszach przed POST. Suma aktywnych zwrotów nie przekracza opłaconej kwoty. `Payment`, zamówienie i uprawnienie nie są automatycznie zmieniane; korekta wymaga osobnej decyzji produktu. Stan bazy sprawdza developer; tester ocenia przede wszystkim widok aplikacji.
+**Database state:** Jeden `Refund` na unikatową intencję z `requested_by_user_id` pierwszego uprawnionego administratora. Kwota rezerwowana jest w groszach przed POST; suma aktywnych zwrotów nie przekracza opłaconej kwoty. `Payment`, zamówienie i uprawnienie nie są automatycznie zmieniane; korekta wymaga osobnej decyzji produktu. Stan bazy sprawdza developer; historia zwrotu nie ma jeszcze widoku w UI.
 
 **Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______.
 

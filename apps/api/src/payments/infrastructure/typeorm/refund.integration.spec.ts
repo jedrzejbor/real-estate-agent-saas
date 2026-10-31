@@ -23,6 +23,7 @@ describeDatabase('PAY-031 durable refund intents on isolated PostgreSQL', () => 
   });
   const paymentMigration = readFileSync(resolve(__dirname, '../../../../migrations/20261011_payments.sql'), 'utf8');
   const refundMigration = readFileSync(resolve(__dirname, '../../../../migrations/20261020_refunds.sql'), 'utf8');
+  const actorMigration = readFileSync(resolve(__dirname, '../../../../migrations/20261020_refund_actor.sql'), 'utf8');
   const migrationBody = refundMigration.replace(/^BEGIN;\s*$/m, '').replace(/^COMMIT;\s*$/m, '');
   const service = new PaymentService();
   let ownsSchema = false;
@@ -83,6 +84,7 @@ describeDatabase('PAY-031 durable refund intents on isolated PostgreSQL', () => 
     const [{ name }] = await dataSource.query("SELECT to_regclass('public.refunds') AS name");
     expect(name).toBeNull();
     await dataSource.query(refundMigration);
+    await dataSource.query(actorMigration);
   });
 
   it('deduplicates an intent and reserves multiple partial refunds without over-refunding', async () => {

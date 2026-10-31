@@ -15,6 +15,7 @@ describe('admin permissions migration', () => {
       'listing_commerce:manage_promotions',
       'listing_commerce:manage_grants',
       'listing_commerce:manage_adjustments',
+      'listing_commerce:manage_refunds',
     ]);
     expect(migration).toContain('add column if not exists admin_permissions');
     expect(migration).toContain('text[] null');

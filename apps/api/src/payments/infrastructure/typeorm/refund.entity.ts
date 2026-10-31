@@ -22,6 +22,9 @@ export class Refund {
   @JoinColumn({ name: 'payment_id' })
   payment: Payment;
 
+  @Column({ type: 'uuid', name: 'requested_by_user_id', nullable: true })
+  requestedByUserId: string | null;
+
   @Column({ type: 'varchar', length: 128, name: 'intent_key' })
   intentKey: string;
 

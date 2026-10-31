@@ -20,6 +20,7 @@ const ACTIVE_LISTING_PAYMENT_STATUSES = ['created', 'pending', 'unknown'] as con
 
 export interface RequestRefundInput {
   paymentId: PaymentId;
+  actorUserId?: string;
   intentKey: string;
   kind: 'full' | 'partial';
   amountMinor: number;
@@ -91,6 +92,7 @@ export class PaymentService {
       }
       const refund = await manager.save(Refund, manager.create(Refund, {
         paymentId: payment.id,
+        requestedByUserId: input.actorUserId ?? null,
         intentKey: input.intentKey,
         kind: input.kind,
         amountMinor,

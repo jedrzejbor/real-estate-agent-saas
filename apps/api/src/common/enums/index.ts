@@ -16,6 +16,7 @@ export enum AdminPermission {
   LISTING_COMMERCE_MANAGE_PROMOTIONS = 'listing_commerce:manage_promotions',
   LISTING_COMMERCE_MANAGE_GRANTS = 'listing_commerce:manage_grants',
   LISTING_COMMERCE_MANAGE_ADJUSTMENTS = 'listing_commerce:manage_adjustments',
+  LISTING_COMMERCE_MANAGE_REFUNDS = 'listing_commerce:manage_refunds',
 }
 
 export enum AgencyPlan {
