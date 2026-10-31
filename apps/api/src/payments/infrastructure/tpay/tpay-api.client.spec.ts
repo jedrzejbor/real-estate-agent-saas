@@ -102,6 +102,119 @@ describe('PAY-016 Tpay OAuth client', () => {
   });
 });
 
+describe('PAY-030 Tpay refund request', () => {
+  const transactionId = '01PAY030TRANSACTION';
+  const refundResponse = {
+    result: 'success', transactionId,
+    refundsList: [{ refundId: 'rf_PAY030', status: 'pending', amount: 12.34, currency: 'PLN' }],
+  };
+  const makeClient = (refund: Response) => {
+    const fetcher = jest.fn()
+      .mockResolvedValueOnce(ok('unit-access-token'))
+      .mockResolvedValueOnce(refund);
+    return { client: new TpayApiClient(config, fetcher), fetcher };
+  };
+  const reply = (status: number, payload: unknown): Response => ({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => payload,
+  } as Response);
+
+  it('sends full {} and partial decimal PLN exactly and maps an accepted request to pending', async () => {
+    const full = makeClient(reply(200, refundResponse));
+    await expect(full.client.requestRefund({ transactionId, kind: 'full', amountMinor: 1234 }))
+      .resolves.toEqual({ status: 'pending', providerRefundId: 'rf_PAY030' });
+    expect(full.fetcher.mock.calls[1][0]).toBe(`https://openapi.sandbox.tpay.com/transactions/${transactionId}/refunds`);
+    expect(full.fetcher.mock.calls[1][1]).toMatchObject({
+      method: 'POST', body: '{}',
+      headers: { Authorization: 'Bearer unit-access-token', 'Content-Type': 'application/json' },
+    });
+
+    const partial = makeClient(reply(200, refundResponse));
+    await expect(partial.client.requestRefund({ transactionId, kind: 'partial', amountMinor: 1234 }))
+      .resolves.toEqual({ status: 'pending', providerRefundId: 'rf_PAY030' });
+    expect(partial.fetcher.mock.calls[1][1].body).toBe('{"amount":12.34}');
+    expect(partial.fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('separates definite 4xx from uncertain 5xx and ambiguous 200 without another POST', async () => {
+    const bad = makeClient(reply(400, { result: 'failed' }));
+    await expect(bad.client.requestRefund({ transactionId, kind: 'partial', amountMinor: 1234 }))
+      .resolves.toEqual({ status: 'rejected', httpStatus: 400 });
+    const server = makeClient(reply(503, { result: 'failed' }));
+    await expect(server.client.requestRefund({ transactionId, kind: 'partial', amountMinor: 1234 }))
+      .resolves.toEqual({ status: 'unknown', reason: 'provider_error', httpStatus: 503 });
+    const malformed = makeClient(reply(200, { result: 'success', transactionId: 'other', refundsList: [] }));
+    await expect(malformed.client.requestRefund({ transactionId, kind: 'full', amountMinor: 1234 }))
+      .resolves.toEqual({ status: 'unknown', reason: 'invalid_response' });
+    expect(bad.fetcher).toHaveBeenCalledTimes(2);
+    expect(server.fetcher).toHaveBeenCalledTimes(2);
+    expect(malformed.fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps timeout unknown and sends only one POST', async () => {
+    jest.useFakeTimers();
+    try {
+      const fetcher = jest.fn()
+        .mockResolvedValueOnce(ok('unit-access-token'))
+        .mockImplementationOnce((_url: string, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => reject(new Error('hidden-test-data')));
+        }));
+      const client = new TpayApiClient(config, fetcher);
+      const result = client.requestRefund({ transactionId, kind: 'partial', amountMinor: 1234 });
+      await jest.advanceTimersByTimeAsync(5_000);
+      await expect(result).resolves.toEqual({ status: 'unknown', reason: 'timeout' });
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('keeps a broken connection unknown and does not retry the POST', async () => {
+    const fetcher = jest.fn()
+      .mockResolvedValueOnce(ok('unit-access-token'))
+      .mockRejectedValueOnce(new Error('private transport detail'));
+    const client = new TpayApiClient(config, fetcher);
+    await expect(client.requestRefund({ transactionId, kind: 'partial', amountMinor: 1 }))
+      .resolves.toEqual({ status: 'unknown', reason: 'network' });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('PAY-031 refund status lookup', () => {
+  const refundId = 'rf_PAY031';
+  const response = (payload: unknown): Response => ({
+    ok: true, status: 200, json: async () => payload,
+  } as Response);
+
+  it.each([
+    ['new', 'pending'], ['processed', 'pending'], ['hold', 'pending'],
+    ['done', 'confirmed'], ['BLIK_processed', 'confirmed'], ['cancel', 'failed'],
+  ])('maps %s to %s only for a matching refund, amount and currency', async (providerStatus, expected) => {
+    const fetcher = jest.fn()
+      .mockResolvedValueOnce(ok())
+      .mockResolvedValueOnce(response({ result: 'success', refundId, status: providerStatus, amount: 12.34, currency: 'PLN' }));
+    const client = new TpayApiClient(config, fetcher);
+    await expect(client.getRefundStatus(refundId)).resolves.toEqual({
+      status: expected, refundId, amountMinor: 1234, currency: 'PLN',
+    });
+    expect(fetcher.mock.calls[1][0]).toBe(`https://openapi.sandbox.tpay.com/refunds/${refundId}`);
+    expect(fetcher.mock.calls[1][1].method).toBe('GET');
+  });
+
+  it('leaves mismatched and unreadable responses unknown', async () => {
+    for (const payload of [
+      { result: 'success', refundId: 'foreign', status: 'done', amount: 12.34, currency: 'PLN' },
+      { result: 'success', refundId, status: 'done', amount: 12.34, currency: 'EUR' },
+      { result: 'success', refundId, status: 'surprise', amount: 12.34, currency: 'PLN' },
+    ]) {
+      const fetcher = jest.fn().mockResolvedValueOnce(ok()).mockResolvedValueOnce(response(payload));
+      await expect(new TpayApiClient(config, fetcher).getRefundStatus(refundId))
+        .resolves.toEqual({ status: 'unknown', refundId });
+    }
+  });
+});
+
 async function startOAuthServer(
   handle: (request: IncomingMessage, response: ServerResponse) => Promise<void>,
 ) {

@@ -9,6 +9,8 @@ import {
 import { ListingEntitlementsService } from './listing-entitlements.service';
 import { ListingPaymentEventsService } from './listing-payment-events.service';
 import { ListingPromotionsService } from './listing-promotions.service';
+import { PaymentService, type VerifiedPaymentNotification } from '../payments/application/payment.service';
+import { Payment } from '../payments/infrastructure/typeorm/payment.entity';
 import {
   ListingOrderStatus,
   ListingPaymentAttemptStatus,
@@ -561,5 +563,124 @@ describe('ListingPaymentEventsService', () => {
       orderId: succeededEvent.orderId,
       orderStatus: ListingOrderStatus.PAID,
     });
+  });
+});
+
+describe('PAY-029 negative Tpay listing notifications', () => {
+  const paymentId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const attemptId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
+  function harness() {
+    const order = buildOrder({
+      status: ListingOrderStatus.PENDING_PAYMENT,
+      provider: 'tpay',
+      providerCheckoutSessionId: 'TR-LATE',
+      providerPaymentId: null,
+      paidAt: null,
+    });
+    const attempt = buildAttempt({
+      id: attemptId,
+      orderId: order.id,
+      provider: 'tpay',
+      providerCheckoutSessionId: 'TR-LATE',
+      providerPaymentId: null,
+      status: ListingPaymentAttemptStatus.PENDING,
+    });
+    const payment: Payment = Object.assign(new Payment(), {
+      id: paymentId,
+      kind: 'listing',
+      orderId: order.id,
+      correlationId: attempt.id,
+      provider: 'tpay',
+      providerTransactionId: '01PAY029',
+      providerTitle: 'TR-LATE',
+      amountMinor: 4900,
+      currency: 'PLN',
+      status: 'pending',
+      confirmedAt: null,
+      failureCode: null,
+    });
+    const manager = {
+      queryRunner: { isTransactionActive: true },
+      findOne: jest.fn(async (entity: unknown) => {
+        if (entity === Payment) return payment;
+        if (entity === ListingOrder) return order;
+        if (entity === ListingPaymentAttempt) return attempt;
+        return null;
+      }),
+      find: jest.fn(async (entity: unknown) =>
+        entity === ListingOrderItem ? order.items : []),
+      save: jest.fn(async (_entity: unknown, value: object) => value),
+    };
+    const granted = new Set<string>();
+    const entitlements = {
+      fulfillPaidOrderInTransaction: jest.fn(async () => {
+        granted.add(order.items![0].id);
+      }),
+    };
+    const promotions = { applyReservedDiscountsForPaidOrder: jest.fn().mockResolvedValue([]) };
+    const service = new ListingPaymentEventsService(
+      {} as DataSource,
+      entitlements as unknown as ListingEntitlementsService,
+      promotions as unknown as ListingPromotionsService,
+      undefined,
+      new PaymentService(),
+    );
+    const notification: VerifiedPaymentNotification = {
+      provider: 'tpay', eventType: 'transaction',
+      providerReference: 'TR-LATE', providerStatus: 'confirmed',
+      merchantReference: '123', correlationReference: paymentId,
+      amountMinor: 4900, paidMinor: 4900, currency: 'PLN',
+    };
+    return { service, manager, order, attempt, payment, granted, entitlements, notification };
+  }
+
+  it('rejects an unknown local Payment ID without granting an entitlement', async () => {
+    const test = harness();
+    test.manager.findOne.mockImplementation(async (entity: unknown) =>
+      entity === Payment ? null : test.order);
+    await expect(test.service.fulfillVerifiedTpayListingInTransaction(
+      test.manager as unknown as EntityManager,
+      { ...test.notification, correlationReference: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' },
+      '123',
+    )).rejects.toThrow('Płatność ogłoszenia nie istnieje');
+    expect(test.entitlements.fulfillPaidOrderInTransaction).not.toHaveBeenCalled();
+    expect(test.manager.save).not.toHaveBeenCalled();
+    expect(test.order.status).toBe(ListingOrderStatus.PENDING_PAYMENT);
+  });
+
+  it('rejects an insufficient paid amount without changing payment or order', async () => {
+    const test = harness();
+    await expect(test.service.fulfillVerifiedTpayListingInTransaction(
+      test.manager as unknown as EntityManager,
+      { ...test.notification, paidMinor: 4800 },
+      '123',
+    )).rejects.toThrow('Powiadomienie nie odpowiada płatności');
+    expect(test.payment.status).toBe('pending');
+    expect(test.order.status).toBe(ListingOrderStatus.PENDING_PAYMENT);
+    expect(test.entitlements.fulfillPaidOrderInTransaction).not.toHaveBeenCalled();
+  });
+
+  it('confirms delayed verified success and replay without a second order transition', async () => {
+    const test = harness();
+    test.payment.status = 'failed';
+    test.payment.failureCode = 'provider_failed';
+    test.order.status = ListingOrderStatus.PAYMENT_FAILED;
+    test.attempt.status = ListingPaymentAttemptStatus.FAILED;
+
+    await test.service.fulfillVerifiedTpayListingInTransaction(
+      test.manager as unknown as EntityManager, test.notification, '123',
+    );
+    await test.service.fulfillVerifiedTpayListingInTransaction(
+      test.manager as unknown as EntityManager, test.notification, '123',
+    );
+
+    expect(test.payment.status).toBe('confirmed');
+    expect(test.payment.failureCode).toBeNull();
+    expect(test.order.status).toBe(ListingOrderStatus.PAID);
+    expect(test.attempt.status).toBe(ListingPaymentAttemptStatus.SUCCEEDED);
+    expect(test.granted.size).toBe(1);
+    expect(test.manager.save.mock.calls.filter(([entity]) => entity === ListingOrder)).toHaveLength(1);
+    expect(test.manager.save.mock.calls.filter(([entity]) => entity === Payment)).toHaveLength(1);
   });
 });

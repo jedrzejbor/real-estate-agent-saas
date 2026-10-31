@@ -1,6 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { EntityManager, In } from 'typeorm';
+import { DataSource, EntityManager, In } from 'typeorm';
 import {
   canTransitionPaymentStatus,
   newPaymentId,
@@ -9,12 +9,22 @@ import {
 } from '../domain/payment.types';
 import { Payment } from '../infrastructure/typeorm/payment.entity';
 import { PaymentEvent } from '../infrastructure/typeorm/payment-event.entity';
+import { Refund } from '../infrastructure/typeorm/refund.entity';
 import type {
   CreatePaymentResult,
+  RefundGateway,
   VerifiedProviderPaymentStatus,
 } from '../ports/payment-gateway.port';
 
 const ACTIVE_LISTING_PAYMENT_STATUSES = ['created', 'pending', 'unknown'] as const;
+
+export interface RequestRefundInput {
+  paymentId: PaymentId;
+  actorUserId?: string;
+  intentKey: string;
+  kind: 'full' | 'partial';
+  amountMinor: number;
+}
 
 export interface PrepareListingPaymentInput {
   orderId: string;
@@ -41,6 +51,130 @@ export interface VerifiedPaymentNotification {
 
 @Injectable()
 export class PaymentService {
+  /** Reserve funds and a unique intent before any provider POST. No public caller is wired yet. */
+  async requestRefund(
+    dataSource: DataSource,
+    gateway: RefundGateway,
+    input: RequestRefundInput,
+  ): Promise<Refund> {
+    const amountMinor = toPaymentAmountMinor(input.amountMinor);
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(input.intentKey) ||
+        (input.kind !== 'full' && input.kind !== 'partial')) {
+      throw new ConflictException('Nieprawidłowa intencja zwrotu');
+    }
+
+    const prepared = await dataSource.transaction(async (manager) => {
+      const payment = await this.lockPayment(manager, input.paymentId);
+      if (!payment.providerTransactionId || payment.currency !== 'PLN' ||
+          !['confirmed', 'partially_refunded'].includes(payment.status)) {
+        throw new ConflictException('Płatność nie jest gotowa do zwrotu');
+      }
+      const existing = await manager.findOne(Refund, {
+        where: { paymentId: payment.id, intentKey: input.intentKey },
+      });
+      if (existing) {
+        if (existing.amountMinor !== amountMinor || existing.kind !== input.kind) {
+          throw new ConflictException('Intencja zwrotu ma inne parametry');
+        }
+        return { refund: existing, shouldSend: false };
+      }
+      const refunds = await manager.find(Refund, { where: { paymentId: payment.id } });
+      if (refunds.some((refund) => refund.status === 'requesting' || refund.status === 'unknown')) {
+        throw new ConflictException('Wynik wcześniejszego zwrotu wymaga uzgodnienia');
+      }
+      const reserved = refunds.filter((refund) => refund.status !== 'failed')
+        .reduce((sum, refund) => sum + refund.amountMinor, 0);
+      if (input.kind === 'full' && (refunds.length > 0 || amountMinor !== payment.amountMinor)) {
+        throw new ConflictException('Pełny zwrot wymaga całej płatności bez wcześniejszych zwrotów');
+      }
+      if (reserved + amountMinor > payment.amountMinor) {
+        throw new ConflictException('Kwota zwrotów przekracza płatność');
+      }
+      const refund = await manager.save(Refund, manager.create(Refund, {
+        paymentId: payment.id,
+        requestedByUserId: input.actorUserId ?? null,
+        intentKey: input.intentKey,
+        kind: input.kind,
+        amountMinor,
+        currency: 'PLN',
+        provider: payment.provider,
+        providerTransactionId: payment.providerTransactionId,
+        providerRefundId: null,
+        status: 'requesting',
+        confirmedAt: null,
+      }));
+      return { refund, shouldSend: true };
+    });
+    if (!prepared.shouldSend) return prepared.refund;
+
+    // A crash after commit leaves 'requesting' unresolved; restart never repeats the POST.
+    let outcome: Awaited<ReturnType<RefundGateway['refundPayment']>>;
+    try {
+      outcome = await gateway.refundPayment({
+        paymentId: input.paymentId,
+        providerTransactionId: prepared.refund.providerTransactionId,
+        kind: input.kind,
+        amountMinor,
+        currency: 'PLN',
+      });
+    } catch {
+      outcome = { status: 'unknown', providerRefundId: null };
+    }
+    return dataSource.transaction(async (manager) => {
+      const refund = await this.lockRefund(manager, prepared.refund.id);
+      if (refund.status !== 'requesting') return refund;
+      refund.providerRefundId = outcome.providerRefundId;
+      // POST acceptance alone never confirms that funds reached the payer.
+      refund.status = outcome.status === 'failed' ? 'failed'
+        : outcome.status === 'pending' ? 'pending' : 'unknown';
+      return manager.save(Refund, refund);
+    });
+  }
+
+  /** Reconcile a known provider refund ID; unknown/mismatched reads change nothing. */
+  async reconcileRefund(
+    dataSource: DataSource,
+    gateway: RefundGateway,
+    refundId: string,
+  ): Promise<Refund> {
+    const current = await dataSource.getRepository(Refund).findOneByOrFail({ id: refundId });
+    if (!current.providerRefundId || current.status === 'confirmed' || current.status === 'failed') {
+      return current;
+    }
+    const status = await gateway.getRefundStatus(current.providerRefundId);
+    const resolved = await dataSource.transaction(async (manager) => {
+      const refund = await this.lockRefund(manager, refundId);
+      if (refund.status === 'confirmed' || refund.status === 'failed' ||
+          status.status === 'unknown' ||
+          status.providerRefundId !== refund.providerRefundId ||
+          status.amountMinor !== refund.amountMinor || status.currency !== refund.currency) return refund;
+      if (status.status === 'confirmed') {
+        refund.status = 'confirmed';
+        refund.confirmedAt = new Date();
+      } else if (status.status === 'failed') {
+        refund.status = 'failed';
+      } else {
+        refund.status = 'pending';
+      }
+      return manager.save(Refund, refund);
+    });
+    if (status.status !== 'unknown' && resolved.status !== 'unknown' &&
+        status.providerRefundId === resolved.providerRefundId &&
+        status.amountMinor === resolved.amountMinor && status.currency === resolved.currency) {
+      gateway.releaseRefundUncertainty?.(resolved.paymentId);
+    }
+    return resolved;
+  }
+
+  private async lockRefund(manager: EntityManager, refundId: string): Promise<Refund> {
+    if (!manager.queryRunner?.isTransactionActive) throw new Error('Refund update requires a transaction');
+    const refund = await manager.findOne(Refund, {
+      where: { id: refundId }, lock: { mode: 'pessimistic_write' },
+    });
+    if (!refund) throw new ConflictException('Zwrot nie istnieje');
+    return refund;
+  }
+
   /** Persist the verified receipt; callers must complete required effects before commit. */
   async recordVerifiedNotification(
     manager: EntityManager,

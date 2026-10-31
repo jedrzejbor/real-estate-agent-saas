@@ -138,9 +138,53 @@ describe('PAY-022 Tpay one-time adapter', () => {
     expect(client.createTransaction).toHaveBeenCalledTimes(3);
   });
 
-  it('does not expose a refund implementation before its task', async () => {
-    const adapter = new TpayPaymentAdapter({} as TpayApiClient);
-    await expect(adapter.refundPayment({ paymentId: request.paymentId, amountMinor: request.amountMinor, currency: 'PLN' }))
-      .rejects.toThrow('Tpay refunds are not implemented in PAY-022');
+});
+
+describe('PAY-030 Tpay refund adapter', () => {
+  const refund = {
+    paymentId: request.paymentId,
+    providerTransactionId: '01PAY030TRANSACTION',
+    kind: 'partial' as const,
+    amountMinor: toPaymentAmountMinor(1234),
+    currency: 'PLN' as const,
+  };
+
+  it('maps an accepted request to pending without changing entitlements', async () => {
+    const client = { requestRefund: jest.fn().mockResolvedValue({ status: 'pending', providerRefundId: 'rf_123' }) } as unknown as TpayApiClient;
+    const adapter = new TpayPaymentAdapter(client);
+    await expect(adapter.refundPayment(refund)).resolves.toEqual({ status: 'pending', providerRefundId: 'rf_123' });
+    expect(client.requestRefund).toHaveBeenCalledWith({
+      transactionId: refund.providerTransactionId,
+      kind: refund.kind,
+      amountMinor: refund.amountMinor,
+    });
+  });
+
+  it('maps a definite 4xx rejection to failed', async () => {
+    const client = { requestRefund: jest.fn().mockResolvedValue({ status: 'rejected', httpStatus: 400 }) } as unknown as TpayApiClient;
+    await expect(new TpayPaymentAdapter(client).refundPayment(refund))
+      .resolves.toEqual({ status: 'failed', providerRefundId: null });
+  });
+
+  it('holds an unknown outcome and does not submit another refund in this process', async () => {
+    const client = { requestRefund: jest.fn().mockResolvedValue({ status: 'unknown', reason: 'timeout' }) } as unknown as TpayApiClient;
+    const adapter = new TpayPaymentAdapter(client);
+    await expect(adapter.refundPayment(refund)).resolves.toEqual({ status: 'unknown', providerRefundId: null });
+    await expect(adapter.refundPayment(refund)).resolves.toEqual({ status: 'unknown', providerRefundId: null });
+    expect(client.requestRefund).toHaveBeenCalledTimes(1);
+  });
+
+  it('shares one in-flight request for concurrent calls', async () => {
+    let resolve!: (value: unknown) => void;
+    const client = { requestRefund: jest.fn().mockImplementation(() => new Promise((done) => { resolve = done; })) } as unknown as TpayApiClient;
+    const adapter = new TpayPaymentAdapter(client);
+    const first = adapter.refundPayment(refund);
+    const second = adapter.refundPayment(refund);
+    resolve({ status: 'unknown', reason: 'network' });
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      { status: 'unknown', providerRefundId: null },
+      { status: 'unknown', providerRefundId: null },
+    ]);
+    expect(client.requestRefund).toHaveBeenCalledTimes(1);
   });
 });

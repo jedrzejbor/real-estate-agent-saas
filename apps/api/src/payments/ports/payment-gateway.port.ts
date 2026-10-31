@@ -49,6 +49,8 @@ export type VerifiedProviderPaymentStatus =
 
 export interface RefundPaymentRequest {
   readonly paymentId: PaymentId;
+  readonly providerTransactionId: string;
+  readonly kind: 'full' | 'partial';
   readonly amountMinor: PaymentAmountMinor;
   readonly currency: PaymentCurrency;
 }
@@ -56,6 +58,18 @@ export interface RefundPaymentRequest {
 export interface ProviderRefundResult {
   readonly providerRefundId: string | null;
   readonly status: 'pending' | 'confirmed' | 'failed' | 'unknown';
+}
+
+export type VerifiedProviderRefundStatus =
+  | { readonly status: 'pending' | 'confirmed' | 'failed'; readonly providerRefundId: string; readonly amountMinor: PaymentAmountMinor; readonly currency: PaymentCurrency }
+  | { readonly status: 'unknown'; readonly providerRefundId: string };
+
+/** Refund status is read independently of the one-time payment status. */
+export interface RefundGateway {
+  refundPayment(input: RefundPaymentRequest): Promise<ProviderRefundResult>;
+  getRefundStatus(providerRefundId: string): Promise<VerifiedProviderRefundStatus>;
+  /** Release a process-local uncertainty guard only after a verified read resolves it. */
+  releaseRefundUncertainty?(paymentId: PaymentId): void;
 }
 
 /** One-time payment, verification and refund only. */

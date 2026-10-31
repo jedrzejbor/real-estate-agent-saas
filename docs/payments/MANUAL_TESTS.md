@@ -1,5 +1,13 @@
 # Manualne testy płatności PodAdresem
 
+PAY-032: [protokół lokalny](test-runs/2026-10-20-pay-032-local.md) potwierdza testami API wymóg jawnego uprawnienia administratora oraz trwały zapis aktora zwrotu. Ręczny MT-015 pozostaje **Blocked** bez opłaconej transakcji Sandbox; endpoint nie jest samoobsługowy ani dostępny w UI.
+
+PAY-031: [protokół lokalny](test-runs/2026-10-20-pay-031-local.md) opisuje trwałą intencję zwrotu, blokadę duplikatu po restarcie i odczyt statusu operatora w izolowanej bazie. MT-015 i widok historii zamówienia pozostają **Blocked**: brak opłaconej transakcji Sandbox, publiczny checkout jest wyłączony, a akcja zwrotu w UI nie istnieje.
+
+PAY-030: [protokół lokalny](test-runs/2026-10-19-pay-030-local.md) potwierdza mapowanie żądania zwrotu w testach automatycznych. MT-015 jest **Blocked**: znana transakcja Sandbox ma status oczekujący, a publiczny checkout jest wyłączony. Adapter nie ma jeszcze trwałego rekordu zwrotu; wynik `unknown` blokuje ponowienie tylko w bieżącym procesie. Nie uruchamiaj zwrotu na prawdziwych środkach ani nie traktuj tego jako gotowego procesu administracyjnego.
+
+PAY-029: [protokół lokalny](test-runs/2026-10-19-pay-029-local.md) opisuje negatywne testy webhooka i bezpieczne kody alertów. Ręczne MT-004, MT-005 i pełne MT-006 pozostają **Blocked** przy wyłączonym checkoutcie, niedostępnej stronie Sandbox oraz braku tabel płatności w roboczej bazie.
+
 PAY-028: [protokół lokalny](test-runs/2026-10-18-pay-028-local.md) potwierdza atomowe potwierdzenie płatności, zamówienia i uprawnienia oraz brak drugiej realizacji przy ponowionym webhooku w izolowanej bazie. MT-003 pozostaje **Blocked**: publiczny checkout jest wyłączony, strona płatności Sandbox wcześniej zwracała HTTP 403, a robocza baza nie ma tabel `payments` i `payment_events`.
 
 PAY-027: [protokół lokalny](test-runs/2026-10-17-pay-027-local.md) potwierdza unikatowy ledger i transakcyjny zapis w izolowanej bazie. Ręczne MT-005 pozostaje **Blocked**: brak bezpiecznej podpisanej notyfikacji do replay oraz oczekującej lokalnej płatności w roboczej bazie.
@@ -248,7 +256,7 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 
 **Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______.
 
-**Notes:** Przy timeout nie uznawaj płatności za failed bez sprawdzenia stanu operatora. Miejsce na numer zamówienia i uwagi: ______.
+**Notes:** Przy timeout nie uznawaj płatności za failed bez sprawdzenia stanu operatora. PAY-029: opóźniony zweryfikowany sukces musi zrealizować zamówienie najwyżej raz. Miejsce na numer zamówienia i uwagi: ______.
 
 ## MT-005 — Powtórzony webhook
 
@@ -270,14 +278,14 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 
 **Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______.
 
-**Notes:** Nie modyfikuj podpisanego body przy teście duplikatu. Miejsce na numer zamówienia i uwagi: ______.
+**Notes:** Nie modyfikuj podpisanego body przy teście duplikatu. Sprawdź bezpieczny alert przy nieznanym lokalnym Payment ID lub niezgodnej kwocie: bez surowej notyfikacji, identyfikatorów klienta i sekretów. Miejsce na numer zamówienia i uwagi: ______.
 
 ## MT-006 — Niepoprawny podpis webhooka
 
 **ID:** MT-006  
 **Name:** Niepoprawny podpis webhooka  
 **Purpose:** Sprawdzić, że fałszywa notyfikacja nie zmienia płatności.  
-**Prerequisites:** Developer przygotował fixture z błędnym JWS; istnieje oczekująca lokalna płatność testowa powiązana z transakcją sandbox; aplikacja ma endpoint Tpay odbierający webhook. Od PAY-026 endpoint jest dostępny, ale nie zapisuje zdarzeń ani nie zmienia płatności. Nie konfiguruj tego endpointu dla produkcyjnych powiadomień, dopóki trwałe przetwarzanie zdarzeń nie będzie wdrożone. Testy jednostkowe weryfikatora i kontrolera zapisuj osobno, nie jako zaliczone pełne MT-006.
+**Prerequisites:** Developer przygotował fixture z błędnym JWS; istnieje oczekująca lokalna płatność testowa powiązana z transakcją sandbox; aplikacja ma endpoint Tpay odbierający webhook. Od PAY-028 poprawna notyfikacja jest zapisywana i realizowana transakcyjnie, jeśli pasuje do płatności i zamówienia. Robocza baza musi mieć wymagane tabele; bez nich pełny test jest **Blocked**. Nie konfiguruj endpointu dla produkcyjnych powiadomień, dopóki baza i obsługa wszystkich włączonych typów nie są gotowe. Testy jednostkowe zapisuj osobno, nie jako zaliczone pełne MT-006.
 
 **Steps:**
 
@@ -286,7 +294,7 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 3. Odśwież panel i sprawdź, czy ogłoszenie nadal oczekuje.
 4. Sprawdź, czy log pokazuje odrzucenie bez sekretów.
 
-**Expected result:** Endpoint zwraca 4xx bez przekierowania; żadne ogłoszenie ani PRO nie zostaje aktywowane. Poprawnie podpisane powiadomienie ma odpowiedź HTTP 200 z dokładnym body `TRUE`, co na tym etapie potwierdza wyłącznie transport, nie rozliczenie płatności.
+**Expected result:** Błędny JWS daje 4xx bez przekierowania, bez zapisu zdarzenia i bez aktywacji ogłoszenia lub PRO. Log zawiera bezpieczny kod odrzucenia. Poprawnie podpisane powiadomienie dostaje HTTP 200 z dokładnym body `TRUE` dopiero po trwałym zapisie i wymaganej realizacji; sama poprawność podpisu nie wystarcza.
 
 **Database state:** Payment nie zmienia się na confirmed; zdarzenie może mieć bezpieczny wpis audytu. Stan bazy sprawdza developer; tester ocenia przede wszystkim widok aplikacji.
 
@@ -475,20 +483,22 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 
 **ID:** MT-015  
 **Name:** Zwrot płatności  
-**Purpose:** Sprawdzić bezpieczny refund i korektę zamówienia.  
+**Purpose:** Sprawdzić autoryzowane zlecenie zwrotu, trwałą intencję i brak podwójnego żądania do operatora.
 **Prerequisites:** Opłacona testowa płatność sandbox; konto administratora i zwykłego użytkownika.
+
+Od PAY-032 dostępny jest kontrolowany endpoint administracyjny; nie ma akcji zwrotu w UI ani zatwierdzonej polityki korekty zamówienia/uprawnień. Użyj tylko przygotowanego narzędzia testowego i opłaconej transakcji Sandbox. Gdy takiej płatności nie ma, wynik wykonania zwrotu jest **Blocked**; nie twórz dodatkowej płatności tylko dla testu.
 
 **Steps:**
 
-1. Jako administrator otwórz opłacone zamówienie i wybierz zwrot.
-2. Potwierdź kwotę i wykonaj zwrot.
-3. Sprawdź wynik w panelu PodAdresem oraz Tpay Sandbox.
-4. Spróbuj powtórzyć identyczny zwrot.
-5. Jako zwykły użytkownik sprawdź, że akcja jest niedostępna.
+1. Potwierdź w Sandbox opłaconą transakcję i odpowiadający jej lokalny `paymentId` oraz zamówienie. Nie używaj istniejącej transakcji oczekującej.
+2. Jako administrator z jawnym uprawnieniem `listing_commerce:manage_refunds`, przez przygotowane narzędzie wyślij `POST /api/listing-orders/:orderId/refunds` z lokalnym `paymentId`, unikatowym `intentKey`, `kind` (`full` albo `partial`) i `amountMinor` w groszach. Nie wysyłaj danych karty.
+3. Sprawdź lokalny status `Refund`, zapis identyfikatora administratora, historię zamówienia i wynik w panelu Tpay. Przyjęty POST oznacza `pending`, nie zakończony zwrot.
+4. Ponów dokładnie to samo żądanie, również po restarcie testowego API. Sprawdź, że identyfikator zwrotu jest ten sam i operator nie dostał drugiego POST. Sprawdź osobno niepoprawną kwotę i obcy `paymentId`.
+5. Powtórz żądanie jako zwykły użytkownik, administrator bez jawnego uprawnienia i bez sesji. Sprawdź odpowiednio odmowę 403/401 oraz brak nowego `Refund` i żądania do Tpay. Potwierdź, że wyłączony checkout i używane flagi nie otwierają zakupu.
 
-**Expected result:** Zwrot jest widoczny raz, ponowienie nie oddaje pieniędzy drugi raz; rola bez uprawnień nie wykona zwrotu.
+**Expected result:** Administrator z jawnym uprawnieniem może zlecić zwrot testowy. Pozostałe role i administrator bez uprawnienia nie mogą. Ta sama intencja nie wysyła drugiego POST także po restarcie; `unknown` bez zweryfikowanego wyniku blokuje kolejne żądanie. Zaakceptowany POST pozostaje `pending`; dopiero zgodny odczyt statusu operatora może potwierdzić zakończenie. Uprawnienie ogłoszenia i status zamówienia nie zmieniają się automatycznie.
 
-**Database state:** Jeden refund confirmed/pending zgodnie z PSP; payment refunded/partially_refunded; korekta entitlement zgodna z polityką. Stan bazy sprawdza developer; tester ocenia przede wszystkim widok aplikacji.
+**Database state:** Jeden `Refund` na unikatową intencję z `requested_by_user_id` pierwszego uprawnionego administratora. Kwota rezerwowana jest w groszach przed POST; suma aktywnych zwrotów nie przekracza opłaconej kwoty. `Payment`, zamówienie i uprawnienie nie są automatycznie zmieniane; korekta wymaga osobnej decyzji produktu. Stan bazy sprawdza developer; historia zwrotu nie ma jeszcze widoku w UI.
 
 **Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______.
 

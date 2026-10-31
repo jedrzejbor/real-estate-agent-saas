@@ -5,14 +5,19 @@ import {
   CreatePaymentResult,
   PaymentGateway,
   ProviderRefundResult,
+  RefundGateway,
   RefundPaymentRequest,
+  VerifiedProviderRefundStatus,
   VerifiedProviderPaymentStatus,
 } from '../../ports/payment-gateway.port';
 import { TpayApiClient } from './tpay-api.client';
 
 /** Infrastructure mapping only. The application layer owns persistence and entitlements. */
 @Injectable()
-export class TpayPaymentAdapter implements PaymentGateway {
+export class TpayPaymentAdapter implements PaymentGateway, RefundGateway {
+  private readonly unresolvedRefunds = new Set<string>();
+  private readonly refundInFlight = new Map<string, Promise<ProviderRefundResult>>();
+
   constructor(private readonly client: TpayApiClient) {}
 
   async createPayment(input: CreatePaymentRequest): Promise<CreatePaymentResult> {
@@ -70,7 +75,65 @@ export class TpayPaymentAdapter implements PaymentGateway {
     }
   }
 
-  async refundPayment(_input: RefundPaymentRequest): Promise<ProviderRefundResult> {
-    throw new Error('Tpay refunds are not implemented in PAY-022');
+  async refundPayment(input: RefundPaymentRequest): Promise<ProviderRefundResult> {
+    toPaymentAmountMinor(input.amountMinor);
+    if (input.currency !== 'PLN') throw new Error('Only PLN refunds are supported');
+    if (input.kind !== 'full' && input.kind !== 'partial') throw new Error('Refund kind is invalid');
+    if (!input.providerTransactionId) throw new Error('Provider transaction ID is required');
+
+    const key = input.paymentId;
+    if (this.unresolvedRefunds.has(key)) return { status: 'unknown', providerRefundId: null };
+    const running = this.refundInFlight.get(key);
+    if (running) return running;
+
+    const operation = this.executeRefund(input);
+    this.refundInFlight.set(key, operation);
+    try {
+      return await operation;
+    } finally {
+      this.refundInFlight.delete(key);
+    }
+  }
+
+  private async executeRefund(input: RefundPaymentRequest): Promise<ProviderRefundResult> {
+    try {
+      const result = await this.client.requestRefund({
+        transactionId: input.providerTransactionId,
+        kind: input.kind,
+        amountMinor: input.amountMinor,
+      });
+      if (result.status === 'pending') {
+        return { status: 'pending', providerRefundId: result.providerRefundId };
+      }
+      if (result.status === 'rejected') {
+        return { status: 'failed', providerRefundId: null };
+      }
+    } catch {
+      // Includes OAuth failure; the caller cannot safely know whether a POST was sent.
+    }
+    // PAY-031 must replace this process-local guard with a durable refund record.
+    this.unresolvedRefunds.add(input.paymentId);
+    return { status: 'unknown', providerRefundId: null };
+  }
+
+  async getRefundStatus(providerRefundId: string): Promise<VerifiedProviderRefundStatus> {
+    try {
+      const result = await this.client.getRefundStatus(providerRefundId);
+      if (result.status === 'unknown' || result.currency !== 'PLN') {
+        return { status: 'unknown', providerRefundId };
+      }
+      return {
+        status: result.status,
+        providerRefundId,
+        amountMinor: toPaymentAmountMinor(result.amountMinor),
+        currency: 'PLN',
+      };
+    } catch {
+      return { status: 'unknown', providerRefundId };
+    }
+  }
+
+  releaseRefundUncertainty(paymentId: RefundPaymentRequest['paymentId']): void {
+    this.unresolvedRefunds.delete(paymentId);
   }
 }
