@@ -1,5 +1,7 @@
 # Manualne testy płatności PodAdresem
 
+PAY-033: [protokół lokalny](test-runs/2026-10-31-pay-033-local.md) rozróżnia kartę jednorazową dostępną w Sandbox od niepotwierdzonej tokenizacji i MIT. Zapytanie do Tpay jest przygotowane, ale pozostaje niewysłane. PAY-034 nie rozpoczyna się przed potwierdzeniem warunków konta.
+
 PAY-032: [protokół lokalny](test-runs/2026-10-20-pay-032-local.md) potwierdza testami API wymóg jawnego uprawnienia administratora oraz trwały zapis aktora zwrotu. Ręczny MT-015 pozostaje **Blocked** bez opłaconej transakcji Sandbox; endpoint nie jest samoobsługowy ani dostępny w UI.
 
 PAY-031: [protokół lokalny](test-runs/2026-10-20-pay-031-local.md) opisuje trwałą intencję zwrotu, blokadę duplikatu po restarcie i odczyt statusu operatora w izolowanej bazie. MT-015 i widok historii zamówienia pozostają **Blocked**: brak opłaconej transakcji Sandbox, publiczny checkout jest wyłączony, a akcja zwrotu w UI nie istnieje.
@@ -324,12 +326,27 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 
 **Notes:** Nie zapisuj numeru karty ani CVC w repo, notatkach i zrzutach. Miejsce na numer zamówienia i uwagi: ______.
 
+## MT-033 — Potwierdzenie warunków karty recurring (PAY-033)
+
+**Cel:** Ustalić przed POC, czy tokenizacja karty i obciążenia MIT są dozwolone dla naszego konta. Ten scenariusz jest kontrolą panelu i odpowiedzi Tpay, bez płatności.
+
+1. W panelu **Sandbox** sprawdź, czy poza włączonym kanałem „Karta płatnicza” istnieje osobny status tokenizacji kart i płatności MIT/recurring. Zapisz nazwę funkcji, stan i datę; nie kopiuj identyfikatorów ani sekretów. Jeśli panel tego nie pokazuje, wpisz „niepotwierdzone w panelu”.
+2. Gdy właściciel zdecyduje o rozpoczęciu weryfikacji, wysyła przygotowane [zapytanie PAY-033](../tpay-integration-plan.md) do Tpay. Zanotuj datę i kanał kontaktu, bez Client ID/Secret lub tokenów.
+3. Po odpowiedzi Tpay sprawdź oddzielnie Sandbox i produkcję: możliwość pierwszej zapłaty z `save=1`, późniejsze MIT z `cof=recurring`, wymagane pola i referencje, notyfikacje, ewentualne 3DS/SCA oraz kroki aktywacji. Oznacz każde pytanie jako potwierdzone, odmówione lub nadal otwarte.
+4. Porównaj wynik z [dokumentacją tokenizacji Tpay](https://docs-api.tpay.com/en/tokenization/). Samo `available=true` dla kanału karty i opis API nie zaliczają kontroli aktywacji konta.
+
+Eksport „Płatności kartami” z 1 listopada ma nagłówek `COF`, lecz nie ma żadnego rekordu. Taki pusty raport również nie zalicza kontroli aktywacji tokenizacji/MIT.
+
+**Oczekiwany wynik:** Jednoznaczne potwierdzenie uprawnień Sandbox i kompletnego przebiegu MIT albo jawny blocker przed PAY-034. Produkcyjne warunki są zapisane oddzielnie. Nie powstaje płatność, token, subskrypcja ani zmiana w bazie.
+
+**Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; panel Sandbox: ______; zapytanie wysłane: ______; odpowiedź Tpay: ______; warunki produkcyjne: ______.
+
 ## MT-008 — Autoryzacja karty recurring
 
 **ID:** MT-008  
 **Name:** Autoryzacja karty recurring  
 **Purpose:** Sprawdzić pierwszą płatność, 3DS i bezpieczny token.  
-**Prerequisites:** PAY-033 potwierdzony; sandbox pozwala na tokenizację; konto testowe bez PRO.
+**Prerequisites:** MT-033 potwierdził tokenizację i MIT dla konta Sandbox oraz prawidłowy wariant API; konto testowe bez PRO. Dopóki MT-033 jest Blocked, nie wykonuj MT-008.
 
 **Steps:**
 
