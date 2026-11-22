@@ -1,5 +1,7 @@
 # Manualne testy płatności PodAdresem
 
+[Niezależna kontrola płatności jednorazowych z 4 listopada](test-runs/2026-11-04-one-time-sandbox-readiness.md): poprawiono wybór certyfikatów JWS dla Sandbox i produkcji. MT-002 (otwarcie strony), MT-003 i pełne MT-006 pozostają Blocked do przygotowania środowiska i ręcznego przebiegu.
+
 PAY-033: [protokół lokalny](test-runs/2026-10-31-pay-033-local.md) rozróżnia kartę jednorazową dostępną w Sandbox od niepotwierdzonej tokenizacji i MIT. Zapytanie do Tpay jest przygotowane, ale pozostaje niewysłane. PAY-034 nie rozpoczyna się przed potwierdzeniem warunków konta.
 
 PAY-032: [protokół lokalny](test-runs/2026-10-20-pay-032-local.md) potwierdza testami API wymóg jawnego uprawnienia administratora oraz trwały zapis aktora zwrotu. Ręczny MT-015 pozostaje **Blocked** bez opłaconej transakcji Sandbox; endpoint nie jest samoobsługowy ani dostępny w UI.
@@ -303,6 +305,8 @@ Ten etap sprawdza dostęp do konta Sandbox. Właściciel dodatkowo wykonał już
 **Pass/Fail:** [ ] Pass  [ ] Fail  [ ] Blocked; data: ______; tester: ______.
 
 **Notes:** Nie wysyłaj prawdziwych sekretów w narzędziu testowym. Miejsce na numer zamówienia i uwagi: ______.
+
+**Kontrola środowiska przed ponowieniem MT-006:** przy konfiguracji `PAYMENT_PROVIDER=tpay` w Sandbox weryfikator musi używać wyłącznie certyfikatu podpisującego i CA z `secure.sandbox.tpay.com`; podpis wskazujący host produkcyjny lub obcy host ma zostać odrzucony bez pobierania wskazanego URL. Testy lokalnych fixture potwierdzają wybór środowiska, ale pełny scenariusz z notyfikacją Tpay pozostaje Blocked bez lokalnej płatności i tabel.
 
 ## MT-007 — Udana płatność kartą za ogłoszenie
 

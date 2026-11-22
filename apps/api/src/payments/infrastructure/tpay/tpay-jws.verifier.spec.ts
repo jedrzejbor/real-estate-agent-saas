@@ -7,6 +7,8 @@ import {
   createTpayJwsCertificateSource,
   TPAY_JWS_CA_URL,
   TPAY_JWS_CERT_URL,
+  TPAY_SANDBOX_JWS_CA_URL,
+  TPAY_SANDBOX_JWS_CERT_URL,
   TpayJwsVerifier,
 } from './tpay-jws.verifier';
 
@@ -77,6 +79,18 @@ describe('TpayJwsVerifier', () => {
     expect(await verifier(otherCa).verify(sign(body), body)).toBe(false);
   });
 
+  it('accepts only the selected environment signing host', async () => {
+    const source = async () => ({ signingCertificate, trustedCa });
+    const sandbox = new TpayJwsVerifier(source, Date.now, 'sandbox');
+    const production = new TpayJwsVerifier(source, Date.now, 'production');
+    const sandboxSignature = sign(body, { alg: 'RS256', x5u: TPAY_SANDBOX_JWS_CERT_URL });
+    const productionSignature = sign(body);
+
+    expect(await sandbox.verify(sandboxSignature, body)).toBe(true);
+    expect(await sandbox.verify(productionSignature, body)).toBe(false);
+    expect(await production.verify(sandboxSignature, body)).toBe(false);
+  });
+
   it('rejects disallowed x5u URLs without consulting the certificate source', async () => {
     const source = jest.fn(async () => ({ signingCertificate, trustedCa }));
     const check = new TpayJwsVerifier(source);
@@ -113,5 +127,15 @@ describe('TpayJwsVerifier', () => {
     await source();
     expect(fetcher.mock.calls.map(([url]) => url)).toEqual([TPAY_JWS_CERT_URL, TPAY_JWS_CA_URL]);
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('loads only the fixed Sandbox certificate URLs', async () => {
+    const fetcher = jest.fn(async (url: string) =>
+      new Response(url === TPAY_SANDBOX_JWS_CERT_URL ? signingCertificate : trustedCa, { status: 200 }));
+    const source = createTpayJwsCertificateSource(fetcher as unknown as typeof fetch, Date.now, 'sandbox');
+    await source();
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+      TPAY_SANDBOX_JWS_CERT_URL, TPAY_SANDBOX_JWS_CA_URL,
+    ]);
   });
 });

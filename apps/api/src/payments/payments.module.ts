@@ -29,7 +29,16 @@ import { RECURRING_GATEWAY, RecurringGateway } from './ports/recurring-gateway.p
 @Module({
   imports: [ConfigModule, TypeOrmModule.forFeature([Payment, PaymentEvent, Refund, Subscription, SubscriptionRenewal])],
   providers: [
-    { provide: TpayJwsVerifier, useFactory: () => new TpayJwsVerifier() },
+    {
+      provide: TpayJwsVerifier,
+      inject: [PAYMENT_CONFIGURATION],
+      useFactory: (configuration: PaymentConfiguration) =>
+        new TpayJwsVerifier(
+          undefined,
+          Date.now,
+          configuration.provider === 'tpay' ? configuration.tpay.environment : 'production',
+        ),
+    },
     PaymentRepository,
     PaymentService,
     SubscriptionRepository,

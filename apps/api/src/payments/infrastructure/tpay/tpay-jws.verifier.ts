@@ -1,8 +1,17 @@
 import { createVerify, X509Certificate, constants } from 'node:crypto';
 
-// Tpay's documented signing certificate and CA. Never use x5u as a fetch URL.
+// Tpay's documented signing certificates and CAs. Never use x5u as a fetch URL.
 export const TPAY_JWS_CERT_URL = 'https://secure.tpay.com/x509/notifications-jws.pem';
 export const TPAY_JWS_CA_URL = 'https://secure.tpay.com/x509/tpay-jws-root.pem';
+export const TPAY_SANDBOX_JWS_CERT_URL = 'https://secure.sandbox.tpay.com/x509/notifications-jws.pem';
+export const TPAY_SANDBOX_JWS_CA_URL = 'https://secure.sandbox.tpay.com/x509/tpay-jws-root.pem';
+
+export type TpayJwsEnvironment = 'sandbox' | 'production';
+
+const CERTIFICATE_URLS = {
+  sandbox: { signing: TPAY_SANDBOX_JWS_CERT_URL, ca: TPAY_SANDBOX_JWS_CA_URL },
+  production: { signing: TPAY_JWS_CERT_URL, ca: TPAY_JWS_CA_URL },
+} as const;
 
 const CERTIFICATE_TIMEOUT_MS = 5_000;
 const CERTIFICATE_CACHE_MS = 60 * 60 * 1_000;
@@ -20,7 +29,9 @@ export type TpayJwsCertificateSource = () => Promise<TpayJwsCertificates>;
 export function createTpayJwsCertificateSource(
   fetcher: typeof fetch = fetch,
   now: () => number = Date.now,
+  environment: TpayJwsEnvironment = 'production',
 ): TpayJwsCertificateSource {
+  const urls = CERTIFICATE_URLS[environment];
   let cached: { value: TpayJwsCertificates; validUntil: number } | null = null;
   let inFlight: Promise<TpayJwsCertificates> | null = null;
 
@@ -29,8 +40,8 @@ export function createTpayJwsCertificateSource(
     if (inFlight) return inFlight;
 
     const request = Promise.all([
-      fetchCertificate(TPAY_JWS_CERT_URL, fetcher),
-      fetchCertificate(TPAY_JWS_CA_URL, fetcher),
+      fetchCertificate(urls.signing, fetcher),
+      fetchCertificate(urls.ca, fetcher),
     ]).then(([signingCertificate, trustedCa]) => {
       const value = { signingCertificate, trustedCa };
       cached = { value, validUntil: now() + CERTIFICATE_CACHE_MS };
@@ -80,10 +91,15 @@ async function fetchCertificate(url: string, fetcher: typeof fetch): Promise<str
 
 /** Verifies detached compact JWS over the exact bytes received by Nest rawBody. */
 export class TpayJwsVerifier {
+  private readonly certificates: TpayJwsCertificateSource;
+
   constructor(
-    private readonly certificates: TpayJwsCertificateSource = createTpayJwsCertificateSource(),
+    certificates?: TpayJwsCertificateSource,
     private readonly now: () => number = Date.now,
-  ) {}
+    private readonly environment: TpayJwsEnvironment = 'production',
+  ) {
+    this.certificates = certificates ?? createTpayJwsCertificateSource(fetch, now, environment);
+  }
 
   async verify(jws: string | undefined, rawBody: Buffer | undefined): Promise<boolean> {
     if (!Buffer.isBuffer(rawBody) || typeof jws !== 'string' || jws.length > MAX_JWS_LENGTH) {
@@ -103,7 +119,7 @@ export class TpayJwsVerifier {
     } catch {
       return false;
     }
-    if (!isSupportedHeader(header)) return false;
+    if (!isSupportedHeader(header, this.environment)) return false;
 
     try {
       const { signingCertificate, trustedCa } = await this.certificates();
@@ -133,10 +149,10 @@ export class TpayJwsVerifier {
   }
 }
 
-function isSupportedHeader(value: unknown): value is { alg: 'RS256'; x5u: typeof TPAY_JWS_CERT_URL } {
+function isSupportedHeader(value: unknown, environment: TpayJwsEnvironment): value is { alg: 'RS256'; x5u: string } {
   return typeof value === 'object' && value !== null && !Array.isArray(value) &&
     'alg' in value && value.alg === 'RS256' &&
-    'x5u' in value && value.x5u === TPAY_JWS_CERT_URL &&
+    'x5u' in value && value.x5u === CERTIFICATE_URLS[environment].signing &&
     !('crit' in value) && !('b64' in value);
 }
 
